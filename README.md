@@ -10,7 +10,7 @@ Idea + Repo → Triage → Research → Plan ↔ Review → Code → QA → Secu
 
 ADLC is an open framework for orchestrating AI coding agents through a structured pipeline. Give it a feature description and a codebase — it researches your repo, writes a technical plan, generates code with TDD, runs security review across 5 OWASP domains, and delivers a single pull request for your review.
 
-Works with **Claude Code**, **Codex**, **Cursor**, or any CLI-based coding agent.
+Works with **Claude Code**, **Codex (OpenAI)**, **Cursor**, **Antigravity (Google)**, **Factory**, or any CLI-based coding agent.
 
 ---
 
@@ -40,62 +40,74 @@ Inspired by [Attractor](https://github.com/strongdm/attractor), [Stripe Minions]
 
 ## Quick Start
 
-### Option 1: Use Individual Agents (Simplest)
-
-Pick the agents you need. Each one works standalone.
+### One-Command Setup
 
 ```bash
-# Research your codebase before building
-claude --model claude-opus-4-6 -p "$(cat agents/researcher.md)" \
-  "Analyze this repo for building a notifications feature. REPO: /path/to/repo"
+git clone https://github.com/bigeasyfreeman/adlc.git
+cd adlc
 
-# Generate a Build Brief from a PRD
-claude --model claude-opus-4-6 -p "$(cat agents/planner.md)" \
-  "PRD: $(cat my-prd.md) RESEARCH: [paste research output]"
-
-# Review a Build Brief with the Eval Council
-claude --model claude-opus-4-6 -p "$(cat agents/plan-reviewer.md)" \
-  "BRIEF: [paste brief]"
+# Install for your platform
+./setup.sh claude ~/my-project       # Claude Code
+./setup.sh codex ~/my-project        # Codex (OpenAI)
+./setup.sh cursor ~/my-project       # Cursor
+./setup.sh antigravity ~/my-project  # Antigravity (Google)
+./setup.sh factory ~/my-project      # Factory
+./setup.sh all ~/my-project          # All platforms
 ```
 
-### Option 2: Inject Skills into Your IDE Agent
+### What Gets Installed
 
-Copy skills into your Claude Code or Codex project:
+| Platform | Skills Location | Agents Location | Instructions File |
+|----------|----------------|-----------------|-------------------|
+| **Claude Code** | `.claude/skills/` | `.claude/agents/` | `CLAUDE.md` |
+| **Codex** | `.agents/skills/` | *(via AGENTS.md)* | `AGENTS.md` |
+| **Cursor** | `.cursor/rules/*.mdc` | `.cursor/rules/*.mdc` | *(in rules)* |
+| **Antigravity** | `.agent/skills/` | `agents.md` | *(in agents.md)* |
+| **Factory** | `.factory/docs/` | `.factory/droids/` | `AGENTS.md` |
 
+### Platform-Specific Usage
+
+**Claude Code** — Agents are subagents with preloaded skills:
 ```bash
-# Claude Code
-cp -r skills/ /your/project/.claude/skills/
-
-# Codex
-cp -r skills/ /your/project/.codex/skills/
+# Skills + agents auto-discovered. Just use them:
+claude "Research this codebase for building notifications"  # → researcher agent
+claude "Create a Build Brief from this PRD"                 # → planner agent
 ```
 
-Now your coding agent has access to 22 specialized skills — codebase research, TDD enforcement, security review, debugging protocols, and more.
+**Codex** — Skills in `.agents/skills/`, instructions in `AGENTS.md`:
+```bash
+codex "Analyze this repo and create a technical plan for notifications"
+```
 
-### Option 3: Run the Full Pipeline
+**Cursor** — Skills installed as `.mdc` rule files with semantic activation:
+```
+# In Cursor chat, skills activate automatically based on context
+# Or reference directly: @adlc-codebase-research @adlc-eval-council
+```
+
+**Antigravity** — Skills in `.agent/skills/`, personas in `agents.md`:
+```
+# Agents defined with Goals/Traits/Constraints
+# Skills activate via semantic description matching
+```
+
+**Factory** — Agents as droids, skills as approved docs:
+```bash
+# Droids available as subagent types
+# Skills loaded from .factory/docs/
+```
+
+### Manual Setup (Any Platform)
+
+If you prefer to install manually, just copy the skills you want:
 
 ```bash
-# 1. Triage — classify the task
-claude --model claude-sonnet-4-6 -p "$(cat agents/triage.md)" < my-prd.md
+# Copy all skills
+cp -r skills/ /your/project/.claude/skills/   # or .agents/skills/, .agent/skills/, etc.
 
-# 2. Research — deep codebase analysis
-claude --model claude-opus-4-6 -p "$(cat agents/researcher.md)" \
-  "PRD: $(cat my-prd.md) REPO: /path/to/repo"
-
-# 3. Plan — generate Build Brief
-claude --model claude-opus-4-6 -p "$(cat agents/planner.md)" \
-  "PRD: $(cat my-prd.md) RESEARCH: [output from step 2]"
-
-# 4. Review — Eval Council validates the plan
-claude --model claude-opus-4-6 -p "$(cat agents/plan-reviewer.md)" \
-  "BRIEF: [output from step 3]"
-
-# 5. Code — execute tasks (fan out across tasks)
-claude --model claude-sonnet-4-6 -p "$(cat agents/coder.md)" \
-  "TASK: [each task from the brief]"
-
-# 6. Review + Fix + Security + QA → PR
-# Continue through the pipeline...
+# Or copy individual skills
+cp -r skills/codebase-research/ /your/project/.claude/skills/codebase-research/
+cp -r skills/eval-council/ /your/project/.claude/skills/eval-council/
 ```
 
 See [examples/](examples/) for a complete example PRD and walkthrough.
@@ -262,29 +274,36 @@ vi WORKFLOW.md
 
 ### Use Different Models
 
-Edit agent YAML frontmatter:
+Agent frontmatter uses platform-native model identifiers:
 
+| Platform | Fast Model | Deep Reasoning Model |
+|----------|-----------|---------------------|
+| **Claude Code** | `model: sonnet` | `model: opus` |
+| **Codex** | `model: o4-mini` | `model: o3` |
+| **Antigravity** | `model: gemini-2.5-flash` | `model: gemini-2.5-pro` |
+| **Factory** | `model: inherit` | `model: claude-opus-4-6` |
+| **Cursor** | *(set in UI)* | *(set in UI)* |
+
+Edit agent YAML frontmatter to change:
 ```yaml
 ---
-model: claude-sonnet-4-6    # Fast + cheap for coding
-# model: claude-opus-4-6    # Deep reasoning for planning
-# model: o3                  # OpenAI for Codex backend
+model: sonnet    # Claude Code: sonnet (fast) or opus (deep)
+# model: o3      # Codex: o3 (deep) or o4-mini (fast)
 ---
 ```
 
-### Use Different Backends
+### Cross-Platform Compatibility
 
-ADLC is backend-agnostic. Configure in `WORKFLOW.md`:
+Agent configs use a universal frontmatter format that maps to each platform:
 
-```yaml
-backends:
-  claude:
-    command: "claude --model {{ model }} -p {{ prompt | shellquote }}"
-  codex:
-    command: "codex --model {{ model }} --quiet --prompt {{ prompt | shellquote }}"
-  cursor:
-    command: "cursor-cli --prompt {{ prompt | shellquote }}"
-```
+| Frontmatter Field | Claude Code | Codex | Factory | Antigravity | Cursor |
+|-------------------|-------------|-------|---------|-------------|--------|
+| `name` | Agent name | — | Droid name | — | — |
+| `description` | Trigger text | Trigger text | UI description | Trigger text | `description:` |
+| `model` | Model ID | Model ID | Model ID | Model ID | *(UI setting)* |
+| `tools` | Tool list | — | Tool category | — | — |
+| `skills` | Preloaded skills | — | — | — | — |
+| `labels` | Output routing | — | — | — | — |
 
 ---
 
@@ -292,12 +311,13 @@ backends:
 
 ```
 adlc/
-├── WORKFLOW.dot              # Pipeline DAG (Graphviz)
-├── WORKFLOW.md               # Configuration
+├── setup.sh                  # One-command installer for any platform
+├── WORKFLOW.dot               # Pipeline DAG (Graphviz)
+├── WORKFLOW.md                # Configuration
 ├── README.md
 ├── CONTRIBUTING.md
-├── LICENSE                   # MIT
-├── agents/                   # 9 thin agent configs
+├── LICENSE                    # MIT
+├── agents/                    # 9 thin agent configs (universal format)
 │   ├── triage.md
 │   ├── researcher.md
 │   ├── planner.md
@@ -307,22 +327,24 @@ adlc/
 │   ├── fixer.md
 │   ├── security-reviewer.md
 │   └── pr-preparer.md
-├── skills/                   # 22 injectable skills
+├── skills/                    # 22 injectable skills
 │   ├── manifest.json
 │   ├── codebase-research/
 │   ├── eval-council/
 │   ├── codegen-context/
-│   ├── tdd-enforcement/
-│   ├── systematic-debugging/
-│   └── ... (17 more)
+│   └── ... (19 more)
+├── platform/                  # Platform-specific instruction files
+│   ├── CLAUDE.md              # Claude Code project instructions
+│   ├── AGENTS.md              # Codex / Factory instructions
+│   └── agents-antigravity.md  # Antigravity persona definitions
 ├── examples/
 │   ├── README.md
 │   └── example-prd.md
 ├── docs/
-│   ├── archive/              # Original monolithic specs (reference)
-│   ├── schemas/              # 12 JSON Schema contracts
-│   ├── specs/                # 15 runtime behavior specs
-│   └── tests/                # 7 test specifications
+│   ├── archive/               # Original monolithic specs (reference)
+│   ├── schemas/               # 12 JSON Schema contracts
+│   ├── specs/                 # 15 runtime behavior specs
+│   └── tests/                 # 7 test specifications
 └── scripts/
     └── md2pdf.py
 ```
