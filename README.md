@@ -167,7 +167,7 @@ This framework wouldn't exist without the work and thinking of people who influe
 
 - [**Daniel Miessler**](https://github.com/danielmiessler) for PAI and the patterns behind structured agent evaluation, skill composition, and first-principles thinking tools that run through the Eval Council and skill architecture.
 - [**Pedram Amini**](https://github.com/pedramamini) for showing what disciplined security engineering looks like when you actually build the systems, not just talk about them. The 5-domain OWASP security review chain exists because of that influence.
-- [**Jason Haddix**](https://github.com/haasonsaas) for relentlessly pushing what's possible with AI agents in practice and demonstrating that the right abstractions make complex systems simple. That philosophy is in every design decision here.
+- [**Jonathan Haas**](https://github.com/haasonsaas) for relentlessly pushing what's possible with AI agents in practice and demonstrating that the right abstractions make complex systems simple. That philosophy is in every design decision here.
 
 ## License
 
