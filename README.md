@@ -165,9 +165,9 @@ adlc/
 
 This framework wouldn't exist without the work and thinking of people who influenced it without knowing they did:
 
-- [**Daniel Miessler**](https://github.com/danielmiessler) for PAI and the patterns behind structured agent evaluation, skill composition, and first-principles thinking tools that run through the Eval Council and skill architecture.
-- [**Pedram Amini**](https://github.com/pedramamini) for showing what disciplined security engineering looks like when you actually build the systems, not just talk about them. The 5-domain OWASP security review chain exists because of that influence.
-- [**Jonathan Haas**](https://github.com/haasonsaas) for relentlessly pushing what's possible with AI agents in practice and demonstrating that the right abstractions make complex systems simple. That philosophy is in every design decision here.
+- [**Daniel Miessler**](https://github.com/danielmiessler) for providing a frame that everyone in the AI ecosystem has benefitted from. From prompting to learning to scaling and building systems, you have pushed this industry for the better.
+- [**Pedram Amini**](https://github.com/pedramamini) for [Maestro](https://github.com/Maestro-AI/maestro) and the way it showed people what orchestrated AI agents could actually look like in practice. That work helped a lot of us see the path.
+- [**Jonathan Haas**](https://github.com/haasonsaas) for being relentless about what is possible with AI, pushing me every day, and figuring out the right abstractions. You see the line through the fog as if you are the investor, the owner, the product manager, and the consumer.
 
 ## License
 
