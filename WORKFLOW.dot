@@ -1,0 +1,121 @@
+// ADLC Pipeline — Directed Acyclic Graph
+// Node shapes: box=agent, component=fan-out, hexagon=human-gate, diamond=conditional, rect(dashed)=tool
+// Edge labels drive routing: lgtm, revise, escalate, pass, fail
+
+digraph ADLC {
+    rankdir=TB
+    fontname="Helvetica"
+    node [fontname="Helvetica", fontsize=11]
+    edge [fontname="Helvetica", fontsize=10]
+
+    // ─── Start / Exit ───
+    start [shape=Mdiamond, label="Start\n(PRD + Repo)"]
+    done  [shape=Msquare, label="Done"]
+    escalate [shape=Msquare, label="Escalate\nto Human", style=filled, fillcolor="#ffcccc"]
+
+    // ─── Triage (lightweight LLM pass) ───
+    triage [shape=diamond, label="Triage\nClassify & Route"]
+
+    // ─── Research (agentic) ───
+    research [shape=box, label="Research\nCodebase Analysis", style=filled, fillcolor="#e6f3ff"]
+
+    // ─── Planning (agentic) ───
+    plan [shape=box, label="Plan\nBuild Brief", style=filled, fillcolor="#e6f3ff"]
+
+    // ─── Plan Review (agentic — Eval Council) ───
+    plan_review [shape=box, label="Plan Review\nEval Council", style=filled, fillcolor="#fff3e6"]
+
+    // ─── Scaffold + Tests (deterministic tool nodes) ───
+    scaffold [shape=box, label="Scaffold\nArchitecture Stubs", style="dashed,filled", fillcolor="#f0f0f0"]
+    gen_tests [shape=box, label="Generate Tests\nG/W/T → Failing Tests", style="dashed,filled", fillcolor="#f0f0f0"]
+
+    // ─── Context Assembly (deterministic) ───
+    context_assembly [shape=box, label="Context Assembly\nPer-Task Prompts", style="dashed,filled", fillcolor="#f0f0f0"]
+
+    // ─── Coding (fan-out: parallel task execution) ───
+    code [shape=component, label="Fan-Out: Code\nParallel Tasks\n(TDD per task)"]
+
+    // ─── Code Review (agentic) ───
+    code_review [shape=box, label="Code Review", style=filled, fillcolor="#fff3e6"]
+
+    // ─── Security Review (agentic) ───
+    security [shape=box, label="Security Review\n5 OWASP Domains", style=filled, fillcolor="#ffe6e6"]
+
+    // ─── QA + CI (deterministic tool node) ───
+    qa [shape=box, label="QA + CI\nRun Tests & Lint", style="dashed,filled", fillcolor="#f0f0f0"]
+
+    // ─── PR Assembly (agentic) ───
+    pr_prep [shape=box, label="PR Prep\nAssemble Package", style=filled, fillcolor="#e6f3ff"]
+
+    // ─── Human Gate ───
+    engineer_review [shape=hexagon, label="Engineer\nReview", style=filled, fillcolor="#e6ffe6"]
+
+    // ─── Fix Node (recovery loop) ───
+    fixer [shape=box, label="Fix\nDiagnose & Repair", style=filled, fillcolor="#fff0f0"]
+
+    // ═══ Edges ═══
+
+    // Entry
+    start -> triage
+
+    // Triage routing
+    triage -> research     [label="proceed"]
+    triage -> escalate     [label="unclear"]
+
+    // Research → Plan
+    research -> plan
+
+    // Plan ↔ Review loop
+    plan -> plan_review
+    plan_review -> plan          [label="revise", style=dashed, color="#cc6600"]
+    plan_review -> scaffold      [label="lgtm"]
+    plan_review -> escalate      [label="blocked", color="red"]
+
+    // Scaffold → Tests → Context Assembly (deterministic chain)
+    scaffold -> gen_tests
+    gen_tests -> context_assembly
+
+    // Context Assembly → Fan-Out Code
+    context_assembly -> code
+
+    // Code → Review loop
+    code -> code_review
+    code_review -> fixer         [label="revise", style=dashed, color="#cc6600"]
+    code_review -> security      [label="lgtm"]
+    fixer -> code                [label="fixed"]
+    fixer -> escalate            [label="stuck", color="red"]
+
+    // Security gate
+    security -> qa               [label="pass"]
+    security -> fixer            [label="fail", color="red"]
+
+    // QA gate
+    qa -> pr_prep                [label="pass"]
+    qa -> fixer                  [label="fail", style=dashed, color="#cc6600"]
+
+    // PR → Human Gate
+    pr_prep -> engineer_review
+
+    // Human gate routing
+    engineer_review -> done      [label="approve", color="green"]
+    engineer_review -> plan      [label="revise", style=dashed, color="#cc6600"]
+
+    // ─── Subgraph: Legend ───
+    subgraph cluster_legend {
+        label="Legend"
+        style=filled
+        fillcolor="#fafafa"
+        fontsize=10
+
+        l_agent [shape=box, label="Agent Node\n(LLM)", style=filled, fillcolor="#e6f3ff", fontsize=9]
+        l_tool  [shape=box, label="Tool Node\n(Deterministic)", style="dashed,filled", fillcolor="#f0f0f0", fontsize=9]
+        l_fan   [shape=component, label="Fan-Out\n(Parallel)", fontsize=9]
+        l_gate  [shape=hexagon, label="Human Gate", style=filled, fillcolor="#e6ffe6", fontsize=9]
+        l_cond  [shape=diamond, label="Conditional", fontsize=9]
+
+        l_agent -> l_tool [style=invis]
+        l_tool -> l_fan [style=invis]
+        l_fan -> l_gate [style=invis]
+        l_gate -> l_cond [style=invis]
+    }
+}

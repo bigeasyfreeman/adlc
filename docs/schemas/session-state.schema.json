@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/session-state.schema.json",
+  "title": "ADLC Session State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "session_id",
+    "status",
+    "conversation_history",
+    "token_usage",
+    "permission_decisions",
+    "configuration",
+    "workflow_state_ref",
+    "updated_at"
+  ],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brief_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "completed",
+        "failed"
+      ]
+    },
+    "conversation_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "content",
+          "timestamp"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant",
+              "tool"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "token_usage": {
+      "$ref": "./token-budget.schema.json"
+    },
+    "permission_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tool",
+          "action",
+          "tier",
+          "decision",
+          "decided_by",
+          "timestamp",
+          "rationale"
+        ],
+        "properties": {
+          "tool": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "unrestricted",
+              "requires_approval",
+              "requires_escalation"
+            ]
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "denied"
+            ]
+          },
+          "decided_by": {
+            "type": "string",
+            "enum": [
+              "human",
+              "machine",
+              "policy"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rationale": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "budget",
+        "skill_config"
+      ],
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "budget": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "skill_config": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "workflow_state_ref": {
+      "type": "string",
+      "description": "Reference to workflow-state document ID"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
