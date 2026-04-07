@@ -1,52 +1,31 @@
-# ADLC — Agentic Development Lifecycle
+# ADLC
 
-> Ship features with AI agents. From idea to pull request — one engineer review.
+Agentic Development Lifecycle.
 
-**9 agents. 22 skills. One DAG pipeline.**
+9 agents. 22 skills. One pipeline. You describe a feature, point it at a repo, and it does the rest: researches the codebase, writes a technical plan, generates code with TDD, runs security review across 5 OWASP domains, and hands you a single PR to review.
 
 ```
-Idea + Repo → Triage → Research → Plan ↔ Review → Code → QA → Security → PR → You ✅
+Idea + Repo → Triage → Research → Plan ↔ Review → Code → QA → Security → PR → You
 ```
 
-ADLC is an open framework for orchestrating AI coding agents through a structured pipeline. Give it a feature description and a codebase — it researches your repo, writes a technical plan, generates code with TDD, runs security review across 5 OWASP domains, and delivers a single pull request for your review.
+Works with Claude Code, Codex, Cursor, Antigravity, and Factory.
 
-Works with **Claude Code**, **Codex (OpenAI)**, **Cursor**, **Antigravity (Google)**, **Factory**, or any CLI-based coding agent.
+## The Problem
 
----
+AI coding right now is either "write me a function" (one-shot, no context, no tests) or manually copy-pasting context between agents and hoping they figure out the right order.
 
-## Why ADLC?
+ADLC is the structured version. The pipeline is a directed graph. Agents emit labels (`lgtm`, `revise`, `escalate`) and edges route to the next step. Independent tasks fan out in parallel. Lint, test, and scaffold nodes burn zero LLM tokens. Every review loop has a hard cap so agents don't spin forever.
 
-Most AI coding workflows are either:
-- **Too simple**: "Write me a function" → one-shot, no context, no tests
-- **Too manual**: Copy-paste context between agents, manually orchestrate steps
+The whole thing is markdown files. Skills are injectable knowledge packets. Agents are thin configs (~100 lines each). You can swap any piece without touching the rest.
 
-ADLC fills the gap: a **structured, repeatable pipeline** that handles the full lifecycle — research, planning, coding, review, security, QA — with agents doing the work and you making the decisions.
+Built on patterns from [Attractor](https://github.com/strongdm/attractor), [Stripe Minions](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents), and [Vajra](https://github.com/zamana-inc/vajra).
 
-**What makes it different:**
-
-| Feature | How It Works |
-|---------|-------------|
-| **DAG pipeline** | Workflow defined as a visual graph (Graphviz DOT), not a monolithic prompt |
-| **Label-based routing** | Agents emit `lgtm`/`revise`/`escalate` → edges route to the next step |
-| **Fan-out parallelism** | Independent coding tasks execute simultaneously |
-| **Deterministic + agentic** | Lint, test, scaffold nodes cost zero LLM tokens |
-| **Bounded iteration** | Every review loop has a hard cap — no runaway agent cycles |
-| **Injectable skills** | 22 markdown skill files encode domain expertise, injected per agent |
-| **One human gate** | Machine gates (Eval Council, security, QA) run before you review |
-
-Inspired by [Attractor](https://github.com/strongdm/attractor), [Stripe Minions](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents), and [Vajra](https://github.com/zamana-inc/vajra).
-
----
-
-## Quick Start
-
-### One-Command Setup
+## Setup
 
 ```bash
 git clone https://github.com/bigeasyfreeman/adlc.git
 cd adlc
 
-# Install for your platform
 ./setup.sh claude ~/my-project       # Claude Code
 ./setup.sh codex ~/my-project        # Codex (OpenAI)
 ./setup.sh cursor ~/my-project       # Cursor
@@ -55,68 +34,22 @@ cd adlc
 ./setup.sh all ~/my-project          # All platforms
 ```
 
-### What Gets Installed
+| Platform | Skills | Agents | Instructions |
+|----------|--------|--------|-------------|
+| Claude Code | `.claude/skills/` | `.claude/agents/` | `CLAUDE.md` |
+| Codex | `.agents/skills/` | via `AGENTS.md` | `AGENTS.md` |
+| Cursor | `.cursor/rules/*.mdc` | `.cursor/rules/*.mdc` | in rules |
+| Antigravity | `.agent/skills/` | `agents.md` | in agents.md |
+| Factory | `.factory/docs/` | `.factory/droids/` | `AGENTS.md` |
 
-| Platform | Skills Location | Agents Location | Instructions File |
-|----------|----------------|-----------------|-------------------|
-| **Claude Code** | `.claude/skills/` | `.claude/agents/` | `CLAUDE.md` |
-| **Codex** | `.agents/skills/` | *(via AGENTS.md)* | `AGENTS.md` |
-| **Cursor** | `.cursor/rules/*.mdc` | `.cursor/rules/*.mdc` | *(in rules)* |
-| **Antigravity** | `.agent/skills/` | `agents.md` | *(in agents.md)* |
-| **Factory** | `.factory/docs/` | `.factory/droids/` | `AGENTS.md` |
-
-### Platform-Specific Usage
-
-**Claude Code** — Agents are subagents with preloaded skills:
+Or just copy the skills you want manually:
 ```bash
-# Skills + agents auto-discovered. Just use them:
-claude "Research this codebase for building notifications"  # → researcher agent
-claude "Create a Build Brief from this PRD"                 # → planner agent
+cp -r skills/codebase-research/ ~/my-project/.claude/skills/codebase-research/
 ```
 
-**Codex** — Skills in `.agents/skills/`, instructions in `AGENTS.md`:
-```bash
-codex "Analyze this repo and create a technical plan for notifications"
-```
+## Pipeline
 
-**Cursor** — Skills installed as `.mdc` rule files with semantic activation:
-```
-# In Cursor chat, skills activate automatically based on context
-# Or reference directly: @adlc-codebase-research @adlc-eval-council
-```
-
-**Antigravity** — Skills in `.agent/skills/`, personas in `agents.md`:
-```
-# Agents defined with Goals/Traits/Constraints
-# Skills activate via semantic description matching
-```
-
-**Factory** — Agents as droids, skills as approved docs:
-```bash
-# Droids available as subagent types
-# Skills loaded from .factory/docs/
-```
-
-### Manual Setup (Any Platform)
-
-If you prefer to install manually, just copy the skills you want:
-
-```bash
-# Copy all skills
-cp -r skills/ /your/project/.claude/skills/   # or .agents/skills/, .agent/skills/, etc.
-
-# Or copy individual skills
-cp -r skills/codebase-research/ /your/project/.claude/skills/codebase-research/
-cp -r skills/eval-council/ /your/project/.claude/skills/eval-council/
-```
-
-See [examples/](examples/) for a complete example PRD and walkthrough.
-
----
-
-## Pipeline Architecture
-
-The pipeline is defined in [`WORKFLOW.dot`](WORKFLOW.dot) — a Graphviz directed graph.
+Defined in [`WORKFLOW.dot`](WORKFLOW.dot). Visualize it: `dot -Tpng WORKFLOW.dot -o pipeline.png`
 
 ```
 start → triage → research → plan ↔ plan_review → scaffold → gen_tests →
@@ -124,254 +57,122 @@ start → triage → research → plan ↔ plan_review → scaffold → gen_test
   pr_prep → engineer_review → done
 ```
 
-### Node Types
+**Agent nodes** (blue) are LLM calls with injected skills. **Tool nodes** (dashed) are shell commands that cost nothing. **Fan-out** runs coding tasks in parallel. **Human gate** is your review at the end.
 
-| Shape | Type | Example | LLM Cost |
-|-------|------|---------|----------|
-| Agent (blue) | LLM call with skills | Research, Plan, Code | Yes |
-| Tool (dashed) | Shell command | Scaffold, Test, Lint | None |
-| Fan-Out | Parallel execution | Code tasks | Yes (per task) |
-| Human Gate | Your review | Engineer Review | None |
-| Conditional | Route by classification | Triage | Minimal |
+Agents output structured labels. Edges match them:
 
-### Routing Labels
+| Label | What it means |
+|-------|--------------|
+| `lgtm` | Approved. Next node. |
+| `revise` | Back to sender with findings. |
+| `escalate` | Human needed. |
+| `pass`/`fail` | Deterministic gate. |
+| `fixed`/`stuck` | Fixer result. |
 
-Agents emit structured labels. Edges match labels to route.
-
-| Label | Meaning |
-|-------|---------|
-| `lgtm` | Approved — proceed to next node |
-| `revise` | Send back with findings |
-| `escalate` | Needs human judgment |
-| `pass` / `fail` | Deterministic gate result |
-| `fixed` / `stuck` | Fixer outcome |
-
-### Iteration Limits
-
-| Loop | Max | On Exhaustion |
-|------|-----|---------------|
-| Plan ↔ Review | 3 | Escalate |
-| Code ↔ Review | 3 | Escalate |
-| Fixer | 2 | Escalate |
-| QA retry | 2 | Escalate |
-
-Visualize the pipeline:
-```bash
-dot -Tpng WORKFLOW.dot -o pipeline.png
-```
-
----
+Every loop has a cap. Plan review: 3 rounds max. Code review: 3. Fixer: 2. QA: 2. Hit the cap and it escalates to you instead of spinning.
 
 ## Agents
 
-9 thin configs. Each is ~100 lines: model + prompt + skills + output labels.
-
-| Agent | Purpose | Model | Skills |
-|-------|---------|-------|--------|
-| **triage** | Classify input, route or escalate | Sonnet | — |
-| **researcher** | Deep codebase analysis + PRD cross-reference | Opus | codebase-research, grafana |
-| **planner** | PRD → Build Brief (spec/plan/tasks) | Opus | codegen-context, architecture |
+| Agent | What it does | Model | Skills loaded |
+|-------|-------------|-------|---------------|
+| **triage** | Classifies the input, routes or escalates | Sonnet | none |
+| **researcher** | Deep codebase analysis, PRD cross-reference | Opus | codebase-research, grafana |
+| **planner** | PRD + research into Build Brief (spec/plan/tasks) | Opus | codegen-context, architecture |
 | **plan-reviewer** | 6-persona Eval Council | Opus | eval-council |
-| **coder** | TDD per task: RED → GREEN → REFACTOR | Sonnet | tdd-enforcement, debugging |
-| **code-reviewer** | Code quality and correctness | Opus | eval-council |
-| **fixer** | 4-phase root cause diagnosis | Sonnet | systematic-debugging |
+| **coder** | TDD per task. RED, GREEN, REFACTOR. | Sonnet | tdd-enforcement, debugging |
+| **code-reviewer** | Quality + correctness check | Opus | eval-council |
+| **fixer** | 4-phase root cause diagnosis and repair | Sonnet | systematic-debugging |
 | **security-reviewer** | 5 OWASP domain assessment | Opus | 5 security skills |
-| **pr-preparer** | Assemble final PR package | Sonnet | — |
+| **pr-preparer** | Assembles the final PR package | Sonnet | none |
 
----
+Each agent is a markdown file with YAML frontmatter. Model, tools, preloaded skills, output labels. That's it.
 
 ## Skills
 
-22 injectable markdown files encoding domain expertise. Skills are the framework's knowledge layer — swap them, extend them, or write your own.
+22 markdown files. Each one encodes a specific domain of expertise that gets injected into an agent's context at startup.
 
-### Core Engineering
-| Skill | What It Does |
-|-------|-------------|
-| `codebase-research` | Deep repo analysis → structured repo map (1,237 lines of expertise) |
-| `eval-council` | 6-persona evaluation: Architect, Skeptic, Operator, Executioner, First Principles, Security Auditor |
-| `codegen-context` | Per-task prompt assembly with zero-read principle (everything inlined) |
-| `tdd-enforcement` | RED → GREEN → REFACTOR per acceptance criterion |
-| `systematic-debugging` | 4-phase: Evidence → Hypotheses → Test → Fix |
-| `architecture-pattern` | Port/adapter/domain scaffolding from repo conventions |
-| `qa-test-data` | Test data generation from Given/When/Then criteria |
+**Engineering:**
+`codebase-research` (1,237 lines of repo analysis methodology) · `eval-council` (6 judge personas) · `codegen-context` (zero-read prompt assembly) · `tdd-enforcement` · `systematic-debugging` · `architecture-pattern` · `qa-test-data`
 
-### Security (5 OWASP Domains)
-| Skill | Coverage |
-|-------|----------|
-| `appsec-threat-model` | OWASP Top 10 (2021): A01–A10 |
-| `llm-security` | OWASP LLM Top 10 (2025): LLM01–LLM10 |
-| `agentic-security` | OWASP Agentic Security: ASI01–ASI10 |
-| `api-security` | OWASP API Top 10 (2023): API1–API10 |
-| `infra-security` | OWASP K8s Top 10 (2025): K01–K10 |
+**Security (5 OWASP domains):**
+`appsec-threat-model` (Top 10 2021) · `llm-security` (LLM Top 10 2025) · `agentic-security` (ASI Top 10) · `api-security` (API Top 10 2023) · `infra-security` (K8s Top 10 2025)
 
-### Integrations (Optional)
-| Skill | What It Does |
-|-------|-------------|
-| `jira-ticket-creation` | Generate JIRA tickets from task breakdown |
-| `confluence-decomposition` | Create Confluence pages from Build Brief |
-| `slack-orchestration` | Cross-phase workflow notifications |
-| `grafana-observability` | Dashboard provisioning + traffic baseline validation |
-| `ci-cd-pipeline` | GitHub Actions + Argo CD config generation |
-| `incident-runbook` | Runbook + alert config from failure modes |
+**Integrations (optional):**
+`jira-ticket-creation` · `confluence-decomposition` · `slack-orchestration` · `grafana-observability` · `ci-cd-pipeline` · `incident-runbook`
 
-### Product (Optional — for PRD creation)
-| Skill | What It Does |
-|-------|-------------|
-| `prd-generation` | PRD quality evaluation and completeness checking |
-| `ux-flow-builder` | Mermaid flowcharts from user flows, catches dead ends |
-| `figma-integration` | Design spec extraction, PRD ↔ Figma validation |
-| `gong-customer-evidence` | Customer call transcript validation |
-
----
+**Product (optional):**
+`prd-generation` · `ux-flow-builder` · `figma-integration` · `gong-customer-evidence`
 
 ## Customization
 
-### Write Your Own Skill
+**Add a skill.** Create `skills/your-skill/SKILL.md`. Define trigger, input, behavior, output, quality gates. Add it to `manifest.json`.
 
-```markdown
-# Skill: [Your Skill Name]
+**Change the pipeline.** Edit `WORKFLOW.dot`. Add nodes, remove nodes, rewire edges. Common variants:
+- Skip security for internal tools: remove `security` node, route `code_review` straight to `qa`
+- Bugfix pipeline: `triage → research → code → qa → pr_prep`
+- Add design review: new node between `plan_review` and `scaffold`
 
-> One-line description
+**Switch models.** Edit agent frontmatter:
 
-## Trigger
-Which DAG nodes use this skill?
+| Platform | Fast | Deep |
+|----------|------|------|
+| Claude Code | `sonnet` | `opus` |
+| Codex | `o4-mini` | `o3` |
+| Antigravity | `gemini-2.5-flash` | `gemini-2.5-pro` |
+| Factory | `inherit` | `claude-opus-4-6` |
 
-## Input
-What data does it receive?
-
-## Behavior
-Step-by-step instructions.
-
-## Output
-What does it produce?
-
-## Quality Gates
-- [ ] Checklist item 1
-- [ ] Checklist item 2
-```
-
-Add it to `skills/manifest.json` and the relevant agent's `skills` list.
-
-### Modify the Pipeline
-
-Edit `WORKFLOW.dot` to change the pipeline:
-
-```bash
-# Add a new node
-vi WORKFLOW.dot
-
-# Visualize
-dot -Tpng WORKFLOW.dot -o pipeline.png
-
-# Update config
-vi WORKFLOW.md
-```
-
-**Common customizations:**
-- **Skip security** for internal tools: remove the `security` node, route `code_review` → `qa`
-- **Add a design review node**: insert between `plan_review` and `scaffold`
-- **Bugfix pipeline**: `triage` → `research` → `code` → `qa` → `pr_prep` (skip planning)
-
-### Use Different Models
-
-Agent frontmatter uses platform-native model identifiers:
-
-| Platform | Fast Model | Deep Reasoning Model |
-|----------|-----------|---------------------|
-| **Claude Code** | `model: sonnet` | `model: opus` |
-| **Codex** | `model: o4-mini` | `model: o3` |
-| **Antigravity** | `model: gemini-2.5-flash` | `model: gemini-2.5-pro` |
-| **Factory** | `model: inherit` | `model: claude-opus-4-6` |
-| **Cursor** | *(set in UI)* | *(set in UI)* |
-
-Edit agent YAML frontmatter to change:
-```yaml
----
-model: sonnet    # Claude Code: sonnet (fast) or opus (deep)
-# model: o3      # Codex: o3 (deep) or o4-mini (fast)
----
-```
-
-### Cross-Platform Compatibility
-
-Agent configs use a universal frontmatter format that maps to each platform:
-
-| Frontmatter Field | Claude Code | Codex | Factory | Antigravity | Cursor |
-|-------------------|-------------|-------|---------|-------------|--------|
-| `name` | Agent name | — | Droid name | — | — |
-| `description` | Trigger text | Trigger text | UI description | Trigger text | `description:` |
-| `model` | Model ID | Model ID | Model ID | Model ID | *(UI setting)* |
-| `tools` | Tool list | — | Tool category | — | — |
-| `skills` | Preloaded skills | — | — | — | — |
-| `labels` | Output routing | — | — | — | — |
-
----
+**Swap integrations.** Skills are composable. Replace `jira-ticket-creation` with a Linear skill. Replace `confluence-decomposition` with Notion. The pipeline doesn't care.
 
 ## File Structure
 
 ```
 adlc/
-├── setup.sh                  # One-command installer for any platform
-├── WORKFLOW.dot               # Pipeline DAG (Graphviz)
-├── WORKFLOW.md                # Configuration
-├── README.md
-├── CONTRIBUTING.md
-├── LICENSE                    # MIT
-├── agents/                    # 9 thin agent configs (universal format)
-│   ├── triage.md
-│   ├── researcher.md
-│   ├── planner.md
-│   ├── plan-reviewer.md
-│   ├── coder.md
-│   ├── code-reviewer.md
-│   ├── fixer.md
-│   ├── security-reviewer.md
-│   └── pr-preparer.md
-├── skills/                    # 22 injectable skills
-│   ├── manifest.json
-│   ├── codebase-research/
-│   ├── eval-council/
-│   ├── codegen-context/
-│   └── ... (19 more)
-├── platform/                  # Platform-specific instruction files
-│   ├── CLAUDE.md              # Claude Code project instructions
-│   ├── AGENTS.md              # Codex / Factory instructions
-│   └── agents-antigravity.md  # Antigravity persona definitions
-├── examples/
-│   ├── README.md
-│   └── example-prd.md
+├── setup.sh               # One-command install for any platform
+├── WORKFLOW.dot            # Pipeline graph (Graphviz)
+├── WORKFLOW.md             # Agent configs, backends, concurrency
+├── agents/                 # 9 agent configs
+├── skills/                 # 22 injectable skills
+│   └── manifest.json       # Skill + agent registry
+├── platform/               # Platform-specific instruction files
+│   ├── CLAUDE.md
+│   ├── AGENTS.md
+│   └── agents-antigravity.md
+├── examples/               # Example PRD + walkthrough
 ├── docs/
-│   ├── archive/               # Original monolithic specs (reference)
-│   ├── schemas/               # 12 JSON Schema contracts
-│   ├── specs/                 # 15 runtime behavior specs
-│   └── tests/                 # 7 test specifications
+│   ├── archive/            # Original monolithic specs (reference)
+│   ├── schemas/            # 12 JSON Schema contracts
+│   ├── specs/              # 15 runtime behavior specs
+│   └── tests/              # 7 test specifications
+├── tests/                  # Setup script tests (80 assertions)
 └── scripts/
     └── md2pdf.py
 ```
 
----
+## Principles
 
-## Design Principles
+1. **Graph, not prose.** The pipeline is a DOT file you can see, version, and edit. Not instructions buried in a 27K-token prompt.
+2. **Thin agents, thick skills.** Agents are ~100 lines. The real knowledge lives in skills.
+3. **Deterministic where you can be.** Lint, test, scaffold. Don't burn tokens on predictable work.
+4. **Labels drive routing.** `lgtm`/`revise`/`escalate` on graph edges. Not prose inside a prompt.
+5. **Fan-out by default.** Independent tasks run in parallel. Serial execution of independent work is a velocity bug.
+6. **Cap every loop.** Runaway agents are more expensive than asking a human.
+7. **Zero-read principle.** Coding agents get everything inlined. No searching, no guessing.
+8. **One human gate.** Machine gates catch structure problems. You catch judgment calls.
+9. **Bring your own agent.** Claude, Codex, Cursor, Antigravity, Factory. The skills don't care.
+10. **Composable skills.** Swap JIRA for Linear. Swap Confluence for Notion. Pipeline stays the same.
 
-1. **Graph, not prose.** The pipeline is a visual DAG, not instructions buried in a prompt.
-2. **Thin agents, thick skills.** Agent configs are ~100 lines. Domain expertise lives in skills.
-3. **Deterministic where possible.** Lint, test, and scaffold don't need an LLM.
-4. **Labels drive routing.** `lgtm`/`revise`/`escalate` on edges, not in prompts.
-5. **Fan-out by default.** Independent tasks run in parallel.
-6. **Bounded iteration.** Every loop caps out. Escalation is cheaper than runaway agents.
-7. **Zero-read principle.** Coding agents get everything inlined — no file searching.
-8. **One human gate.** Machine gates handle structure; you handle judgment.
-9. **Backend-agnostic.** Claude, Codex, Cursor — bring your own agent.
-10. **Skills are composable.** Swap JIRA for Linear. Swap Confluence for Notion. The pipeline stays the same.
+## Acknowledgments
 
----
+This framework wouldn't exist without the work and thinking of people who influenced it without knowing they did:
+
+- [**Daniel Miessler**](https://github.com/danielmiessler) for PAI and the patterns behind structured agent evaluation, skill composition, and first-principles thinking tools that run through the Eval Council and skill architecture.
+- [**Pedram Amini**](https://github.com/pedramamini) for showing what disciplined security engineering looks like when you actually build the systems, not just talk about them. The 5-domain OWASP security review chain exists because of that influence.
+- [**Jason Haddix**](https://github.com/haasonsaas) for relentlessly pushing what's possible with AI agents in practice and demonstrating that the right abstractions make complex systems simple. That philosophy is in every design decision here.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
----
+MIT. See [LICENSE](LICENSE).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add skills, agents, and pipeline nodes.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
