@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/workflow-state.schema.json",
+  "title": "ADLC Workflow State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "brief_id",
+    "phase",
+    "step",
+    "status",
+    "started_at",
+    "updated_at",
+    "checkpoint",
+    "side_effects"
+  ],
+  "properties": {
+    "brief_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "phase_0_codebase_research",
+        "phase_0a_grafana_observability",
+        "phase_1_brief_prefill",
+        "phase_2_eval_council",
+        "phase_3_scaffolding",
+        "phase_4_failing_tests",
+        "phase_5_codegen_context",
+        "phase_6_parallel_codegen",
+        "phase_7_security_review",
+        "phase_8_task_breakdown",
+        "phase_9_codegen_execution",
+        "phase_10_jira_confluence_prep",
+        "phase_11_ci_cd_qa_prep",
+        "phase_12_deploy_gate",
+        "phase_13_monitoring_feedback"
+      ]
+    },
+    "step": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "awaiting_approval",
+        "executing",
+        "waiting_on_external",
+        "completed",
+        "failed"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "checkpoint": {
+      "type": "object",
+      "description": "Phase-specific checkpoint payload",
+      "additionalProperties": true
+    },
+    "side_effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "idempotency_key",
+          "tool_name",
+          "operation",
+          "status",
+          "timestamp"
+        ],
+        "properties": {
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tool_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "operation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "attempted",
+              "deduplicated",
+              "completed",
+              "failed"
+            ]
+          },
+          "artifact_id": {
+            "type": "string"
+          },
+          "artifact_ref": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "resume_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "stop_reason": {
+      "type": "string"
+    }
+  }
+}

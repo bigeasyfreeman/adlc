@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/streaming-events.schema.json",
+  "title": "ADLC Streaming Events",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "timestamp",
+    "session_id",
+    "brief_id",
+    "phase",
+    "payload"
+  ],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "pipeline.started",
+        "phase.started",
+        "phase.completed",
+        "skill.invoked",
+        "skill.completed",
+        "skill.failed",
+        "council.started",
+        "council.verdict",
+        "task.dispatched",
+        "task.completed",
+        "task.failed",
+        "budget.warning",
+        "budget.exceeded",
+        "permission.decided",
+        "pipeline.completed",
+        "pipeline.failed"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brief_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "phase_0_codebase_research",
+        "phase_0a_grafana_observability",
+        "phase_1_brief_prefill",
+        "phase_2_eval_council",
+        "phase_3_scaffolding",
+        "phase_4_failing_tests",
+        "phase_5_codegen_context",
+        "phase_6_parallel_codegen",
+        "phase_7_security_review",
+        "phase_8_task_breakdown",
+        "phase_9_codegen_execution",
+        "phase_10_jira_confluence_prep",
+        "phase_11_ci_cd_qa_prep",
+        "phase_12_deploy_gate",
+        "phase_13_monitoring_feedback"
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "stop_reason": {
+      "type": "string"
+    },
+    "trace_id": {
+      "type": "string"
+    }
+  }
+}

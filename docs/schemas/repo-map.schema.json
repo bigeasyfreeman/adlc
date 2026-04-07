@@ -1,0 +1,266 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/repo-map.schema.json",
+  "title": "ADLC Repo Map Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "meta",
+    "tech_stack",
+    "architecture",
+    "services",
+    "schema_intelligence",
+    "security",
+    "observability",
+    "ci_cd",
+    "conventions",
+    "tech_debt",
+    "improvement_opportunities"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repo",
+        "default_branch",
+        "analyzed_at"
+      ],
+      "properties": {
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default_branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "analyzed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "tech_stack": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pattern",
+        "components"
+      ],
+      "properties": {
+        "pattern": {
+          "type": "string"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "boundaries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "path",
+          "responsibilities"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "responsibilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "schema_intelligence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entities",
+        "migrations"
+      ],
+      "properties": {
+        "entities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "migrations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authn",
+        "authz",
+        "secrets",
+        "threat_surfaces"
+      ],
+      "properties": {
+        "authn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "authz": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "threat_surfaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logging",
+        "metrics",
+        "alerts"
+      ],
+      "properties": {
+        "logging": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "alerts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ci_cd": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pipelines",
+        "quality_gates"
+      ],
+      "properties": {
+        "pipelines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "quality_gates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "deploy_strategy": {
+          "type": "string"
+        }
+      }
+    },
+    "conventions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "style",
+        "testing",
+        "branching"
+      ],
+      "properties": {
+        "style": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "testing": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "branching": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tech_debt": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "improvement_opportunities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

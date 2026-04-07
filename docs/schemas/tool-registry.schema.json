@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/tool-registry.schema.json",
+  "title": "ADLC Tool Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "default_policy",
+    "tools"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "default_policy": {
+      "type": "string",
+      "enum": [
+        "deny"
+      ]
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "description",
+          "inputSchema",
+          "side_effect_profile",
+          "permission_tier",
+          "available_phases"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputSchema": {
+            "type": "object"
+          },
+          "side_effect_profile": {
+            "type": "string",
+            "enum": [
+              "read_only",
+              "mutating",
+              "destructive"
+            ]
+          },
+          "permission_tier": {
+            "type": "string",
+            "enum": [
+              "unrestricted",
+              "requires_approval",
+              "requires_escalation"
+            ]
+          },
+          "available_phases": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "phase_0_codebase_research",
+                "phase_0a_grafana_observability",
+                "phase_1_brief_prefill",
+                "phase_2_eval_council",
+                "phase_3_scaffolding",
+                "phase_4_failing_tests",
+                "phase_5_codegen_context",
+                "phase_6_parallel_codegen",
+                "phase_7_security_review",
+                "phase_8_task_breakdown",
+                "phase_9_codegen_execution",
+                "phase_10_jira_confluence_prep",
+                "phase_11_ci_cd_qa_prep",
+                "phase_12_deploy_gate",
+                "phase_13_monitoring_feedback"
+              ]
+            }
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "list_tools_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input",
+        "output"
+      ],
+      "properties": {
+        "input": {
+          "type": "object",
+          "required": [
+            "phase",
+            "context"
+          ],
+          "properties": {
+            "phase": {
+              "type": "string",
+              "enum": [
+                "phase_0_codebase_research",
+                "phase_0a_grafana_observability",
+                "phase_1_brief_prefill",
+                "phase_2_eval_council",
+                "phase_3_scaffolding",
+                "phase_4_failing_tests",
+                "phase_5_codegen_context",
+                "phase_6_parallel_codegen",
+                "phase_7_security_review",
+                "phase_8_task_breakdown",
+                "phase_9_codegen_execution",
+                "phase_10_jira_confluence_prep",
+                "phase_11_ci_cd_qa_prep",
+                "phase_12_deploy_gate",
+                "phase_13_monitoring_feedback"
+              ]
+            },
+            "context": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "output": {
+          "type": "object",
+          "required": [
+            "allowed_tools"
+          ],
+          "properties": {
+            "allowed_tools": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

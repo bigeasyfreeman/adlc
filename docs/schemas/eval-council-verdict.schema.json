@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/eval-council-verdict.schema.json",
+  "title": "ADLC Eval Council Verdict",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "brief_id",
+    "iteration",
+    "verdict",
+    "personas",
+    "findings",
+    "synthesis"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "brief_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "iteration": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "APPROVED",
+        "APPROVED_WITH_CONCERNS",
+        "REVISION_REQUIRED",
+        "BLOCKED"
+      ]
+    },
+    "personas": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "verdict",
+          "confidence",
+          "findings"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "architect",
+              "skeptic",
+              "operator",
+              "executioner",
+              "first_principles",
+              "security_auditor"
+            ]
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "APPROVED_WITH_CONCERNS",
+              "REVISION_REQUIRED",
+              "BLOCKED"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/finding"
+            }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/finding"
+      }
+    },
+    "synthesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "rationale",
+        "required_actions"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stop_reason": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "severity",
+        "persona",
+        "description",
+        "recommendation",
+        "resolved"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^F-[A-Z0-9_-]+$"
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "major",
+            "minor"
+          ]
+        },
+        "persona": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recommendation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolved": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,238 @@
+{
+  "manifest_version": "2.0.0",
+  "architecture": "dag",
+  "workflow": "WORKFLOW.dot",
+
+  "agents": [
+    {
+      "name": "triage",
+      "path": "agents/triage.md",
+      "dag_node": "triage",
+      "model": "claude-sonnet-4-6",
+      "skills": [],
+      "labels": ["proceed", "unclear", "escalate"]
+    },
+    {
+      "name": "researcher",
+      "path": "agents/researcher.md",
+      "dag_node": "research",
+      "model": "claude-opus-4-6",
+      "skills": ["codebase-research", "grafana-observability"],
+      "labels": ["done"]
+    },
+    {
+      "name": "planner",
+      "path": "agents/planner.md",
+      "dag_node": "plan",
+      "model": "claude-opus-4-6",
+      "skills": ["codegen-context", "architecture-pattern"],
+      "labels": ["done"]
+    },
+    {
+      "name": "plan-reviewer",
+      "path": "agents/plan-reviewer.md",
+      "dag_node": "plan_review",
+      "model": "claude-opus-4-6",
+      "skills": ["eval-council"],
+      "labels": ["lgtm", "revise", "blocked"]
+    },
+    {
+      "name": "coder",
+      "path": "agents/coder.md",
+      "dag_node": "code",
+      "model": "claude-sonnet-4-6",
+      "skills": ["tdd-enforcement", "systematic-debugging"],
+      "labels": ["done", "stuck"],
+      "fan_out": true
+    },
+    {
+      "name": "code-reviewer",
+      "path": "agents/code-reviewer.md",
+      "dag_node": "code_review",
+      "model": "claude-opus-4-6",
+      "skills": ["eval-council"],
+      "labels": ["lgtm", "revise"]
+    },
+    {
+      "name": "fixer",
+      "path": "agents/fixer.md",
+      "dag_node": "fixer",
+      "model": "claude-sonnet-4-6",
+      "skills": ["systematic-debugging"],
+      "labels": ["fixed", "stuck"]
+    },
+    {
+      "name": "security-reviewer",
+      "path": "agents/security-reviewer.md",
+      "dag_node": "security",
+      "model": "claude-opus-4-6",
+      "skills": ["appsec-threat-model", "llm-security", "agentic-security", "api-security", "infra-security"],
+      "labels": ["pass", "fail"]
+    },
+    {
+      "name": "pr-preparer",
+      "path": "agents/pr-preparer.md",
+      "dag_node": "pr_prep",
+      "model": "claude-sonnet-4-6",
+      "skills": [],
+      "labels": ["done"]
+    }
+  ],
+
+  "skills": [
+    {
+      "name": "agentic-security",
+      "path": "skills/agentic-security/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["security"]
+    },
+    {
+      "name": "api-security",
+      "path": "skills/api-security/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["security"]
+    },
+    {
+      "name": "appsec-threat-model",
+      "path": "skills/appsec-threat-model/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["security"]
+    },
+    {
+      "name": "architecture-pattern",
+      "path": "skills/architecture-pattern/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["plan", "scaffold"]
+    },
+    {
+      "name": "ci-cd-pipeline",
+      "path": "skills/ci-cd-pipeline/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["pr_prep"]
+    },
+    {
+      "name": "codebase-research",
+      "path": "skills/codebase-research/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["research"]
+    },
+    {
+      "name": "codegen-context",
+      "path": "skills/codegen-context/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["plan", "context_assembly"]
+    },
+    {
+      "name": "confluence-decomposition",
+      "path": "skills/confluence-decomposition/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["pr_prep"]
+    },
+    {
+      "name": "eval-council",
+      "path": "skills/eval-council/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["plan_review", "code_review"]
+    },
+    {
+      "name": "figma-integration",
+      "path": "skills/figma-integration/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["research", "plan"]
+    },
+    {
+      "name": "gong-customer-evidence",
+      "path": "skills/gong-customer-evidence/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": []
+    },
+    {
+      "name": "grafana-observability",
+      "path": "skills/grafana-observability/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["research", "pr_prep"]
+    },
+    {
+      "name": "incident-runbook",
+      "path": "skills/incident-runbook/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["pr_prep"]
+    },
+    {
+      "name": "infra-security",
+      "path": "skills/infra-security/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["security"]
+    },
+    {
+      "name": "jira-ticket-creation",
+      "path": "skills/jira-ticket-creation/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["pr_prep"]
+    },
+    {
+      "name": "llm-security",
+      "path": "skills/llm-security/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["security"]
+    },
+    {
+      "name": "prd-generation",
+      "path": "skills/prd-generation/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": []
+    },
+    {
+      "name": "qa-test-data",
+      "path": "skills/qa-test-data/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["gen_tests"]
+    },
+    {
+      "name": "slack-orchestration",
+      "path": "skills/slack-orchestration/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["triage", "plan_review", "engineer_review"]
+    },
+    {
+      "name": "systematic-debugging",
+      "path": "skills/systematic-debugging/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["fixer", "code"]
+    },
+    {
+      "name": "tdd-enforcement",
+      "path": "skills/tdd-enforcement/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["code", "gen_tests"]
+    },
+    {
+      "name": "ux-flow-builder",
+      "path": "skills/ux-flow-builder/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": []
+    }
+  ]
+}
