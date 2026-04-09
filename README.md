@@ -2,10 +2,12 @@
 
 Agentic Development Lifecycle.
 
-9 agents. 22 skills. One pipeline. Describe a feature, point it at a repo, get back a PR. It researches the codebase, writes a technical plan, generates code with TDD, runs security across 5 OWASP domains, and hands you one pull request.
+11 agents. 34 skills. Three loops. Describe a feature, point it at a repo, get back a PR. It researches the codebase, writes a technical plan with STRIDE threat modeling, generates code with TDD, runs security across 5 OWASP domains, enforces lint-driven development, and hands you one pull request.
 
 ```
-Idea + Repo → Triage → Research → Plan ↔ Review → Code → QA → Security → PR → You
+Build Loop:  PRD → Research → Brief → Council → Scaffold → LDD → TDD → Code → Council → PR → You
+Fix Loop:    Capture → Confirm → Investigate → Fix → Prove → Council → PR
+Feedback:    Human edits → Diff capture → Pattern distill → Skill update
 ```
 
 Works with Claude Code, Codex, Cursor, Antigravity, and Factory.
@@ -18,7 +20,13 @@ ADLC is a directed graph. Agents emit labels (`lgtm`, `revise`, `escalate`). Edg
 
 The whole thing is markdown. Skills are injectable knowledge. Agents are thin configs. Swap any piece without touching the rest.
 
-Patterns borrowed from [Attractor](https://github.com/strongdm/attractor), [Stripe Minions](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents), and [Vajra](https://github.com/zamana-inc/vajra).
+### Governing Philosophy
+
+**Bitter Lesson Engineering:** Specify outcomes and constraints, never procedures. Invest in verification (tests, linters, security scans, councils), not guidance (step-by-step instructions).
+
+**Bitter Pilled Engineering:** Every structural decision must be anti-fragile to smarter models. Gates test outcomes, not process. Quarterly audit: "What structure can we remove because models no longer need it?"
+
+**Skills as Actions:** Skills are contextual behaviors, not static prompts. They activate by context, chain into sequences, and self-improve via feedback loops.
 
 ## Setup
 
@@ -49,12 +57,24 @@ cp -r skills/codebase-research/ ~/my-project/.claude/skills/codebase-research/
 
 ## Pipeline
 
-Defined in [`WORKFLOW.dot`](WORKFLOW.dot). Render it: `dot -Tpng WORKFLOW.dot -o pipeline.png`
+### Build Loop
 
 ```
-start → triage → research → plan ↔ plan_review → scaffold → gen_tests →
-  context_assembly → code (fan-out) ↔ code_review ↔ fixer → security → qa →
-  pr_prep → engineer_review → done
+start → triage → research → prd → plan ↔ plan_review → scaffold → gen_tests →
+  ldd_gate → context_assembly → code (fan-out) ↔ code_review ↔ fixer →
+  security → qa → slop_gate → pr_prep → engineer_review → done
+```
+
+### Fix Loop (parallel)
+
+```
+error_capture → confirm → investigate → fix → prove → light_council → pr
+```
+
+### Feedback Loop (nightly)
+
+```
+human_edits → diff_capture → pattern_distill → skill_update
 ```
 
 Agent nodes are LLM calls with injected skills. Tool nodes are shell commands. Zero tokens. Fan-out runs coding tasks in parallel. Human gate is you at the end.
@@ -68,6 +88,7 @@ Labels drive routing:
 | `escalate` | Human needed. |
 | `pass`/`fail` | Deterministic. |
 | `fixed`/`stuck` | Fixer result. |
+| `blocked` | Council blocked. Human decision required. |
 
 Every loop caps. Plan review: 3. Code review: 3. Fixer: 2. QA: 2. Hit the wall and it comes to you.
 
@@ -77,31 +98,62 @@ Every loop caps. Plan review: 3. Code review: 3. Fixer: 2. QA: 2. Hit the wall a
 |-------|-----|-------|--------|
 | **triage** | Classify, route, or escalate | Sonnet | none |
 | **researcher** | Codebase analysis, PRD cross-reference | Opus | codebase-research, grafana |
-| **planner** | PRD + research into Build Brief | Opus | codegen-context, architecture |
-| **plan-reviewer** | 6-persona Eval Council | Opus | eval-council |
-| **coder** | TDD per task. RED. GREEN. REFACTOR. | Sonnet | tdd-enforcement, debugging |
-| **code-reviewer** | Quality and correctness | Opus | eval-council |
-| **fixer** | 4-phase root cause, then fix | Sonnet | systematic-debugging |
-| **security-reviewer** | 5 OWASP domains | Opus | 5 security skills |
-| **pr-preparer** | Final PR package | Sonnet | none |
+| **planner** | PRD + research into 14-section Build Brief | Opus | codegen-context, architecture, security-review |
+| **plan-reviewer** | 6-persona Eval Council with Gate 0 pre-checks | Opus | eval-council |
+| **coder** | LDD then TDD per task. Lint. RED. GREEN. REFACTOR. | Sonnet | tdd-enforcement, ldd-enforcement, debugging |
+| **code-reviewer** | Quality, correctness, and security | Opus | eval-council, security-review |
+| **fixer** | 4-phase root cause, then fix | Sonnet | systematic-debugging, fix-loop |
+| **security-reviewer** | STRIDE + 5 OWASP domains + OWASP Top 10 | Opus | security-review + 5 domain skills |
+| **pr-preparer** | Final PR package with DoD checklist | Sonnet | definition-of-done, stop-slop |
+| **PRD Agent** | Structured discovery, 3-5 turns, extract-first | Opus | prd-generation |
+| **Build Brief Agent** | 14-section brief with STRIDE, SLOs, compatibility | Opus | codegen-context, architecture, security-review, reuse-analysis |
 
 Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 
 ## Skills
 
-22 markdown files. Domain expertise injected into agents at startup.
+34 markdown files. Domain expertise injected into agents at startup.
 
-**Engineering:**
-`codebase-research` (1,237 lines) · `eval-council` (6 judge personas) · `codegen-context` (zero-read prompt assembly) · `tdd-enforcement` · `systematic-debugging` · `architecture-pattern` · `qa-test-data`
+**Core Engineering:**
+`codebase-research` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `definition-of-done` (22-check DoD)
 
-**Security (5 OWASP domains):**
-`appsec-threat-model` (Top 10 2021) · `llm-security` (LLM Top 10 2025) · `agentic-security` (ASI Top 10) · `api-security` (API Top 10 2023) · `infra-security` (K8s Top 10 2025)
+**Security:**
+`security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`
+
+**Quality & Observability:**
+`stop-slop` (code + content dual-mode) · `observability-contract` (structured logging mandate) · `feedback-loop` (skill self-improvement)
+
+**Lifecycle:**
+`fix-loop` (autonomous error repair) · `fix-bug` (fix orchestration) · `build-feature` (build orchestration) · `ship-content` (content orchestration) · `execute-trade` (trade orchestration)
 
 **Integrations (optional):**
 `jira-ticket-creation` · `confluence-decomposition` · `slack-orchestration` · `grafana-observability` · `ci-cd-pipeline` · `incident-runbook`
 
 **Product (optional):**
 `prd-generation` · `ux-flow-builder` · `figma-integration` · `gong-customer-evidence`
+
+## Build Brief Template (v2)
+
+The Build Brief Agent produces a 14-section document. Sections marked [C] are conditional based on project type.
+
+| # | Section | Required |
+|---|---------|----------|
+| 1 | Overview | Always |
+| 2 | What Changes (capabilities + behavior changes) | Always |
+| 3 | Architecture & Patterns (existing patterns + new components) | Always |
+| 4 | Data Model Changes [C] | If project has persistent storage |
+| 5 | API Changes [C] | If project has endpoints |
+| 6 | Security Review (STRIDE + concern/mitigation table) | Always |
+| 7 | Failure Modes (failure/impact/mitigation) | Always |
+| 8 | SLOs & Performance (latency, error rate, performance budgets) | Always |
+| 9 | Task Breakdown (per-task: files, refs, deps, G/W/T, manual tests) | Always |
+| 10 | Compatibility & Resilience (backwards, forward, availability, degradation) | Always |
+| 11 | G/W/T Roll-Up (full test plan) | Always |
+| 12 | Skill Handoffs | Always |
+| 13 | Open Items | Always |
+| 14 | Revision History (council finding IDs → changes) | Always |
+
+Every task requires: files_to_create/modify, reference_impl, dependency_ids, G/W/T acceptance criteria, and manual test plans for auth/integration flows.
 
 ## Customization
 
@@ -130,11 +182,11 @@ adlc/
 ├── setup.sh               # One-command install
 ├── WORKFLOW.dot            # Pipeline graph
 ├── WORKFLOW.md             # Config
-├── agents/                 # 9 agents
-├── skills/                 # 22 skills + manifest.json
+├── agents/                 # 11 agents
+├── skills/                 # 34 skills + manifest.json
 ├── platform/               # CLAUDE.md, AGENTS.md, agents-antigravity.md
 ├── examples/               # Example PRD
-├── docs/                   # schemas/, specs/, tests/, archive/
+├── docs/                   # schemas/, specs/, tests/, adlc-v2-spec, tickets
 ├── tests/                  # 80 assertions
 └── scripts/                # md2pdf.py
 ```
@@ -151,6 +203,13 @@ adlc/
 8. **One human gate.** Machines catch structure. You catch judgment.
 9. **Bring your own agent.** Claude, Codex, Cursor, Antigravity, Factory. Skills don't care.
 10. **Composable.** Swap JIRA for Linear. Swap Confluence for Notion. Same pipeline.
+11. **Security baked in, not bolted on.** STRIDE at design time. OWASP at build time. Always.
+12. **BLE-compliant.** Specify outcomes, not procedures. Design for removal as models improve.
+
+## Docs
+
+- [`docs/adlc-v2-specification.md`](docs/adlc-v2-specification.md) — Full ADLC v2 spec (philosophy, pipeline, cross-cutting concerns)
+- [`docs/adlc-v2-tickets.md`](docs/adlc-v2-tickets.md) — 58-ticket implementation roadmap
 
 ## Acknowledgments
 

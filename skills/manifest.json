@@ -233,6 +233,90 @@
       "contract_version": "1.0.0",
       "side_effect_profile": "read_only",
       "dag_nodes": []
+    },
+    {
+      "name": "security-review",
+      "path": "skills/security-review/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["plan", "code_review", "security"]
+    },
+    {
+      "name": "ldd-enforcement",
+      "path": "skills/ldd-enforcement/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["code", "ldd_gate"]
+    },
+    {
+      "name": "observability-contract",
+      "path": "skills/observability-contract/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["plan", "code_review"]
+    },
+    {
+      "name": "reuse-analysis",
+      "path": "skills/reuse-analysis/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["plan", "code_review"]
+    },
+    {
+      "name": "definition-of-done",
+      "path": "skills/definition-of-done/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["code_review", "pr_prep"]
+    },
+    {
+      "name": "fix-loop",
+      "path": "skills/fix-loop/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["fixer"]
+    },
+    {
+      "name": "feedback-loop",
+      "path": "skills/feedback-loop/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": []
+    },
+    {
+      "name": "stop-slop",
+      "path": "skills/stop-slop/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["slop_gate", "pr_prep"]
+    },
+    {
+      "name": "build-feature",
+      "path": "skills/build-feature/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": []
+    },
+    {
+      "name": "fix-bug",
+      "path": "skills/fix-bug/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": []
+    },
+    {
+      "name": "ship-content",
+      "path": "skills/ship-content/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": []
+    },
+    {
+      "name": "execute-trade",
+      "path": "skills/execute-trade/SKILL.md",
+      "contract_version": "2.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": []
     }
   ]
 }
