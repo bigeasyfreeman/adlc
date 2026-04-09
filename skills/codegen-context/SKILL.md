@@ -1,8 +1,6 @@
 # Skill: Codegen Context Assembly
 
 > Assembles all ADLC artifacts into optimized, per-task coding agent inputs that maximize one-shot production code success. This is the bridge between planning and execution — it takes the research deliverable, scaffolding, pre-written tests, schema definitions, and task tickets and compresses them into the exact context a coding agent needs to produce production-ready code on the first pass.
->
-> **THIS SKILL IS A MANDATORY GATE, NOT AN OPTIONAL STEP.** Every task that reaches a coding agent MUST pass through context assembly first. Tasks without assembled context are not agent-ready and will produce stubs instead of working code. The assembled context IS the ticket — not a separate artifact.
 
 ---
 
@@ -28,9 +26,7 @@ Activated after ALL of these are complete:
 3. QA tests generated (tests exist and are runnable)
 4. JIRA tickets created
 
-**This skill is a MANDATORY GATE.** It runs BEFORE the coding agent starts. Its output IS the coding agent's input. No task may be dispatched to a coding agent without passing through context assembly first. Dispatching a raw ticket without assembled context is the #1 cause of stub-only code that doesn't wire together.
-
-**Enforcement:** If a task reaches a coding agent without an assembled context, the task is rejected and returned to the context assembly queue. The Eval Council Executioner persona verifies this at every checkpoint.
+This skill runs BEFORE the coding agent starts. Its output IS the coding agent's input.
 
 ---
 
@@ -44,8 +40,20 @@ Activated after ALL of these are complete:
     "acceptance_criteria_gwt": [],
     "pattern_ref": "string",
     "reference_implementation": "string (file path)",
-    "dependencies": ["task IDs"],
-    "parallel": true
+    "files_to_create": ["file paths"],
+    "files_to_modify": ["file paths"],
+    "dependency_ids": ["task IDs"],
+    "parallel": true,
+    "manual_test_plan": [{"step": "string", "action": "string", "expected": "string"}]
+  },
+  "build_brief": {
+    "existing_patterns": [{"pattern": "string", "file_path": "string", "reuse_instructions": "string"}],
+    "compatibility_constraints": {
+      "backwards_compat": "string",
+      "forward_compat": "string",
+      "degradation_strategy": "string"
+    },
+    "performance_budget": [{"operation": "string", "latency_target": "string", "constraint": "string"}]
   },
   "research_deliverable": {
     "service_placement": {},
@@ -84,13 +92,19 @@ The coding agent should NEVER need to read a file to understand what to do. Ever
 
 Instead, paste the relevant code directly. The agent sees the actual code, not a pointer.
 
+**Hard rule:** Every file listed in `files_to_modify` must have its current content inlined. Every file in `reference_impl` must have its code inlined. The coding agent reads ZERO files — everything is in the prompt.
+
 **What gets inlined:**
-- Reference implementation code (full file or relevant section)
+- Reference implementation code (full file contents from every reference_impl path)
+- Current contents of every file listed in files_to_modify (so the agent sees what it's changing)
 - Pre-written test file contents (every test, every assertion)
 - Test fixtures and seed data
 - Schema definitions (models, migrations)
 - Scaffolded stubs (port interfaces, adapter shells)
 - Relevant type definitions and interfaces
+- Existing pattern table from the Build Brief (so the agent knows established conventions)
+- Compatibility constraints from Section 10 of the Build Brief
+- Performance budget from Section 8 of the Build Brief
 
 **What does NOT get inlined (too large, too noisy):**
 - Entire package.json / pyproject.toml (just the relevant deps)
@@ -129,19 +143,11 @@ Do not modify the tests. Do not skip tests. All tests must pass.
 - Reuse existing code. Do not duplicate what already exists.
 - If you are unsure about a pattern, read the reference file cited below — do not guess.
 - Run the tests after every meaningful change. Stop when all pass.
-- **ANTI-SLOP:** Do NOT leave TODO, FIXME, placeholder, or stub implementations. Every function must have a real implementation. Every import must resolve. Every service must be wired to its consumers. If you write a function signature, you write the body. No exceptions.
-- **COMPLETENESS:** Implement the FULL requirement described in this task. Do not partially implement and leave notes for "later." Do not skip edge cases. Do not omit error handling. Do not create interfaces without implementations. If the task says "handle failure X," you handle failure X — you do not add a comment saying "TODO: handle failure X."
-- **REUSABILITY:** If you create a utility, interface, or pattern that could serve multiple callers, design it that way. One-off code that only serves this task is tech debt.
-- **IMMUTABILITY:** Do not change the task's acceptance criteria, scope, or requirements. If you think a requirement is wrong, flag it — do not silently skip it. Every G/W/T criterion must have a passing test when you're done.
-- **BPE ENFORCEMENT:** If the task spec classifies a function as INTELLIGENCE (requires understanding — classification, evaluation, routing, judgment, decomposition, risk assessment), you MUST implement it with an LLM call path. Writing `if "feature" in text.lower()` instead of calling the LLM is a BPE violation. The pattern: static fallback (Layer 1, always runs) + LLM judgment (Layer 2, runs when llm_call_fn provided). The LLM path is the PRIMARY implementation. The static path is the FALLBACK. If you only write the static path, the implementation is incomplete — same as leaving a TODO.
 
 ---
 
-## 1. Problem Context (Why This Task Exists)
-[1-3 sentences. What is broken, missing, or needed — and WHY. Not what to code, but what problem the code solves. The coding agent must understand the problem before it writes the solution.
-
-Example — BAD: "Build a ShareRepo adapter following the ClickHouseCreditRepo pattern."
-Example — GOOD: "Users can't share deliverables because there's no persistence layer for share invitations. The invite modal (Screen 3) creates share records but nothing saves them. The test at test_share_deliverable_persists_invitation is currently failing because ShareRepo doesn't exist yet."]
+## 1. What You're Building
+[1-3 sentences. Functional description from the task, stripped of all technical jargon.]
 
 ## 2. Tests You Must Pass
 These tests already exist at `[test_file_path]`. They are currently failing. Your job is to make them pass.
@@ -178,7 +184,71 @@ File: `[path]` — This is how [similar feature] was built. Follow the same stru
 - Validation: See `[path]` — use the same zod schema + `parseOrThrow` pattern
 - Database queries: See lines [X-Y] in `[path]` — use the same Prisma query pattern with `include`
 
-## 5. Schema
+## 5. Existing Patterns
+These are the established patterns in this codebase. Follow them exactly. Do not invent new patterns.
+
+| Pattern | File Path | Reuse Instructions |
+|---------|-----------|-------------------|
+| [pattern name] | `[path]` | [how to reuse or extend] |
+| [pattern name] | `[path]` | [how to reuse or extend] |
+
+[Inlined from the Build Brief pattern table — every pattern the coding agent may encounter or must follow for this task.]
+
+## 6. Files to Create / Files to Modify
+These are the EXACT files this task touches. Do not create or modify files outside this list.
+
+**Files to Create:**
+| File Path | Purpose | Template/Pattern to Follow |
+|-----------|---------|---------------------------|
+| `[path]` | [purpose] | Follow `[reference_impl path]` |
+
+**Files to Modify:**
+| File Path | What to Change | Location |
+|-----------|---------------|----------|
+| `[path]` | [specific change] | [line number or method anchor] |
+
+[From the task's files_to_create and files_to_modify fields — NOT the generic file_targets.]
+
+## 7. Reference Implementations
+Before writing any code, study these implementations. Their FULL CODE is inlined below — do not read any files, everything you need is here.
+
+**Primary reference** (most similar to what you're building):
+```
+[ACTUAL CODE from the primary reference_impl path — the FULL file contents, not a pointer]
+```
+File: `[path]` — This is how [similar feature] was built. Follow the same structure.
+
+**Secondary references** (specific patterns to reuse):
+```
+[ACTUAL CODE from each secondary reference_impl — inlined, not referenced]
+```
+File: `[path]` — Reuse this pattern for [specific aspect].
+
+[Every file listed in reference_impl has its code pasted here. The coding agent reads ZERO files.]
+
+## 8. Compatibility Constraints
+[From Section 10 of the Build Brief]
+
+**Backwards Compatibility:**
+[What existing behavior must NOT change. What breaks if compatibility is violated. Migration path for any breaking change.]
+
+**Forward Compatibility:**
+[What future changes this design must accommodate. Extension points that must remain open.]
+
+**Degradation Strategy:**
+[For each external dependency: what happens when it's unavailable. Fallback behavior. Timeout/retry policy.]
+
+## 9. Performance Budget
+[From Section 8 of the Build Brief]
+
+| Operation | Latency Target | Constraint |
+|-----------|---------------|------------|
+| [operation] | p95 < [X]ms | [any additional constraint] |
+| [operation] | p95 < [X]ms | [any additional constraint] |
+
+Do not introduce blocking operations, unbounded queries, or N+1 patterns that would violate these targets.
+
+## 10. Schema
 The database schema for this task:
 
 ```prisma
@@ -191,48 +261,7 @@ npx prisma migrate dev --name [migration_name_following_convention]
 ```
 Follow the migration convention in `prisma/migrations/` — most recent migration is `[name]` for reference.
 
-## 6. Integration Wiring (CRITICAL — This Is What Makes It Actually Work)
-
-This section shows how the component you're building connects to the rest of the system. Without this, you'll build an isolated component that doesn't plug into anything.
-
-**How your code gets called (upstream):**
-```
-[Paste the exact code that will call your new code. Example:]
-[The route handler in api.py calls deliverable_service.share_deliverable()]
-[Show the actual calling code so the agent knows the interface contract]
-```
-
-**How your code calls others (downstream):**
-```
-[Paste the exact code your component needs to call. Example:]
-[share_email_service calls mailtrap.send() — here's the Mailtrap client pattern:]
-[Show the actual client/service being called so the agent wires to it correctly]
-```
-
-**Registration / Dependency Injection:**
-```
-[Show exactly where and how this component gets registered. Example:]
-[In api.py, the router is mounted: app.include_router(deliverables_router, prefix="/deliverables")]
-[In the service constructor, inject dependencies: def __init__(self, db: AsyncSession, mailtrap: MailtrapClient)]
-```
-
-**Import chain (complete):**
-```
-[List every import needed for this component to work, copied from similar components:]
-from services.models.share_invitations import ShareInvitations
-from services.deliverable_service import DeliverableService
-from utils.auth_utils import get_current_user_id_from_jwt
-[etc. — real imports, not guesses]
-```
-
-**Smoke test (proves wiring works):**
-After implementation, this single test proves the full chain is wired:
-```
-[A test that calls the API endpoint → hits the service → writes to the database → returns a response]
-[This is NOT a unit test. It's a wiring test. If any link in the chain is broken, this fails.]
-```
-
-## 7. What NOT to Do (Duplication Guardrails + Anti-Slop)
+## 11. What NOT to Do (Duplication Guardrails)
 [From duplication_risks — specific things the agent must NOT build because they already exist]
 
 - Do NOT build custom access checking. Use `checkAccess()` from `src/server/middleware/permissions.ts`. Extend it with the `share` grant type.
@@ -240,148 +269,38 @@ After implementation, this single test proves the full chain is wired:
 - Do NOT create a new validation utility. Use the existing zod schemas in `src/lib/validation/`.
 - Do NOT add a new error class. Extend `DomainError` from `src/domain/errors/base.ts`.
 
-**ANTI-SLOP RULES (enforced by Eval Council):**
-- Do NOT write `pass`, `TODO`, `FIXME`, `NotImplementedError`, `raise NotImplementedError`, `...` (ellipsis) as function bodies. Every function has a real implementation.
-- Do NOT write placeholder return values (`return None`, `return {}`, `return []`) unless that's the actual correct behavior.
-- Do NOT create a service class without wiring it into the route/handler that calls it.
-- Do NOT create a model without the corresponding migration.
-- Do NOT create an endpoint without registering it in the router.
-- Do NOT import a module without using it.
-- If you create a function that calls another service, verify the other service actually exists and the method signature matches.
-
-## 8. Failure Modes & Error Handling
-[Every I/O operation, network call, and state mutation in this task MUST have explicit failure handling.]
-
-| Operation | What Can Fail | How to Handle | Log Event |
-|-----------|--------------|---------------|-----------|
-| [e.g., httpx.post to gateway] | Network timeout, 5xx, connection refused | Retry with backoff (use existing _RETRY_BACKOFF pattern), log error, return False | `component.send_failed` |
-| [e.g., state_store.upsert_job] | SQLite write error, disk full | Log error with job_id, propagate exception (caller handles) | `component.store_error` |
-| [e.g., llm_call for verdict] | LLM timeout, malformed response | Fallback to static heuristic (GAP-006 pattern), log warning | `component.llm_fallback` |
-
-**Rules:**
-- No bare `except: pass` — every caught exception must log
-- No `except Exception` without structured logging of the error
-- Every function that can fail must document what happens on failure in its docstring or inline comment
-- Callers must know whether this function raises or returns an error sentinel
-
-## 8.5 Observability Requirements
-[Part of definition of done — not optional, not post-launch.]
-
-**Structured log events this component MUST emit:**
-```python
-_LOG.info("component.started", job_id=job_id, [key_context_fields])
-_LOG.info("component.completed", job_id=job_id, duration_ms=elapsed, result=result)
-_LOG.warning("component.fallback", job_id=job_id, reason="[why fallback triggered]")
-_LOG.error("component.error", job_id=job_id, error=str(exc), [context_fields])
-```
-
-**Error handling contract:**
-- Exceptions caught at THIS level: [list]
-- Exceptions propagated to caller: [list]
-- Error codes/messages returned: [list]
-
-**Metrics (if applicable):**
-- [counter/histogram/gauge name and what it measures]
-
-## 8.7 Contract Changes
-[Document ANY changes to interfaces consumed by other components.]
-
-**API changes:** [new endpoints, modified request/response schemas, deprecations]
-**MCP tool changes:** [new tools, modified inputSchema, changed behavior]
-**Data model changes:** [new/modified Pydantic models, new SQLite tables/columns, required migrations]
-**Config changes:** [new config keys, new env vars, default values]
-
-If none: "No contract changes — internal implementation only."
-
-## 9. Scale Considerations
+## 12. Scale Considerations
 [From scalability analysis — things the agent must get right for production]
 
 - Email sending MUST be async. Enqueue to BullMQ at `packages/worker/`. Do NOT send in the request handler.
 - User list queries MUST use cursor pagination. Follow the pattern in `src/server/routes/widgetRoutes.ts:paginated()`.
 - [Any other scale-critical implementation details]
 
-## 10. Verification (4-Level)
+## 13. Manual Test Plan
+[From the task's manual_test_plan field, if present. Omit this section if the task has no manual_test_plan.]
 
-**Level 1: Unit tests pass**
+| Step | Action | Expected Result |
+|------|--------|----------------|
+| 1 | [manual action] | [expected outcome] |
+| 2 | [manual action] | [expected outcome] |
+
+These are human-verified checks that complement the automated tests. They cover UX flows, visual correctness, or integration behaviors that cannot be asserted programmatically.
+
+## 14. Verification
+After implementation, run:
 ```bash
 [exact test command for this task's tests]
 ```
-All [N] tests must pass. If any fail: read error, check against reference in Section 4, fix, re-run. Do not modify tests.
 
-**Level 2: Integration wiring works**
-```bash
-[exact command to run the smoke test from Section 6]
-```
-This proves the full chain is connected: API → service → database → response. If this fails, your component is isolated — go back to Section 6 and wire it in.
+All [N] tests must pass. If any fail:
+1. Read the error message
+2. Check your implementation against the reference in Section 4
+3. Fix and re-run
+4. Do not modify the tests
 
-**Level 3: No regressions**
+When all tests pass, run the full suite to ensure no regressions:
 ```bash
 [exact full test suite command]
-```
-
-**Level 4: Observability verification**
-Verify every new/modified function has structured logging:
-```bash
-# Check that every new function has entry/exit/error logging
-git diff --cached --name-only -- '*.py' | xargs grep -l "def " | while read f; do
-  echo "=== $f ===" && grep -n "_LOG\.\(info\|error\|warning\)" "$f" | head -5
-done
-```
-Every public function must have at least: started + completed OR error log events.
-
-**Level 5: OWASP Security scan (HARD GUARDRAIL)**
-Run ALL of these checks on every task. Not just security-tagged tasks — every task.
-```bash
-# A01: BROKEN ACCESS CONTROL — unauthenticated endpoints
-git diff --cached | grep -E "def (get|post|put|delete|patch)_" | head -20
-# For each new endpoint: verify auth decorator/middleware is applied
-
-# A02: CRYPTOGRAPHIC FAILURES — plaintext secrets
-git diff --cached | grep -E "os\.environ.*TOKEN|os\.getenv.*TOKEN|os\.environ.*KEY|os\.getenv.*KEY|os\.environ.*SECRET|os\.environ.*PASSWORD"
-# Any match = FAIL. Must use credential vault.
-
-# A03: INJECTION — command, SQL, path, prompt
-git diff --cached | grep -E "subprocess\.(run|call|Popen|check_output).*shell=True"
-git diff --cached | grep -E "(eval|exec)\("
-git diff --cached | grep -E "f\".*SELECT|f\".*INSERT|f\".*UPDATE|f\".*DELETE"
-# shell=True with external input = command injection
-# f-string SQL = SQL injection (use parameterized queries)
-# eval/exec = code injection
-
-# A05: SECURITY MISCONFIGURATION — debug/verbose defaults
-git diff --cached | grep -E "debug.*=.*True|verbose.*=.*True|DEBUG.*=.*1"
-# Debug enabled by default = security misconfiguration
-
-# A07: AUTH FAILURES — hardcoded credentials
-git diff --cached | grep -E "password.*=.*\"|token.*=.*\"|api_key.*=.*\"|secret.*=.*\""
-# Hardcoded credentials = critical finding
-
-# A09: LOGGING FAILURES — secrets in logs
-git diff --cached | grep -E "_LOG\.(info|error|warning|debug).*token|_LOG\.(info|error|warning|debug).*secret|_LOG\.(info|error|warning|debug).*password|_LOG\.(info|error|warning|debug).*key"
-# Secrets in logs = SEC-001 class bug
-
-# A10: SSRF — user-controlled URLs
-git diff --cached | grep -E "httpx\.(get|post|put|delete)\(.*\burl\b"
-# If URL comes from user input: verify allowlist enforcement
-```
-If ANY match: investigate before committing. These are not warnings — they are potential vulnerabilities that the OWASP threat model in the task spec should have mitigated. If the task spec doesn't address the finding, the task spec needs updating.
-
-**Level 6: Anti-slop scan**
-Before declaring done, search your changes for slop:
-```bash
-git diff --cached | grep -E "(TODO|FIXME|NotImplementedError|pass$|raise NotImplementedError|\.\.\.$)"
-```
-If any matches: fix them. No exceptions. Placeholders are not implementation.
-
-**Level 6: Contract change verification**
-If this task introduces contract changes:
-```bash
-# Verify new MCP tools are registered
-grep -r "register_tool" src/mcp/ | grep "[new_tool_name]"
-# Verify new config keys have defaults
-grep -r "os.getenv\|config.get" src/ | grep "[new_key_name]"
-# Verify new models have migrations
-ls src/stores/migrations/ | grep "[new_table_name]"
 ```
 ```
 
@@ -398,6 +317,16 @@ From the research deliverable, pull ONLY what this specific task needs:
 - Schema changes this task needs
 
 Discard everything else. The coding agent's context window is finite — only include what affects this task.
+
+### Step 1b: Extract new brief sections
+
+From the Build Brief, pull the following into their dedicated prompt sections:
+- **Existing Patterns** (pattern table) — becomes Section 5 of the prompt so the agent knows established conventions before it writes any code
+- **files_to_create / files_to_modify** from the task — becomes Section 6, the explicit scope boundary
+- **reference_impl paths** from the task — becomes Section 7, with ACTUAL CODE inlined (not just the path)
+- **Compatibility Constraints** from Brief Section 10 — becomes Section 8, so the agent knows what must not break
+- **Performance Budget** from Brief Section 8 — becomes Section 9, so the agent knows latency targets
+- **manual_test_plan** from the task (if present) — becomes Section 13, so the agent understands manual verification expectations
 
 ### Step 2: Inline file contents (don't reference, paste)
 
@@ -612,7 +541,14 @@ adlc-codegen verify --task BE-001 --repo ./my-repo --tests ./tests/be-001.test.t
 
 - [ ] Every task has an assembled prompt with ALL sections filled (no "see reference" without inlined content)
 - [ ] Every assembled prompt includes the full test file contents (not a path reference)
-- [ ] Every assembled prompt includes the full reference implementation contents
+- [ ] Every assembled prompt includes the full reference implementation contents (ACTUAL CODE, not paths)
+- [ ] Every file in `files_to_modify` has its current content inlined in the prompt
+- [ ] Every file in `reference_impl` has its full code inlined in the prompt
+- [ ] Existing patterns table is present with file paths and reuse instructions
+- [ ] Files to Create / Files to Modify section uses task-specific lists (not generic file_targets)
+- [ ] Compatibility constraints section is populated from Brief Section 10
+- [ ] Performance budget section includes numeric latency targets per operation
+- [ ] Manual test plan section is present when the task has a manual_test_plan field
 - [ ] Every "modify" instruction includes a line number or method name anchor
 - [ ] Every "create" instruction includes the pattern file to follow with its contents inlined
 - [ ] Duplication guardrails list specific existing files, not generic advice
@@ -623,12 +559,3 @@ adlc-codegen verify --task BE-001 --repo ./my-repo --tests ./tests/be-001.test.t
 - [ ] Pre-written tests exist and are failing before assembly
 - [ ] After coding agent execution, all task tests pass
 - [ ] After coding agent execution, full test suite passes (no regressions)
-
-## Framework Hardening Addendum
-
-- **Contract versioning:** Inputs from Build Brief, repo map, scaffolding, and tests must include `contract_version` metadata.
-- **Schema validation:** Validate assembled task payloads against `docs/schemas/build-brief.schema.json` task definitions and referenced schemas before prompt assembly.
-- **Per-task token budget:** Enforce per-task budgets from `docs/specs/token-budgets.md` with pre-turn checks (`docs/specs/pre-turn-check.md`).
-- **Compaction behavior:** When context approaches budget limits, apply transcript/context compaction from `docs/specs/transcript-compaction.md` while preserving acceptance criteria and wiring fields.
-- **Stop reasons:** If assembly cannot proceed safely, emit structured stop reasons (`budget_exhausted`, `contract_mismatch`, `missing_dependency`).
-
