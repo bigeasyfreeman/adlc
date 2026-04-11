@@ -16,7 +16,7 @@ Works with Claude Code, Codex, Cursor, Antigravity, and Factory.
 
 Most AI coding is either "write me a function" or manually shuttling context between agents and praying they figure out the order. One is too dumb. The other is you doing the orchestration by hand, which defeats the point.
 
-ADLC is a directed graph. Agents emit labels (`lgtm`, `revise`, `escalate`). Edges route to the next step. Independent tasks fan out in parallel. Lint, test, and scaffold nodes burn zero tokens. Every review loop caps out so nothing spins forever.
+ADLC is a directed graph. Agents emit labels (`lgtm`, `revise`, `escalate`). Edges route to the next step. Independent tasks fan out in parallel. Lint, test, and scaffold/planning nodes burn zero tokens. Every review loop caps out so nothing spins forever.
 
 The whole thing is markdown. Skills are injectable knowledge. Agents are thin configs. Swap any piece without touching the rest.
 

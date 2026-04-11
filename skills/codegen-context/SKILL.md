@@ -8,7 +8,7 @@
 
 The ADLC system produces excellent artifacts:
 - **Codebase Research** tells the agent what service to build in, what to reuse, what to extend, what patterns to follow
-- **Architecture Scaffolding** produces port interfaces, adapter stubs, and directory structure
+- **Architecture Scaffolding** produces port interfaces, implementation guides, and directory structure
 - **QA Test Data** produces deterministic test scenarios from G/W/T acceptance criteria
 - **JIRA Tickets** have self-contained task descriptions with pattern references
 
@@ -22,7 +22,7 @@ This skill is the difference between "here's a well-documented task" and "here's
 
 Activated after ALL of these are complete:
 1. Build Brief approved
-2. Architecture Scaffolding generated (stubs exist in repo)
+2. Architecture Scaffolding generated (contracts/guides exist for the task)
 3. QA tests generated (tests exist and are runnable)
 4. JIRA tickets created
 
@@ -341,7 +341,7 @@ Inline these files:
 - The pre-written test file (what must pass)
 - The test fixtures (seed data)
 - The relevant schema section
-- The scaffolded stubs (if they exist for this task)
+- The scaffolded contracts and implementation guide (if they exist for this task)
 
 ### Step 3: Convert references to line-specific instructions
 
@@ -386,7 +386,7 @@ This means the QA skill execution order changes:
 
 ```
 1. Build Brief approved
-2. Architecture Scaffolding (generates stubs)
+2. Architecture Scaffolding (generates contracts/guides)
 3. Schema migration (if new models needed)
 4. QA Test Generation (generates FAILING tests from G/W/T)
 5. Codegen Context Assembly (assembles per-task prompts)
@@ -449,7 +449,7 @@ Each agent operates independently with its own assembled context. No agent needs
       "scaffold_files": {
         "type": "array",
         "items": {"type": "string"},
-        "description": "Paths to scaffolded stub files relevant to this task"
+        "description": "Paths to scaffolded contract/guide files relevant to this task"
       }
     },
     "required": ["task_id", "build_brief", "research_deliverable", "repo_path"]

@@ -24,7 +24,7 @@ Every task carries a DoD checklist. A task is not complete until every item is v
 | 1 | All linters pass | Automated: LDD gate | Any violation |
 | 2 | All tests pass | Automated: TDD suite | Any failure |
 | 3 | Code complexity within budget | Automated: CC < 15, SLOC < 50/fn | Exceeding ceiling |
-| 4 | No code slop | Automated: anti-slop scanner | Placeholders, TODOs, god functions, duplicates, hardcoded values |
+| 4 | No code slop or stub patterns | Automated: anti-slop scanner | `TODO`, `FIXME`, `PLACEHOLDER`, `todo!()`, `unimplemented!()`, `panic!(\"not implemented\")`, `NotImplementedError`, `pass`, empty placeholder bodies, commented-out code, fake/mock placeholder logic in shipped code |
 
 ### Security
 
@@ -58,7 +58,7 @@ Every task carries a DoD checklist. A task is not complete until every item is v
 
 | # | Check | Verification | Blocks On |
 |---|-------|-------------|-----------|
-| 18 | Integration wiring complete | Automated: registration check | Missing wiring |
+| 18 | Integration wiring complete | Automated: registration check | Missing wiring, dead routes, unwired providers, unused flags/config, placeholder entry points |
 | 19 | Scalability concerns documented | Council review | Undocumented |
 | 20 | Degradation strategy defined | Council (if applicable) | Missing strategy |
 
@@ -86,7 +86,7 @@ Every task carries a DoD checklist. A task is not complete until every item is v
     "ldd_pass": { "status": true, "evidence": "ruff: 0 violations, mypy: 0 errors" },
     "tdd_pass": { "status": true, "evidence": "42 passed, 0 failed", "coverage": 87 },
     "complexity_ok": { "status": true, "evidence": "max CC: 8, max SLOC: 35" },
-    "no_code_slop": { "status": true, "evidence": "0 violations" },
+    "no_code_slop": { "status": true, "evidence": "0 violations: no TODO/FIXME/PLACEHOLDER, no stub bodies, no NotImplementedError, no commented-out code" },
     "stride_complete": { "status": true, "threats": 6, "mitigations": 4 },
     "stride_implemented": { "status": true, "evidence": "4/4 mitigations present" },
     "owasp_clean": { "status": true, "findings": 0 },
@@ -117,3 +117,4 @@ Every task carries a DoD checklist. A task is not complete until every item is v
 - Any failed check blocks pipeline progression to Phase 6
 - Failed checks produce specific remediation guidance
 - No partial passes — ALL checks must be green
+- Scaffolding artifacts are never considered done. Any remaining stub, placeholder, or partial wiring fails DoD.

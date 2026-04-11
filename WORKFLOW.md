@@ -73,7 +73,7 @@ Tool nodes run shell commands. They are cheap, fast, and reliable.
 ```yaml
 scaffold:
   command: |
-    # Read architecture-pattern skill output, generate stubs
+    # Read architecture-pattern skill output, generate contracts and implementation guides
     mkdir -p ${WORKSPACE}/src/domain ${WORKSPACE}/src/adapters ${WORKSPACE}/src/ports
     # Scaffolding logic from architecture-pattern skill
 
@@ -85,7 +85,7 @@ gen_tests:
 context_assembly:
   command: |
     # Assemble per-task prompts with zero-read principle
-    # Inlines: research, stubs, tests, schemas, patterns
+    # Inlines: research, contracts/guides, tests, schemas, patterns
 
 qa:
   command: |

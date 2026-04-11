@@ -54,7 +54,7 @@ Step 10: Create PR
 
 ### Step 4: Architecture Scaffolding
 - **Skill:** `architecture-pattern` (only when new modules/interfaces needed)
-- **Output:** Port interfaces, adapter stubs, domain types, wiring/registration, directory structure
+- **Output:** Port interfaces, implementation targets, domain types, wiring/registration, directory structure, implementation guide
 
 ### Step 5: Codegen Context Assembly
 - **Skill:** `codegen-context`

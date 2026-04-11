@@ -281,7 +281,7 @@ After Phase 0 extraction, **each subsequent phase starts pre-filled.** The agent
 
 This phase produces the **Spec** layer of the Build Brief. Phases 2-3 produce the **Plan** layer. Phase 8 produces the **Tasks** layer. These three layers are distinct artifacts consumed by different downstream agents:
 - **Spec** → Eval Council validates completeness, QA Skill generates test scenarios
-- **Plan** → Architecture Scaffolding Skill generates stubs, coding agents follow patterns
+- **Plan** → Architecture Scaffolding Skill generates contracts and implementation guides, coding agents follow patterns
 - **Tasks** → JIRA Skill creates tickets, coding agents execute independently
 
 **PRD extraction (do this before asking):**
@@ -559,6 +559,7 @@ For each area -- Backend, Frontend, Infra, Observability -- collect:
 | Task ID | Unique ID (e.g., BE-001) for dependency tracking |
 | Task | Concrete deliverable. Rewrite if vague. |
 | Acceptance Criteria | **Given/When/Then format required.** Maps directly to test assertions. |
+| Anti-Slop Rules | Explicit banned placeholder/stub patterns and wiring-completeness rules. Mandatory on every task. |
 | Constraints | Must do / Must not do / Escalation triggers |
 | Estimated Hours | Target 2h or less per task. Decompose if larger. |
 | Architecture Pattern | Which pattern from Phase 2 applies, with file path reference |
@@ -579,13 +580,23 @@ Good: "Given a POST to /api/v1/widgets with an empty name field, When the reques
 
 **Parallelism flags:** Mark tasks as independent when they don't share state or depend on each other's output. Independent tasks can be executed by multiple coding agents simultaneously. This is how you get 3x velocity from the same task list.
 
+**Anti-slop rules are mandatory on every task:**
+- No `TODO`, `FIXME`, or `PLACEHOLDER` markers in shipped code
+- No `todo!()`, `unimplemented!()`, `panic!("not implemented")`, `NotImplementedError`, `pass`, or empty placeholder bodies in shipped code
+- No commented-out code
+- No fake wiring, dead entry points, unused providers, or unused flags/config added "for later"
+- Every declared config field, flag, CLI route, handler, provider, and entry point must be runtime-real or omitted
+- A task is not done if it only produces scaffolding, stubs, or partial wiring
+
 **Self-containment checklist (Eval Council Executioner will verify):**
 - [ ] Task describes the deliverable without referencing "the spec" or "as discussed"
 - [ ] File paths to modify or create are explicit
 - [ ] Pattern to follow is named with a reference implementation file path
 - [ ] Acceptance criteria are in Given/When/Then and testable as assertions
+- [ ] Anti-slop rules are explicit and binary
 - [ ] Dependencies on other tasks are explicit by task ID
 - [ ] A coding agent reading only this ticket could produce working code
+- [ ] A coding agent reading only this ticket could not satisfy it with scaffolding, placeholders, or partial wiring
 
 **Codebase research:**
 - Find similar implementations to reference
@@ -732,11 +743,13 @@ Before generating the Build Brief, verify all of these are present. Reject the d
 **Task Layer (Phases 7-8):**
 - [ ] Phased plan with failure modes per phase
 - [ ] Task breakdown with Given/When/Then acceptance criteria on every task
+- [ ] Task breakdown with explicit anti-slop rules on every task
 - [ ] Every task references an architecture pattern with file path
 - [ ] Every task has a reference implementation file path
 - [ ] Every task has explicit dependencies (or marked independent)
 - [ ] Independent tasks flagged for parallel execution
-- [ ] Self-containment check: a coding agent with only the ticket could produce working code
+- [ ] Self-containment check: a coding agent with only the ticket could produce working, wired code
+- [ ] No task permits stub-only, scaffold-only, or partial-wiring completion
 - [ ] No task exceeds 2h estimate (decomposed if larger)
 
 **Decisions & Process:**
@@ -977,7 +990,7 @@ THEN [outcome]
 |-------|---------|-------|
 | QA Test Data | After task breakdown confirmed | G/W/T criteria — generate failing tests |
 | CI/CD Pipeline | After Phase 1 tasks merged | Feature flag config + new endpoints — pipeline validation |
-| Codegen Context | Per-task | Each task gets assembled context: repo map + stubs + tests + patterns |
+| Codegen Context | Per-task | Each task gets assembled context: repo map + contracts/guides + tests + patterns |
 | Eval Council | After this brief | 6 personas validate brief before execution begins |
 
 ---
@@ -1160,7 +1173,7 @@ Build Brief Agent (conversational, produces markdown)
   │
   ├─→ [On coding start] Architecture Pattern Scaffolding Skill
   │     Input: Section 2 (Architecture Patterns) + task list
-  │     Output: Port interfaces, adapter stubs, directory structure
+  │     Output: Port interfaces, implementation targets, directory structure, implementation guide
   │
   ├─→ [On Phase 1 deploy] Incident Runbook Generation Skill
   │     Input: Section 6 (Incident Ownership) + failure modes
@@ -1267,7 +1280,7 @@ Given the "Share & Replay Flow" PRD (6 screens, dependencies, out-of-scope, succ
 > | Invite modal (Screen 3) | **Extend** existing API | Add `?search=` + cursor pagination to `GET /api/v1/org/users` at `src/server/routes/orgRoutes.ts` |
 > | Email (Screen 4) | **New class** | Create `EmailAdapter` following `src/server/adapters/ClickHouseCreditRepo.ts` pattern. Port: `src/domain/repos/NotificationRepo.ts` |
 > | Auth deep link (Screen 5) | **Extend** middleware | Fix redirect state in `src/server/middleware/auth.ts` |
-> | Playbook stub (Screen 6) | **New class** (minimal) | `PlaybookService` following `AgentService` pattern — v1 is just the conversion trigger |
+> | Playbook service (Screen 6) | **New class** (minimal but real) | `PlaybookService` following `AgentService` pattern — v1 is just the conversion trigger |
 > | Prompt detection | **Reuse** `session.prompts[]` | Use existing `levenshtein()` from `src/lib/utils/string.ts` |
 >
 > **Libraries to reuse:** `src/lib/utils/string.ts`, `src/lib/validation/zod-schemas.ts`, `src/lib/resilience.ts` (`withRetry`)
