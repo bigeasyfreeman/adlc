@@ -1080,7 +1080,7 @@ grep -n "permission\|access\|role\|share\|invite\|grant" prisma/schema.prisma 2>
 |----------|-------------|
 | **Build Brief Agent** | `service_placement` + `integration_paths` + `schema_intelligence` — pre-fills the brief with concrete implementation decisions |
 | **Eval Council** | `duplication_risks` + `scalability` — validates the brief doesn't introduce duplication or scale problems |
-| **Architecture Scaffolding Skill** | `integration_paths` (especially `new_required` and `follow_pattern_of`) + `schema_intelligence` — generates stubs that integrate cleanly |
+| **Architecture Scaffolding Skill** | `integration_paths` (especially `new_required` and `follow_pattern_of`) + `schema_intelligence` — generates contracts and implementation targets that integrate cleanly |
 | **QA Test Data Skill** | `testing`, `data_layer`, `schema_intelligence` — matches test framework and uses correct schema for fixtures |
 | **CI/CD Pipeline Skill** | `ci_cd`, `tech_stack` — matches workflow patterns, secrets, deploy strategy |
 | **Incident Runbook Skill** | `observability`, `services` — knows monitoring stack, health checks, log locations |
@@ -1234,4 +1234,3 @@ The repo map is cached by git SHA (or content hash for non-git repos):
 - **Schema validation:** Validate emitted repo-map payloads against `docs/schemas/repo-map.schema.json` before caching or returning data.
 - **Structured errors:** On validation failure, return structured diagnostics (`field`, `expected_type`, `actual_value`, `version`) instead of partial payloads.
 - **Stop reasons:** If analysis cannot continue, emit a terminal reason from `docs/specs/stop-reasons.md` and persist workflow context.
-

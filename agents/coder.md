@@ -40,3 +40,12 @@ Everything is in the assembled context. Do NOT search the codebase. If something
 ## Anti-Slop
 
 No TODO/FIXME/PLACEHOLDER. No stub functions. No commented-out code. Every function has real implementation. Every import is used.
+
+Banned in shipped code:
+- `TODO`, `FIXME`, `PLACEHOLDER`
+- `todo!()`, `unimplemented!()`, `panic!("not implemented")`
+- `NotImplementedError`, `pass`, empty placeholder bodies
+- fake/mock placeholder logic in production code
+- unwired entry points, dead handlers, unused providers, and unused config added "for later"
+
+If the task cannot be completed without leaving one of these behind, emit `stuck`.

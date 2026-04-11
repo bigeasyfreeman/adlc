@@ -118,7 +118,7 @@ Any FAIL = the task is not agent-ready. This is a **major finding**.
 
 **Catches:** Vague tasks, untestable acceptance criteria, missing pattern references, implicit dependencies, tasks that are actually 3 tasks pretending to be 1, missed parallelism opportunities.
 
-**Evaluates:** Build Brief (Section 8), JIRA tickets, QA Test Data fixtures, Architecture Scaffolding (are stubs complete enough to code against?).
+**Evaluates:** Build Brief (Section 8), JIRA tickets, QA Test Data fixtures, Architecture Scaffolding (are contracts and implementation guides complete enough to code against without placeholders?).
 
 ---
 
