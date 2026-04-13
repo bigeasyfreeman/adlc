@@ -29,6 +29,15 @@ Activated immediately on Build Brief completion. Consumes the full Build Brief m
 
 Honor the Build Brief's `applicability_manifest` when decomposing pages. Suppressed sections stay omitted or explicitly marked "not applicable"; the skill must not fabricate security, observability, or performance pages for tasks that do not activate them.
 
+## Mixed Acceptance Criteria Shapes
+
+Task acceptance criteria may arrive as strings or structured objects.
+
+Extraction rules:
+- If an item is an object, read its `.then` field for the visible acceptance-criteria text.
+- If an item is a string, use the string directly.
+- Preserve any upstream `id` and `measurable_post_condition` when present; do not flatten structured items into prose that loses them.
+
 ## Output Contract
 
 ```json
@@ -192,6 +201,9 @@ adlc-confluence update --brief ./build-brief.md --parent 12345
 ## Quality Gates
 
 - [ ] All active Build Brief sections have a corresponding Confluence page
+- [ ] Mixed acceptance-criteria handlers read `.then` from objects and raw text from strings
+- [ ] Any acceptance-criteria `id` present upstream is preserved in the emitted Confluence content
+- [ ] Any `measurable_post_condition` present upstream is preserved in the emitted Confluence content
 - [ ] Mermaid diagrams render correctly in Confluence
 - [ ] All Type 1 decisions are marked with warning macros
 - [ ] JIRA links are valid (if tickets exist)

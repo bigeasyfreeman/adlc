@@ -1,11 +1,18 @@
 {
   "contract_version": "1.0.0",
-  "description": "Small benchmark issue set for validating ADLC applicability gating and verifier selection.",
+  "description": "Small benchmark issue set for validating ADLC applicability gating, verifier selection, and deterministic backtest policy routing.",
   "cases": [
     {
       "id": "CASE-001",
       "title": "Fix sqlparser 0.43 compile break in SQL classifier",
       "summary": "Build-validation task to restore cargo build/test truthfulness after a dependency API mismatch.",
+      "task": {
+        "task_id": "TASK-CASE-001",
+        "files_to_modify": [
+          "src/sql/classifier.rs"
+        ],
+        "files_to_create": []
+      },
       "expected_manifest": {
         "task_classification": "build_validation",
         "task_classification_confidence": 0.98,
@@ -50,7 +57,7 @@
           {
             "section_name": "5_security_review",
             "status": "suppressed",
-            "reason": "No new attack surface or auth/data-handling change."
+            "reason": "No new attack surface or auth change is introduced."
           },
           {
             "section_name": "6_observability_slo",
@@ -58,14 +65,9 @@
             "reason": "No runtime path or user-facing operation changes."
           },
           {
-            "section_name": "9_risks",
-            "status": "active",
-            "reason": "Failure modes still matter for build-validation tasks."
-          },
-          {
             "section_name": "11_validation_plan",
             "status": "active",
-            "reason": "The task is defined by build/test/lint verification."
+            "reason": "The task is defined by build and test verification."
           }
         ],
         "verification_spec": {
@@ -88,12 +90,50 @@
           "must_be_deterministic": true,
           "scope_note": "Compile truthfulness is the primary contract for this task."
         }
-      }
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "suppressed",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "legacy_warn",
+          "reason": "target_files_unset"
+        },
+        "dod_overlays": [],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": []
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        }
+      },
+      "expected_rationale": "Layer 1 only mechanizes section defaults with direct change-surface signals. This case has no target_files or post_qa block, so verifier_scope is legacy_warn and test_strength is n_a."
     },
     {
       "id": "CASE-002",
       "title": "Clear clippy warnings in the workspace root crate",
       "summary": "Lint cleanup task with no behavior change.",
+      "task": {
+        "task_id": "TASK-CASE-002",
+        "files_to_modify": [
+          "src/lib.rs"
+        ],
+        "files_to_create": []
+      },
       "expected_manifest": {
         "task_classification": "lint_cleanup",
         "task_classification_confidence": 0.97,
@@ -164,12 +204,53 @@
           "must_be_deterministic": true,
           "scope_note": "No broader test invention is needed for lint-only work."
         }
-      }
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "suppressed",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "legacy_warn",
+          "reason": "target_files_unset"
+        },
+        "dod_overlays": [],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": []
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        }
+      },
+      "expected_rationale": "No change-surface flags are active, so only core routing applies. target_files is unset and post_qa is absent, which yields legacy_warn plus n_a."
     },
     {
       "id": "CASE-003",
       "title": "Stop duplicate invoices on idempotent payment retries",
       "summary": "Bugfix task with a non-sequitur claim that should be flagged before planning.",
+      "task": {
+        "task_id": "TASK-CASE-003",
+        "files_to_modify": [
+          "src/billing/invoice_retry.rs",
+          "src/billing/invoice_service.rs"
+        ],
+        "files_to_create": [
+          "tests/integration/invoice_retry_idempotency.rs"
+        ]
+      },
       "expected_manifest": {
         "task_classification": "bugfix",
         "task_classification_confidence": 0.95,
@@ -260,12 +341,61 @@
           "must_be_deterministic": true,
           "scope_note": "Bugfixes should preserve the failing reproducer through handoff."
         }
-      }
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "legacy_warn",
+          "reason": "target_files_unset"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        }
+      },
+      "expected_rationale": "The unsupported claim remains contamination metadata, but Layer 1 triage routing is confidence-band only. Runtime and user-facing flags activate observability and operator checks; target_files and post_qa are still absent."
     },
     {
       "id": "CASE-004",
       "title": "Add CSV export command for account activity",
       "summary": "Feature task that adds a user-facing operation without new attack surface.",
+      "task": {
+        "task_id": "TASK-CASE-004",
+        "files_to_modify": [
+          "src/commands/export_csv.rs",
+          "src/exports/activity_csv.rs"
+        ],
+        "files_to_create": [
+          "tests/acceptance/export_csv_test.rs"
+        ]
+      },
       "expected_manifest": {
         "task_classification": "feature",
         "task_classification_confidence": 0.94,
@@ -343,12 +473,65 @@
           "must_be_deterministic": true,
           "scope_note": "New features should be defined by explicit success cases and edge cases."
         }
-      }
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "legacy_warn",
+          "reason": "target_files_unset"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "18",
+          "19",
+          "20"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "architect",
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        }
+      },
+      "expected_rationale": "This layer drives observability from runtime and user-facing flags, and drives architecture-related overlays from api/data-format signals. Rollout is left not_applicable because the manifest does not expose a dedicated deployment trigger field."
     },
     {
       "id": "CASE-005",
       "title": "Add OAuth callback endpoint and encrypted token storage for Google Drive import",
       "summary": "Security-sensitive feature with external integration, auth change, and persistent storage.",
+      "task": {
+        "task_id": "TASK-CASE-005",
+        "files_to_modify": [
+          "src/integrations/google_drive/oauth_callback.rs",
+          "src/security/token_store.rs"
+        ],
+        "files_to_create": [
+          "tests/acceptance/google_drive_oauth_callback_test.rs"
+        ]
+      },
       "expected_manifest": {
         "task_classification": "security",
         "task_classification_confidence": 0.96,
@@ -426,7 +609,661 @@
           "must_be_deterministic": true,
           "scope_note": "Security-sensitive features require both primary behavior coverage and active overlay checks."
         }
-      }
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "active",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "legacy_warn",
+          "reason": "target_files_unset"
+        },
+        "dod_overlays": [
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "18",
+          "19",
+          "20"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "architect",
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        }
+      },
+      "expected_rationale": "Security, runtime, and interface-related surfaces are all active here, so the deterministic layer activates the full security, observability, and integration overlays. target_files remains unset, so Gate 0 records a legacy warning instead of blocking."
+    },
+    {
+      "id": "CASE-006",
+      "title": "Investigate whether the flaky deploy script bug or docs drift is the real issue",
+      "summary": "Low-confidence intake that should not proceed automatically because the task classification signal is below threshold.",
+      "expected_label": "escalate",
+      "task": {
+        "task_id": "TASK-CASE-006",
+        "files_to_modify": [
+          "scripts/deploy.sh"
+        ],
+        "files_to_create": []
+      },
+      "expected_manifest": {
+        "task_classification": "infra",
+        "task_classification_confidence": 0.55,
+        "classification_evidence": [
+          "The task mentions deploy-script behavior but does not pin down the failing path.",
+          "The issue mixes possible docs drift with a possible runtime automation bug."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": false,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": false
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "There may be an issue in the deploy-script path.",
+              "source_ref": "issue description",
+              "extracted_from": "problem statement"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "The intake references deployment automation."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [
+            "Whether the failure is actually in deploy automation or in stale documentation."
+          ],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "9_risks",
+            "status": "active",
+            "reason": "The uncertainty itself is a planning risk."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "deploy validation command to be confirmed by a human",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The likely path is infra, but the classification is too weak to proceed automatically."
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Escalate before planning when confidence is below threshold."
+        }
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "escalate",
+          "confidence_band": "escalate"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "suppressed",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "legacy_warn",
+          "reason": "target_files_unset"
+        },
+        "dod_overlays": [],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": []
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        }
+      },
+      "expected_rationale": "Confidence below 0.6 forces escalate. The change-surface flags do not activate any overlay-driven stage in this deterministic harness."
+    },
+    {
+      "id": "CASE-007",
+      "title": "Trace the intermittent worker timeout during receipt rendering",
+      "summary": "Medium-confidence task that should route through research with a low_confidence label.",
+      "expected_label": "low_confidence",
+      "task": {
+        "task_id": "TASK-CASE-007",
+        "files_to_modify": [
+          "src/workers/receipt_renderer.rs"
+        ],
+        "files_to_create": [
+          "tests/repro/receipt_render_timeout.rs"
+        ]
+      },
+      "expected_manifest": {
+        "task_classification": "bugfix",
+        "task_classification_confidence": 0.72,
+        "classification_evidence": [
+          "The issue references an intermittent timeout in an existing rendering flow.",
+          "The task sounds like a bugfix, but the failing boundary still needs research."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": true,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": true,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "Receipt rendering sometimes times out in the worker path.",
+              "source_ref": "issue description",
+              "extracted_from": "problem statement"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "A timeout occurs on an existing runtime path."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "Runtime timeout behavior requires deeper research before planning."
+          },
+          {
+            "section_name": "9_risks",
+            "status": "active",
+            "reason": "Intermittent failures need explicit risk accounting."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "reproducer",
+            "target": "worker reproducer: receipt render timeout",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Research should confirm the failing path before planning the bugfix."
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Low-confidence classification should still route through research, not straight to planning."
+        }
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "low_confidence",
+          "confidence_band": "low_confidence"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "legacy_warn",
+          "reason": "target_files_unset"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        }
+      },
+      "expected_rationale": "Confidence in the middle band routes to low_confidence. Runtime and user-facing flags activate only the observability/operator path in this harness."
+    },
+    {
+      "id": "CASE-008",
+      "title": "Refactor retry helper wiring but verifier targets the wrong module",
+      "summary": "Refactor task with target_files set to a non-overlapping path so Gate 0 must revise for missing verifier coverage.",
+      "task": {
+        "task_id": "TASK-CASE-008",
+        "files_to_modify": [
+          "src/shared/retry_helper.rs"
+        ],
+        "files_to_create": [
+          "tests/unit/shared/retry_helper_test.rs"
+        ]
+      },
+      "expected_manifest": {
+        "task_classification": "refactor",
+        "task_classification_confidence": 0.91,
+        "classification_evidence": [
+          "The task reorganizes existing retry-helper wiring without adding net-new behavior.",
+          "The verifier contract is explicit, but the named target_files do not match the task file list."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": false,
+          "service_boundary_change": true,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": false
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "Retry helper wiring should move into a shared module.",
+              "source_ref": "issue description",
+              "extracted_from": "refactor request"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "Shared retry-helper extraction is the scope."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "6_observability_slo",
+            "status": "suppressed",
+            "reason": "The refactor does not change a runtime path or user-facing operation."
+          },
+          {
+            "section_name": "9_risks",
+            "status": "active",
+            "reason": "Wiring refactors can silently break reuse paths."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "unit test: shared retry helper preserves retry budget",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The refactor still needs a concrete failing verifier."
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Verifier target_files are intentionally misaligned to exercise the scope check.",
+          "target_files": [
+            "src/legacy/cli_retry.rs"
+          ],
+          "expected_failure_mode": "AssertionError: retry budget mismatch"
+        }
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "suppressed",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "revise",
+          "reason": "verifier_no_coverage"
+        },
+        "dod_overlays": [
+          "18",
+          "19",
+          "20"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "architect"
+          ]
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        }
+      },
+      "expected_rationale": "The only new mechanical condition here is verifier scope: target_files points at src/legacy/cli_retry.rs while the task edits src/shared/retry_helper.rs, so Gate 0 must revise with verifier_no_coverage."
+    },
+    {
+      "id": "CASE-009",
+      "title": "Add guard assertions to the account CSV export path after QA",
+      "summary": "Feature task with intersecting verifier target_files and post-QA metrics that fail the mutation threshold.",
+      "task": {
+        "task_id": "TASK-CASE-009",
+        "files_to_modify": [
+          "src/exports/activity_csv.rs"
+        ],
+        "files_to_create": [
+          "tests/acceptance/export_csv_guard_test.rs"
+        ]
+      },
+      "post_qa": {
+        "coverage": 0.82,
+        "mutation_kill_rate": 0.45
+      },
+      "expected_manifest": {
+        "task_classification": "feature",
+        "task_classification_confidence": 0.92,
+        "classification_evidence": [
+          "The task adds stronger export behavior checks after QA surfaced gaps.",
+          "The change remains user-facing and runtime-visible."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": true,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": true,
+          "data_format_change": true,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "CSV export needs stronger behavioral coverage.",
+              "source_ref": "issue description",
+              "extracted_from": "qa follow-up"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "Export coverage strengthening is the scoped task."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "CSV export remains a runtime and user-facing operation."
+          },
+          {
+            "section_name": "10_rollout",
+            "status": "active",
+            "reason": "The interface and output expectations remain externally visible."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "acceptance test: CSV export preserves expected headers and guard assertions",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The new guard assertions define the behavior boundary."
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "This case exercises the positive verifier-scope path and the weak test-strength path.",
+          "target_files": [
+            "src/exports/activity_csv.rs"
+          ],
+          "expected_failure_mode": "AssertionError: csv headers mismatch"
+        }
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "pass",
+          "reason": "target_files_intersect"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "18",
+          "19",
+          "20"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "architect",
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "weak",
+          "coverage": 0.82,
+          "mutation_kill_rate": 0.45
+        }
+      },
+      "expected_rationale": "Coverage clears the 0.80 threshold, but mutation kill rate misses the 0.60 threshold, so test_strength must return weak. target_files intersects the modified export file, so verifier_scope passes."
+    },
+    {
+      "id": "CASE-010",
+      "title": "Strengthen invoice retry regression coverage after QA",
+      "summary": "Bugfix task with intersecting verifier target_files and post-QA metrics that pass both strength thresholds.",
+      "task": {
+        "task_id": "TASK-CASE-010",
+        "files_to_modify": [
+          "src/billing/invoice_retry.rs"
+        ],
+        "files_to_create": [
+          "tests/integration/invoice_retry_strength_test.rs"
+        ]
+      },
+      "post_qa": {
+        "coverage": 0.85,
+        "mutation_kill_rate": 0.7
+      },
+      "expected_manifest": {
+        "task_classification": "bugfix",
+        "task_classification_confidence": 0.93,
+        "classification_evidence": [
+          "The task hardens an existing invoice retry bugfix with stronger regression checks.",
+          "The bug remains on a runtime, user-visible billing path."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": true,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": true,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "Invoice retry regression coverage needs strengthening.",
+              "source_ref": "issue description",
+              "extracted_from": "qa follow-up"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "Invoice retry coverage strengthening is the scoped task."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "Retry handling remains a runtime and user-facing billing operation."
+          },
+          {
+            "section_name": "9_risks",
+            "status": "active",
+            "reason": "Billing regressions still need explicit risk accounting."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "integration test: invoice retry creates exactly one invoice",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The regression test should remain the narrowest deterministic signal."
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "This case exercises the passing test-strength path.",
+          "target_files": [
+            "src/billing/invoice_retry.rs"
+          ],
+          "expected_failure_mode": "AssertionError: duplicate invoice count"
+        }
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "pass",
+          "reason": "target_files_intersect"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "pass",
+          "coverage": 0.85,
+          "mutation_kill_rate": 0.7
+        }
+      },
+      "expected_rationale": "Both post-QA thresholds clear the deterministic gates, so test_strength returns pass. target_files intersects the edited billing file, so verifier_scope also passes."
     }
   ]
 }

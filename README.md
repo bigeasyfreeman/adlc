@@ -100,6 +100,7 @@ Every loop caps. Plan review: 3. Code review: 3. Fixer: 2. QA: 2. Hit the wall a
 | **researcher** | Codebase analysis, PRD cross-reference | Opus | codebase-research, grafana |
 | **planner** | PRD + research into an applicability-aware Build Brief | Opus | codegen-context, architecture, security-review |
 | **plan-reviewer** | 6-persona Eval Council with Gate 0 pre-checks | Opus | eval-council |
+| **test-author** | Authors failing verifier tests from Brief | Sonnet | spec-to-tests, tdd-enforcement, qa-test-data |
 | **coder** | LDD then verifier-led execution per task class | Sonnet | tdd-enforcement, ldd-enforcement, debugging |
 | **code-reviewer** | Quality, correctness, and security | Opus | eval-council, security-review |
 | **fixer** | 4-phase root cause, then fix | Sonnet | systematic-debugging, fix-loop |
@@ -115,7 +116,7 @@ Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 Skill definitions are injected into agents at startup. Runtime install counts are derived by `setup.sh` rather than hardcoded in docs.
 
 **Core Engineering:**
-`codebase-research` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `definition-of-done` (22-check DoD)
+`codebase-research` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `definition-of-done` (22-check DoD) · `spec-to-tests` (failing-test authoring from Brief)
 
 **Security:**
 `security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`

@@ -336,6 +336,17 @@
         },
         "rationale": {
           "type": "string"
+        },
+        "target_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expected_failure_mode": {
+          "type": "string",
+          "minLength": 1
         }
       }
     }

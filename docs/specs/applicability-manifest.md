@@ -9,6 +9,16 @@ Carry one authoritative control-plane decision from triage into planning and bri
 - Triage classification output
 - Research deliverable
 
+## Confidence Policy
+
+Route by `task_classification_confidence`:
+
+- `task_classification_confidence >= 0.8` -> proceed
+- `0.6 <= task_classification_confidence < 0.8` -> route back through research with `low_confidence`
+- `task_classification_confidence < 0.6` -> emit `escalate`
+
+Confidence routing is part of the control plane. Planning should not continue silently when the confidence falls below the escalation threshold.
+
 ## Core Fields
 - `task_classification`: `feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security`
 - `change_surface`: boolean flags for the surfaces the task actually touches
@@ -54,6 +64,19 @@ Default guidance:
 - `12_skill_trigger_configuration` is active only when downstream skill activation changes meaningfully.
 - Performance and compatibility concerns should be folded into the active sections only when the change surface warrants them.
 
+### Section Activation Trigger Table
+
+These triggers are the authoritative mapping consumed by the deterministic section_policy evaluator. Any change here must be mirrored in `tests/backtest/evaluators/section_policy.sh`.
+
+| Section | Status When Active | Trigger Expression (over `change_surface` / task class) |
+|---|---|---|
+| `5_security_review` | `active` | `new_attack_surface OR auth_change OR external_integration` |
+| `6_observability_slo` | `active` | `runtime_path_change OR user_facing_operation` |
+| `10_rollout` | `active` | Task-class gated — activate only when `task_classification IN (infra, refactor)` AND rollout/migration mechanics are named in scope. Default `not_applicable` for all other classes. |
+| `12_skill_trigger_configuration` | `active` | Activate only when the Build Brief explicitly adds, removes, or reconfigures skill triggers. Default `not_applicable`. |
+
+All other sections default to `active` when the section is required by the Build Brief template, and to `suppressed` with a concrete reason when the change surface does not warrant them.
+
 Build-validation and lint-cleanup tasks should usually suppress at least half the brief sections. That suppression must come from the manifest, not from ad hoc prose.
 
 ## Verification Spec
@@ -68,6 +91,11 @@ The chosen verifier must:
 - pass after the fix
 - be deterministic
 - be specific enough to catch the real defect, not just ceremony
+
+### Optional Fields
+
+- `target_files`: which files the verifier exercises; enables the coverage intersection check for downstream failing-test authoring.
+- `expected_failure_mode`: short string describing the reason the verifier should fail pre-change, for example `AssertionError: balance != 0` or `exit 1: cargo test failed`.
 
 ## Output Contract
 ```json

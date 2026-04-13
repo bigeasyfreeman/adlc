@@ -1,0 +1,118 @@
+{
+  "run_at": "2026-04-13T18:15:20Z",
+  "total": 60,
+  "passed": 60,
+  "failed": 0,
+  "cases": [
+    {
+      "id": "CASE-001",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass"
+      }
+    },
+    {
+      "id": "CASE-002",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass"
+      }
+    },
+    {
+      "id": "CASE-003",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass"
+      }
+    },
+    {
+      "id": "CASE-004",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass"
+      }
+    },
+    {
+      "id": "CASE-005",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass"
+      }
+    },
+    {
+      "id": "CASE-006",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass"
+      }
+    },
+    {
+      "id": "CASE-007",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass"
+      }
+    },
+    {
+      "id": "CASE-008",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass"
+      }
+    },
+    {
+      "id": "CASE-009",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass"
+      }
+    },
+    {
+      "id": "CASE-010",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass"
+      }
+    }
+  ]
+}

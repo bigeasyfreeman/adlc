@@ -34,6 +34,10 @@ The Council evaluates quality. It does NOT invent scope or bypass the applicabil
   "verdict": {
     "status": "APPROVED | APPROVED_WITH_CONCERNS | REVISION_REQUIRED | BLOCKED",
     "confidence": 0.0-1.0,
+    "gate_0": {
+      "verifier_scope_intersection": "pass | warn | fail",
+      "reason": "null | verifier_no_coverage"
+    },
     "applicability_manifest": {
       "task_classification": "feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security",
       "core_personas": ["skeptic", "executioner", "first_principles"],
@@ -49,3 +53,4 @@ The Council evaluates quality. It does NOT invent scope or bypass the applicabil
 - **lgtm**: APPROVED. Proceed.
 - **revise**: REVISION_REQUIRED. Send back to planner.
 - **blocked**: Critical issues needing human judgment. Escalate.
+- Gate 0 must report the Verifier Scope Intersection result explicitly. If `verification_spec.target_files` is set and does not intersect task file scope, return `revise` with `reason: "verifier_no_coverage"`.

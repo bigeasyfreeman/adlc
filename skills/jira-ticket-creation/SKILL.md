@@ -45,6 +45,15 @@ Activated after the engineer approves the Build Brief. Consumes the schema-valid
 
 Every emitted ticket must preserve the task's `task_classification`, `verification_spec`, and any active overlay expectations from the brief's `applicability_manifest`. Suppressed sections do not become filler ticket content.
 
+## Mixed Acceptance Criteria Shapes
+
+Task acceptance criteria may arrive as strings or structured objects.
+
+Extraction rules:
+- If an item is an object, read its `.then` field for the visible acceptance-criteria text.
+- If an item is a string, use the string directly.
+- Preserve any upstream `id` and `measurable_post_condition` when present; do not flatten structured items into prose that loses them.
+
 ## Output Contract
 
 ```json
@@ -191,6 +200,13 @@ For each failure mode in the roll-up (Section 11):
 | Service Owner | Active observability/operations section | team name |
 | Architecture Pattern | Section 2 | pattern name |
 | SLO Target | Active observability/performance section | availability target |
+
+## Quality Gates
+
+- [ ] Mixed acceptance-criteria handlers read `.then` from objects and raw text from strings
+- [ ] Any acceptance-criteria `id` present upstream is preserved in the emitted ticket
+- [ ] Any `measurable_post_condition` present upstream is preserved in the emitted ticket or linked metadata
+- [ ] Verification contract fields survive decomposition without being weakened
 
 ## MCP Server Contract
 

@@ -1,6 +1,6 @@
 // ADLC Pipeline — Directed Acyclic Graph
-// Node shapes: box=agent, component=fan-out, hexagon=human-gate, diamond=conditional, rect(dashed)=tool
-// Edge labels drive routing: lgtm, revise, escalate, pass, fail
+// Node shapes: box=agent, component=fan-out, hexagon=human-gate, diamond=conditional, rect(dashed)=tool; tool nodes are dashed and gen_tests is now an agent node.
+// Edge labels drive routing: lgtm, revise, escalate, low_confidence, pass, fail, weak, stuck
 
 digraph ADLC {
     rankdir=TB
@@ -25,9 +25,9 @@ digraph ADLC {
     // ─── Plan Review (agentic — Eval Council) ───
     plan_review [shape=box, label="Plan Review\nEval Council", style=filled, fillcolor="#fff3e6"]
 
-    // ─── Scaffold + Tests (deterministic tool nodes) ───
+    // ─── Scaffold + Tests (scaffold deterministic, verifier authoring agentic) ───
     scaffold [shape=box, label="Scaffold\nArchitecture Stubs", style="dashed,filled", fillcolor="#f0f0f0"]
-    gen_tests [shape=box, label="Generate Verifiers\nTests / Reproducers / Failing Commands", style="dashed,filled", fillcolor="#f0f0f0"]
+    gen_tests [shape=box, label="Generate Verifiers\nAuthor Failing Tests / Reproducers", style=filled, fillcolor="#e6f3ff"]
 
     // ─── Context Assembly (deterministic) ───
     context_assembly [shape=box, label="Context Assembly\nPer-Task Prompts", style="dashed,filled", fillcolor="#f0f0f0"]
@@ -43,6 +43,10 @@ digraph ADLC {
 
     // ─── QA + CI (deterministic tool node) ───
     qa [shape=box, label="QA + CI\nRun Tests & Lint", style="dashed,filled", fillcolor="#f0f0f0"]
+
+    // ─── Test Strength + Slop Gate ───
+    test_strength [shape=box, label="Test Strength\nCoverage + Mutation Audit", style=filled, fillcolor="#e6f3ff"]
+    slop_gate [shape=box, label="Slop Gate\nStop-Slop Audit", style="dashed,filled", fillcolor="#f0f0f0"]
 
     // ─── PR Assembly (agentic) ───
     pr_prep [shape=box, label="PR Prep\nAssemble Package", style=filled, fillcolor="#e6f3ff"]
@@ -60,7 +64,9 @@ digraph ADLC {
 
     // Triage routing
     triage -> research     [label="proceed"]
+    triage -> research     [label="low_confidence", style=dashed, color="#cc6600"]
     triage -> escalate     [label="unclear"]
+    triage -> escalate     [label="escalate", color="red"]
 
     // Research → Plan
     research -> plan
@@ -70,8 +76,9 @@ digraph ADLC {
     plan_review -> plan          [label="revise", style=dashed, color="#cc6600"]
     plan_review -> scaffold      [label="lgtm"]
     plan_review -> escalate      [label="blocked", color="red"]
+    plan -> escalate             [label="escalate", color="red"]
 
-    // Scaffold → Tests → Context Assembly (deterministic chain)
+    // Scaffold → Tests → Context Assembly
     scaffold -> gen_tests
     gen_tests -> context_assembly
 
@@ -90,8 +97,17 @@ digraph ADLC {
     security -> fixer            [label="fail", color="red"]
 
     // QA gate
-    qa -> pr_prep                [label="pass"]
+    qa -> test_strength          [label="pass"]
     qa -> fixer                  [label="fail", style=dashed, color="#cc6600"]
+
+    // Test-strength gate
+    test_strength -> slop_gate   [label="pass"]
+    test_strength -> fixer       [label="weak", color="red"]
+    test_strength -> escalate    [label="stuck", color="red"]
+
+    // Slop gate
+    slop_gate -> pr_prep         [label="pass"]
+    slop_gate -> fixer           [label="fail", style=dashed, color="#cc6600"]
 
     // PR → Human Gate
     pr_prep -> engineer_review

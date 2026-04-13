@@ -152,6 +152,23 @@ Task-class behavior:
 
 No task should be forced into fabricated behavioral tests when the verifier is a command.
 
+## Normalize Acceptance Criteria
+
+Before emitting assembled context, normalize every task's acceptance criteria into structured Given/When/Then objects.
+
+Normalization rules:
+- If an item is already structured with `id`, `given`, `when`, and `then`, preserve it as-is.
+- If an item is a string, emit:
+  - `id`: `AC-{task_id}-{n}`
+  - `given`: `""`
+  - `when`: the shortest objective-derived action statement for the task
+  - `then`: the original string text unchanged
+  - `measurable_post_condition`: `""`
+- Preserve item order so downstream AC-to-test mappings stay deterministic across retries.
+- Preserve any existing `measurable_post_condition`; do not collapse it into prose or drop it from the assembled prompt.
+
+Downstream agents should consume only the normalized structured form. This keeps legacy string-only briefs runnable without weakening newer structured briefs.
+
 ---
 
 ## Output: The Coding Agent Prompt

@@ -196,7 +196,43 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "type": "string"
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "given",
+                  "when",
+                  "then"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^AC-[A-Z0-9_-]+$"
+                  },
+                  "given": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "when": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "then": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "measurable_post_condition": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
           }
         },
         "anti_slop_rules": {
@@ -326,6 +362,17 @@
         },
         "rationale": {
           "type": "string"
+        },
+        "target_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expected_failure_mode": {
+          "type": "string",
+          "minLength": 1
         }
       }
     }

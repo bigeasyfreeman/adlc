@@ -114,8 +114,7 @@ assert_file_exists "coder agent" "$TARGET/.claude/agents/coder.md"
 assert_file_exists "security-reviewer agent" "$TARGET/.claude/agents/security-reviewer.md"
 
 # Verify no legacy agents leaked
-assert "No ADLC-BUILD-BRIEF-AGENT in agents" "[ ! -f '$TARGET/.claude/agents/ADLC-BUILD-BRIEF-AGENT.md' ]"
-assert "No PM-PRD-AGENT in agents" "[ ! -f '$TARGET/.claude/agents/PM-PRD-AGENT.md' ]"
+assert "No legacy agents in agents" "[ ! -f '$TARGET/.claude/agents/ADLC-BUILD-BRIEF-AGENT.md' ] && [ ! -f '$TARGET/.claude/agents/PM-PRD-AGENT.md' ]"
 
 # Verify agent frontmatter
 assert_file_contains "triage has model: sonnet" "$TARGET/.claude/agents/triage.md" "model: sonnet"

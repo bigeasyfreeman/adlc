@@ -10,7 +10,7 @@
       "dag_node": "triage",
       "model": "claude-sonnet-4-6",
       "skills": [],
-      "labels": ["proceed", "unclear", "escalate"]
+      "labels": ["proceed", "low_confidence", "unclear", "escalate"]
     },
     {
       "name": "researcher",
@@ -26,7 +26,7 @@
       "dag_node": "plan",
       "model": "claude-opus-4-6",
       "skills": ["codegen-context", "architecture-pattern"],
-      "labels": ["done"]
+      "labels": ["done", "escalate"]
     },
     {
       "name": "plan-reviewer",
@@ -40,6 +40,22 @@
       },
       "skills": ["eval-council"],
       "labels": ["lgtm", "revise", "blocked"]
+    },
+    {
+      "name": "test-author",
+      "path": "agents/test-author.md",
+      "dag_node": "gen_tests",
+      "model": "claude-sonnet-4-6",
+      "skills": ["spec-to-tests", "tdd-enforcement", "qa-test-data"],
+      "labels": ["done", "stuck", "revise"]
+    },
+    {
+      "name": "test-strength-auditor",
+      "path": "agents/test-strength-auditor.md",
+      "dag_node": "test_strength",
+      "model": "claude-sonnet-4-6",
+      "skills": ["test-strength"],
+      "labels": ["pass", "weak", "stuck"]
     },
     {
       "name": "coder",
@@ -229,6 +245,19 @@
       "dag_nodes": ["triage", "plan_review", "engineer_review"]
     },
     {
+      "name": "spec-to-tests",
+      "path": "skills/spec-to-tests/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "activation": {
+        "mode": "core",
+        "consumes_manifest": true,
+        "requires": ["acceptance_criteria", "verification_spec"],
+        "produces": ["test_plan", "pre_change_run"]
+      },
+      "dag_nodes": ["gen_tests"]
+    },
+    {
       "name": "systematic-debugging",
       "path": "skills/systematic-debugging/SKILL.md",
       "contract_version": "1.0.0",
@@ -241,6 +270,19 @@
       "contract_version": "1.0.0",
       "side_effect_profile": "read_only",
       "dag_nodes": ["code", "gen_tests"]
+    },
+    {
+      "name": "test-strength",
+      "path": "skills/test-strength/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "activation": {
+        "mode": "core",
+        "consumes_manifest": true,
+        "requires": ["test_plan", "changed_files", "mutation_config"],
+        "produces": ["test_strength_report"]
+      },
+      "dag_nodes": ["test_strength"]
     },
     {
       "name": "ux-flow-builder",

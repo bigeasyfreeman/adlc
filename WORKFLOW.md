@@ -24,15 +24,18 @@ iteration_limits:
   plan_review: 3          # Eval Council max loops
   code_review: 3          # Code review max loops
   fixer: 2                # Fix attempts before escalate
+  test_strength_retry: 2  # Weak-test strengthening attempts before escalate
   qa_retry: 2             # CI retry before escalate
 
 labels:
   - lgtm                  # Approved, proceed to next node
   - revise                # Send back for revision
   - escalate              # Human intervention needed
+  - low_confidence        # Triage confidence requires extra research before planning
   - blocked               # Cannot proceed, critical issue
   - pass                  # Deterministic gate passed
   - fail                  # Deterministic gate failed
+  - weak                  # Test-strength audit failed thresholds
   - proceed               # Triage approved
   - unclear               # Triage cannot classify
   - fixed                 # Fixer resolved the issue
@@ -56,12 +59,14 @@ Agent prompts live in `agents/{name}.md`. Skills are synced into the workspace b
 | `plan` | `agents/planner.md` | claude | claude-opus-4-6 | codegen-context, architecture-pattern |
 | `plan_review` | `agents/plan-reviewer.md` | claude | claude-opus-4-6 | eval-council |
 | `scaffold` | *tool node* | — | — | architecture-pattern |
-| `gen_tests` | *tool node* | — | — | qa-test-data, tdd-enforcement |
+| `gen_tests` | `agents/test-author.md` | claude | claude-sonnet-4-6 | spec-to-tests, tdd-enforcement, qa-test-data |
 | `context_assembly` | *tool node* | — | — | codegen-context |
 | `code` | `agents/coder.md` | claude | claude-sonnet-4-6 | tdd-enforcement, systematic-debugging |
 | `code_review` | `agents/code-reviewer.md` | claude | claude-opus-4-6 | eval-council |
 | `security` | `agents/security-reviewer.md` | claude | claude-opus-4-6 | appsec-threat-model, llm-security, agentic-security, api-security, infra-security |
 | `qa` | *tool node* | — | — | — |
+| `test_strength` | `agents/test-strength-auditor.md` | claude | claude-sonnet-4-6 | test-strength |
+| `slop_gate` | *tool node* | — | — | stop-slop |
 | `fixer` | `agents/fixer.md` | claude | claude-sonnet-4-6 | systematic-debugging |
 | `pr_prep` | `agents/pr-preparer.md` | claude | claude-sonnet-4-6 | — |
 | `engineer_review` | *human gate* | — | — | — |
@@ -77,11 +82,6 @@ scaffold:
     mkdir -p ${WORKSPACE}/src/domain ${WORKSPACE}/src/adapters ${WORKSPACE}/src/ports
     # Scaffolding logic from architecture-pattern skill
 
-gen_tests:
-  command: |
-    # Generate failing tests from G/W/T acceptance criteria
-    # Uses qa-test-data skill output
-
 context_assembly:
   command: |
     # Assemble per-task prompts with zero-read principle
@@ -92,6 +92,10 @@ qa:
     # Run linter + test suite
     ${TEST_COMMAND:-npm test}
     ${LINT_COMMAND:-npm run lint}
+
+slop_gate:
+  command: |
+    stop-slop all --commit HEAD
 ```
 
 ### Fan-Out Configuration

@@ -21,6 +21,28 @@ Every task carries a DoD core baseline. Overlay checks are selected from the app
 - Overlay checks activate only when `applicability_manifest` marks the relevant surface as active.
 - Any suppressed overlay must include a concrete `not_applicable` reason tied to task class or repo evidence.
 
+### Overlay Activation Trigger Table
+
+This table is the authoritative mapping of `change_surface` flags and task class to DoD overlay check IDs. It is consumed by the deterministic dod_overlays evaluator. Any change here must be mirrored in `tests/backtest/evaluators/dod_overlays.sh`.
+
+| Overlay | Check IDs | Trigger Expression |
+|---|---|---|
+| Security | `5, 6, 7, 8, 9` | `new_attack_surface OR auth_change OR external_integration` |
+| Observability | `10, 11, 12, 13, 14` | `runtime_path_change OR user_facing_operation` |
+| Integration | `18, 19, 20` | `service_boundary_change OR external_integration OR api_change OR data_format_change` |
+| Content | `21, 22` | `task_classification == "docs"` or human-facing output is in scope |
+
+Overlay checks that are not activated by this table must be reported as `not_applicable` with a concrete reason in the manifest's `section_policy`.
+
+## Mixed Acceptance Criteria Shapes
+
+Acceptance criteria may arrive as strings or structured Given/When/Then objects.
+
+Extraction rules:
+- If an item is an object, read its `.then` field as the criterion text and preserve any `id` and `measurable_post_condition` in the verification record.
+- If an item is a string, use the string directly.
+- Do not mark a task done if the evaluation path drops an upstream `id` or `measurable_post_condition`.
+
 ## Core Baseline Checks
 
 ### Code Quality
@@ -132,3 +154,4 @@ Every task carries a DoD core baseline. Overlay checks are selected from the app
 - Failed checks produce specific remediation guidance
 - No partial passes — ALL active checks must be green
 - Scaffolding artifacts are never considered done. Any remaining stub, placeholder, or partial wiring fails DoD.
+- Mixed acceptance-criteria handlers that lose an upstream `id` or `measurable_post_condition` fail DoD verification.

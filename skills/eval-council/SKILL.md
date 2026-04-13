@@ -34,6 +34,21 @@ The Eval Council runs at these points in the ADLC lifecycle:
 
 The Eval Council evaluates active surfaces through core personas and overlay personas. Core personas ask different questions and catch different failure modes. Overlay personas activate only when the applicability manifest says the surface exists. They do not collaborate — they evaluate independently, then their verdicts are synthesized.
 
+### Overlay Activation Trigger Table
+
+Core personas always run. Overlay personas activate from `change_surface` flags in the applicability manifest. This table is the authoritative mapping consumed by the deterministic council_personas evaluator. Any change here must be mirrored in `tests/backtest/evaluators/council_personas.sh`.
+
+| Persona | Role | Trigger Expression |
+|---|---|---|
+| `skeptic` | Core | Always active |
+| `executioner` | Core | Always active |
+| `first_principles` | Core | Always active |
+| `architect` | Overlay | `service_boundary_change OR external_integration OR api_change OR data_format_change` |
+| `operator` | Overlay | `runtime_path_change OR user_facing_operation` |
+| `security_auditor` | Overlay focus (expands Skeptic) | `new_attack_surface OR auth_change OR external_integration` |
+
+Suppressed overlays must carry a concrete `not_applicable` reason tied to manifest evidence, per the opt-OUT policy.
+
 ### 1. The Architect
 
 **Perspective:** System design, patterns, boundaries, blast radius.
@@ -172,6 +187,16 @@ Every Build Brief must pass the core checks below before the council convenes. O
 - [ ] **G/W/T roll-up covers all testable behaviors** — Every testable behavior described in the functional spec must have at least one Given/When/Then acceptance criterion
 - [ ] **Revision history section present** — Brief must include a revision history table tracking changes across council iterations
 
+### Verifier Scope Intersection
+
+For every task, compare `verification_spec.target_files` against the union of `files_to_modify` and `files_to_create`.
+
+- If `target_files` is set and the intersection is non-empty, Gate 0 passes this check.
+- If `target_files` is set and the intersection is empty, Gate 0 fails with verdict `REVISION_REQUIRED` and reason `verifier_no_coverage`.
+- If `target_files` is unset, record a legacy warning and continue without blocking.
+
+This check is mechanical. Do not waive it with prose if the verifier names files that the task does not touch.
+
 ### Conditional Checks (Only If Applicable)
 
 These checks apply only when the project has the relevant capability. Skip with justification if not applicable:
@@ -184,8 +209,9 @@ These checks apply only when the project has the relevant capability. Skip with 
 
 ```
 GATE 0 PRE-CHECK:
-│ Mandatory checks passed:  [X/14]
+│ Mandatory checks passed:  [X / required]
 │ Conditional checks:       [X applicable, X passed]
+│ Verifier scope check:     PASS / WARN / FAIL
 │ Gate 0 verdict:           PASS / FAIL
 │
 │ If FAIL — return immediately with list of failed checks.

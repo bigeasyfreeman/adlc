@@ -24,6 +24,15 @@ Use `verification_spec.primary_verifier` as the source of truth.
 
 If the verifier passes too early, the verifier is wrong or the task is already satisfied.
 
+## Test Plan Input
+
+The assembled context includes `.adlc/test_plan.json` from the `test-author` agent.
+
+- If `.adlc/test_plan.json` is missing, emit `stuck` with `stuck_reason: "test_plan_missing"`.
+- Run the listed `generated_tests` as the primary verifier embodiment before editing.
+- Confirm `.adlc/pre_change_run.txt` shows the documented pre-change failure for the expected reason before editing.
+- Never modify or delete generated tests to make them pass. Their failure must drive the production code change.
+
 ## Loop
 
 1. Confirm the verifier from the assembled context
