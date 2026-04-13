@@ -1,24 +1,37 @@
 ---
 name: security-review
-description: "Dual-mode security analysis: STRIDE threat modeling per-task during brief generation (Phase 1) and OWASP Top 10 vulnerability scanning per-diff post-execution (Phase 5). Triggers automatically at Phase 1 and Phase 5 entry."
+description: "Security analysis with applicability-aware activation: STRIDE threat modeling only when the task introduces attack surface, trust-boundary, auth, data, or external-integration change; OWASP Top 10 vulnerability scanning per-diff post-execution (Phase 5)."
 ---
 
 # Security Review
 
 ## Overview
 
-Every task gets security analysis. This is not optional, not a separate review — it is baked into the ADLC pipeline at two critical points.
+Every task gets a security decision. Active security surfaces get a STRIDE overlay; inactive surfaces get an explicit `not_applicable` reason. This is not optional, not a separate review — it is baked into the ADLC pipeline at two critical points.
 
 ## When to Use
 
-- **STRIDE mode:** Phase 1 (Build Brief) — threat model every task before design is finalized
-- **OWASP mode:** Phase 5 (Post-Execution) — scan every diff before merge
+- **STRIDE mode:** Phase 1 (Build Brief) — threat model tasks whose applicability manifest marks security active
+- **OWASP mode:** Phase 5 (Post-Execution) — scan diffs that touch executable code, dependencies, or security-sensitive config before merge
 - **Manual:** Any time security posture of a change needs evaluation
 - **Fix Loop:** Security fixes auto-elevate to Critical risk tier
 
+## Applicability Gate
+
+Before generating a STRIDE table, record the security applicability decision:
+
+| Field | Purpose |
+|-------|---------|
+| `security_applicability.status` | `active` or `not_applicable` |
+| `security_applicability.reason` | Concrete reason tied to task class or repo evidence |
+| `security_applicability.trigger_fields` | Which manifest fields activated or suppressed the overlay |
+| `security_applicability.manifest_ref` | Pointer to the upstream applicability manifest entry |
+
+If the status is `not_applicable`, do not invent a STRIDE table. Record the suppression and move on.
+
 ## Mode 1: STRIDE Threat Modeling
 
-Run during brief generation. Per task, analyze all six STRIDE categories:
+Run during brief generation when the security overlay is active. Per task, analyze all six STRIDE categories:
 
 | Threat | Key Question | What to Look For |
 |--------|-------------|-----------------|
@@ -143,7 +156,7 @@ Run on every diff at Phase 5 (Post-Execution Quality Gate).
 
 ## Verification
 
-- [ ] Every task has a STRIDE threat model with all 6 categories analyzed
+- [ ] Every security-active task has a STRIDE threat model with all 6 categories analyzed
 - [ ] Every High/Critical threat has a documented mitigation
 - [ ] Mitigations are specific (not "add authentication" — specify WHERE and HOW)
 - [ ] Security Auditor council persona has reviewed the threat model

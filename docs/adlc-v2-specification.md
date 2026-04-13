@@ -467,50 +467,38 @@ Sequence:
 
 **BPE note:** LDD checks outcomes (does the code pass lint?) not process (did the agent format before writing?). If future models produce lint-clean code natively, this gate becomes a no-op and can be removed.
 
-#### 4.2 Step 2: TDD (Test-Driven Development) — Success Criteria Gate
+#### 4.2 Step 2: Verification Discipline — Success Criteria Gate
 
-**TDD ensures every acceptance criterion has a corresponding test that proves it works.**
+**Every task must carry a falsifiable primary verifier that matches the task class.**
 
-The Iron Law: No production code without a failing test first.
+The core rule: no implementation without a failing or otherwise negative pre-change signal first.
 
-**RED-GREEN-REFACTOR cycle per G/W/T criterion:**
+**Verifier modes:**
 
-1. **RED:** Write a failing test from the G/W/T acceptance criterion
-   - Test MUST fail before any implementation
-   - If test passes without code → STOP, investigate (criterion already satisfied or test is wrong)
-   - Test includes: unit test for the criterion + security test for STRIDE mitigations + observability test for required log entries
+1. **Feature:** Define acceptance tests and edge cases, confirm at least one fails pre-change, implement, then verify the full suite passes.
+2. **Bugfix:** Reproduce the existing failure with a deterministic test or reproducer, fix it, then verify regression coverage.
+3. **Build validation / lint cleanup:** Use the failing command, compile error, or static-analysis violation as the verifier. Confirm it fails before the fix and passes after.
+4. **Refactor / infra / docs:** Use the smallest deterministic verifier that proves the changed contract or behavior.
 
-2. **GREEN:** Write minimal code to make the test pass
-   - Don't add untested behavior
-   - Don't optimize prematurely
-   - Run test after each change
-
-3. **REFACTOR:** Clean up, then commit
-   - Run full task tests
-   - Run full suite for regressions
-   - Run linters (LDD re-check)
-   - Commit atomically per criterion
-
-**Repeat for each G/W/T criterion in the task.**
-
-**Two modes:**
-- **Mode A:** Pre-written tests exist (from QA test data generation) → RED step = verify existing test fails
-- **Mode B:** No pre-written tests → RED step = agent writes test from G/W/T criteria
+**Overlay verifiers are conditional:**
+- Security checks activate only when the task introduces or changes an attack surface.
+- Observability checks activate only when the task changes runtime paths, services, or user-facing operations.
+- Performance checks activate only when the task touches latency, throughput, or resource usage.
 
 **Violations that block:**
-- Code committed without a failing test first → BLOCKED
-- Test passes on first run → INVESTIGATE (the test may be wrong or the criterion is already met)
-- Test modified to match broken code → BLOCKED (fix the code, not the test)
-- Multiple criteria in one cycle → DECOMPOSE (one cycle per criterion)
+- Implementation starts without a task-matched verifier → BLOCKED
+- The pre-change verifier does not fail when it should → INVESTIGATE
+- Downstream prompts or tools drop the verifier contract → BLOCKED
+- Overlay checks are emitted without change-surface evidence → BLOCKED
 
 #### 4.3 Step 3: Implementation Verification
 
-After all TDD cycles complete, verify the full Definition of Done:
+After all verifier cycles complete, verify the full Definition of Done:
 
 - [ ] All linters pass (LDD — re-verify after all changes)
-- [ ] All tests pass (TDD — full suite, not just task tests)
-- [ ] Logging implemented per observability contract
-- [ ] STRIDE mitigations implemented per security contract
+- [ ] All tests and command verifiers pass per `verification_spec`
+- [ ] Observability contract is satisfied when the overlay is active
+- [ ] Security mitigations are implemented when the overlay is active
 - [ ] Reuse confirmed (no reimplementation — AST check + LLM review)
 - [ ] Integration wiring complete
 - [ ] Anti-slop scan clean on the diff

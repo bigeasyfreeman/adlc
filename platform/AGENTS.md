@@ -30,7 +30,7 @@ Triage → Research → Plan ↔ Review → Code (parallel) → QA → Security 
 
 ## Skills Available
 
-22 injectable skills in the skills directory covering:
+Injectable skills in the skills directory cover:
 - **Engineering**: codebase-research, eval-council, codegen-context, tdd-enforcement, systematic-debugging, architecture-pattern, qa-test-data, ci-cd-pipeline
 - **Security**: appsec-threat-model, llm-security, agentic-security, api-security, infra-security
 - **Product**: prd-generation, ux-flow-builder, figma-integration, gong-customer-evidence

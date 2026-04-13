@@ -33,6 +33,11 @@
       "path": "agents/plan-reviewer.md",
       "dag_node": "plan_review",
       "model": "claude-opus-4-6",
+      "activation": {
+        "mode": "core_plus_overlays",
+        "consumes_manifest": true,
+        "task_classes": ["feature", "bugfix", "build_validation", "lint_cleanup", "refactor", "infra", "docs", "security"]
+      },
       "skills": ["eval-council"],
       "labels": ["lgtm", "revise", "blocked"]
     },
@@ -141,6 +146,16 @@
       "path": "skills/eval-council/SKILL.md",
       "contract_version": "1.0.0",
       "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "core_plus_overlays",
+        "consumes_manifest": true,
+        "core_personas": ["skeptic", "executioner", "first_principles"],
+        "overlay_personas": ["architect", "operator"],
+        "overlay_triggers": {
+          "architect": ["api_change", "data_format_change", "new_module", "new_interface"],
+          "operator": ["runtime_path_change", "user_facing_operation", "service_boundary_change"]
+        }
+      },
       "dag_nodes": ["plan_review", "code_review"]
     },
     {
@@ -239,6 +254,14 @@
       "path": "skills/security-review/SKILL.md",
       "contract_version": "2.0.0",
       "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "overlay",
+        "consumes_manifest": true,
+        "surface": "security",
+        "task_classes": ["feature", "bugfix", "infra", "security", "refactor"],
+        "trigger_fields": ["new_attack_surface", "auth_change", "data_format_change", "external_integration", "persistent_storage"],
+        "produces": ["stride_threat_model", "security_contract"]
+      },
       "dag_nodes": ["plan", "code_review", "security"]
     },
     {
@@ -253,6 +276,14 @@
       "path": "skills/observability-contract/SKILL.md",
       "contract_version": "2.0.0",
       "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "overlay",
+        "consumes_manifest": true,
+        "surface": "observability",
+        "task_classes": ["feature", "bugfix", "infra", "refactor"],
+        "trigger_fields": ["runtime_path_change", "service_boundary_change", "user_facing_operation"],
+        "produces": ["observability_contract"]
+      },
       "dag_nodes": ["plan", "code_review"]
     },
     {
@@ -267,6 +298,12 @@
       "path": "skills/definition-of-done/SKILL.md",
       "contract_version": "2.0.0",
       "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "core_plus_overlays",
+        "consumes_manifest": true,
+        "core_checks": ["1", "2", "3", "4", "15", "16", "17"],
+        "overlay_checks": ["5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "18", "19", "20", "21", "22"]
+      },
       "dag_nodes": ["code_review", "pr_prep"]
     },
     {
@@ -295,6 +332,12 @@
       "path": "skills/build-feature/SKILL.md",
       "contract_version": "2.0.0",
       "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "orchestration",
+        "consumes_manifest": true,
+        "task_classes": ["feature", "bugfix", "refactor", "infra", "security"],
+        "activates": ["eval-council", "definition-of-done", "security-review", "observability-contract"]
+      },
       "dag_nodes": []
     },
     {

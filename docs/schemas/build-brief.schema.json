@@ -8,6 +8,7 @@
     "version",
     "brief_id",
     "prd_id",
+    "applicability_manifest",
     "sections"
   ],
   "properties": {
@@ -22,6 +23,9 @@
     "prd_id": {
       "type": "string",
       "minLength": 1
+    },
+    "applicability_manifest": {
+      "$ref": "applicability-manifest.schema.json"
     },
     "sections": {
       "type": "object",
@@ -54,13 +58,27 @@
           "type": "string"
         },
         "5_security_review": {
-          "type": "array",
-          "items": {
-            "type": "object"
-          }
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "6_observability_slo": {
-          "type": "string"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "7_execution_plan": {
           "type": "string"
@@ -79,7 +97,14 @@
           }
         },
         "10_rollout": {
-          "type": "string"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "11_validation_plan": {
           "type": "array",
@@ -88,10 +113,17 @@
           }
         },
         "12_skill_trigger_configuration": {
-          "type": "array",
-          "items": {
-            "type": "object"
-          }
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     }
@@ -104,17 +136,15 @@
         "task_id",
         "title",
         "objective",
+        "task_classification",
         "scope",
         "out_of_scope",
         "dependencies",
         "acceptance_criteria",
         "anti_slop_rules",
         "implementation_notes",
-        "contracts",
+        "verification_spec",
         "failure_modes",
-        "observability",
-        "tests",
-        "security_impact",
         "bpe_classification",
         "owner"
       ],
@@ -130,6 +160,19 @@
         "objective": {
           "type": "string",
           "minLength": 1
+        },
+        "task_classification": {
+          "type": "string",
+          "enum": [
+            "feature",
+            "bugfix",
+            "build_validation",
+            "lint_cleanup",
+            "refactor",
+            "infra",
+            "docs",
+            "security"
+          ]
         },
         "scope": {
           "type": "array",
@@ -169,6 +212,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "verification_spec": {
+          "$ref": "#/definitions/verification_spec"
         },
         "contracts": {
           "type": "array",
@@ -210,6 +256,76 @@
         "owner": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "verification_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_verifier",
+        "must_fail_before_change",
+        "must_be_deterministic",
+        "scope_note"
+      ],
+      "properties": {
+        "primary_verifier": {
+          "$ref": "#/definitions/verifier"
+        },
+        "secondary_verifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/verifier"
+          }
+        },
+        "must_fail_before_change": {
+          "type": "boolean"
+        },
+        "must_be_deterministic": {
+          "type": "boolean"
+        },
+        "scope_note": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "target",
+        "expected_pre_change",
+        "expected_post_change"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "test",
+            "command",
+            "reproducer"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_pre_change": {
+          "type": "string",
+          "enum": [
+            "fail"
+          ]
+        },
+        "expected_post_change": {
+          "type": "string",
+          "enum": [
+            "pass"
+          ]
+        },
+        "rationale": {
+          "type": "string"
         }
       }
     }

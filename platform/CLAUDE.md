@@ -18,7 +18,7 @@ Agents are in `.claude/agents/`. Each is a subagent with preloaded skills:
 - **researcher** — Deep codebase analysis + PRD cross-reference
 - **planner** — PRD → Build Brief (spec/plan/tasks)
 - **plan-reviewer** — 6-persona Eval Council validation
-- **coder** — TDD per task (RED/GREEN/REFACTOR)
+- **coder** — verifier-led execution per task class
 - **code-reviewer** — Quality and correctness review
 - **fixer** — 4-phase systematic debugging
 - **security-reviewer** — 5 OWASP domain assessment
@@ -26,7 +26,7 @@ Agents are in `.claude/agents/`. Each is a subagent with preloaded skills:
 
 ## Skills
 
-22 skills are in `.claude/skills/`. They inject domain expertise into agents automatically.
+Skills are in `.claude/skills/`. They inject domain expertise into agents automatically.
 
 ## Usage
 

@@ -66,23 +66,27 @@ Root cause analysis with codebase context:
 Write the fix in isolation:
 
 1. Create isolated worktree
-2. Write failing test that reproduces the error (**TDD RED**)
-3. Write minimal fix to pass the test (**TDD GREEN**)
-4. Run full test suite
-5. Run linters (**LDD gate**)
-6. Run OWASP scan on the diff
-7. Verify observability (does the fix include logging for this failure mode?)
+2. Establish the primary verifier for the failure class:
+   - existing bug: failing reproducer
+   - build/CI regression: failing command or check
+   - missing runtime behavior: focused behavioral test
+3. Confirm the primary verifier fails before the fix
+4. Write the minimal fix to make the primary verifier pass
+5. Run the targeted regression suite and the relevant full validation set
+6. Run linters (**LDD gate**)
+7. Run security review only if the fix changes attack surface, auth, data handling, or external integrations
+8. Run observability review only if the fix changes runtime paths, user-facing operations, or declared logging/alerting contracts
 
 **If fix doesn't pass:** Retry with enriched context (failure reason from previous attempt). Max 3 retries.
 
 ### Step 5: Prove
 
 Evidence package:
-- Reproduction test (the failing test that passes after fix)
-- Full test suite results
+- Primary verifier evidence (fails before, passes after)
+- Relevant regression and validation results
 - Before/after comparison
 - Root cause analysis document
-- STRIDE assessment of the fix
+- Overlay evidence when active (security, observability, performance)
 
 ### Step 6: Light Council
 

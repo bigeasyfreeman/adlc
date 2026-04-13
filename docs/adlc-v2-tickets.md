@@ -4,6 +4,8 @@
 **Source:** adlc-v2-specification.md
 **Decomposition principle:** Every ticket is binary (done/not-done). One ticket = one verifiable outcome. No ticket requires judgment to determine completion — it either passes its acceptance criteria or it doesn't.
 
+> Alignment note: this roadmap predates the applicability-manifest refactor. Tickets that describe universal observability, security, or TDD ceremony should now be interpreted through the live contract in `agents/triage.md`, `agents/planner.md`, and `docs/schemas/*.json`.
+
 ---
 
 ## Phase 1: Stop Slop Wiring (Quick Win)
@@ -177,7 +179,7 @@
 
 ### ADLC-017: Create observability-contract skill
 - **Repo:** `~/.claude/skills/`
-- **What:** Create `observability-contract/SKILL.md` that defines the logging mandate: every feature/change must include error logging, audit logging, and general logging per contract.
+- **What:** Create `observability-contract/SKILL.md` that defines logging requirements for tasks that introduce runtime paths, services, or user-facing operations.
 - **Acceptance criteria:**
   - [ ] Skill defines three log types (error, audit, general) with required fields
   - [ ] Skill specifies structured JSON format
@@ -188,13 +190,13 @@
 
 ### ADLC-018: Add observability requirements to SWElfare TaskSpec
 - **Repo:** `swelfare`
-- **What:** Enhance `swelfare_core/spec/models.py` TaskSpec to include `observability_contract` field with required error/audit/general logging specifications.
+- **What:** Enhance `swelfare_core/spec/models.py` TaskSpec to carry an optional `observability_contract` that activates only when the applicability manifest marks observability as active.
 - **Acceptance criteria:**
-  - [ ] TaskSpec has `observability_contract: ObservabilityContract` field
+  - [ ] TaskSpec supports `observability_contract: ObservabilityContract | None`
   - [ ] ObservabilityContract dataclass: error_points (list), audit_points (list), general_points (list), log_format, correlation_id_required
   - [ ] Brief generator populates observability contract per task
-  - [ ] Tests validate observability contract presence in TaskSpecs
-- **DoD:** Every TaskSpec includes an observability contract.
+  - [ ] Tests validate observability contract activation only for tasks with active observability overlays
+- **DoD:** TaskSpecs include an observability contract when the overlay is active.
 
 ### ADLC-019: Add observability verification to SWElfare post-execution gate
 - **Repo:** `swelfare`
@@ -545,35 +547,34 @@
 
 ### ADLC-048: Make SWElfare TDD enforcement blocking
 - **Repo:** `swelfare`
-- **What:** Update `swelfare_core/adlc/tdd_protocol.py` and orchestrator to enforce the iron law: no production code without a failing test first. Block execution if violated.
+- **What:** Update `swelfare_core/adlc/tdd_protocol.py` and orchestrator to enforce verifier discipline: no implementation without a task-matched failing signal first. Block execution if violated.
 - **Acceptance criteria:**
-  - [ ] Code committed without corresponding test → pipeline BLOCKED
-  - [ ] Test that passes on first run → pipeline FLAGGED for investigation
-  - [ ] Test modified to match broken code → pipeline BLOCKED
-  - [ ] Multiple criteria in one TDD cycle → pipeline FLAGGED for decomposition
-  - [ ] Mode A (pre-written tests) and Mode B (agent writes tests) both supported
-  - [ ] Tests validate blocking behavior
-- **DoD:** SWElfare TDD is blocking. Iron law enforced. Violations stop the pipeline.
+  - [ ] Feature work requires failing behavior tests or acceptance tests before implementation
+  - [ ] Bugfix work requires a failing reproducer before implementation
+  - [ ] Build-validation and lint-cleanup work require a failing command or static-analysis signal before implementation
+  - [ ] A verifier that passes on first run is flagged for investigation
+  - [ ] Tests validate blocking behavior for each verifier mode
+- **DoD:** SWElfare verifier discipline is blocking. Violations stop the pipeline.
 
 ### ADLC-049: Add security-specific tests to TDD protocol
 - **Repo:** `swelfare`
-- **What:** Enhance TDD protocol to include security-specific tests for STRIDE mitigations. Each STRIDE mitigation in the brief generates a corresponding test in the RED phase.
+- **What:** Enhance verifier discipline so tasks with active security overlays generate security-specific checks for declared mitigations.
 - **Acceptance criteria:**
-  - [ ] STRIDE mitigations generate corresponding test cases
-  - [ ] Security tests run as part of TDD cycles (not separate)
-  - [ ] Missing security tests for declared mitigations → pipeline BLOCKED
+  - [ ] Active STRIDE mitigations generate corresponding security checks
+  - [ ] Security checks run only when the task's applicability manifest activates the security overlay
+  - [ ] Missing security checks for active mitigations → pipeline BLOCKED
   - [ ] Tests validate security test generation from STRIDE model
-- **DoD:** TDD cycles include security tests. STRIDE mitigations have corresponding tests.
+- **DoD:** Tasks with active security overlays carry corresponding security verifiers.
 
 ### ADLC-050: Add observability tests to TDD protocol
 - **Repo:** `swelfare`
-- **What:** Enhance TDD protocol to include observability tests that verify required logging is present. Each logging point in the observability contract generates a test.
+- **What:** Enhance verifier discipline so tasks with active observability overlays generate checks that verify required logging is present.
 - **Acceptance criteria:**
-  - [ ] Observability contract logging points generate corresponding tests
-  - [ ] Tests verify: log statement exists, correct level, correct format, required fields present
-  - [ ] Missing observability tests → pipeline BLOCKED
+  - [ ] Active observability contract logging points generate corresponding checks
+  - [ ] Checks verify: log statement exists, correct level, correct format, required fields present
+  - [ ] Missing observability checks for active overlays → pipeline BLOCKED
   - [ ] Tests validate observability test generation from contract
-- **DoD:** TDD cycles include observability tests. Required logging has corresponding tests.
+- **DoD:** Tasks with active observability overlays carry corresponding observability verifiers.
 
 ---
 
@@ -705,7 +706,7 @@ Phase 8 (Fix Loop) ── depends on: Phase 2 (OWASP in fix), Phase 3 (LDD in fi
 Phase 9 (Feedback) ── depends on: Phase 1 (slop), Phase 5 (PRD structure)
 Phase 10 (Audit) ──── depends on: Phase 7 (DoD schema)
 Phase 11 (Council) ── depends on: Phase 2 (Security Auditor persona)
-Phase 12 (TDD) ───── depends on: Phase 2 (security tests), Phase 4 (observability tests)
+Phase 12 (Verifier discipline) ───── depends on: Phase 2 (security overlays when active), Phase 4 (observability overlays when active)
 Phase 13 (Brief) ──── depends on: Phase 2, Phase 4, Phase 6
 Phase 14 (Orchestration) ── depends on: all above
 ```

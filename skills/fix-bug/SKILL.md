@@ -1,84 +1,108 @@
 ---
 name: fix-bug
-description: "Orchestration skill for the Fix Loop. Investigate → Brief(light) → LDD → TDD → Council(light) → PR. Use for bug fixes and production issue repair."
+description: "Orchestration skill for bug fixes and production issue repair. Investigate -> light brief -> targeted verification -> council -> PR."
 ---
 
 # Fix Bug (Orchestration)
 
 ## Overview
 
-Chains the Fix Loop for bug fixes and production issue repair. Lighter than build-feature — single task, light brief, light council.
+Chains the fix loop for bug fixes and production issue repair. It is lighter than build-feature and uses a bug-specific verifier contract instead of universal test ceremony.
+
+---
 
 ## When to Use
 
-- Bug report or production error needs fixing
-- Fix Loop detected and confirmed an error
-- Regression identified in test suite
+- A bug report or production error needs fixing
+- A regression is confirmed in the test suite
+- A failure has been reproduced and needs root-cause repair
+
+---
 
 ## The Sequence
 
-```
+```text
 Step 1: Investigate (systematic debugging)
-Step 2: Light Brief (single task)
-Step 3: STRIDE on the fix
+Step 2: Light Brief (single task with verification_spec)
+Step 3: Apply only the gates that the task class warrants
 Step 4: LDD gate
-Step 5: TDD (RED: reproduce → GREEN: fix → REFACTOR)
+Step 5: Bugfix verification discipline
 Step 6: Definition of Done
 Step 7: Light Council (3 personas, 1 round)
 Step 8: PR with evidence
 ```
 
 ### Step 1: Investigate
-- **Skill:** `systematic-debugging`
-- Trace call chain from error to origin
-- Check git blame and recent changes
-- Build root cause hypothesis
-- Identify minimal fix scope
+
+Use `systematic-debugging` to:
+- trace the failure to its origin
+- check recent changes and git blame
+- build a root-cause hypothesis
+- identify the smallest fix scope
 
 ### Step 2: Light Brief
-- Single task (no full decomposition)
-- G/W/T acceptance criteria focused on: bug is fixed, regression test exists, no new issues introduced
-- STRIDE on the fix (does fixing this introduce new security concerns?)
-- Observability: does the fix add logging for this failure mode?
 
-### Step 3: Security Review
-- **Skill:** `security-review` (STRIDE mode)
-- Quick STRIDE on the fix itself
-- Security fixes auto-elevate to Critical risk tier
+Create a single-task brief that includes:
+- the bug description
+- the observed failure
+- the task classification: `bugfix`
+- the `verification_spec`
+- the regression expectation
+
+Do not decompose into feature-style subwork unless the bug truly reveals a larger feature gap.
+
+### Step 3: Apply Only Relevant Gates
+
+Use the brief's applicability decision, not a universal checklist.
+- Security review only if the fix changes attack surface, auth, or data handling
+- Observability only if the fix changes runtime paths or user-visible behavior
+- Compatibility only if the fix changes interfaces or data formats
 
 ### Step 4: LDD
-- **Skill:** `ldd-enforcement`
-- Lint the fix. Must pass before tests.
 
-### Step 5: TDD
-- **Skill:** `tdd-enforcement`
-- **RED:** Write test that reproduces the bug (must fail without fix)
-- **GREEN:** Write minimal fix to pass the test
-- **REFACTOR:** Clean up
-- Run full test suite for regressions
+Use `ldd-enforcement` before verification. Lint must pass before the bugfix verifier runs.
+
+### Step 5: Bugfix Verification Discipline
+
+Use the primary verifier from `verification_spec`.
+
+Bugfix rules:
+- start with the smallest deterministic reproducer
+- confirm the reproducer fails for the right reason
+- make the minimum code change that fixes the failure
+- re-run the primary verifier until it passes
+- add regression coverage if the fix changes behavior
+- run any secondary verifiers from the spec
+
+Do not force the bug through a generic RED/GREEN/REFACTOR script. The verifier itself is the contract.
 
 ### Step 6: Definition of Done
-- **Skill:** `definition-of-done`
-- Subset of full DoD relevant to fixes
+
+Use the DoD subset that applies to the task class and activated overlays.
 
 ### Step 7: Light Council
-- **Skill:** `eval-council` (LIGHT — 3 personas, 1 round)
-- **Skeptic:** Root cause vs symptom?
-- **Operator:** Safe to deploy? Rollback plan?
-- **Security Auditor:** New security issues?
+
+Use `eval-council` in light mode with three personas:
+- Skeptic: root cause vs symptom
+- Operator: safe to deploy, rollback plan
+- Security Auditor: only when the fix touches security-relevant surfaces
 
 ### Step 8: PR
-- Reproduction steps
-- Root cause analysis
-- Fix explanation
-- Test evidence (reproduction test + full suite)
-- Council verdict
-- Severity classification
+
+Include:
+- reproduction steps
+- root cause analysis
+- verifier evidence
+- regression guard evidence
+- council verdict
+- severity classification
+
+---
 
 ## Escalation
 
-If 3 fix attempts fail:
-1. Create detailed issue with everything learned
-2. Include: root cause hypotheses tested, what didn't work, suggested next steps
-3. Tag with severity
-4. Assign to human
+If three fix attempts fail:
+1. Capture what was tried
+2. Record the verifiers used and why they were insufficient
+3. Summarize root-cause hypotheses tested
+4. Escalate with the smallest clear next step

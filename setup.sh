@@ -12,6 +12,19 @@ PLATFORM="${1:-}"
 TARGET="${2:-.}"
 TARGET="$(cd "$TARGET" && pwd)"
 
+count_source_skills() {
+  find "$ADLC_DIR/skills" -mindepth 2 -maxdepth 2 -type f -name SKILL.md | wc -l | tr -d ' '
+}
+
+count_installable_agents() {
+  find "$ADLC_DIR/agents" -maxdepth 1 -type f -name "*.md" \
+    ! -name "ADLC-BUILD-BRIEF-AGENT.md" \
+    ! -name "PM-PRD-AGENT.md" | wc -l | tr -d ' '
+}
+
+SOURCE_SKILL_COUNT="$(count_source_skills)"
+INSTALLABLE_AGENT_COUNT="$(count_installable_agents)"
+
 usage() {
   echo "ADLC Setup — Install into your AI coding tool"
   echo ""
@@ -36,14 +49,14 @@ usage() {
 
 sync_skills() {
   local dest="$1"
-  echo "  Syncing 22 skills → $dest"
+  echo "  Syncing $SOURCE_SKILL_COUNT skills → $dest"
   mkdir -p "$dest"
   for skill_dir in "$ADLC_DIR"/skills/*/; do
     skill_name="$(basename "$skill_dir")"
     mkdir -p "$dest/$skill_name"
     cp "$skill_dir/SKILL.md" "$dest/$skill_name/SKILL.md"
   done
-  echo "  ✓ 22 skills installed"
+  echo "  ✓ $SOURCE_SKILL_COUNT skills installed"
 }
 
 install_claude() {
@@ -61,7 +74,7 @@ install_claude() {
     [[ "$name" == "PM-PRD-AGENT.md" ]] && continue
     cp "$agent" "$TARGET/.claude/agents/$name"
   done
-  echo "  ✓ 9 agents installed to .claude/agents/"
+  echo "  ✓ $INSTALLABLE_AGENT_COUNT installable agents installed to .claude/agents/"
 
   # CLAUDE.md instructions
   cp "$ADLC_DIR/platform/CLAUDE.md" "$TARGET/CLAUDE.md" 2>/dev/null || \
@@ -97,7 +110,7 @@ install_cursor() {
     # Cursor uses description + globs in frontmatter
     cp "$skill_dir/SKILL.md" "$TARGET/.cursor/rules/adlc-${skill_name}.mdc"
   done
-  echo "  ✓ 22 skills installed as .cursor/rules/*.mdc"
+  echo "  ✓ $SOURCE_SKILL_COUNT skills installed as .cursor/rules/*.mdc"
 
   # Agent rules
   for agent in "$ADLC_DIR"/agents/*.md; do
@@ -106,7 +119,7 @@ install_cursor() {
     [[ "$name" == "PM-PRD-AGENT" ]] && continue
     cp "$agent" "$TARGET/.cursor/rules/adlc-agent-${name}.mdc"
   done
-  echo "  ✓ 9 agent rules installed"
+  echo "  ✓ $INSTALLABLE_AGENT_COUNT installable agent rules installed"
 
   echo "  ✓ Cursor setup complete"
 }
@@ -136,7 +149,7 @@ install_factory() {
     [[ "$name" == "PM-PRD-AGENT" ]] && continue
     cp "$agent" "$TARGET/.factory/droids/adlc-${name}.md"
   done
-  echo "  ✓ 9 droids installed to .factory/droids/"
+  echo "  ✓ $INSTALLABLE_AGENT_COUNT installable agents installed to .factory/droids/"
 
   # Skills as approved docs
   mkdir -p "$TARGET/.factory/docs"
@@ -144,7 +157,7 @@ install_factory() {
     skill_name="$(basename "$skill_dir")"
     cp "$skill_dir/SKILL.md" "$TARGET/.factory/docs/adlc-${skill_name}.md"
   done
-  echo "  ✓ 22 skill docs installed to .factory/docs/"
+  echo "  ✓ $SOURCE_SKILL_COUNT skill docs installed to .factory/docs/"
 
   # AGENTS.md
   cp "$ADLC_DIR/platform/AGENTS.md" "$TARGET/AGENTS.md" 2>/dev/null || true

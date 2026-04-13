@@ -27,13 +27,13 @@ digraph ADLC {
 
     // ─── Scaffold + Tests (deterministic tool nodes) ───
     scaffold [shape=box, label="Scaffold\nArchitecture Stubs", style="dashed,filled", fillcolor="#f0f0f0"]
-    gen_tests [shape=box, label="Generate Tests\nG/W/T → Failing Tests", style="dashed,filled", fillcolor="#f0f0f0"]
+    gen_tests [shape=box, label="Generate Verifiers\nTests / Reproducers / Failing Commands", style="dashed,filled", fillcolor="#f0f0f0"]
 
     // ─── Context Assembly (deterministic) ───
     context_assembly [shape=box, label="Context Assembly\nPer-Task Prompts", style="dashed,filled", fillcolor="#f0f0f0"]
 
     // ─── Coding (fan-out: parallel task execution) ───
-    code [shape=component, label="Fan-Out: Code\nParallel Tasks\n(TDD per task)"]
+    code [shape=component, label="Fan-Out: Code\nParallel Tasks\n(Verifier-led execution)"]
 
     // ─── Code Review (agentic) ───
     code_review [shape=box, label="Code Review", style=filled, fillcolor="#fff3e6"]

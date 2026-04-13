@@ -78,12 +78,12 @@ assert_dir_exists "agents/ exists" "$ADLC_DIR/agents"
 assert_dir_exists "platform/ exists" "$ADLC_DIR/platform"
 
 # Count source skills (directories with SKILL.md)
-SKILL_COUNT=$(find "$ADLC_DIR/skills" -name "SKILL.md" | wc -l | tr -d ' ')
-assert "22 skill SKILL.md files in source" "[ '$SKILL_COUNT' -eq '22' ]"
+SKILL_COUNT=$(find "$ADLC_DIR/skills" -mindepth 2 -maxdepth 2 -type f -name "SKILL.md" | wc -l | tr -d ' ')
+assert "$SKILL_COUNT skill SKILL.md files in source" "[ '$SKILL_COUNT' -gt '0' ]"
 
 # Count source agents (excluding legacy pointers)
-AGENT_COUNT=$(ls "$ADLC_DIR"/agents/*.md | grep -v 'ADLC-BUILD-BRIEF' | grep -v 'PM-PRD' | wc -l | tr -d ' ')
-assert "9 agent configs in source" "[ '$AGENT_COUNT' -eq '9' ]"
+AGENT_COUNT=$(find "$ADLC_DIR/agents" -maxdepth 1 -type f -name "*.md" ! -name "ADLC-BUILD-BRIEF-AGENT.md" ! -name "PM-PRD-AGENT.md" | wc -l | tr -d ' ')
+assert "$AGENT_COUNT installable agent configs in source" "[ '$AGENT_COUNT' -gt '0' ]"
 
 echo ""
 
@@ -98,8 +98,8 @@ mkdir -p "$TARGET"
 
 assert_dir_exists ".claude/skills/ created" "$TARGET/.claude/skills"
 assert_dir_exists ".claude/agents/ created" "$TARGET/.claude/agents"
-assert_file_count "22 skills installed" "$TARGET/.claude/skills" "SKILL.md" 22
-assert_file_count "9 agents installed" "$TARGET/.claude/agents" "*.md" 9
+assert_file_count "$SKILL_COUNT skills installed" "$TARGET/.claude/skills" "SKILL.md" "$SKILL_COUNT"
+assert_file_count "$AGENT_COUNT installable agents installed" "$TARGET/.claude/agents" "*.md" "$AGENT_COUNT"
 assert_file_exists "CLAUDE.md created" "$TARGET/CLAUDE.md"
 
 # Verify specific skills
@@ -134,7 +134,7 @@ mkdir -p "$TARGET"
 "$ADLC_DIR/setup.sh" codex "$TARGET" > /dev/null 2>&1
 
 assert_dir_exists ".agents/skills/ created" "$TARGET/.agents/skills"
-assert_file_count "22 skills installed" "$TARGET/.agents/skills" "SKILL.md" 22
+assert_file_count "$SKILL_COUNT skills installed" "$TARGET/.agents/skills" "SKILL.md" "$SKILL_COUNT"
 assert_file_exists "AGENTS.md created" "$TARGET/AGENTS.md"
 
 # Verify AGENTS.md content
@@ -154,7 +154,7 @@ mkdir -p "$TARGET"
 
 assert_dir_exists ".cursor/rules/ created" "$TARGET/.cursor/rules"
 SKILL_RULES=$(find "$TARGET/.cursor/rules" -name "adlc-*.mdc" ! -name "adlc-agent-*.mdc" | wc -l | tr -d ' ')
-assert "22 skill rules installed (got $SKILL_RULES)" "[ '$SKILL_RULES' -eq '22' ]"
+assert "$SKILL_COUNT skill rules installed (got $SKILL_RULES)" "[ '$SKILL_RULES' -eq '$SKILL_COUNT' ]"
 
 # Verify specific rule files
 assert_file_exists "codebase-research rule" "$TARGET/.cursor/rules/adlc-codebase-research.mdc"
@@ -162,7 +162,7 @@ assert_file_exists "eval-council rule" "$TARGET/.cursor/rules/adlc-eval-council.
 
 # Verify agent rules
 AGENT_RULES=$(find "$TARGET/.cursor/rules" -name "adlc-agent-*.mdc" | wc -l | tr -d ' ')
-assert "9 agent rules installed (got $AGENT_RULES)" "[ '$AGENT_RULES' -eq '9' ]"
+assert "$AGENT_COUNT installable agent rules installed (got $AGENT_RULES)" "[ '$AGENT_RULES' -eq '$AGENT_COUNT' ]"
 assert_file_exists "triage agent rule" "$TARGET/.cursor/rules/adlc-agent-triage.mdc"
 
 echo ""
@@ -177,12 +177,12 @@ mkdir -p "$TARGET"
 "$ADLC_DIR/setup.sh" antigravity "$TARGET" > /dev/null 2>&1
 
 assert_dir_exists ".agent/skills/ created" "$TARGET/.agent/skills"
-assert_file_count "22 skills installed" "$TARGET/.agent/skills" "SKILL.md" 22
+assert_file_count "$SKILL_COUNT skills installed" "$TARGET/.agent/skills" "SKILL.md" "$SKILL_COUNT"
 assert_file_exists "agents.md created" "$TARGET/agents.md"
 
 # Verify agents.md has persona format
 assert_file_contains "agents.md has Goal/Traits/Constraint" "$TARGET/agents.md" "Goal"
-assert_file_contains "agents.md has 9 agents" "$TARGET/agents.md" "PR Preparer"
+assert_file_contains "agents.md has installable agent content" "$TARGET/agents.md" "PR Preparer"
 
 echo ""
 
@@ -197,8 +197,8 @@ mkdir -p "$TARGET"
 
 assert_dir_exists ".factory/droids/ created" "$TARGET/.factory/droids"
 assert_dir_exists ".factory/docs/ created" "$TARGET/.factory/docs"
-assert_file_count "9 droids installed" "$TARGET/.factory/droids" "adlc-*.md" 9
-assert_file_count "22 skill docs installed" "$TARGET/.factory/docs" "adlc-*.md" 22
+assert_file_count "$AGENT_COUNT installable droids installed" "$TARGET/.factory/droids" "adlc-*.md" "$AGENT_COUNT"
+assert_file_count "$SKILL_COUNT skill docs installed" "$TARGET/.factory/docs" "adlc-*.md" "$SKILL_COUNT"
 assert_file_exists "AGENTS.md created" "$TARGET/AGENTS.md"
 
 # Verify specific droids
@@ -236,8 +236,8 @@ mkdir -p "$TARGET"
 "$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
 "$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
 
-assert_file_count "Still 22 skills after double install" "$TARGET/.claude/skills" "SKILL.md" 22
-assert_file_count "Still 9 agents after double install" "$TARGET/.claude/agents" "*.md" 9
+assert_file_count "Still $SKILL_COUNT skills after double install" "$TARGET/.claude/skills" "SKILL.md" "$SKILL_COUNT"
+assert_file_count "Still $AGENT_COUNT installable agents after double install" "$TARGET/.claude/agents" "*.md" "$AGENT_COUNT"
 
 echo ""
 

@@ -1,87 +1,101 @@
 ---
 name: definition-of-done
-description: "Universal Definition of Done checklist. Every task must satisfy all items before pipeline marks it complete. Binary verification — pass or fail. Triggers at Phase 4 completion and Phase 5 entry."
+description: "Applicability-aware Definition of Done checklist. Core checks apply to every task; overlay checks activate only when the applicability manifest says the surface exists. Binary verification — pass or fail. Triggers at Phase 4 completion and Phase 5 entry."
 ---
 
 # Definition of Done
 
 ## Overview
 
-Every task carries a DoD checklist. A task is not complete until every item is verified. Each check is binary (pass/fail) with a specified verification method. No judgment required — it passes or it doesn't.
+Every task carries a DoD core baseline. Overlay checks are selected from the applicability manifest and only evaluated when the task actually touches that surface. A task is not complete until every active check is verified. Each check is binary (pass/fail) with a specified verification method. No judgment required — it passes or it doesn't.
 
 ## When to Use
 
 - **Phase 4 completion:** Verify all DoD items after execution
-- **Phase 5 entry:** DoD verification is the first step of the quality gate
+- **Phase 5 entry:** DoD verification is the first step of the quality gate for active overlays
 - **Manual:** Any time task completion needs verification
 
-## The Universal DoD Checklist
+## Applicability Model
+
+- Core baseline checks apply to every task.
+- Overlay checks activate only when `applicability_manifest` marks the relevant surface as active.
+- Any suppressed overlay must include a concrete `not_applicable` reason tied to task class or repo evidence.
+
+## Core Baseline Checks
 
 ### Code Quality
 
-| # | Check | Verification | Blocks On |
-|---|-------|-------------|-----------|
-| 1 | All linters pass | Automated: LDD gate | Any violation |
-| 2 | All tests pass | Automated: TDD suite | Any failure |
-| 3 | Code complexity within budget | Automated: CC < 15, SLOC < 50/fn | Exceeding ceiling |
-| 4 | No code slop or stub patterns | Automated: anti-slop scanner | `TODO`, `FIXME`, `PLACEHOLDER`, `todo!()`, `unimplemented!()`, `panic!(\"not implemented\")`, `NotImplementedError`, `pass`, empty placeholder bodies, commented-out code, fake/mock placeholder logic in shipped code |
-
-### Security
-
-| # | Check | Verification | Blocks On |
-|---|-------|-------------|-----------|
-| 5 | STRIDE threat model complete | Council: Security Auditor | Missing categories |
-| 6 | STRIDE mitigations implemented | Council + automated | Unimplemented mitigations |
-| 7 | OWASP Top 10 scan clean | Automated: SAST scan | High/Critical findings |
-| 8 | No hardcoded secrets | Automated: pattern scan | Any match |
-| 9 | Input validation at trust boundaries | Council review | Missing validation |
-
-### Observability
-
-| # | Check | Verification | Blocks On |
-|---|-------|-------------|-----------|
-| 10 | Error logging at failure points | Automated: AST scan | Missing error logs |
-| 11 | Audit logging for state changes | Automated: AST scan | Missing audit logs |
-| 12 | Operational logging for health | Automated: AST scan | Missing general logs |
-| 13 | Log format matches convention | Automated: format check | Format mismatch |
-| 14 | Correlation IDs propagate | Automated: pattern check | Missing correlation |
+| # | Check | Scope | Verification | Blocks On |
+|---|-------|-------|-------------|-----------|
+| 1 | All linters pass | core | Automated: LDD gate | Any violation |
+| 2 | All tests pass | core | Automated: TDD suite | Any failure |
+| 3 | Code complexity within budget | core | Automated: CC < 15, SLOC < 50/fn | Exceeding ceiling |
+| 4 | No code slop or stub patterns | core | Automated: anti-slop scanner | `TODO`, `FIXME`, `PLACEHOLDER`, `todo!()`, `unimplemented!()`, `panic!(\"not implemented\")`, `NotImplementedError`, `pass`, empty placeholder bodies, commented-out code, fake/mock placeholder logic in shipped code |
 
 ### Reuse & Patterns
 
-| # | Check | Verification | Blocks On |
-|---|-------|-------------|-----------|
-| 15 | Reuse analysis confirmed | Automated + council | Reimplementation detected |
-| 16 | Existing conventions followed | Council review | Convention violation |
-| 17 | Antipattern checklist cleared | Automated + council | Known antipattern used |
+| # | Check | Scope | Verification | Blocks On |
+|---|-------|-------|-------------|-----------|
+| 15 | Reuse analysis confirmed | core | Automated + council | Reimplementation detected |
+| 16 | Existing conventions followed | core | Council review | Convention violation |
+| 17 | Antipattern checklist cleared | core | Automated + council | Known antipattern used |
 
-### Integration
+## Security Overlay
 
-| # | Check | Verification | Blocks On |
-|---|-------|-------------|-----------|
-| 18 | Integration wiring complete | Automated: registration check | Missing wiring, dead routes, unwired providers, unused flags/config, placeholder entry points |
-| 19 | Scalability concerns documented | Council review | Undocumented |
-| 20 | Degradation strategy defined | Council (if applicable) | Missing strategy |
+| # | Check | Scope | Verification | Blocks On |
+|---|-------|-------|-------------|-----------|
+| 5 | STRIDE threat model complete | overlay | Council: Security Auditor | Missing categories |
+| 6 | STRIDE mitigations implemented | overlay | Council + automated | Unimplemented mitigations |
+| 7 | OWASP Top 10 scan clean | overlay | Automated: SAST scan | High/Critical findings |
+| 8 | No hardcoded secrets | overlay | Automated: pattern scan | Any match |
+| 9 | Input validation at trust boundaries | overlay | Council review | Missing validation |
 
-### Content (human-facing output only)
+## Observability Overlay
 
-| # | Check | Verification | Blocks On |
-|---|-------|-------------|-----------|
-| 21 | Stop-slop gate passed | Automated: 5-dim scoring | Score < 35/50 |
-| 22 | Voice/brand compliance | Automated + council | Voice mismatch |
+| # | Check | Scope | Verification | Blocks On |
+|---|-------|-------|-------------|-----------|
+| 10 | Error logging at failure points | overlay | Automated: AST scan | Missing error logs |
+| 11 | Audit logging for state changes | overlay | Automated: AST scan | Missing audit logs |
+| 12 | Operational logging for health | overlay | Automated: AST scan | Missing general logs |
+| 13 | Log format matches convention | overlay | Automated: format check | Format mismatch |
+| 14 | Correlation IDs propagate | overlay | Automated: pattern check | Missing correlation |
+
+## Integration Overlay
+
+| # | Check | Scope | Verification | Blocks On |
+|---|-------|-------|-------------|-----------|
+| 18 | Integration wiring complete | overlay | Automated: registration check | Missing wiring, dead routes, unwired providers, unused flags/config, placeholder entry points |
+| 19 | Scalability concerns documented | overlay | Council review | Undocumented |
+| 20 | Degradation strategy defined | overlay | Council (if applicable) | Missing strategy |
+
+## Content Overlay (human-facing output only)
+
+| # | Check | Scope | Verification | Blocks On |
+|---|-------|-------|-------------|-----------|
+| 21 | Stop-slop gate passed | overlay | Automated: 5-dim scoring | Score < 35/50 |
+| 22 | Voice/brand compliance | overlay | Automated + council | Voice mismatch |
 
 ## Domain Adaptation
 
-**SWElfare:** All 22 checks apply. Full DoD on every task.
+**SWElfare:** Core baseline always applies. Security, observability, integration, and content overlays activate only when the applicability manifest says the surface exists.
 
-**Ratatosk:** Checks 1-4 → parameter validation. 5-9 → trade execution STRIDE. 10-14 → trade/risk logging. 15-17 → strategy pattern reuse. 18-20 → exchange API wiring. 21-22 → briefing slop gate.
+**Ratatosk:** Core baseline applies to every task. Security overlay → trade execution STRIDE. Observability overlay → trade/risk logging. Integration overlay → exchange API wiring. Content overlay → briefing slop gate.
 
-**Magnus:** Checks 1-4 → format validation. 5-9 → brand STRIDE. 10-14 → content performance logging. 15-17 → voice/format reuse. 18-20 → platform integration. 21-22 → ALWAYS applies (primary product).
+**Magnus:** Core baseline applies to every task. Security overlay → brand STRIDE. Observability overlay → content performance logging. Integration overlay → platform integration. Content overlay → always active for user-facing copy.
 
 ## Verification Schema
 
 ```json
 {
   "task_id": "TASK-001",
+  "task_classification": "build_validation",
+  "applicability_manifest": {
+    "security_overlay": { "status": "not_applicable", "reason": "No new attack surface or trust boundary changes." },
+    "observability_overlay": { "status": "not_applicable", "reason": "No new runtime path or user-facing operation." },
+    "integration_overlay": { "status": "active", "reason": "Build wiring changed and must be verified." },
+    "content_overlay": { "status": "not_applicable", "reason": "No human-facing output changed." }
+  },
+  "active_checks": ["1", "2", "3", "4", "15", "16", "17", "18"],
   "dod_checks": {
     "ldd_pass": { "status": true, "evidence": "ruff: 0 violations, mypy: 0 errors" },
     "tdd_pass": { "status": true, "evidence": "42 passed, 0 failed", "coverage": 87 },
@@ -113,8 +127,8 @@ Every task carries a DoD checklist. A task is not complete until every item is v
 
 ## Enforcement
 
-- DoD verification runs automatically at Phase 4 completion
-- Any failed check blocks pipeline progression to Phase 6
+- DoD verification runs automatically at Phase 4 completion for the core baseline and any active overlays
+- Any failed active check blocks pipeline progression to Phase 6
 - Failed checks produce specific remediation guidance
-- No partial passes — ALL checks must be green
+- No partial passes — ALL active checks must be green
 - Scaffolding artifacts are never considered done. Any remaining stub, placeholder, or partial wiring fails DoD.

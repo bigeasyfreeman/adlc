@@ -2,7 +2,7 @@
 
 Agentic Development Lifecycle.
 
-11 agents. 34 skills. Three loops. Describe a feature, point it at a repo, get back a PR. It researches the codebase, writes a technical plan with STRIDE threat modeling, generates code with TDD, runs security across 5 OWASP domains, enforces lint-driven development, and hands you one pull request.
+ADLC is a graph-driven framework for turning scoped work into reviewed code. The source tree contains agent configs, skill definitions, and a small set of runtime install targets. `setup.sh` derives install counts from the repository so the shipped inventory stays truthful as the framework changes.
 
 ```
 Build Loop:  PRD → Research → Brief → Council → Scaffold → LDD → TDD → Code → Council → PR → You
@@ -98,21 +98,21 @@ Every loop caps. Plan review: 3. Code review: 3. Fixer: 2. QA: 2. Hit the wall a
 |-------|-----|-------|--------|
 | **triage** | Classify, route, or escalate | Sonnet | none |
 | **researcher** | Codebase analysis, PRD cross-reference | Opus | codebase-research, grafana |
-| **planner** | PRD + research into 14-section Build Brief | Opus | codegen-context, architecture, security-review |
+| **planner** | PRD + research into an applicability-aware Build Brief | Opus | codegen-context, architecture, security-review |
 | **plan-reviewer** | 6-persona Eval Council with Gate 0 pre-checks | Opus | eval-council |
-| **coder** | LDD then TDD per task. Lint. RED. GREEN. REFACTOR. | Sonnet | tdd-enforcement, ldd-enforcement, debugging |
+| **coder** | LDD then verifier-led execution per task class | Sonnet | tdd-enforcement, ldd-enforcement, debugging |
 | **code-reviewer** | Quality, correctness, and security | Opus | eval-council, security-review |
 | **fixer** | 4-phase root cause, then fix | Sonnet | systematic-debugging, fix-loop |
 | **security-reviewer** | STRIDE + 5 OWASP domains + OWASP Top 10 | Opus | security-review + 5 domain skills |
 | **pr-preparer** | Final PR package with DoD checklist | Sonnet | definition-of-done, stop-slop |
 | **PRD Agent** | Structured discovery, 3-5 turns, extract-first | Opus | prd-generation |
-| **Build Brief Agent** | 14-section brief with STRIDE, SLOs, compatibility | Opus | codegen-context, architecture, security-review, reuse-analysis |
+| **Build Brief Agent** | Applicability-aware brief with core baseline and active overlays | Opus | codegen-context, architecture, security-review, reuse-analysis |
 
 Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 
 ## Skills
 
-34 markdown files. Domain expertise injected into agents at startup.
+Skill definitions are injected into agents at startup. Runtime install counts are derived by `setup.sh` rather than hardcoded in docs.
 
 **Core Engineering:**
 `codebase-research` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `definition-of-done` (22-check DoD)
@@ -134,7 +134,7 @@ Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 
 ## Build Brief Template (v2)
 
-The Build Brief Agent produces a 14-section document. Sections marked [C] are conditional based on project type.
+The Build Brief Agent produces a brief with an `applicability_manifest`, a core baseline, and only the overlays the task actually activates.
 
 | # | Section | Required |
 |---|---------|----------|
@@ -143,17 +143,17 @@ The Build Brief Agent produces a 14-section document. Sections marked [C] are co
 | 3 | Architecture & Patterns (existing patterns + new components) | Always |
 | 4 | Data Model Changes [C] | If project has persistent storage |
 | 5 | API Changes [C] | If project has endpoints |
-| 6 | Security Review (STRIDE + concern/mitigation table) | Always |
+| 6 | Security Review (STRIDE + concern/mitigation table) | When the security overlay is active |
 | 7 | Failure Modes (failure/impact/mitigation) | Always |
-| 8 | SLOs & Performance (latency, error rate, performance budgets) | Always |
+| 8 | SLOs & Performance (latency, error rate, performance budgets) | When observability or performance overlays are active |
 | 9 | Task Breakdown (per-task: files, refs, deps, G/W/T, manual tests) | Always |
-| 10 | Compatibility & Resilience (backwards, forward, availability, degradation) | Always |
+| 10 | Compatibility & Resilience (backwards, forward, availability, degradation) | When interface, integration, or rollout overlays are active |
 | 11 | G/W/T Roll-Up (full test plan) | Always |
 | 12 | Skill Handoffs | Always |
 | 13 | Open Items | Always |
 | 14 | Revision History (council finding IDs → changes) | Always |
 
-Every task requires: files_to_create/modify, reference_impl, dependency_ids, G/W/T acceptance criteria, and manual test plans for auth/integration flows.
+Every task requires: files_to_create/modify, reference_impl, dependency_ids, `task_classification`, `verification_spec`, failure modes, and enough acceptance criteria to define the verifier contract.
 
 ## Customization
 
@@ -182,8 +182,8 @@ adlc/
 ├── setup.sh               # One-command install
 ├── WORKFLOW.dot            # Pipeline graph
 ├── WORKFLOW.md             # Config
-├── agents/                 # 11 agents
-├── skills/                 # 34 skills + manifest.json
+├── agents/                 # Source agent configs (includes legacy pointers)
+├── skills/                 # Skill definitions + manifest.json
 ├── platform/               # CLAUDE.md, AGENTS.md, agents-antigravity.md
 ├── examples/               # Example PRD
 ├── docs/                   # schemas/, specs/, tests/, adlc-v2-spec, tickets
@@ -203,7 +203,7 @@ adlc/
 8. **One human gate.** Machines catch structure. You catch judgment.
 9. **Bring your own agent.** Claude, Codex, Cursor, Antigravity, Factory. Skills don't care.
 10. **Composable.** Swap JIRA for Linear. Swap Confluence for Notion. Same pipeline.
-11. **Security baked in, not bolted on.** STRIDE at design time. OWASP at build time. Always.
+11. **Security baked in, not bolted on.** STRIDE and OWASP activate when the task touches a real security surface.
 12. **BLE-compliant.** Specify outcomes, not procedures. Design for removal as models improve.
 
 ## Docs

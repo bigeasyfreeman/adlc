@@ -1,0 +1,432 @@
+{
+  "contract_version": "1.0.0",
+  "description": "Small benchmark issue set for validating ADLC applicability gating and verifier selection.",
+  "cases": [
+    {
+      "id": "CASE-001",
+      "title": "Fix sqlparser 0.43 compile break in SQL classifier",
+      "summary": "Build-validation task to restore cargo build/test truthfulness after a dependency API mismatch.",
+      "expected_manifest": {
+        "task_classification": "build_validation",
+        "task_classification_confidence": 0.98,
+        "classification_evidence": [
+          "Scope is limited to compile, test, lint, and CI truthfulness.",
+          "No new runtime behavior, endpoints, or integrations are introduced."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": false,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": false
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "The repo does not currently pass cargo test.",
+              "source_ref": "issue description",
+              "extracted_from": "problem statement"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "Compile/test validation is the stated scope."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "5_security_review",
+            "status": "suppressed",
+            "reason": "No new attack surface or auth/data-handling change."
+          },
+          {
+            "section_name": "6_observability_slo",
+            "status": "suppressed",
+            "reason": "No runtime path or user-facing operation changes."
+          },
+          {
+            "section_name": "9_risks",
+            "status": "active",
+            "reason": "Failure modes still matter for build-validation tasks."
+          },
+          {
+            "section_name": "11_validation_plan",
+            "status": "active",
+            "reason": "The task is defined by build/test/lint verification."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "cargo test",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The known repo failure is already exposed by the command."
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "cargo clippy -- -D warnings",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Compile truthfulness is the primary contract for this task."
+        }
+      }
+    },
+    {
+      "id": "CASE-002",
+      "title": "Clear clippy warnings in the workspace root crate",
+      "summary": "Lint cleanup task with no behavior change.",
+      "expected_manifest": {
+        "task_classification": "lint_cleanup",
+        "task_classification_confidence": 0.97,
+        "classification_evidence": [
+          "The request is framed around clippy warnings, not new behavior.",
+          "No interface or runtime path change is required."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": false,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": false
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "The crate should pass clippy with -D warnings.",
+              "source_ref": "issue description",
+              "extracted_from": "acceptance criteria"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "Lint cleanup is the complete scope."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "5_security_review",
+            "status": "suppressed",
+            "reason": "Lint cleanup does not add attack surface."
+          },
+          {
+            "section_name": "6_observability_slo",
+            "status": "suppressed",
+            "reason": "Lint cleanup does not change runtime paths."
+          },
+          {
+            "section_name": "11_validation_plan",
+            "status": "active",
+            "reason": "The task succeeds only when static analysis passes."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "cargo clippy -- -D warnings",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The lint failure is the direct pre-change signal."
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "No broader test invention is needed for lint-only work."
+        }
+      }
+    },
+    {
+      "id": "CASE-003",
+      "title": "Stop duplicate invoices on idempotent payment retries",
+      "summary": "Bugfix task with a non-sequitur claim that should be flagged before planning.",
+      "expected_manifest": {
+        "task_classification": "bugfix",
+        "task_classification_confidence": 0.95,
+        "classification_evidence": [
+          "The issue describes existing broken behavior under retry.",
+          "The expected fix is to reproduce and remove the duplicate side effect."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": true,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": true,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "A retry currently creates duplicate invoices.",
+              "source_ref": "issue description",
+              "extracted_from": "problem statement"
+            }
+          ],
+          "unsupported": [
+            {
+              "claim": "This is not the current scaffold JSONL logger with a new name.",
+              "source_ref": "issue description",
+              "extracted_from": "stray sentence",
+              "reason": "The statement does not follow from the billing bug."
+            }
+          ],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [
+            "unsupported_claim"
+          ],
+          "supported_claims": [
+            "Duplicate invoices are the bug under repair."
+          ],
+          "unsupported_claims": [
+            "This is not the current scaffold JSONL logger with a new name."
+          ],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": [
+            "not the current scaffold JSONL logger with a new name"
+          ]
+        },
+        "section_policy": [
+          {
+            "section_name": "5_security_review",
+            "status": "suppressed",
+            "reason": "The fix does not introduce a new attack surface."
+          },
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "Invoice creation is a runtime path and user-facing billing operation."
+          },
+          {
+            "section_name": "9_risks",
+            "status": "active",
+            "reason": "The bug impacts billing integrity and retry safety."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "reproducer",
+            "target": "integration test: payment retry creates one invoice",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "A reproducer is the shortest path to the existing failure."
+          },
+          "secondary_verifiers": [
+            {
+              "type": "test",
+              "target": "regression suite: billing idempotency",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Bugfixes should preserve the failing reproducer through handoff."
+        }
+      }
+    },
+    {
+      "id": "CASE-004",
+      "title": "Add CSV export command for account activity",
+      "summary": "Feature task that adds a user-facing operation without new attack surface.",
+      "expected_manifest": {
+        "task_classification": "feature",
+        "task_classification_confidence": 0.94,
+        "classification_evidence": [
+          "The task adds net-new behavior.",
+          "The operation is user-facing and runtime-visible."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": true,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": true,
+          "data_format_change": true,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "Users need a CSV export command for account activity.",
+              "source_ref": "issue description",
+              "extracted_from": "feature request"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "CSV export is the desired new capability."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "5_security_review",
+            "status": "suppressed",
+            "reason": "The feature does not change auth, attack surface, or external integrations."
+          },
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "The new export command is a runtime and user-facing operation."
+          },
+          {
+            "section_name": "10_rollout",
+            "status": "active",
+            "reason": "The feature introduces a new interface and output format."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "acceptance test: CSV export emits expected headers and rows",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "A behavior-defining test is the correct feature verifier."
+          },
+          "secondary_verifiers": [
+            {
+              "type": "test",
+              "target": "edge-case test: empty activity exports header-only CSV",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "New features should be defined by explicit success cases and edge cases."
+        }
+      }
+    },
+    {
+      "id": "CASE-005",
+      "title": "Add OAuth callback endpoint and encrypted token storage for Google Drive import",
+      "summary": "Security-sensitive feature with external integration, auth change, and persistent storage.",
+      "expected_manifest": {
+        "task_classification": "security",
+        "task_classification_confidence": 0.96,
+        "classification_evidence": [
+          "The task adds a new auth flow and external integration.",
+          "The change stores third-party tokens and introduces a callback endpoint."
+        ],
+        "change_surface": {
+          "new_attack_surface": true,
+          "runtime_path_change": true,
+          "service_boundary_change": true,
+          "external_integration": true,
+          "persistent_storage": true,
+          "api_change": true,
+          "data_format_change": false,
+          "auth_change": true,
+          "perf_sensitive": false,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "Add OAuth callback handling and token storage for Google Drive import.",
+              "source_ref": "issue description",
+              "extracted_from": "feature request"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "OAuth callback and token storage are explicitly in scope."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "5_security_review",
+            "status": "active",
+            "reason": "The task adds auth, external integration, token handling, and a new endpoint."
+          },
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "The callback and import flow are runtime operations that need auditability."
+          },
+          {
+            "section_name": "10_rollout",
+            "status": "active",
+            "reason": "The task changes interfaces, auth behavior, and dependency boundaries."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "acceptance test: OAuth callback stores encrypted token and starts import",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The feature is best defined through acceptance coverage of the auth flow."
+          },
+          "secondary_verifiers": [
+            {
+              "type": "test",
+              "target": "security test: callback rejects invalid state parameter",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Security-sensitive features require both primary behavior coverage and active overlay checks."
+        }
+      }
+    }
+  ]
+}

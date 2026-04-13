@@ -1,23 +1,36 @@
 ---
 name: observability-contract
-description: "Logging mandate: every feature/change must include structured error, audit, and general logging. Triggers at Phase 1 (specification) and Phase 5 (verification)."
+description: "Logging mandate with applicability-aware activation: structured error, audit, and general logging are required only when the task introduces a runtime path, service boundary, or user-facing operation. Triggers at Phase 1 (specification) and Phase 5 (verification)."
 ---
 
 # Observability Contract
 
 ## Overview
 
-Every feature or change produced by the ADLC must include structured logging. This is a mandatory deliverable, not an afterthought. If it's not logged, it didn't happen.
+Every feature or change with an active observability surface must include structured logging. This is a mandatory deliverable for those tasks, not an afterthought. If it's not logged, it didn't happen.
 
 ## When to Use
 
-- **Phase 1 (specification):** Generate observability contract per task — what logging is required
-- **Phase 5 (verification):** Verify logging is present per contract — AST scan for required log statements
+- **Phase 1 (specification):** Generate observability contract per task when the applicability manifest marks a runtime or user-facing surface active
+- **Phase 5 (verification):** Verify logging is present per active contract — AST scan for required log statements
 - **Manual:** When auditing observability coverage of existing code
+
+## Applicability Contract
+
+Before generating the logging contract, record the observability applicability decision:
+
+| Field | Purpose |
+|-------|---------|
+| `observability_applicability.status` | `active` or `not_applicable` |
+| `observability_applicability.reason` | Concrete reason tied to task class or repo evidence |
+| `observability_applicability.trigger_fields` | Which manifest fields activated or suppressed the overlay |
+| `observability_applicability.manifest_ref` | Pointer to the upstream applicability manifest entry |
+
+If the status is `not_applicable`, do not invent error, audit, or general logging requirements for that task. Record the suppression and move on.
 
 ## The Three Log Types
 
-All three are mandatory for every task.
+All three are mandatory for every active observability task.
 
 ### Error Logging
 
@@ -131,7 +144,7 @@ This enables: tracing a single request through the entire system, linking error 
 
 ## Pipeline Observability
 
-The ADLC pipeline itself emits structured audit logs at every phase:
+The ADLC pipeline itself emits structured audit logs at every phase. This pipeline-level observability is separate from task-level overlay activation:
 
 ```json
 {
@@ -151,9 +164,9 @@ The ADLC pipeline itself emits structured audit logs at every phase:
 ## Verification (Phase 5)
 
 AST-based scan checks:
-- [ ] Error logging present at all try/except blocks
-- [ ] Audit logging present at all state mutation points
-- [ ] External API calls have request/response logging
+- [ ] Error logging present at all try/except blocks for active observability tasks
+- [ ] Audit logging present at all state mutation points for active observability tasks
+- [ ] External API calls have request/response logging for active observability tasks
 - [ ] Correlation IDs propagated (present in log calls)
 - [ ] Log format is structured JSON (not print statements or unstructured strings)
 - [ ] No PII in log payloads (no request/response bodies, no user data)

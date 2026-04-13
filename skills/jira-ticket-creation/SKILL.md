@@ -6,7 +6,7 @@
 
 ## Trigger
 
-Activated after the engineer approves the Build Brief. Consumes Section 8 (Task Breakdown) and Section 7 (Phased Plan).
+Activated after the engineer approves the Build Brief. Consumes the schema-validated Build Brief, especially task breakdown, phased plan, and each task's applicability/verifier contract.
 
 ## Input Contract
 
@@ -42,6 +42,8 @@ Activated after the engineer approves the Build Brief. Consumes Section 8 (Task 
   "failure_modes": []
 }
 ```
+
+Every emitted ticket must preserve the task's `task_classification`, `verification_spec`, and any active overlay expectations from the brief's `applicability_manifest`. Suppressed sections do not become filler ticket content.
 
 ## Output Contract
 
@@ -89,7 +91,7 @@ Create an epic for the feature:
 
 ### 2. Create Tickets from Task Breakdown
 
-For each task in Section 8, create a ticket:
+For each task in the Build Brief task breakdown, create a ticket:
 
 **Title format:** `[Area] [Verb] [Specific Deliverable]`
 - Good: `[BE] Add POST /api/v1/widgets endpoint with validation`
@@ -115,10 +117,17 @@ h2. Constraints
 * Must: [must do items]
 * Must Not: [must not do items]
 * Escalate If: [escalation triggers]
+* Task Classification: [feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security]
 
 h2. Dependencies
 * Depends on: [task IDs or "none — parallelizable"]
 * Blocks: [task IDs or "none"]
+
+h2. Verification Contract
+* Primary verifier: [test | command | reproducer] — [target]
+* Expected before change: fail
+* Expected after change: pass
+* Overlay checks: [security/observability/performance only when active]
 
 h2. Agent Instructions
 [Self-contained context — everything a coding agent needs to implement this task without searching]
@@ -178,10 +187,10 @@ For each failure mode in the roll-up (Section 11):
 | Field | Source | Value |
 |-------|--------|-------|
 | Decision Type | Phase 2 decisions | Type 1 / Type 2 |
-| On-Call Rotation | Section 6 | rotation name |
-| Service Owner | Section 6 | team name |
+| On-Call Rotation | Active observability/operations section | rotation name |
+| Service Owner | Active observability/operations section | team name |
 | Architecture Pattern | Section 2 | pattern name |
-| SLO Target | Section 6 | availability target |
+| SLO Target | Active observability/performance section | availability target |
 
 ## MCP Server Contract
 
@@ -270,4 +279,3 @@ adlc-jira sync --brief ./build-brief.md --epic ENG-123
 - **Schema validation:** Validate incoming task payloads against `docs/schemas/build-brief.schema.json` before creating any issue.
 - **Idempotency:** Every issue create/update operation must include an idempotency key per `docs/specs/idempotency-keys.md`; retries must not create duplicates.
 - **Structured errors:** Return field-level validation and upstream dependency failures in a typed error payload.
-

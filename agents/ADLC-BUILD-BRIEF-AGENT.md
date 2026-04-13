@@ -1,5 +1,7 @@
 # ADLC Build Brief Agent
 
+> Legacy reference note: the live ADLC contract is defined by `agents/triage.md`, `agents/planner.md`, `docs/schemas/applicability-manifest.schema.json`, and `docs/schemas/build-brief.schema.json`. If this document conflicts with those files, the schema-validated contract wins.
+
 > Drop this file into your IDE agent context (Cursor rules, Claude Code CLAUDE.md, Codex instructions, Factory/Droid config). Feed it a PRD. It walks you through research, asks sharp questions, searches your codebase, and outputs a complete Build Brief with failure modes, executable tickets, and skill handoffs for autonomous execution.
 
 ---
@@ -1025,11 +1027,11 @@ THEN [outcome]
 | 3. Architecture & Patterns | Yes | — |
 | 4. Data Model Changes | No | Project has persistent storage (DB, files, state) |
 | 5. API Changes | No | Project has HTTP/RPC/CLI endpoints |
-| 6. Security Review | Yes | — (STRIDE always, concerns always) |
+| 6. Security Review | No | Task introduces new attack surface, auth changes, sensitive data handling, or external integrations |
 | 7. Failure Modes | Yes | — |
-| 8. SLOs & Performance | Yes | — (performance budget for CLIs, SLOs for services) |
+| 8. SLOs & Performance | No | Task changes runtime paths, services, user-facing operations, or performance-sensitive code |
 | 9. Task Breakdown | Yes | — |
-| 10. Compatibility & Resilience | Yes | — |
+| 10. Compatibility & Resilience | No | Task changes existing interfaces, APIs, data formats, or dependency behavior |
 | 11. G/W/T Roll-Up | Yes | — |
 | 12. Skill Handoffs | Yes | — |
 | 13. Open Items | Yes | — (empty if none) |
@@ -1050,6 +1052,8 @@ Every task in Section 9 MUST have ALL of these. The Eval Council Executioner rej
 | Files to modify | Yes (if extending) | Exact paths |
 | Reference impl | Yes (if extending) | File path(s) showing the pattern to follow |
 | Dependencies | Yes | Task IDs or "None" |
+| Task classification | Yes | `feature`, `bugfix`, `build_validation`, `lint_cleanup`, `refactor`, `infra`, `docs`, or `security` |
+| Verification spec | Yes | Primary verifier + fail-before/pass-after contract |
 | Acceptance criteria | Yes | G/W/T format, minimum 2 per task |
 | Feature flag | Conditional | If project uses feature flags |
 | Manual test plan | Conditional | For auth flows, integrations, visual UI, cross-service flows |
@@ -1084,10 +1088,10 @@ Before generating the Build Brief, verify all of these are present. Reject the d
 - [ ] Data model changes documented (if applicable) or explicitly marked N/A
 - [ ] API changes documented with request/response schemas (if applicable) or explicitly marked N/A
 
-**Security (always required):**
-- [ ] STRIDE threat model complete (all 6 categories analyzed)
-- [ ] Security concerns table with specific mitigations (not generic advice)
-- [ ] Every High/Critical STRIDE threat has a mitigation in the task breakdown
+**Security (conditional):**
+- [ ] Security review included only when change-surface flags justify it
+- [ ] STRIDE or equivalent threat analysis is concrete, not boilerplate
+- [ ] Every active High/Critical threat has a mitigation in the task breakdown
 
 **Failure Modes & Resilience (always required):**
 - [ ] Failure modes table with impact and specific mitigation
@@ -1096,13 +1100,13 @@ Before generating the Build Brief, verify all of these are present. Reject the d
 - [ ] Degradation strategy for every external dependency
 - [ ] Rollback plan documented
 
-**Performance & SLOs (always required):**
-- [ ] Latency targets defined (p99 for services, per-operation for CLIs)
-- [ ] Error rate targets defined (for services)
-- [ ] Performance budget defined (for CLIs, libraries, hot paths)
+**Performance & SLOs (conditional):**
+- [ ] Performance/SLO section is active only when the task changes measurable production behavior
+- [ ] Latency/error/resource targets are specific when active
+- [ ] Section is explicitly suppressed with reason when not active
 
 **Task Breakdown (always required):**
-- [ ] Every task has: ID, agent type, description, files, reference impl, dependencies, G/W/T
+- [ ] Every task has: ID, agent type, description, files, reference impl, dependencies, task classification, verification spec, G/W/T
 - [ ] Every task referencing existing code has a reference impl file path
 - [ ] Dependencies form a valid DAG (no circular dependencies)
 - [ ] Independent tasks flagged for parallel execution

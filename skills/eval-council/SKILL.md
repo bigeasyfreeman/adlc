@@ -1,6 +1,6 @@
 # Skill: Eval Council
 
-> Multi-perspective evaluation agent that validates Build Brief quality, skill outputs, and critical decisions before they proceed downstream. Inspired by the Council/RedTeam/FirstPrinciples thinking tools from Daniel Miessler's PAI system. Evaluation is opt-OUT, not opt-IN — every output is evaluated by default. You must justify skipping it.
+> Multi-perspective evaluation agent that validates Build Brief quality, skill outputs, and critical decisions before they proceed downstream. Inspired by the Council/RedTeam/FirstPrinciples thinking tools from Daniel Miessler's PAI system. Evaluation is opt-OUT for active surfaces, not a universal mandate for every overlay. You must justify skipping an active persona or section.
 
 ---
 
@@ -10,9 +10,9 @@ Agents are confident. Confidently wrong is still wrong.
 
 The Build Brief Agent produces a technical design. Seven downstream skills consume it. Autonomous coding agents execute against it. If the brief has a flawed assumption, a missed dependency, a vague acceptance criterion, or a security blind spot — that flaw propagates through the entire chain and becomes a bug, an outage, or a rework cycle.
 
-The Eval Council catches failures before they propagate. It is the last structured review before humans approve and machines execute.
+The Eval Council catches failures before they propagate. It is the last structured review before humans approve and machines execute. Core personas always run; overlay personas activate from the task applicability manifest when the change surface warrants them.
 
-**Opt-OUT, not opt-IN.** Every Build Brief and every skill output gets evaluated by default. The burden of proof is on exclusion. "It looks fine" and "we're in a hurry" are not valid reasons to skip evaluation. Valid reasons: "This is a trivial config change with no behavior change" or "This output is identical to a previously approved output."
+**Opt-OUT, not opt-IN for active surfaces.** Every Build Brief and every skill output with an active surface gets evaluated by default. The burden of proof is on exclusion. "It looks fine" and "we're in a hurry" are not valid reasons to skip evaluation. Valid reasons: "This is a trivial config change with no behavior change" or "This output is identical to a previously approved output." Inactive overlays still require a concrete `not_applicable` reason.
 
 ---
 
@@ -32,11 +32,12 @@ The Eval Council runs at these points in the ADLC lifecycle:
 
 ## The Council: Judge Personas
 
-The Eval Council evaluates every output through five distinct perspectives. Each persona asks different questions and catches different failure modes. They do not collaborate — they evaluate independently, then their verdicts are synthesized.
+The Eval Council evaluates active surfaces through core personas and overlay personas. Core personas ask different questions and catch different failure modes. Overlay personas activate only when the applicability manifest says the surface exists. They do not collaborate — they evaluate independently, then their verdicts are synthesized.
 
 ### 1. The Architect
 
 **Perspective:** System design, patterns, boundaries, blast radius.
+**Activation:** Overlay persona. Only active when architecture, interface, or wiring changes are in scope.
 
 **Asks:**
 - Does the architecture follow established patterns, or does it introduce inconsistency?
@@ -54,6 +55,7 @@ The Eval Council evaluates every output through five distinct perspectives. Each
 ### 2. The Skeptic (Red Team)
 
 **Perspective:** What can go wrong? What assumptions are unverified? Where are we lying to ourselves?
+**Activation:** Core persona. Always active; security focus expands when the security overlay is active.
 
 **Asks:**
 - What assumption, if wrong, breaks this entire design?
@@ -74,6 +76,7 @@ The Eval Council evaluates every output through five distinct perspectives. Each
 ### 3. The Operator
 
 **Perspective:** Production reality. On-call at 2am. Monitoring. Debugging.
+**Activation:** Overlay persona. Active when runtime paths, deployment behavior, or user-facing operations change.
 
 **Asks:**
 - Can I tell if this is working by looking at a dashboard?
@@ -92,6 +95,7 @@ The Eval Council evaluates every output through five distinct perspectives. Each
 ### 4. The Executioner
 
 **Perspective:** Can a coding agent actually build this? Is every task self-contained and unambiguous? (Aligned with Spec Driven Development's core principle: if the agent has to guess, the task isn't ready.)
+**Activation:** Core persona. Always active.
 
 **Asks:**
 - If I gave this task to a coding agent with zero context beyond the ticket, could it produce working code?
@@ -125,6 +129,7 @@ Any FAIL = the task is not agent-ready. This is a **major finding**.
 ### 5. The First Principles Challenger
 
 **Perspective:** Are we solving the right problem? Are we building what we should build?
+**Activation:** Core persona. Always active.
 
 **Asks:**
 - Why are we building this? (Not "what does the PRD say" — why does this matter?)
@@ -146,17 +151,21 @@ Before any persona evaluates, run these static checks against the Build Brief. I
 
 ### Mandatory Checks
 
-Every Build Brief must pass ALL of these before the council convenes:
+Every Build Brief must pass the core checks below before the council convenes. Overlay checks apply only when the applicability manifest marks the relevant surface active.
 
+- [ ] **task_classification present** — Brief must name the task class so overlay activation can be derived instead of guessed
+- [ ] **change_surface present** — Brief must state the relevant surface flags used to activate or suppress overlays
+- [ ] **applicability_manifest present** — Every active and inactive overlay must have a `status` and a concrete reason
+- [ ] **verification_spec present** — Brief must specify the primary verifier, expected pre-change failure, and expected post-change pass
 - [ ] **Existing patterns listed with file paths and reuse instructions** — Section 2 must include a pattern table mapping each pattern to its file path and explicit reuse/extend instructions
 - [ ] **Behavior changes documented (current to new)** — Every behavior modification must have a "current behavior" and "new behavior" description, not just the end state
 - [ ] **New component file tree specified** — Any new module/service/package must include the complete file tree (directories and files) that will be created
-- [ ] **STRIDE threat model complete (all 6 categories)** — Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege must each be addressed (even if "N/A — [reason]")
-- [ ] **Security concerns table with specific mitigations** — Each identified threat must have a concrete mitigation, not generic advice like "follow best practices"
+- [ ] **STRIDE threat model complete (all 6 categories)** *(only when security overlay active)* — Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege must each be addressed (even if "N/A — [reason]")
+- [ ] **Security concerns table with specific mitigations** *(only when security overlay active)* — Each identified threat must have a concrete mitigation, not generic advice like "follow best practices"
 - [ ] **Failure modes table with impact and specific mitigation** — Every failure mode must include severity/impact rating AND a specific (not generic) mitigation strategy
-- [ ] **Backwards compatibility assessed** — Section 10 must explicitly state what breaks, what doesn't, and migration path for any breaking change
-- [ ] **Degradation strategy for external dependencies** — Every external dependency must have a documented behavior when that dependency is unavailable
-- [ ] **Performance/latency targets defined** — Section 8 must include numeric latency targets per operation (e.g., "p95 < 200ms"), not vague statements like "should be fast"
+- [ ] **Backwards compatibility assessed** *(only when interface/data-format overlay active)* — Section 10 must explicitly state what breaks, what doesn't, and migration path for any breaking change
+- [ ] **Degradation strategy for external dependencies** *(only when external-integration overlay active)* — Every external dependency must have a documented behavior when that dependency is unavailable
+- [ ] **Performance/latency targets defined** *(only when performance overlay active)* — Section 8 must include numeric latency targets per operation (e.g., "p95 < 200ms"), not vague statements like "should be fast"
 - [ ] **Per-task: files_to_create/files_to_modify specified** — Every task must list explicit file paths for creation and modification, not just descriptions
 - [ ] **Per-task: reference_impl for extensions** — Every task that extends existing code must name the reference implementation file path the coding agent should study
 - [ ] **Per-task: dependency_ids form valid DAG** — Task dependency graph must be a directed acyclic graph (no circular dependencies, no missing dependency IDs)
@@ -189,18 +198,18 @@ GATE 0 PRE-CHECK:
 
 ### Step 1: Select Active Personas
 
-For each evaluation checkpoint, determine which personas are relevant. **All five are active by default.** To exclude one, you must provide a justification:
+For each evaluation checkpoint, determine which personas are relevant from the applicability manifest. Core personas are active by default. Overlay personas are active only when the manifest says the surface exists. To exclude an active persona, you must provide a justification:
 
 ```
-EVAL COUNCIL ASSESSMENT (justify exclusion):
-│ Architect:           INCLUDE — new service boundary being introduced
-│ Skeptic (Red Team):  INCLUDE — data migration with rollback complexity
-│ Operator:            INCLUDE — new on-call responsibilities
-│ Executioner:         INCLUDE — 14 tasks need autonomous execution
-│ First Principles:    EXCLUDE — scope was already challenged and locked in Phase 0
+EVAL COUNCIL ASSESSMENT (manifest-aware):
+│ Architect:           INCLUDE — interface or service boundary changed
+│ Skeptic (Red Team):  INCLUDE — always active core failure analysis
+│ Operator:            EXCLUDE — no runtime path or user-facing operation changed
+│ Executioner:         INCLUDE — autonomous execution required
+│ First Principles:    INCLUDE — always active core scope check
 ```
 
-**"Too simple" is not a valid exclusion.** Simple tasks can have hidden assumptions. "Already reviewed by a human" is valid only if the human review was documented.
+**"Too simple" is not a valid exclusion.** Simple tasks can have hidden assumptions. "Already reviewed by a human" is valid only if the human review was documented. Inactive overlays still require explicit `not_applicable` reasons.
 
 ### Step 2: Independent Evaluation
 
@@ -241,7 +250,7 @@ Individual evaluations are synthesized into a council verdict:
 
 ### Step 4: Findings Report
 
-The council produces a structured report:
+The council produces a structured report. It records which overlays were active, which were suppressed, and why:
 
 ```markdown
 ## Eval Council Report: [Feature Name]
@@ -310,14 +319,15 @@ The council evaluates the complete Build Brief against these criteria:
 - [ ] Section 8 (Tasks) are self-contained — each embeds all context needed
 - [ ] Acceptance criteria are Given/When/Then throughout (Section 1 and Section 8)
 - [ ] No task references "the spec" or "as discussed" — context is embedded, not pointed at
+- [ ] Inactive overlay sections are explicitly marked `not_applicable` with a concrete reason
 
 **Completeness**
-- [ ] All 12 sections present and filled (not placeholder text)
-- [ ] Every task has G/W/T acceptance criteria, pattern reference, and reference implementation path
+- [ ] All active sections present and filled (inactive overlays marked `not_applicable`)
+- [ ] Every active task has G/W/T acceptance criteria, pattern reference, and reference implementation path
 - [ ] Every failure mode has prevention, mitigation, and early warning
 - [ ] Every Type 1 decision has a named owner and deadline
-- [ ] SLO targets are numeric and measurable
-- [ ] On-call rotation and escalation path have real names
+- [ ] SLO targets are numeric and measurable when observability overlay is active
+- [ ] On-call rotation and escalation path have real names when operator overlay is active
 
 **Consistency**
 - [ ] Architecture patterns in Section 2 match what Codebase Research found
@@ -327,7 +337,7 @@ The council evaluates the complete Build Brief against these criteria:
 - [ ] Estimated hours are realistic (calibrated against similar tasks in repo history)
 
 **Task Self-Containment & Parallelism**
-- [ ] Every task passes the self-containment checklist (deliverable, file paths, pattern, G/W/T, dependencies)
+- [ ] Every active task passes the self-containment checklist (deliverable, file paths, pattern, G/W/T, dependencies)
 - [ ] No task exceeds 2h estimate (decomposed if larger)
 - [ ] Independent tasks are flagged for parallel execution
 - [ ] Dependency chain is a DAG (no circular dependencies)
@@ -644,4 +654,4 @@ The Eval Council must also be evaluated. These meta-criteria prevent the council
 - [ ] **Evaluation time:** Council evaluation should complete in < 5 minutes for a standard brief. If it takes longer, the brief is probably too complex.
 - [ ] **Actionability:** Every critical/major finding has a recommendation that can be acted on immediately. "Be more careful" is not a recommendation.
 - [ ] **Consistency:** Same input should produce materially similar verdicts across runs. Track verdict stability.
-- [ ] **Persona coverage:** If a persona is excluded in > 50% of evaluations, the exclusion criteria may be too loose.
+- [ ] **Persona coverage:** If an overlay persona is excluded in > 50% of evaluations, the exclusion criteria may be too loose.

@@ -27,6 +27,8 @@ Activated immediately on Build Brief completion. Consumes the full Build Brief m
 }
 ```
 
+Honor the Build Brief's `applicability_manifest` when decomposing pages. Suppressed sections stay omitted or explicitly marked "not applicable"; the skill must not fabricate security, observability, or performance pages for tasks that do not activate them.
+
 ## Output Contract
 
 ```json
@@ -60,19 +62,19 @@ Decompose the Build Brief into this page structure:
 ```
 [Feature Name] -- Design Doc (parent page)
 ├── Architecture & Patterns
-│   └── Contains: Sections 2, 3 (Architecture Patterns, How It Works + Mermaid diagram)
+│   └── Contains: active architecture/repo-finding sections + Mermaid diagram
 ├── Risk & Security Assessment
-│   └── Contains: Sections 4, 5 (Risk/Rollback/Failure Modes, Security Posture)
-├── SLOs & Incident Ownership
-│   └── Contains: Section 6 (SLOs, Observability, Incident Ownership)
+│   └── Contains: failure modes always, security analysis only when active
+├── Operations & Observability
+│   └── Contains: observability/SLO/incident ownership only when active
 ├── Implementation Plan
-│   └── Contains: Sections 7, 8 (Phased Plan, Task Breakdown)
+│   └── Contains: phased plan, task breakdown, verifier contracts
 ├── Decision Log
-│   └── Contains: All Type 1/Type 2 decisions extracted from all sections
+│   └── Contains: All Type 1/Type 2 decisions extracted from active sections
 ├── Open Questions & Blockers
-│   └── Contains: Section 10 (Open Questions, labeled)
+│   └── Contains: unresolved items and suppressed-section rationale where needed
 └── Runbook (created shell, populated by Incident Runbook Skill)
-    └── Contains: Section 6 incident ownership + failure mode roll-up
+    └── Contains: incident ownership + failure mode roll-up when operational surfaces exist
 ```
 
 ### 2. Format for Confluence
@@ -189,7 +191,7 @@ adlc-confluence update --brief ./build-brief.md --parent 12345
 
 ## Quality Gates
 
-- [ ] All Build Brief sections have a corresponding Confluence page
+- [ ] All active Build Brief sections have a corresponding Confluence page
 - [ ] Mermaid diagrams render correctly in Confluence
 - [ ] All Type 1 decisions are marked with warning macros
 - [ ] JIRA links are valid (if tickets exist)
@@ -203,4 +205,3 @@ adlc-confluence update --brief ./build-brief.md --parent 12345
 - **Schema validation:** Validate Build Brief structure against `docs/schemas/build-brief.schema.json` before decomposition.
 - **Idempotency:** Page creation and updates must use idempotency keys and existence checks to avoid duplicate pages on retries.
 - **Stop reasons:** Emit structured terminal reasons when blocked by contract mismatch, permission denial, or dependency failure.
-
