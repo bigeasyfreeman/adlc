@@ -35,15 +35,19 @@ ADLC_RUNTIME=factory      FACTORY_API_KEY=... SMOKE=1 MODEL=factory-default bash
 
 The harness recreates `tests/smoke/artifacts/workspace/` at the start of every stage. Each stage invokes the checked-in agent markdown through `tests/smoke/stages/_invoke.sh`, which dispatches to a runtime adapter under `tests/smoke/adapters/`. Adapters isolate config state, enforce explicit tool grants, and enable CLI-side schema enforcement only when the selected runtime supports it. Triage and council receive a read-only workspace copy.
 
-## Runtime Availability
+## Runtime Notes
 
-Checked on April 13, 2026 in this workspace:
+The smoke harness is adapter-backed and runtime-agnostic. The selected adapter validates auth, checks whether its CLI is installed, and exits with a clear code if the runtime is unavailable:
 
-- `claude`: CLI installed; adapter has a live invocation path once `ANTHROPIC_API_KEY` or `ADLC_SMOKE_SETTINGS` is supplied
-- `codex`: CLI installed; adapter has a live invocation path once `OPENAI_API_KEY` or `ADLC_SMOKE_SETTINGS_CODEX` is supplied
-- `cursor`: CLI not installed here; adapter exits `77`
-- `antigravity`: no `gemini` or `antigravity` CLI installed here; adapter exits `77`
-- `factory`: CLI not installed here; adapter exits `77`
+- missing auth: exit `65`
+- unsupported runtime wiring: exit `66`
+- missing runtime CLI: exit `77`
+
+Use the adapter tests to validate local setup without spending tokens:
+
+```bash
+bash tests/smoke/adapters/test_dispatch.sh
+```
 
 The stages run in this order:
 
@@ -52,8 +56,11 @@ The stages run in this order:
 3. `coder`
 4. `test_strength`
 5. `council`
+6. `specificity`
 
 Each stage writes a log to `tests/smoke/artifacts/<stage>.log`. The final machine-readable summary is `tests/smoke/artifacts/smoke_report.json`.
+
+All auth values in this README are placeholders. Do not commit real keys, local settings files, or copied auth state.
 
 ## Cost
 

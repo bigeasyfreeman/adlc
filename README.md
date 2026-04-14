@@ -2,7 +2,7 @@
 
 Agentic Development Lifecycle.
 
-ADLC is a graph-driven framework for turning scoped work into reviewed code. The source tree contains agent configs, skill definitions, and a small set of runtime install targets. `setup.sh` derives install counts from the repository so the shipped inventory stays truthful as the framework changes.
+ADLC is a graph-driven framework for turning scoped work into reviewed code. The source tree contains agent configs, skill definitions, deterministic evaluators, and runtime adapter targets. `setup.sh` derives install counts from the repository so the shipped inventory stays truthful as the framework changes.
 
 ```
 Build Loop:  PRD → Research → Brief → Council → Scaffold → LDD → TDD → Code → Council → PR → You
@@ -62,7 +62,7 @@ cp -r skills/codebase-research/ ~/my-project/.claude/skills/codebase-research/
 ```
 start → triage → research → prd → plan ↔ plan_review → scaffold → gen_tests →
   ldd_gate → context_assembly → code (fan-out) ↔ code_review ↔ fixer →
-  security → qa → slop_gate → pr_prep → engineer_review → done
+  security → qa → test_strength → slop_gate → pr_prep → engineer_review → done
 ```
 
 ### Fix Loop (parallel)
@@ -91,6 +91,28 @@ Labels drive routing:
 | `blocked` | Council blocked. Human decision required. |
 
 Every loop caps. Plan review: 3. Code review: 3. Fixer: 2. QA: 2. Hit the wall and it comes to you.
+
+## Verification
+
+The repo ships with three verification layers:
+
+- `tests/test_adlc_contracts.sh` checks prompt/schema/runtime wiring and the checked-in golden artifacts.
+- `tests/backtest/run_backtest.sh` replays the deterministic evaluators against the benchmark fixture set.
+- `tests/smoke/run_smoke.sh` runs the real staged agents through a tiny repo using the selected runtime adapter.
+
+Typical verification flow:
+
+```bash
+bash tests/test_adlc_contracts.sh
+bash tests/backtest/run_backtest.sh
+ADLC_RUNTIME=codex ADLC_SMOKE_SETTINGS_CODEX=~/path/to/config.toml SMOKE=1 MODEL=gpt-5-codex bash tests/smoke/run_smoke.sh
+```
+
+Public-repo hygiene is intentional:
+
+- auth examples use placeholders only
+- runtime credentials are read from env vars or local settings files, never committed
+- smoke runs write ephemeral stage logs under `tests/smoke/artifacts/`; the tracked golden file is the summary report only
 
 ## Agents
 
@@ -188,7 +210,7 @@ adlc/
 ├── platform/               # CLAUDE.md, AGENTS.md, agents-antigravity.md
 ├── examples/               # Example PRD
 ├── docs/                   # schemas/, specs/, tests/, adlc-v2-spec, tickets
-├── tests/                  # 80 assertions
+├── tests/                  # contract checks, backtests, smoke harness
 └── scripts/                # md2pdf.py
 ```
 
