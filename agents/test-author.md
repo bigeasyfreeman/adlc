@@ -61,3 +61,11 @@ Use `revise` when verifier coverage against `verification_spec.target_files` can
 ## Anti-Slop
 
 Inherit the anti-slop rules from `spec-to-tests` verbatim. Do not emit banned patterns, hollow assertions, empty test bodies, or generated tests that are meant to be rewritten later.
+
+## Output Contract
+You MUST output exactly one JSON object. No prose. No markdown. No code fences.
+No preamble. No explanation. The object MUST validate against
+docs/schemas/test-author-output.schema.json.
+
+If the task cannot be classified, output a JSON object with label "escalate"
+and a concrete reason. Do not output natural-language apologies.

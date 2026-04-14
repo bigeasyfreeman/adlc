@@ -28,6 +28,14 @@ venv/
 # ADLC workspace artifacts
 .adlc/
 *.workspace/
+!tests/smoke/fixtures/
+!tests/smoke/fixtures/feature_bugfix/
+!tests/smoke/fixtures/feature_bugfix/.adlc/
+!tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json
+!tests/smoke/fixtures/feature_bugfix/.adlc/applicability_manifest.json
+tests/smoke/artifacts/*
+!tests/smoke/artifacts/.gitkeep
+!tests/smoke/artifacts/smoke_report.json
 
 # Secrets
 *.pem

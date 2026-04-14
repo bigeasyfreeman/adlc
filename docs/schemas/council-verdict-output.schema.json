@@ -1,0 +1,184 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/council-verdict-output.schema.json",
+  "title": "ADLC Council Verdict Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "label",
+    "verdict",
+    "specificity_findings",
+    "disagreement_record"
+  ],
+  "properties": {
+    "label": {
+      "type": "string",
+      "enum": ["lgtm", "revise", "blocked"]
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "confidence",
+        "applicability_manifest",
+        "personas",
+        "synthesis"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["APPROVED", "APPROVED_WITH_CONCERNS", "REVISION_REQUIRED", "BLOCKED"]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "gate_0": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "verifier_scope_intersection",
+            "reason"
+          ],
+          "properties": {
+            "verifier_scope_intersection": {
+              "type": "string",
+              "enum": ["pass", "warn", "fail"]
+            },
+            "reason": {
+              "type": ["string", "null"]
+            }
+          }
+        },
+        "applicability_manifest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "task_classification",
+            "core_personas",
+            "overlay_personas"
+          ],
+          "properties": {
+            "task_classification": {
+              "type": "string",
+              "enum": ["feature", "bugfix", "build_validation", "lint_cleanup", "refactor", "infra", "docs", "security"]
+            },
+            "core_personas": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor"]
+              }
+            },
+            "overlay_personas": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor"]
+              }
+            },
+            "suppressed_overlays": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor"]
+              }
+            }
+          }
+        },
+        "personas": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "verdict",
+              "findings"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor"]
+              },
+              "verdict": {
+                "type": "string",
+                "enum": ["pass", "fail", "concern"]
+              },
+              "findings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "synthesis": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "specificity_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task_id",
+          "score",
+          "failing_checks"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "failing_checks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "disagreement_record": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "persona",
+          "vote",
+          "weight"
+        ],
+        "properties": {
+          "persona": {
+            "type": "string",
+            "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor"]
+          },
+          "vote": {
+            "type": "string",
+            "enum": ["pass", "fail"]
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

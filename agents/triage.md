@@ -127,3 +127,11 @@ If unsupported text changes scope, mark the task `unclear` rather than silently 
 - Do not require a concrete screen or user-facing behavior to classify build-validation or lint-cleanup tasks.
 - Unsupported statements do not become requirements.
 - Output the numeric `task_classification_confidence` and the `confidence_band` used for routing every time.
+
+## Output Contract
+You MUST output exactly one JSON object. No prose. No markdown. No code fences.
+No preamble. No explanation. The object MUST validate against
+docs/schemas/triage-output.schema.json.
+
+If the task cannot be classified, output a JSON object with label "escalate"
+and a concrete reason. Do not output natural-language apologies.

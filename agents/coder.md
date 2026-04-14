@@ -71,3 +71,11 @@ Banned in shipped code:
 - unwired entry points, dead handlers, unused providers, and unused config added "for later"
 
 If the task cannot be completed without leaving one of these behind, emit `stuck`.
+
+## Output Contract
+You MUST output exactly one JSON object. No prose. No markdown. No code fences.
+No preamble. No explanation. The object MUST validate against
+docs/schemas/coder-output.schema.json.
+
+If the task cannot be classified, output a JSON object with label "escalate"
+and a concrete reason. Do not output natural-language apologies.

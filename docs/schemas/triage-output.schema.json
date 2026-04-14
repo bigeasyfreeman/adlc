@@ -1,0 +1,136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/triage-output.schema.json",
+  "title": "ADLC Triage Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "label",
+    "task_classification",
+    "task_classification_confidence",
+    "confidence_band",
+    "classification_evidence"
+  ],
+  "properties": {
+    "label": {
+      "type": "string",
+      "enum": ["proceed", "low_confidence", "unclear", "escalate"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "repo": {
+      "type": ["string", "null"]
+    },
+    "task_classification": {
+      "type": "string",
+      "enum": ["feature", "bugfix", "build_validation", "lint_cleanup", "refactor", "infra", "docs", "security"]
+    },
+    "task_classification_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "confidence_band": {
+      "type": "string",
+      "enum": ["proceed", "low_confidence", "escalate"]
+    },
+    "classification_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "change_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "new_attack_surface",
+        "runtime_path_change",
+        "service_boundary_change",
+        "external_integration",
+        "persistent_storage",
+        "api_change",
+        "data_format_change",
+        "auth_change",
+        "perf_sensitive",
+        "user_facing_operation"
+      ],
+      "properties": {
+        "new_attack_surface": { "type": "boolean" },
+        "runtime_path_change": { "type": "boolean" },
+        "service_boundary_change": { "type": "boolean" },
+        "external_integration": { "type": "boolean" },
+        "persistent_storage": { "type": "boolean" },
+        "api_change": { "type": "boolean" },
+        "data_format_change": { "type": "boolean" },
+        "auth_change": { "type": "boolean" },
+        "perf_sensitive": { "type": "boolean" },
+        "user_facing_operation": { "type": "boolean" }
+      }
+    },
+    "contamination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supported_claims",
+        "unsupported_claims",
+        "contradicted_claims",
+        "needs_clarification",
+        "suspect_phrases"
+      ],
+      "properties": {
+        "supported_claims": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "unsupported_claims": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "contradicted_claims": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "needs_clarification": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "suspect_phrases": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "missing": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "suggested_workflow": {
+      "type": "string",
+      "enum": ["default", "prd-first", "bugfix", "build_validation", "lint_cleanup", "refactor", "infra", "docs", "security"]
+    },
+    "clarification_questions": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

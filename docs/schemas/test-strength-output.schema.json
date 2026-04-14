@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/test-strength-output.schema.json",
+  "title": "ADLC Test Strength Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict",
+    "coverage",
+    "mutation_kill_rate",
+    "report_path",
+    "language",
+    "mutator"
+  ],
+  "properties": {
+    "label": {
+      "type": "string",
+      "enum": ["pass", "weak", "stuck"]
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["pass", "weak", "stuck"]
+    },
+    "coverage": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mutation_kill_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "report_path": {
+      "type": "string",
+      "const": ".adlc/test_strength_report.json"
+    },
+    "language": {
+      "type": "string",
+      "enum": ["python", "javascript", "typescript", "rust", "unknown"]
+    },
+    "mutator": {
+      "type": ["string", "null"]
+    },
+    "reason": {
+      "type": ["string", "null"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "stuck"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "mutator": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "mutator": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ]
+}

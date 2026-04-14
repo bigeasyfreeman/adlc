@@ -1,0 +1,14 @@
+{
+  "run_at": "2026-04-13T20:19:34Z",
+  "model": "claude-sonnet-4-6",
+  "stages": [
+    {
+      "name": "triage",
+      "ok": false,
+      "artifact": "tests/smoke/artifacts/triage.json",
+      "duration_ms": 943
+    }
+  ],
+  "overall": "fail",
+  "cost_estimate_tokens": 50000
+}

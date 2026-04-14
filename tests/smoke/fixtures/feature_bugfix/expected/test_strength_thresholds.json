@@ -1,0 +1,5 @@
+{
+  "bugfix_target_file": "src/scoreboard.py",
+  "min_bugfix_coverage": 0.8,
+  "min_mutation_kill_rate": 0.6
+}

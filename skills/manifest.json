@@ -9,6 +9,13 @@
       "path": "agents/triage.md",
       "dag_node": "triage",
       "model": "claude-sonnet-4-6",
+      "runtime_model_map": {
+        "claude": "claude-sonnet-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "skills": [],
       "labels": ["proceed", "low_confidence", "unclear", "escalate"]
     },
@@ -17,6 +24,13 @@
       "path": "agents/researcher.md",
       "dag_node": "research",
       "model": "claude-opus-4-6",
+      "runtime_model_map": {
+        "claude": "claude-opus-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "skills": ["codebase-research", "grafana-observability"],
       "labels": ["done"]
     },
@@ -25,6 +39,13 @@
       "path": "agents/planner.md",
       "dag_node": "plan",
       "model": "claude-opus-4-6",
+      "runtime_model_map": {
+        "claude": "claude-opus-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "skills": ["codegen-context", "architecture-pattern"],
       "labels": ["done", "escalate"]
     },
@@ -33,6 +54,13 @@
       "path": "agents/plan-reviewer.md",
       "dag_node": "plan_review",
       "model": "claude-opus-4-6",
+      "runtime_model_map": {
+        "claude": "claude-opus-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "activation": {
         "mode": "core_plus_overlays",
         "consumes_manifest": true,
@@ -46,6 +74,13 @@
       "path": "agents/test-author.md",
       "dag_node": "gen_tests",
       "model": "claude-sonnet-4-6",
+      "runtime_model_map": {
+        "claude": "claude-sonnet-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "skills": ["spec-to-tests", "tdd-enforcement", "qa-test-data"],
       "labels": ["done", "stuck", "revise"]
     },
@@ -54,6 +89,13 @@
       "path": "agents/test-strength-auditor.md",
       "dag_node": "test_strength",
       "model": "claude-sonnet-4-6",
+      "runtime_model_map": {
+        "claude": "claude-sonnet-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "skills": ["test-strength"],
       "labels": ["pass", "weak", "stuck"]
     },
@@ -62,6 +104,13 @@
       "path": "agents/coder.md",
       "dag_node": "code",
       "model": "claude-sonnet-4-6",
+      "runtime_model_map": {
+        "claude": "claude-sonnet-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "skills": ["tdd-enforcement", "systematic-debugging"],
       "labels": ["done", "stuck"],
       "fan_out": true
@@ -71,6 +120,13 @@
       "path": "agents/code-reviewer.md",
       "dag_node": "code_review",
       "model": "claude-opus-4-6",
+      "runtime_model_map": {
+        "claude": "claude-opus-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "skills": ["eval-council"],
       "labels": ["lgtm", "revise"]
     },
@@ -79,6 +135,13 @@
       "path": "agents/fixer.md",
       "dag_node": "fixer",
       "model": "claude-sonnet-4-6",
+      "runtime_model_map": {
+        "claude": "claude-sonnet-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "skills": ["systematic-debugging"],
       "labels": ["fixed", "stuck"]
     },
@@ -87,6 +150,13 @@
       "path": "agents/security-reviewer.md",
       "dag_node": "security",
       "model": "claude-opus-4-6",
+      "runtime_model_map": {
+        "claude": "claude-opus-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "skills": ["appsec-threat-model", "llm-security", "agentic-security", "api-security", "infra-security"],
       "labels": ["pass", "fail"]
     },
@@ -95,6 +165,13 @@
       "path": "agents/pr-preparer.md",
       "dag_node": "pr_prep",
       "model": "claude-sonnet-4-6",
+      "runtime_model_map": {
+        "claude": "claude-sonnet-4-6",
+        "codex": "gpt-5-codex",
+        "cursor": "default",
+        "antigravity": "gemini-2.5-pro",
+        "factory": "inherit"
+      },
       "skills": [],
       "labels": ["done"]
     }

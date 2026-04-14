@@ -1,0 +1,33 @@
+{
+  "required_top_level_fields": [
+    "brief_id",
+    "task_id",
+    "generated_tests",
+    "pre_change_run_path",
+    "verifier_target_intersection",
+    "self_check"
+  ],
+  "required_generated_test_fields": [
+    "ac_id",
+    "test_path",
+    "test_name",
+    "expected_pre_change_failure_reason",
+    "assertion_count"
+  ],
+  "required_self_check_fields": [
+    "gate_1",
+    "gate_2",
+    "gate_3",
+    "gate_4",
+    "gate_5",
+    "gate_6"
+  ],
+  "expected_pre_change_run_path": ".adlc/pre_change_run.txt",
+  "expected_ac_ids": [
+    "AC-BUGFIX-AVERAGE-01",
+    "AC-BUGFIX-AVERAGE-02",
+    "AC-FEATURE-SCOREBOARD-01",
+    "AC-FEATURE-SCOREBOARD-02",
+    "AC-FEATURE-SCOREBOARD-03"
+  ]
+}

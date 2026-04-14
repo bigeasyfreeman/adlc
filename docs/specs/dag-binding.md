@@ -8,6 +8,7 @@ Runners must consume these sections together:
 
 - frontmatter `labels`
 - frontmatter `iteration_limits`
+- frontmatter `backends`
 - the `Node -> Agent Mapping` table
 - the `Tool Nodes` block
 
@@ -23,6 +24,7 @@ Runners must consume these sections together:
 3. Fail closed if an executable node appears in `WORKFLOW.dot` but has no execution binding in `WORKFLOW.md`.
 4. For branching nodes, fail closed if an emitted label is missing from frontmatter `labels` or has no matching edge in `WORKFLOW.dot`.
 5. Apply retry caps from `iteration_limits` by node name.
+6. Resolve the runtime backend from `ADLC_RUNTIME` (default `claude`) against `WORKFLOW.md` frontmatter `backends`.
 
 ## Agent Nodes
 
@@ -30,6 +32,7 @@ Agent nodes are bound by the `Node -> Agent Mapping` table.
 
 - The runner must load the exact markdown file listed in the table.
 - The runner must honor the configured backend, model, and injected skills.
+- The agent markdown and the corresponding output schema are authoritative across runtimes. Backend switching must not rewrite the agent contract.
 - Labels emitted by branching agents must be valid for both the agent frontmatter and the workflow graph.
 - Linear success nodes may emit `done` while following their sole unlabeled success edge.
 
@@ -49,9 +52,16 @@ Before execution, runners should verify:
 
 - every executable node in `WORKFLOW.dot` is bound in `WORKFLOW.md`
 - every edge label is listed in frontmatter `labels`
+- every backend named in `ADLC_RUNTIME` exists in frontmatter `backends`
 - every agent path exists on disk
 - every tool node has a command block
 - manifest `dag_node` and `dag_nodes` entries agree with workflow bindings
+
+## Runtime Invocation Sources
+
+- Smoke harness execution uses `tests/smoke/adapters/` as the source of truth for runtime-specific invocation logic.
+- Production orchestration uses `WORKFLOW.md` frontmatter `backends` as the source of truth for backend commands and auth environment names.
+- Runners must keep these two surfaces aligned: the adapter contract (`invoke_agent --agent --input --output --tools [--schema]`) is the canonical smoke shape, and `WORKFLOW.md` backends mirror that shape for production.
 
 ## Retry Semantics
 

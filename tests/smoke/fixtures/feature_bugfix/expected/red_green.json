@@ -1,0 +1,9 @@
+{
+  "test_command": "python3 -m unittest discover -s tests -p 'test_*.py'",
+  "pre_change_exit_non_zero": true,
+  "post_change_exit_zero": true,
+  "expected_failure_substrings": [
+    "average should divide by the full entry count",
+    "render_scoreboard should emit ranked lines and average footer"
+  ]
+}

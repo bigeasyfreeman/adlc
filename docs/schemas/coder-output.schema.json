@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/coder-output.schema.json",
+  "title": "ADLC Coder Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "label",
+    "task_id",
+    "files_changed",
+    "tests_passed",
+    "tests_failed",
+    "stuck_reason"
+  ],
+  "properties": {
+    "label": {
+      "type": "string",
+      "enum": ["done", "stuck"]
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "files_changed": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "tests_passed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tests_failed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "stuck_reason": {
+      "type": ["string", "null"]
+    }
+  }
+}

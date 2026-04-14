@@ -54,3 +54,11 @@ The Council evaluates quality. It does NOT invent scope or bypass the applicabil
 - **revise**: REVISION_REQUIRED. Send back to planner.
 - **blocked**: Critical issues needing human judgment. Escalate.
 - Gate 0 must report the Verifier Scope Intersection result explicitly. If `verification_spec.target_files` is set and does not intersect task file scope, return `revise` with `reason: "verifier_no_coverage"`.
+
+## Output Contract
+You MUST output exactly one JSON object. No prose. No markdown. No code fences.
+No preamble. No explanation. The object MUST validate against
+docs/schemas/council-verdict-output.schema.json.
+
+If the task cannot be classified, output a JSON object with label "escalate"
+and a concrete reason. Do not output natural-language apologies.

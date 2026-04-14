@@ -1,0 +1,1 @@
+Add a user-facing ranked scoreboard renderer for the score aggregation helper, and fix the existing off-by-one average bug in the same module. Keep the work deterministic: use the repo's existing `unittest` convention, make the failing tests drive the change, and keep the implementation inside `src/scoreboard.py` with no new dependencies.

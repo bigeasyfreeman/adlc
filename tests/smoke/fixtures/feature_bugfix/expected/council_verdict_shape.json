@@ -1,0 +1,15 @@
+{
+  "label": "lgtm",
+  "required_core_personas": [
+    "skeptic",
+    "executioner",
+    "first_principles"
+  ],
+  "required_overlay_personas": [
+    "operator"
+  ],
+  "forbidden_overlay_personas": [
+    "architect",
+    "security_auditor"
+  ]
+}
