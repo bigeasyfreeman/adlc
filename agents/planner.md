@@ -51,6 +51,12 @@ Emit structured acceptance criteria by default. Every task should output objects
 
 If any upstream material arrives with string-only acceptance criteria, keep planning moving but add `legacy_ac` to the manifest `classification_evidence` so downstream consumers know normalization occurred.
 
+Task-writing rules:
+- Lead each task description with the concrete user or system behavior that changes. Architecture labels can follow, but they are not the opening sentence.
+- For `feature` work, make the verifier a failing test, fixture, or check for the intended behavior. Do not frame the task as "prove the old code lacks the feature" unless that absence is itself the defect.
+- Keep unsupported comparison or guardrail sentences out of the task body. If they matter, capture them in contamination notes or prior-attempt context with evidence.
+- State required invariants positively first. Use "must not" only for grounded failure modes, architecture boundaries, or real prior mistakes.
+
 ## Decision Classification
 
 - **Type 1** (irreversible): Data model, public API, auth boundaries → escalate

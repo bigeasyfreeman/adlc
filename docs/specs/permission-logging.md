@@ -6,7 +6,8 @@ Record every allow/deny decision as auditable structured data.
 ## Log Entry Contract
 ```json
 {
-  "tool": "jira-ticket-creation",
+  "tool": "github-issue-creation",
+  "provider": "github-local-mcp",
   "action": "create_issue",
   "tier": "requires_approval",
   "decision": "approved",
@@ -15,6 +16,8 @@ Record every allow/deny decision as auditable structured data.
   "rationale": "Brief approved; phase_10 mutation allowed"
 }
 ```
+
+This log shape applies equally to `jira-ticket-creation`, `github-issue-creation`, `linear-ticket-creation`, `confluence-decomposition`, and `notion-decomposition`, each with the locally resolved MCP provider recorded in `provider`.
 
 ## Required Capture Points
 - before tool invocation decision

@@ -1,0 +1,5 @@
+E
+======================================================================
+ERROR: CollaborationSpaceTest.test_operator_workflow_is_concrete
+----------------------------------------------------------------------
+AssertionError: The request never defines a concrete operator workflow or measurable outcome.

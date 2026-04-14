@@ -1,0 +1,7 @@
+{
+  "command": "python3 -m unittest discover -s tests -p 'test_*.py'",
+  "exit_code": 0,
+  "generated_test_paths": [
+    "tests/test_collaboration_space.py"
+  ]
+}

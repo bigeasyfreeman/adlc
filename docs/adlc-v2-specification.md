@@ -193,6 +193,12 @@ Per task:
 - `file_targets` (files to create or modify)
 - `inlined_context` (zero-read code snippets — the executor never needs to read a file)
 
+Task-writing rules:
+- Lead with the concrete user or system behavior that changes before architecture jargon.
+- Feature tasks use failing tests or fixtures for the intended behavior; they do not ask the executor to prove the old code lacks the feature.
+- Bugfix, build-validation, and lint-cleanup tasks should use the narrowest direct reproducer or failing command.
+- Unsupported contrast lines and non-sequiturs stay in contamination, not in the task body.
+
 #### 1.2 STRIDE Threat Model
 
 **Mandatory for every task.** Security is not optional, not a separate review — it is baked into the design.
@@ -1040,7 +1046,10 @@ These compose core skills into sequences:
 | `systematic-debugging` | Structured debug framework for fix loop |
 | `incident-runbook` | Generate runbooks from incident patterns |
 | `jira-ticket-creation` | Create executable tickets from decomposition |
-| `confluence-decomposition` | Decompose large tickets into binary actions |
+| `github-issue-creation` | Create executable GitHub issues from decomposition |
+| `linear-ticket-creation` | Create executable Linear issues from decomposition |
+| `confluence-decomposition` | Decompose Build Briefs into Confluence pages |
+| `notion-decomposition` | Decompose Build Briefs into Notion pages |
 
 ---
 

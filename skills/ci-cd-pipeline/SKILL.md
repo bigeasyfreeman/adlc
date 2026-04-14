@@ -6,7 +6,7 @@
 
 ## Trigger
 
-Activated after JIRA tickets are created. Consumes Section 8 (Infra tasks) and Section 6 (SLOs) from the brief.
+Activated after work-item artifacts are created. Consumes Section 8 (Infra tasks) and Section 6 (SLOs) from the brief.
 
 ## Input Contract
 
@@ -228,4 +228,3 @@ adlc-pipeline validate --pipeline .github/workflows/ci.yml --repo ./my-repo
 - **Schema validation:** Validate Build Brief infra tasks and rollback settings against contract schemas before generating configs.
 - **Idempotency:** Pipeline/scaffold generation must use idempotency keys and dedupe by target file/path so retries are safe.
 - **Stop reasons:** Emit structured reasons for terminal failures (e.g., `missing_target_repo`, `invalid_rollout_strategy`, `permission_denied`).
-

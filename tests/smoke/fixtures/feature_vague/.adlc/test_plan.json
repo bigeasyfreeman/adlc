@@ -1,0 +1,24 @@
+{
+  "brief_id": "SMOKE-BRIEF-FEATURE-VAGUE",
+  "task_id": "SMOKE_VAGUE_COLLAB",
+  "generated_tests": [
+    {
+      "ac_id": "AC-VAGUE-COLLAB-01",
+      "test_path": "tests/test_collaboration_space.py",
+      "test_name": "CollaborationSpaceTest.test_operator_workflow_is_concrete",
+      "expected_pre_change_failure_reason": "The request never defines a concrete operator workflow or measurable outcome.",
+      "assertion_count": 1
+    }
+  ],
+  "pre_change_run_path": ".adlc/pre_change_run.txt",
+  "verifier_target_intersection": true,
+  "self_check": {
+    "gate_1": "pass",
+    "gate_2": "pass",
+    "gate_3": "pass",
+    "gate_4": "pass",
+    "gate_5": "pass",
+    "gate_6": "pass"
+  },
+  "reason": null
+}

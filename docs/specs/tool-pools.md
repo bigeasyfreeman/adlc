@@ -10,7 +10,7 @@ Default deny. Tools are explicitly allowed per phase based on registry metadata.
 | Phase 1-7 Briefing | Build Brief analysis + Eval Council only (no external mutations) |
 | Phase 8 Task Breakdown | Build Brief + Architecture analysis |
 | Phase 9 Codegen | File read/write, tests, git local ops |
-| Phase 10-11 Prep | JIRA, Confluence, Scaffolding, QA, CI/CD |
+| Phase 10-11 Prep | Work-item emitter MCPs, document emitter MCPs, Scaffolding, QA, CI/CD |
 | Phase 12+ Deploy/Operate | CI/CD deploy, Grafana provisioning, Incident Runbook, Slack |
 
 ## Enforcement

@@ -10,7 +10,10 @@ Prevent duplicate side effects when ADLC phases or skills retry after timeout, c
 
 ## Skill-Specific Keys
 - JIRA Ticket Creation: `{brief_id}:jira:{task_id}`
+- GitHub Issue Creation: `{brief_id}:github:{task_id}`
+- Linear Ticket Creation: `{brief_id}:linear:{task_id}`
 - Confluence Decomposition: `{brief_id}:confluence:{section_id}`
+- Notion Decomposition: `{brief_id}:notion:{section_id}`
 - Architecture Scaffolding: `{brief_id}:scaffold:{component_name}`
 - Grafana Observability: `{brief_id}:grafana:{dashboard_name}`
 - CI/CD Pipeline: `{brief_id}:cicd:{pipeline_name}`

@@ -50,6 +50,7 @@ Unsupported task text is not scope.
 - `contradicted_claims` block planning if they affect scope or correctness
 - `needs_clarification` is the narrow set of claims that require a human answer
 - `suspect_phrases` capture non-sequiturs or scope drift
+- Stray comparison lines such as "this is not X with a new name" stay in contamination unless repo evidence or a documented prior failure makes them relevant scope
 
 ## Section Policy
 Each policy entry describes one brief section.
@@ -105,6 +106,11 @@ The chosen verifier must:
 
 - `target_files`: which files the verifier exercises; enables the coverage intersection check for downstream failing-test authoring.
 - `expected_failure_mode`: short string describing the reason the verifier should fail pre-change, for example `AssertionError: balance != 0` or `exit 1: cargo test failed`.
+
+Verifier phrasing rules:
+- `feature` tasks should phrase the verifier around intended behavior or contract edges. Prefer "failing tests for pre-execution event generation" over "tests showing the repo has no shell adapter."
+- `bugfix`, `build_validation`, and `lint_cleanup` tasks should prefer the smallest direct reproducer or failing command for the observed defect.
+- If a verifier only proves that current code lacks a future feature, it is usually the wrong verifier.
 
 ## Output Contract
 ```json

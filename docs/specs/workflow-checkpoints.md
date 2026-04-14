@@ -26,7 +26,7 @@ Every phase completion writes:
 | 7 Security Review | domain assessments | generated diffs + task IDs | mark unresolved findings |
 | 8 Task Breakdown | finalized task ticket set | brief hash + scope freeze | regenerate only invalid tasks |
 | 9 Codegen Execution | merged patches + validations | branch ref + task completion map | revert failed partial patch |
-| 10 JIRA/Confluence Prep | external artifact refs | idempotency keys | dedupe via key lookups |
+| 10 Artifact Publishing Prep | external artifact refs | idempotency keys | dedupe via emitter-specific key lookups |
 | 11 CI/CD + QA Prep | pipeline and QA configs | config IDs + commit SHA | remove invalid generated configs |
 | 12 Deploy Gate | gate verdict + evidence links | latest council verdict | keep gate closed on failure |
 | 13 Monitoring Feedback | post-deploy metrics snapshot | deployment ID + dashboard refs | mark monitoring run incomplete |

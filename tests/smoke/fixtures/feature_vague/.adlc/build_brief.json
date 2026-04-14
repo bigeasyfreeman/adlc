@@ -1,0 +1,167 @@
+{
+  "version": "1.0.0",
+  "brief_id": "SMOKE-BRIEF-FEATURE-VAGUE",
+  "prd_id": "SMOKE-PRD-FEATURE-VAGUE",
+  "applicability_manifest": {
+    "version": "1.0.0",
+    "task_classification": "feature",
+    "task_classification_confidence": 0.71,
+    "classification_evidence": [
+      "The request asks for a new operator collaboration experience.",
+      "The request never names a concrete workflow, screen, or verifier."
+    ],
+    "change_surface": {
+      "new_attack_surface": false,
+      "runtime_path_change": true,
+      "service_boundary_change": false,
+      "external_integration": false,
+      "persistent_storage": false,
+      "api_change": false,
+      "data_format_change": false,
+      "auth_change": false,
+      "perf_sensitive": false,
+      "user_facing_operation": true
+    },
+    "claim_provenance": {
+      "supported": [
+        {
+          "claim": "Operators need a collaboration space.",
+          "source_ref": "request.md",
+          "extracted_from": "user request"
+        }
+      ],
+      "unsupported": [
+        {
+          "claim": "A modern collaboration space should include flexible future-ready capabilities.",
+          "source_ref": "request.md",
+          "extracted_from": "non-specific product language"
+        }
+      ],
+      "contradicted": []
+    },
+    "contamination": {
+      "flags": ["low_specificity"],
+      "supported_claims": [
+        "A user-facing operator workflow is in scope."
+      ],
+      "unsupported_claims": [
+        "Modern",
+        "Move faster",
+        "Flexible for future ideas"
+      ],
+      "contradicted_claims": [],
+      "needs_clarification": [
+        "What operator workflow changes first?",
+        "What concrete action should be faster after the change?",
+        "What deterministic verifier proves the behavior?"
+      ],
+      "suspect_phrases": [
+        "better collaboration space",
+        "feel modern",
+        "future ideas"
+      ]
+    },
+    "section_policy": [
+      {
+        "section_name": "5_security_review",
+        "status": "suppressed",
+        "reason": "The request names no auth, data handling, or trust-boundary change."
+      },
+      {
+        "section_name": "6_observability_slo",
+        "status": "active",
+        "reason": "The request is user-facing runtime behavior."
+      },
+      {
+        "section_name": "9_risks",
+        "status": "active",
+        "reason": "A vague operator experience request can easily produce the wrong feature."
+      },
+      {
+        "section_name": "11_validation_plan",
+        "status": "active",
+        "reason": "The missing verifier is the central planning risk."
+      }
+    ],
+    "verification_spec": {
+      "primary_verifier": {
+        "type": "test",
+        "target": "TBD: deterministic operator workflow test",
+        "expected_pre_change": "fail",
+        "expected_post_change": "pass",
+        "rationale": "The request implies user-facing behavior, but no concrete verifier was supplied.",
+        "target_files": [
+          "ui/collaboration_space.tsx"
+        ],
+        "expected_failure_mode": "No concrete operator workflow or acceptance criteria defined"
+      },
+      "secondary_verifiers": [],
+      "must_fail_before_change": true,
+      "must_be_deterministic": true,
+      "scope_note": "Gate 0 should reject the brief for low specificity before execution proceeds."
+    }
+  },
+  "sections": {
+    "1_context": "Goal: improve operator collaboration somehow. The change should feel modern and help people move faster, but the request does not define the first workflow slice, actor, or visible success condition.",
+    "2_scope_and_constraints": "Constraints are intentionally vague: keep the implementation flexible and future-friendly. No concrete screen, command, or event contract is named.",
+    "3_repo_findings": "Repo findings are omitted in the fixture because the specificity smoke path is meant to fail before detailed implementation work begins.",
+    "4_architecture": "Architecture is not yet concrete. The brief gestures toward a collaboration space without naming boundaries, components, or reference patterns.",
+    "5_security_review": null,
+    "6_observability_slo": "Observability would matter once a real operator workflow exists, but the request does not yet identify one.",
+    "7_execution_plan": "Potential next steps include clarifying the workflow, naming the first screen, and defining a deterministic verifier. The current brief should not proceed to execution.",
+    "8_task_tickets": [
+      {
+        "task_id": "SMOKE_VAGUE_COLLAB",
+        "title": "Add a better collaboration space for operators",
+        "objective": "Make collaboration feel modern and faster.",
+        "task_classification": "feature",
+        "scope": [
+          "Improve the operator experience",
+          "Leave room for future ideas"
+        ],
+        "out_of_scope": [],
+        "dependencies": [],
+        "acceptance_criteria": [
+          {
+            "id": "AC-VAGUE-COLLAB-01",
+            "given": "operators use the system",
+            "when": "they collaborate",
+            "then": "the experience is better"
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "TBD",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The verifier is not specific enough yet."
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "This task intentionally demonstrates low specificity."
+        },
+        "files_to_modify": [
+          "ui/collaboration_space.tsx"
+        ],
+        "files_to_create": [],
+        "reference_impl": [
+          "ui/operator_dashboard.tsx"
+        ],
+        "failure_modes": [
+          {
+            "id": "FM-SMOKE-VAGUE-01",
+            "failure": "The task can be interpreted in multiple incompatible ways.",
+            "impact": "Agents may build the wrong feature while still satisfying vague prose.",
+            "mitigation": "Fail Gate 0 for low specificity until a concrete workflow and verifier exist."
+          }
+        ]
+      }
+    ],
+    "9_risks": "Primary risk: the brief is too vague to execute safely. Secondary risk: a weak verifier could allow cosmetic work to pass as completion.",
+    "10_rollout": null,
+    "11_validation_plan": "Validation is intentionally incomplete to exercise the specificity gate.",
+    "12_skill_trigger_configuration": null
+  }
+}

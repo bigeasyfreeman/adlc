@@ -494,6 +494,13 @@
       "dag_nodes": ["pr_prep"]
     },
     {
+      "name": "github-issue-creation",
+      "path": "skills/github-issue-creation/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["pr_prep"]
+    },
+    {
       "name": "eval-council",
       "path": "skills/eval-council/SKILL.md",
       "contract_version": "1.0.0",
@@ -539,6 +546,13 @@
       "dag_nodes": ["pr_prep"]
     },
     {
+      "name": "notion-decomposition",
+      "path": "skills/notion-decomposition/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["pr_prep"]
+    },
+    {
       "name": "infra-security",
       "path": "skills/infra-security/SKILL.md",
       "contract_version": "1.0.0",
@@ -548,6 +562,13 @@
     {
       "name": "jira-ticket-creation",
       "path": "skills/jira-ticket-creation/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["pr_prep"]
+    },
+    {
+      "name": "linear-ticket-creation",
+      "path": "skills/linear-ticket-creation/SKILL.md",
       "contract_version": "1.0.0",
       "side_effect_profile": "mutating",
       "dag_nodes": ["pr_prep"]

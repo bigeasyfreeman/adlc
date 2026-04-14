@@ -8,10 +8,19 @@
 
 Activated after the engineer approves the Build Brief. Consumes the schema-validated Build Brief, especially task breakdown, phased plan, and each task's applicability/verifier contract.
 
+## Emitter Contract Alignment
+
+This skill is a work-item emitter and must conform to [docs/specs/emitter-contract.md](/Users/eric/adlc/docs/specs/emitter-contract.md). Suppressed sections do not become filler ticket content. Every mutation requires `contract_version`, idempotency handling, and permission logging.
+
+## Local MCP Model
+
+ADLC does not ship a JIRA client. This skill targets a locally installed MCP provider that can search, create, update, and relate JIRA artifacts. Repo configuration resolves the provider name and binds the logical capabilities from the shared emitter contract to the provider's actual tool names.
+
 ## Input Contract
 
 ```json
 {
+  "contract_version": "1.x",
   "build_brief_id": "string",
   "feature_name": "string",
   "owner": "string",
@@ -25,6 +34,16 @@ Activated after the engineer approves the Build Brief. Consumes the schema-valid
       "frontend": "Story | Task",
       "infra": "Task",
       "observability": "Task"
+    }
+  },
+  "mcp_provider": {
+    "server_name": "string",
+    "capability_bindings": {
+      "search_by_metadata": "string",
+      "upsert_parent_artifact": "string",
+      "upsert_artifact": "string",
+      "apply_artifact_metadata": "string",
+      "link_dependencies": "string (optional)"
     }
   },
   "task_breakdown": {
@@ -43,7 +62,7 @@ Activated after the engineer approves the Build Brief. Consumes the schema-valid
 }
 ```
 
-Every emitted ticket must preserve the task's `task_classification`, `verification_spec`, and any active overlay expectations from the brief's `applicability_manifest`. Suppressed sections do not become filler ticket content.
+Every emitted ticket must preserve the task's `task_classification`, `verification_spec`, and any active overlay expectations from the brief's `applicability_manifest`. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
 
 ## Mixed Acceptance Criteria Shapes
 
@@ -58,6 +77,7 @@ Extraction rules:
 
 ```json
 {
+  "contract_version": "1.0.0",
   "epic": {
     "key": "PROJ-123",
     "url": "string",
@@ -74,6 +94,7 @@ Extraction rules:
       "assignee": "string (if provided)",
       "story_points": "number",
       "linked_failure_modes": ["FM-001"],
+      "idempotency_key": "BRF-123:jira:TASK-7:create",
       "sprint_id": "string (if Phase 1)"
     }
   ],
@@ -94,7 +115,7 @@ Extraction rules:
 
 Create an epic for the feature:
 - Title: `[Feature Name] - [Target First Slice Date]`
-- Description: Build Brief Section 1 (What Changes) + link to Confluence parent page
+- Description: Build Brief Section 1 (What Changes) + link to the configured documentation parent page
 - Labels: `adlc`, `[segment]`, `[phase]`
 - Fix version: target release (if configured)
 
@@ -106,10 +127,15 @@ For each task in the Build Brief task breakdown, create a ticket:
 - Good: `[BE] Add POST /api/v1/widgets endpoint with validation`
 - Bad: `Set up the API`
 
+Emitter rules:
+- Keep the first sentence concrete and behavior-first.
+- Preserve positive invariants from the brief before negative bans.
+- Do not emit defensive comparison lines unless they are grounded by the brief's contamination or prior-failure evidence.
+
 **Description template:**
 ```
 h2. Task
-[Task description from brief — self-contained, no references to "the spec" or "as discussed"]
+[Task description from brief — self-contained, no references to "the spec" or "as discussed". Lead with the user/system behavior that changes, then the architecture details.]
 
 h2. Acceptance Criteria (Given/When/Then)
 {panel:title=Done When}
@@ -136,6 +162,7 @@ h2. Verification Contract
 * Primary verifier: [test | command | reproducer] — [target]
 * Expected before change: fail
 * Expected after change: pass
+* Verifier phrasing: [feature = intended behavior; bugfix/build/lint = direct reproducer or command]
 * Overlay checks: [security/observability/performance only when active]
 
 h2. Agent Instructions
@@ -153,7 +180,7 @@ h2. Estimated Hours
 [X]h -- decompose into sub-tasks if > 2h
 
 h2. Links
-* Build Brief: [Confluence link]
+* Build Brief: [Confluence or Notion link]
 * PRD: [link]
 ```
 
@@ -201,16 +228,18 @@ For each failure mode in the roll-up (Section 11):
 | Architecture Pattern | Section 2 | pattern name |
 | SLO Target | Active observability/performance section | availability target |
 
-## Quality Gates
+## Mixed Acceptance Criteria Quality Gates
 
 - [ ] Mixed acceptance-criteria handlers read `.then` from objects and raw text from strings
 - [ ] Any acceptance-criteria `id` present upstream is preserved in the emitted ticket
 - [ ] Any `measurable_post_condition` present upstream is preserved in the emitted ticket or linked metadata
 - [ ] Verification contract fields survive decomposition without being weakened
 
-## MCP Server Contract
+## Required Local MCP Capabilities
 
-### Tool: `create_tickets_from_brief`
+ADLC expects a locally installed MCP provider. Provider tool names may differ; repo configuration maps them to the logical capability set. The payloads below are normalized examples, not a requirement that the provider expose these exact tool names.
+
+### Logical operation: create work items from brief
 
 ```json
 {
@@ -222,6 +251,10 @@ For each failure mode in the roll-up (Section 11):
       "build_brief": {
         "type": "string",
         "description": "Full Build Brief markdown or Section 8 + Section 7"
+      },
+      "contract_version": {
+        "type": "string",
+        "description": "Expected contract version range, e.g. 1.x"
       },
       "project_key": {
         "type": "string",
@@ -237,12 +270,12 @@ For each failure mode in the roll-up (Section 11):
         "description": "If true, show tickets without creating"
       }
     },
-    "required": ["build_brief", "project_key"]
+    "required": ["contract_version", "build_brief", "project_key"]
   }
 }
 ```
 
-### Tool: `sync_tickets_with_brief`
+### Logical operation: update work items from brief
 
 ```json
 {
@@ -255,27 +288,33 @@ For each failure mode in the roll-up (Section 11):
         "type": "string",
         "description": "Updated Build Brief markdown"
       },
+      "contract_version": {
+        "type": "string",
+        "description": "Expected contract version range, e.g. 1.x"
+      },
       "epic_key": {
         "type": "string",
         "description": "Existing JIRA epic key"
       }
     },
-    "required": ["build_brief", "epic_key"]
+    "required": ["contract_version", "build_brief", "epic_key"]
   }
 }
 ```
 
-## CLI Interface
+## Provider Resolution Example
 
-```bash
-# Preview tickets from build brief
-adlc-jira create --brief ./build-brief.md --project ENG --dry-run
-
-# Create tickets
-adlc-jira create --brief ./build-brief.md --project ENG --sprint 42
-
-# Sync updated brief to existing tickets
-adlc-jira sync --brief ./build-brief.md --epic ENG-123
+```json
+{
+  "server_name": "jira-local-mcp",
+  "capability_bindings": {
+    "search_by_metadata": "issues.searchByMetadata",
+    "upsert_parent_artifact": "issues.upsertEpic",
+    "upsert_artifact": "issues.upsertIssue",
+    "apply_artifact_metadata": "issues.applyBoardSprintAndLabels",
+    "link_dependencies": "issues.linkDependency"
+  }
+}
 ```
 
 ## Quality Gates
@@ -287,11 +326,14 @@ adlc-jira sync --brief ./build-brief.md --epic ENG-123
 - [ ] Dependency links exist between blocking tasks
 - [ ] No ticket exceeds 2h estimate (decomposed into sub-tasks)
 - [ ] Failure mode cross-references are linked
-- [ ] Epic links to Confluence parent page
+- [ ] Configured local MCP provider exposes the required logical capability bindings.
+- [ ] Epic links to the configured documentation parent page
 
 ## Framework Hardening Addendum
 
 - **Contract versioning:** Ticket input/output contracts include `contract_version` and compatibility checks.
 - **Schema validation:** Validate incoming task payloads against `docs/schemas/build-brief.schema.json` before creating any issue.
+- **Provider resolution:** Fail fast if the configured local MCP provider is missing required logical capabilities.
 - **Idempotency:** Every issue create/update operation must include an idempotency key per `docs/specs/idempotency-keys.md`; retries must not create duplicates.
-- **Structured errors:** Return field-level validation and upstream dependency failures in a typed error payload.
+- **Permission logging:** Emit structured approval and denial records for every create, update, or close mutation.
+- **Structured errors:** Return field-level validation, provider capability gaps, and upstream dependency failures in a typed error payload.

@@ -24,7 +24,7 @@ The Eval Council runs at these points in the ADLC lifecycle:
 |-----------|-----------------|-----------|
 | **Post-Brief** | Complete Build Brief before engineer review | Yes — brief cannot be presented for approval until council passes |
 | **Post-Repo-Analysis** | Codebase Research repo map before it feeds downstream | Yes — downstream skills consume this; errors compound |
-| **Post-Skill-Output** | Each skill's output before it's published/committed | Configurable — blocking for JIRA/Confluence, non-blocking for scaffolding |
+| **Post-Skill-Output** | Each skill's output before it's published/committed | Configurable — blocking for work-item/document emitters, non-blocking for scaffolding |
 | **Pre-Deploy** | Aggregated state: all tickets done, tests pass, runbook exists | Yes — deploy gate |
 | **Post-Incident** | Retrospective: did the brief predict this failure mode? | No — learning loop, feeds back into future briefs |
 
@@ -137,7 +137,7 @@ Any FAIL = the task is not agent-ready. This is a **major finding**.
 
 **Catches:** Vague tasks, untestable acceptance criteria, missing pattern references, implicit dependencies, tasks that are actually 3 tasks pretending to be 1, missed parallelism opportunities.
 
-**Evaluates:** Build Brief (Section 8), JIRA tickets, QA Test Data fixtures, Architecture Scaffolding (are contracts and implementation guides complete enough to code against without placeholders?).
+**Evaluates:** Build Brief task breakdown, emitted work-item tickets or issues, QA Test Data fixtures, Architecture Scaffolding (are contracts and implementation guides complete enough to code against without placeholders?).
 
 ---
 
@@ -391,8 +391,8 @@ Per-skill criteria (in addition to each skill's own quality gates):
 
 | Skill | Key Eval Criteria |
 |-------|------------------|
-| JIRA | Every task from brief has a ticket. No ticket exceeds 2h. Dependencies are linked. |
-| Confluence | Page hierarchy matches structure. Mermaid renders. Type 1 warnings visible. |
+| Work-item emitter | Every task from brief has a ticket or issue. No work item exceeds 2h. Dependencies are linked. |
+| Document emitter | Page hierarchy matches structure. Diagrams or source blocks render acceptably. Type 1 warnings visible. |
 | QA | Tests are deterministic (no randomness). Every AC has a test. Edge cases are real edge cases. |
 | CI/CD | Workflows match repo conventions. Secrets exist. Rollback mechanism matches brief. |
 | Scaffolding | Ports match existing conventions. Domain has no infra imports. Files compile. |
@@ -400,7 +400,7 @@ Per-skill criteria (in addition to each skill's own quality gates):
 
 ### Pre-Deploy Evaluation
 
-- [ ] All Phase 1 JIRA tickets marked done
+- [ ] All Phase 1 work-item artifacts marked done
 - [ ] CI pipeline passes (green build)
 - [ ] QA test suite passes (all deterministic tests green)
 - [ ] Runbook populated (not shell)
@@ -583,7 +583,7 @@ Build Brief Agent completes
   │     │
   │     └── BLOCKED (after 3 iterations) → Escalate to engineer with all findings
   │
-  ├─→ Skills execute (Confluence, JIRA, Scaffolding, QA Tests)
+  ├─→ Skills execute (document emitters, work-item emitters, Scaffolding, QA Tests)
   │     │
   │     └─→ Eval Council (post_skill_output, per skill)
   │           ├── APPROVED → output committed

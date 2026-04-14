@@ -150,7 +150,7 @@ Skill definitions are injected into agents at startup. Runtime install counts ar
 `fix-loop` (autonomous error repair) · `fix-bug` (fix orchestration) · `build-feature` (build orchestration) · `ship-content` (content orchestration) · `execute-trade` (trade orchestration)
 
 **Integrations (optional):**
-`jira-ticket-creation` · `confluence-decomposition` · `slack-orchestration` · `grafana-observability` · `ci-cd-pipeline` · `incident-runbook`
+`jira-ticket-creation` · `github-issue-creation` · `linear-ticket-creation` · `confluence-decomposition` · `notion-decomposition` · `slack-orchestration` · `grafana-observability` · `ci-cd-pipeline` · `incident-runbook`
 
 **Product (optional):**
 `prd-generation` · `ux-flow-builder` · `figma-integration` · `gong-customer-evidence`
@@ -196,7 +196,7 @@ Every task requires: files_to_create/modify, reference_impl, dependency_ids, `ta
 | Antigravity | `gemini-2.5-flash` | `gemini-2.5-pro` |
 | Factory | `inherit` | `claude-opus-4-6` |
 
-**Swap integrations.** Replace `jira-ticket-creation` with Linear. Replace `confluence-decomposition` with Notion. Pipeline doesn't care.
+**Swap integrations.** Work-item emitters (`jira-ticket-creation`, `github-issue-creation`, `linear-ticket-creation`) and document emitters (`confluence-decomposition`, `notion-decomposition`) share the emitter contract in `docs/specs/emitter-contract.md` and are intended to run through locally installed MCP providers.
 
 ## Structure
 
@@ -209,7 +209,7 @@ adlc/
 ├── skills/                 # Skill definitions + manifest.json
 ├── platform/               # CLAUDE.md, AGENTS.md, agents-antigravity.md
 ├── examples/               # Example PRD
-├── docs/                   # schemas/, specs/, tests/, adlc-v2-spec, tickets
+├── docs/                   # build-briefs/, schemas/, specs/, tests/, adlc-v2-spec, tickets
 ├── tests/                  # contract checks, backtests, smoke harness
 └── scripts/                # md2pdf.py
 ```
@@ -225,7 +225,7 @@ adlc/
 7. **Zero-read.** Coding agents get everything inlined. No searching. No guessing.
 8. **One human gate.** Machines catch structure. You catch judgment.
 9. **Bring your own agent.** Claude, Codex, Cursor, Antigravity, Factory. Skills don't care.
-10. **Composable.** Swap JIRA for Linear. Swap Confluence for Notion. Same pipeline.
+10. **Composable.** Swap work-item or document emitters without changing the Build Brief task schema.
 11. **Security baked in, not bolted on.** STRIDE and OWASP activate when the task touches a real security surface.
 12. **BLE-compliant.** Specify outcomes, not procedures. Design for removal as models improve.
 

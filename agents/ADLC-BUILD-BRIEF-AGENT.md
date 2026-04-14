@@ -561,6 +561,7 @@ For each area -- Backend, Frontend, Infra, Observability -- collect:
 | Task ID | Unique ID (e.g., BE-001) for dependency tracking |
 | Task | Concrete deliverable. Rewrite if vague. |
 | Acceptance Criteria | **Given/When/Then format required.** Maps directly to test assertions. |
+| Verification Contract | Primary verifier with task-class-aware phrasing. Feature work uses intended-behavior tests; bugfix/build/lint work uses direct reproducers or commands. |
 | Anti-Slop Rules | Explicit banned placeholder/stub patterns and wiring-completeness rules. Mandatory on every task. |
 | Constraints | Must do / Must not do / Escalation triggers |
 | Estimated Hours | Target 2h or less per task. Decompose if larger. |
@@ -579,6 +580,13 @@ Then [outcome — observable result, including status codes, state changes, side
 
 Bad: "Returns errors on invalid input"
 Good: "Given a POST to /api/v1/widgets with an empty name field, When the request is processed, Then the API returns 400 with `{error: 'name is required'}` and no widget is created."
+
+**Task-writing rules:**
+- Lead each task description with the concrete system or user behavior that changes.
+- Feature-task RED steps describe failing tests for the intended behavior or edge cases.
+- Bugfix/build-validation/lint-cleanup RED steps use the narrowest reproducer or failing command.
+- Strip unsupported comparison lines and non-sequiturs from the task body; keep them only in contamination or prior-attempt notes when evidenced.
+- State invariants positively first. Use "must not" for grounded boundaries and known bad shortcuts.
 
 **Parallelism flags:** Mark tasks as independent when they don't share state or depend on each other's output. Independent tasks can be executed by multiple coding agents simultaneously. This is how you get 3x velocity from the same task list.
 
@@ -941,10 +949,17 @@ When all sections are complete, generate the Build Brief as a single markdown do
 | **Feature flag** | [flag name if gated, or N/A] |
 
 **Description:** [What to build. Specific enough that a coding agent with only this ticket produces working code. Include: what pattern to follow, what library to use, what existing code to extend. No ambiguity.]
+Lead with the concrete behavior the system must have after the change. Architecture terms can follow once the behavior is clear.
 
 **Acceptance Criteria:**
 - GIVEN [precondition] WHEN [action] THEN [specific observable outcome]
 - GIVEN [precondition] WHEN [action] THEN [specific observable outcome]
+
+**Verification Contract:**
+- Primary verifier: [failing test | fixture | reproducer | command]
+- Why this verifier is correct: [ties to intended behavior or observed defect]
+- Expected before change: fail
+- Expected after change: pass
 
 **Manual Test Plan:** [CONDITIONAL — include for auth flows, integrations, visual UI]
 1. [Step-by-step manual verification procedure]

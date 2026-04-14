@@ -8,15 +8,32 @@
 
 Activated immediately on Build Brief completion. Consumes the full Build Brief markdown.
 
+## Emitter Contract Alignment
+
+This skill is a document emitter and must conform to [docs/specs/emitter-contract.md](/Users/eric/adlc/docs/specs/emitter-contract.md). Honor the Build Brief's `applicability_manifest`; suppressed sections stay omitted or explicitly marked not applicable. Every mutation requires `contract_version`, idempotency handling, and permission logging.
+
+## Local MCP Model
+
+ADLC does not ship a Confluence client. This skill targets a locally installed MCP provider that can search, create, update, and relate Confluence pages. Repo configuration resolves the provider name and binds the logical capabilities from the shared emitter contract to the provider's actual tool names.
+
 ## Input Contract
 
 ```json
 {
+  "contract_version": "1.x",
   "build_brief_markdown": "string (full Build Brief)",
   "confluence_config": {
     "space_key": "string",
     "parent_page_id": "string",
     "template_style": "adr | design_doc | runbook | default"
+  },
+  "mcp_provider": {
+    "server_name": "string",
+    "capability_bindings": {
+      "search_by_metadata": "string",
+      "upsert_artifact": "string",
+      "link_artifacts": "string (optional)"
+    }
   },
   "jira_config": {
     "project_key": "string",
@@ -42,13 +59,15 @@ Extraction rules:
 
 ```json
 {
+  "contract_version": "1.0.0",
   "pages_created": [
     {
       "page_id": "string",
       "title": "string",
       "url": "string",
       "type": "parent | architecture | risk | tasks | runbook | adr",
-      "parent_page_id": "string"
+      "parent_page_id": "string",
+      "idempotency_key": "BRF-123:confluence:architecture:create"
     }
   ],
   "links": {
@@ -91,7 +110,7 @@ Decompose the Build Brief into this page structure:
 - Convert Mermaid diagrams to Confluence macro format or embedded image
 - Convert markdown tables to Confluence table markup
 - Add Confluence status macros for decision status (Decided / Open / Blocked)
-- Add JIRA issue macros linking to created tickets (if JIRA skill has run)
+- Add work-item links for created tickets or issues (JIRA, GitHub, or Linear)
 - Add `info`, `warning`, and `expand` macros where appropriate:
   - `warning` for unresolved Type 1 decisions
   - `info` for out-of-scope items
@@ -118,7 +137,7 @@ Alternatives Considered: [What was rejected and why]
 
 - Parent page links to all child pages
 - Decision Log links to relevant sections
-- Task page links to JIRA tickets (macro or URL)
+- Task page links to created work-item artifacts
 - Runbook links to monitoring dashboards and alerting configs
 - Each page has breadcrumb back to parent
 
@@ -128,9 +147,11 @@ Alternatives Considered: [What was rejected and why]
 - Set page restrictions if security-sensitive content
 - Add watchers: owner + escalation contact from brief
 
-## MCP Server Contract
+## Required Local MCP Capabilities
 
-### Tool: `decompose_to_confluence`
+ADLC expects a locally installed MCP provider. Provider tool names may differ; repo configuration maps them to the logical capability set. The payloads below are normalized examples, not a requirement that the provider expose these exact tool names.
+
+### Logical operation: create document artifacts from brief
 
 ```json
 {
@@ -139,6 +160,10 @@ Alternatives Considered: [What was rejected and why]
   "inputSchema": {
     "type": "object",
     "properties": {
+      "contract_version": {
+        "type": "string",
+        "description": "Expected contract version range, e.g. 1.x"
+      },
       "build_brief": {
         "type": "string",
         "description": "Full Build Brief markdown content"
@@ -157,12 +182,12 @@ Alternatives Considered: [What was rejected and why]
         "description": "If true, show page structure without creating"
       }
     },
-    "required": ["build_brief", "space_key", "parent_page_id"]
+    "required": ["contract_version", "build_brief", "space_key", "parent_page_id"]
   }
 }
 ```
 
-### Tool: `update_confluence_from_brief`
+### Logical operation: update document artifacts from brief
 
 ```json
 {
@@ -171,6 +196,10 @@ Alternatives Considered: [What was rejected and why]
   "inputSchema": {
     "type": "object",
     "properties": {
+      "contract_version": {
+        "type": "string",
+        "description": "Expected contract version range, e.g. 1.x"
+      },
       "build_brief": {
         "type": "string",
         "description": "Updated Build Brief markdown"
@@ -180,22 +209,22 @@ Alternatives Considered: [What was rejected and why]
         "description": "Existing parent page ID to update"
       }
     },
-    "required": ["build_brief", "parent_page_id"]
+    "required": ["contract_version", "build_brief", "parent_page_id"]
   }
 }
 ```
 
-## CLI Interface
+## Provider Resolution Example
 
-```bash
-# Decompose brief to Confluence (dry run)
-adlc-confluence decompose --brief ./build-brief.md --space ENG --parent 12345 --dry-run
-
-# Create pages
-adlc-confluence decompose --brief ./build-brief.md --space ENG --parent 12345
-
-# Update existing pages from updated brief
-adlc-confluence update --brief ./build-brief.md --parent 12345
+```json
+{
+  "server_name": "confluence-local-mcp",
+  "capability_bindings": {
+    "search_by_metadata": "pages.searchByMetadata",
+    "upsert_artifact": "pages.upsertPage",
+    "link_artifacts": "pages.appendBacklinks"
+  }
+}
 ```
 
 ## Quality Gates
@@ -210,10 +239,13 @@ adlc-confluence update --brief ./build-brief.md --parent 12345
 - [ ] Page hierarchy matches the defined structure
 - [ ] Labels and watchers are set
 - [ ] ADR created for architectural Type 1 decisions
+- [ ] Configured local MCP provider exposes the required logical capability bindings.
 
 ## Framework Hardening Addendum
 
 - **Contract versioning:** Section decomposition input/output contracts require `contract_version` and semver compatibility checks.
 - **Schema validation:** Validate Build Brief structure against `docs/schemas/build-brief.schema.json` before decomposition.
+- **Provider resolution:** Fail fast if the configured local MCP provider is missing required logical capabilities.
 - **Idempotency:** Page creation and updates must use idempotency keys and existence checks to avoid duplicate pages on retries.
-- **Stop reasons:** Emit structured terminal reasons when blocked by contract mismatch, permission denial, or dependency failure.
+- **Permission logging:** Emit structured approval and denial records for every create or update mutation.
+- **Stop reasons:** Emit structured terminal reasons when blocked by contract mismatch, permission denial, unavailable Confluence MCP dependencies, or missing capability bindings.
