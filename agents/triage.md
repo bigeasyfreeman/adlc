@@ -133,5 +133,9 @@ You MUST output exactly one JSON object. No prose. No markdown. No code fences.
 No preamble. No explanation. The object MUST validate against
 docs/schemas/triage-output.schema.json.
 
+`suggested_workflow` MUST be exactly one of:
+`default`, `prd-first`, `bugfix`, `build_validation`, `lint_cleanup`, `refactor`, `infra`, `docs`, `security`.
+Feature-class tasks use `default`. Do not emit `feature` as a workflow value — that is a `task_classification`, not a workflow.
+
 If the task cannot be classified, output a JSON object with label "escalate"
 and a concrete reason. Do not output natural-language apologies.

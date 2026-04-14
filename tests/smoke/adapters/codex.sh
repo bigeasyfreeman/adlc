@@ -194,11 +194,6 @@ _adlc_adapter_invoke_agent() {
     _adlc_codex_emit_error "$stderr_log" "codex CLI missing required flag: --ephemeral"
     return "$status"
   }
-  _adlc_codex_require_flag "--output-schema" || {
-    status=$?
-    _adlc_codex_emit_error "$stderr_log" "codex CLI missing required flag: --output-schema"
-    return "$status"
-  }
   _adlc_codex_require_flag "--model" || {
     status=$?
     _adlc_codex_emit_error "$stderr_log" "codex CLI missing required flag: --model"
@@ -221,12 +216,12 @@ _adlc_adapter_invoke_agent() {
 
   auth_note="invoke_agent: auth path ${auth_path}."
 
+  # OpenAI structured-output rejects schemas where any property is not in `required`.
+  # Our ADLC schemas deliberately permit optional fields, so CLI-side enforcement via
+  # --output-schema returns HTTP 400 "Invalid schema for response_format". Skip CLI
+  # enforcement entirely and let downstream validate_json be authoritative.
   if [ -n "$_ADLC_SCHEMA_PATH" ]; then
-    if _adlc_codex_has_flag "--output-schema"; then
-      schema_enforcement_note="invoke_agent: enabling CLI schema enforcement with codex --output-schema; downstream validate_json remains authoritative."
-    else
-      schema_enforcement_note="invoke_agent: skipping CLI schema enforcement because codex CLI lacks --output-schema; downstream validate_json remains authoritative."
-    fi
+    schema_enforcement_note="invoke_agent: CLI schema enforcement disabled (OpenAI strict-schema incompat with optional fields); downstream validate_json is authoritative."
   fi
 
   if [ -n "$original_home" ] && [ -d "$original_home" ] && [ -w "$original_home" ]; then
@@ -246,13 +241,25 @@ _adlc_adapter_invoke_agent() {
   else
     unset OPENAI_API_KEY
     cp "$ADLC_SMOKE_SETTINGS_CODEX" "$HOME/.codex/config.toml"
+    # Codex OAuth credentials live in a sibling auth.json beside config.toml.
+    # Without it the CLI has config but no bearer token and every request 401s.
+    local settings_dir
+    settings_dir="$(cd "$(dirname "$ADLC_SMOKE_SETTINGS_CODEX")" && pwd)"
+    if [ -r "$settings_dir/auth.json" ]; then
+      cp "$settings_dir/auth.json" "$HOME/.codex/auth.json"
+      chmod 600 "$HOME/.codex/auth.json"
+    fi
   fi
 
+  # Override any user-provided reasoning effort that the target model may reject
+  # (e.g. "xhigh" is accepted by codex-1p but not by the API-exposed reasoning
+  # models which only allow low/medium/high). Pin to "high" for predictable runs.
   cmd=(
     codex exec
     --sandbox "$sandbox_mode"
     --ephemeral
     -c 'approval_policy="never"'
+    -c 'model_reasoning_effort="high"'
     -c "developer_instructions=$developer_instructions"
     -c 'default_tools_enabled=false'
     -c "enabled_tools=$enabled_tools"
@@ -262,9 +269,8 @@ _adlc_adapter_invoke_agent() {
     cmd+=(--model "$ADLC_MODEL")
   fi
 
-  if [ -n "$_ADLC_SCHEMA_PATH" ] && _adlc_codex_has_flag "--output-schema"; then
-    cmd+=(--output-schema "$_ADLC_SCHEMA_PATH")
-  fi
+  # --output-schema intentionally omitted; see rationale above. Downstream
+  # _validate.sh enforces the schema post-call.
 
   printf '%s\n' "$auth_note" >> "$stderr_log"
   if [ -n "$schema_enforcement_note" ]; then

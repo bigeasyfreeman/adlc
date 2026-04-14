@@ -1,12 +1,18 @@
 {
-  "run_at": "2026-04-13T20:19:34Z",
-  "model": "claude-sonnet-4-6",
+  "run_at": "2026-04-14T01:08:58Z",
+  "model": "gpt-5-codex",
   "stages": [
     {
       "name": "triage",
-      "ok": false,
+      "ok": true,
       "artifact": "tests/smoke/artifacts/triage.json",
-      "duration_ms": 943
+      "duration_ms": 8332
+    },
+    {
+      "name": "spec_to_tests",
+      "ok": false,
+      "artifact": "tests/smoke/artifacts/spec_to_tests.json",
+      "duration_ms": 83778
     }
   ],
   "overall": "fail",
