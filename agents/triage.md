@@ -15,6 +15,17 @@ You receive:
 - A PRD, feature description, or issue
 - Optionally: a repo path
 
+## Deterministic Feature Extraction
+
+Before judgement, extract a compact feature summary from the task text and repo evidence:
+
+- language hints from file extensions or tool names
+- intent keywords such as `bug`, `fix`, `add`, `feature`, `refactor`, `lint`, `docs`, `security`
+- linked PR / issue / ticket references
+- whether a reproducer, failing command, or failing test is explicitly present
+
+Use that deterministic summary as the input to classification. Do not invent the evidence inventory from scratch when the extracted features already say it.
+
 ## Classification
 
 | Criterion | Required for `proceed` |
@@ -29,10 +40,12 @@ You receive:
 Use `task_classification_confidence` to choose the routing band:
 
 - `>= 0.8` -> `proceed`
-- `0.6 <= confidence < 0.8` -> `low_confidence`
+- `0.6 <= confidence < 0.8` -> `low_confidence`, then invoke `brief-clarity-judge` through the active adapter using the `fast_judge` model slot
 - `< 0.6` -> `escalate`
 
 `unclear` is reserved for contamination, contradiction, or missing information that prevents reliable classification even before confidence routing is applied.
+
+When the confidence lands in the middle band, keep the routing label as `low_confidence`, but attach `low_confidence_judge.verdict` and `low_confidence_judge.rationale`. The band is advisory; the judge verdict is authoritative for downstream handling.
 
 ## Task Classification
 
@@ -86,7 +99,17 @@ If unsupported text changes scope, mark the task `unclear` rather than silently 
   "task_classification": "feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security",
   "task_classification_confidence": 0.0-1.0,
   "confidence_band": "proceed | low_confidence | escalate",
+  "signal_features": {
+    "language_hints": ["py", "rs"],
+    "intent_keywords": ["fix", "bug"],
+    "linked_refs": ["PR-123"],
+    "reproducer_present": true
+  },
   "classification_evidence": ["short evidence snippets"],
+  "low_confidence_judge": {
+    "verdict": "proceed | escalate",
+    "rationale": "string"
+  },
   "change_surface": {
     "new_attack_surface": false,
     "runtime_path_change": false,
@@ -112,10 +135,12 @@ If unsupported text changes scope, mark the task `unclear` rather than silently 
 }
 ```
 
+Set `low_confidence_judge` to `null` when the task is outside the middle confidence band.
+
 ### Label Rules
 
 - **proceed**: Clear, scoped, has a target repo, the task class is known, and `task_classification_confidence >= 0.8`.
-- **low_confidence**: Clear enough to continue through research, but `0.6 <= task_classification_confidence < 0.8`.
+- **low_confidence**: Clear enough to continue through research, but `0.6 <= task_classification_confidence < 0.8`. Emit `low_confidence`, run `brief-clarity-judge`, and attach the judge verdict plus rationale.
 - **unclear**: Ambiguous, contaminated, or missing critical details. Post clarification questions and wait.
 - **escalate**: `task_classification_confidence < 0.6`, or the task is too complex, irreversible, or risky for automation. Needs human judgment first.
 
@@ -126,6 +151,7 @@ If unsupported text changes scope, mark the task `unclear` rather than silently 
 - When in doubt, choose `unclear`. Wasted triage is cheap; wasted pipeline runs are expensive.
 - Do not require a concrete screen or user-facing behavior to classify build-validation or lint-cleanup tasks.
 - Unsupported statements do not become requirements.
+- Keep `classification_evidence` grounded in the extracted feature summary and supported claims.
 - Output the numeric `task_classification_confidence` and the `confidence_band` used for routing every time.
 
 ## Output Contract

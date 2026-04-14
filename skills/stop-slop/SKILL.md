@@ -158,6 +158,34 @@ Hard failures block the commit/delivery. Warnings accumulate:
 
 Detects AI writing patterns in prose. Runs on all `.md`, `.txt` files and all agent content outputs. Every outbound piece — content, outreach, proposals — runs through this before delivery.
 
+### Content Mode Flow
+
+1. Run the deterministic regex / banned-pattern pass first.
+2. If regex finds a hard-fail pattern, stop immediately.
+3. If regex clears, run `slop-judge` to catch residual generic filler, passive evasion, and tautology.
+4. Score only the text that clears both the deterministic pass and the slop judge.
+
+#### Slop Judge Input
+
+```json
+{
+  "mode": "general | outreach",
+  "regex_screen": "pass",
+  "content": "string",
+  "audience": "internal | external"
+}
+```
+
+#### Slop Judge Output
+
+```json
+{
+  "verdict": "pass | revise",
+  "rationale": "string",
+  "signals": ["generic_filler", "passive_evasion", "tautology"]
+}
+```
+
 ### The Eight Rules
 
 **1. Active voice. Human subjects.**

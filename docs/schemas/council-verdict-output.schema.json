@@ -13,7 +13,10 @@
   "properties": {
     "label": {
       "type": "string",
-      "enum": ["lgtm", "revise", "blocked"]
+      "enum": ["lgtm", "revise", "blocked", "stuck"]
+    },
+    "stuck_reason": {
+      "type": ["string", "null"]
     },
     "verdict": {
       "type": "object",
@@ -21,6 +24,7 @@
       "required": [
         "status",
         "confidence",
+        "gate_0",
         "applicability_manifest",
         "personas",
         "synthesis"
@@ -28,7 +32,7 @@
       "properties": {
         "status": {
           "type": "string",
-          "enum": ["APPROVED", "APPROVED_WITH_CONCERNS", "REVISION_REQUIRED", "BLOCKED"]
+          "enum": ["APPROVED", "APPROVED_WITH_CONCERNS", "REVISION_REQUIRED", "BLOCKED", "STUCK"]
         },
         "confidence": {
           "type": "number",
@@ -39,13 +43,54 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
+            "schema_validation",
+            "specificity",
             "verifier_scope_intersection",
+            "verifier_semantic_coverage",
             "reason"
           ],
           "properties": {
+            "schema_validation": {
+              "type": "string",
+              "enum": ["pass", "fail"]
+            },
+            "specificity": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "reason"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": ["pass", "warn", "revise", "stuck"]
+                },
+                "reason": {
+                  "type": ["string", "null"]
+                }
+              }
+            },
             "verifier_scope_intersection": {
               "type": "string",
               "enum": ["pass", "warn", "fail"]
+            },
+            "verifier_semantic_coverage": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "reason"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": ["pass", "skip", "fail"]
+                },
+                "reason": {
+                  "type": ["string", "null"]
+                }
+              }
             },
             "reason": {
               "type": ["string", "null"]
@@ -132,7 +177,8 @@
         "required": [
           "task_id",
           "score",
-          "failing_checks"
+          "rationale",
+          "failing_signals"
         ],
         "properties": {
           "task_id": {
@@ -144,7 +190,11 @@
             "minimum": 0,
             "maximum": 1
           },
-          "failing_checks": {
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          },
+          "failing_signals": {
             "type": "array",
             "items": {
               "type": "string",

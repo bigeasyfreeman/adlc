@@ -76,6 +76,7 @@ digraph ADLC {
     plan_review -> plan          [label="revise", style=dashed, color="#cc6600"]
     plan_review -> scaffold      [label="lgtm"]
     plan_review -> escalate      [label="blocked", color="red"]
+    plan_review -> escalate      [label="stuck", color="red"]
     plan -> escalate             [label="escalate", color="red"]
 
     // Scaffold → Tests → Context Assembly

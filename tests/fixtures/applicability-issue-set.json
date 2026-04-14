@@ -119,9 +119,47 @@
           "verdict": "n_a",
           "coverage": 0,
           "mutation_kill_rate": 0
-        }
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "skip",
+            "reason": "target_files_unset_or_disjoint"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
       },
-      "expected_rationale": "Layer 1 only mechanizes section defaults with direct change-surface signals. This case has no target_files or post_qa block, so verifier_scope is legacy_warn and test_strength is n_a."
+      "expected_rationale": "Layer 1 only mechanizes section defaults with direct change-surface signals. This case has no target_files or post_qa block, so verifier_scope is legacy_warn and test_strength is n_a.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      }
     },
     {
       "id": "CASE-002",
@@ -233,9 +271,47 @@
           "verdict": "n_a",
           "coverage": 0,
           "mutation_kill_rate": 0
-        }
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "skip",
+            "reason": "target_files_unset_or_disjoint"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
       },
-      "expected_rationale": "No change-surface flags are active, so only core routing applies. target_files is unset and post_qa is absent, which yields legacy_warn plus n_a."
+      "expected_rationale": "No change-surface flags are active, so only core routing applies. target_files is unset and post_qa is absent, which yields legacy_warn plus n_a.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      }
     },
     {
       "id": "CASE-003",
@@ -378,9 +454,47 @@
           "verdict": "n_a",
           "coverage": 0,
           "mutation_kill_rate": 0
-        }
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "skip",
+            "reason": "target_files_unset_or_disjoint"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
       },
-      "expected_rationale": "The unsupported claim remains contamination metadata, but Layer 1 triage routing is confidence-band only. Runtime and user-facing flags activate observability and operator checks; target_files and post_qa are still absent."
+      "expected_rationale": "The unsupported claim remains contamination metadata, but Layer 1 triage routing is confidence-band only. Runtime and user-facing flags activate observability and operator checks; target_files and post_qa are still absent.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      }
     },
     {
       "id": "CASE-004",
@@ -514,9 +628,47 @@
           "verdict": "n_a",
           "coverage": 0,
           "mutation_kill_rate": 0
-        }
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "skip",
+            "reason": "target_files_unset_or_disjoint"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
       },
-      "expected_rationale": "This layer drives observability from runtime and user-facing flags, and drives architecture-related overlays from api/data-format signals. Rollout is left not_applicable because the manifest does not expose a dedicated deployment trigger field."
+      "expected_rationale": "This layer drives observability from runtime and user-facing flags, and drives architecture-related overlays from api/data-format signals. Rollout is left not_applicable because the manifest does not expose a dedicated deployment trigger field.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      }
     },
     {
       "id": "CASE-005",
@@ -655,9 +807,47 @@
           "verdict": "n_a",
           "coverage": 0,
           "mutation_kill_rate": 0
-        }
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "skip",
+            "reason": "target_files_unset_or_disjoint"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
       },
-      "expected_rationale": "Security, runtime, and interface-related surfaces are all active here, so the deterministic layer activates the full security, observability, and integration overlays. target_files remains unset, so Gate 0 records a legacy warning instead of blocking."
+      "expected_rationale": "Security, runtime, and interface-related surfaces are all active here, so the deterministic layer activates the full security, observability, and integration overlays. target_files remains unset, so Gate 0 records a legacy warning instead of blocking.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      }
     },
     {
       "id": "CASE-006",
@@ -762,9 +952,47 @@
           "verdict": "n_a",
           "coverage": 0,
           "mutation_kill_rate": 0
-        }
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "skip",
+            "reason": "target_files_unset_or_disjoint"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
       },
-      "expected_rationale": "Confidence below 0.6 forces escalate. The change-surface flags do not activate any overlay-driven stage in this deterministic harness."
+      "expected_rationale": "Confidence below 0.6 forces escalate. The change-surface flags do not activate any overlay-driven stage in this deterministic harness.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      }
     },
     {
       "id": "CASE-007",
@@ -882,9 +1110,47 @@
           "verdict": "n_a",
           "coverage": 0,
           "mutation_kill_rate": 0
-        }
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "invoke",
+            "reason": "middle_confidence_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "skip",
+            "reason": "target_files_unset_or_disjoint"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
       },
-      "expected_rationale": "Confidence in the middle band routes to low_confidence. Runtime and user-facing flags activate only the observability/operator path in this harness."
+      "expected_rationale": "Confidence in the middle band routes to low_confidence. Runtime and user-facing flags activate only the observability/operator path in this harness.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      }
     },
     {
       "id": "CASE-008",
@@ -1003,9 +1269,47 @@
           "verdict": "n_a",
           "coverage": 0,
           "mutation_kill_rate": 0
-        }
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "skip",
+            "reason": "target_files_unset_or_disjoint"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
       },
-      "expected_rationale": "The only new mechanical condition here is verifier scope: target_files points at src/legacy/cli_retry.rs while the task edits src/shared/retry_helper.rs, so Gate 0 must revise with verifier_no_coverage."
+      "expected_rationale": "The only new mechanical condition here is verifier scope: target_files points at src/legacy/cli_retry.rs while the task edits src/shared/retry_helper.rs, so Gate 0 must revise with verifier_no_coverage.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      }
     },
     {
       "id": "CASE-009",
@@ -1022,7 +1326,14 @@
       },
       "post_qa": {
         "coverage": 0.82,
-        "mutation_kill_rate": 0.45
+        "mutation_kill_rate": 0.45,
+        "surviving_mutants": [
+          {
+            "mutant_id": "M-CSV-1",
+            "materiality": "material",
+            "summary": "Duplicate-row guard removed from export assertion."
+          }
+        ]
       },
       "expected_manifest": {
         "task_classification": "feature",
@@ -1134,9 +1445,47 @@
           "verdict": "weak",
           "coverage": 0.82,
           "mutation_kill_rate": 0.45
-        }
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "invoke",
+            "reason": "target_files_intersect"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "invoke",
+            "reason": "surviving_mutants_present"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
       },
-      "expected_rationale": "Coverage clears the 0.80 threshold, but mutation kill rate misses the 0.60 threshold, so test_strength must return weak. target_files intersects the modified export file, so verifier_scope passes."
+      "expected_rationale": "Coverage clears the 0.80 threshold, but mutation kill rate misses the 0.60 threshold, so test_strength must return weak. target_files intersects the modified export file, so verifier_scope passes.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      }
     },
     {
       "id": "CASE-010",
@@ -1153,7 +1502,14 @@
       },
       "post_qa": {
         "coverage": 0.85,
-        "mutation_kill_rate": 0.7
+        "mutation_kill_rate": 0.7,
+        "surviving_mutants": [
+          {
+            "mutant_id": "M-INV-1",
+            "materiality": "trivial",
+            "summary": "Equivalent retry log wording change only."
+          }
+        ]
       },
       "expected_manifest": {
         "task_classification": "bugfix",
@@ -1261,9 +1617,1339 @@
           "verdict": "pass",
           "coverage": 0.85,
           "mutation_kill_rate": 0.7
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "invoke",
+            "reason": "target_files_intersect"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "invoke",
+            "reason": "surviving_mutants_present"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
+      },
+      "expected_rationale": "Both post-QA thresholds clear the deterministic gates, so test_strength returns pass. target_files intersects the edited billing file, so verifier_scope also passes.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      }
+    },
+    {
+      "id": "CASE-011",
+      "title": "Sketch a vague analytics workspace feature request",
+      "summary": "Middle-band feature intake that should route through the brief-clarity judge before downstream work proceeds.",
+      "expected_label": "low_confidence",
+      "task": {
+        "task_id": "TASK-CASE-011",
+        "files_to_modify": [
+          "src/analytics/workspace_panel.tsx"
+        ],
+        "files_to_create": []
+      },
+      "expected_manifest": {
+        "task_classification": "feature",
+        "task_classification_confidence": 0.78,
+        "classification_evidence": [
+          "The request points at a new workspace panel but leaves the user flow vague.",
+          "The task sounds user-facing, but the success path still needs clarification."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": true,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "The analytics workspace needs a new user-facing panel.",
+              "source_ref": "issue description",
+              "extracted_from": "feature request"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "The panel is user-facing work."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "The request affects a runtime and user-facing path."
+          },
+          {
+            "section_name": "9_risks",
+            "status": "active",
+            "reason": "The vague scope needs explicit risk accounting before planning."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "ui test: analytics workspace panel renders the requested flow",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "A user-facing feature should anchor on a concrete UI verifier once clarified."
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "The panel request is intentionally ambiguous enough to stay in the middle confidence band."
         }
       },
-      "expected_rationale": "Both post-QA thresholds clear the deterministic gates, so test_strength returns pass. target_files intersects the edited billing file, so verifier_scope also passes."
+      "expected_rationale": "The middle confidence band now triggers brief-clarity judgement instead of treating low_confidence as a purely deterministic route.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "low_confidence",
+          "confidence_band": "low_confidence"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "legacy_warn",
+          "reason": "target_files_unset"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "invoke",
+            "reason": "middle_confidence_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "skip",
+            "reason": "target_files_unset_or_disjoint"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CASE-012",
+      "title": "Audit whether the billing verifier actually checks invoice semantics",
+      "summary": "High-confidence bugfix with intersecting verifier target files that should also trigger semantic verifier judgement.",
+      "task": {
+        "task_id": "TASK-CASE-012",
+        "files_to_modify": [
+          "src/billing/invoice_retry.rs"
+        ],
+        "files_to_create": [
+          "tests/integration/invoice_retry_semantics.rs"
+        ]
+      },
+      "expected_manifest": {
+        "task_classification": "bugfix",
+        "task_classification_confidence": 0.91,
+        "classification_evidence": [
+          "The task tightens an existing billing retry bugfix.",
+          "The verifier names the same billing file the task modifies."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": true,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": true,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "Invoice retry semantics still need explicit regression coverage.",
+              "source_ref": "qa follow-up",
+              "extracted_from": "test hardening request"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "Billing retry semantics need coverage."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "Retry handling is still a runtime billing path."
+          },
+          {
+            "section_name": "11_validation_plan",
+            "status": "active",
+            "reason": "The request is defined by deterministic regression verification."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "integration test: invoice retry emits one invoice and one audit row",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The verifier names the semantic billing contract, not just the module path.",
+            "target_files": [
+              "src/billing/invoice_retry.rs"
+            ],
+            "expected_failure_mode": "AssertionError: duplicate invoice count"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "This case exists to prove that intersecting target_files are only a zero-cost screen."
+        }
+      },
+      "expected_rationale": "Verifier scope intersection now triggers semantic coverage judgement instead of assuming file overlap is enough.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "pass",
+          "reason": "target_files_intersect"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "invoke",
+            "reason": "target_files_intersect"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CASE-013",
+      "title": "Refresh support docs for rotating session tokens",
+      "summary": "Docs-only task whose deterministic section policy would suppress security review unless the section-policy judge promotes it.",
+      "task": {
+        "task_id": "TASK-CASE-013",
+        "files_to_modify": [
+          "docs/runbooks/token-rotation.md"
+        ],
+        "files_to_create": []
+      },
+      "expected_manifest": {
+        "task_classification": "docs",
+        "task_classification_confidence": 0.9,
+        "classification_evidence": [
+          "The task edits runbook content only.",
+          "The topic is credential rotation guidance, which carries security meaning despite the docs surface."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": false,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": false
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "The runbook explains how operators rotate support-session tokens.",
+              "source_ref": "ticket text",
+              "extracted_from": "docs change request"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "This is docs work."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "5_security_review",
+            "status": "active",
+            "reason": "Credential-rotation guidance should still receive explicit security review.",
+            "overridden_by": "section_policy_judge"
+          },
+          {
+            "section_name": "11_validation_plan",
+            "status": "active",
+            "reason": "The docs update still needs deterministic lint and link validation."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "markdownlint docs/runbooks/token-rotation.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The docs task should still verify the edited runbook deterministically.",
+            "target_files": [
+              "docs/runbooks/token-rotation.md"
+            ],
+            "expected_failure_mode": "MD009 trailing spaces"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "This case proves that section policy may be overridden by manifest evidence even on docs-only work."
+        }
+      },
+      "expected_rationale": "The deterministic section policy would suppress security review, so the section-policy judge must be eligible to promote it based on manifest evidence.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": true
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "suppressed",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "pass",
+          "reason": "target_files_intersect"
+        },
+        "dod_overlays": [
+          "21",
+          "22"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": []
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "invoke",
+            "reason": "target_files_intersect"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "invoke",
+            "reason": "suppressed_section_review_requested"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CASE-014",
+      "title": "Tighten launch email copy after regex-only slop checks pass",
+      "summary": "Docs content that clears regex but should still invoke the slop judge before delivery.",
+      "task": {
+        "task_id": "TASK-CASE-014",
+        "files_to_modify": [
+          "docs/launch-email.md"
+        ],
+        "files_to_create": []
+      },
+      "expected_manifest": {
+        "task_classification": "docs",
+        "task_classification_confidence": 0.88,
+        "classification_evidence": [
+          "The task edits outbound launch copy.",
+          "The work is purely human-facing documentation and messaging."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": false,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "The launch email copy needs cleanup before sending.",
+              "source_ref": "marketing request",
+              "extracted_from": "copy revision brief"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "The task changes outbound copy."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "The content ships on a user-facing operational path."
+          },
+          {
+            "section_name": "11_validation_plan",
+            "status": "active",
+            "reason": "Copy changes still need deterministic linting plus content review."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "markdownlint docs/launch-email.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The message should still pass deterministic markdown checks.",
+            "target_files": [
+              "docs/launch-email.md"
+            ],
+            "expected_failure_mode": "MD013 line length"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "The regex screen is intentionally not enough for this case."
+        }
+      },
+      "expected_rationale": "Content that clears regex still needs slop judgement when the work is human-facing copy.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": true,
+        "section_policy_review": false
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "pass",
+          "reason": "target_files_intersect"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "21",
+          "22"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "invoke",
+            "reason": "target_files_intersect"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "invoke",
+            "reason": "content_regex_cleared"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CASE-015",
+      "title": "Classify surviving billing mutants for materiality",
+      "summary": "Post-QA bugfix case where strong aggregate metrics still fail because a surviving mutant is material.",
+      "task": {
+        "task_id": "TASK-CASE-015",
+        "files_to_modify": [
+          "src/billing/retry_window.rs"
+        ],
+        "files_to_create": [
+          "tests/integration/retry_window_strength.rs"
+        ]
+      },
+      "post_qa": {
+        "coverage": 0.88,
+        "mutation_kill_rate": 0.74,
+        "surviving_mutants": [
+          {
+            "mutant_id": "M-RETRY-9",
+            "materiality": "material",
+            "summary": "The retry dedupe branch can be removed without failing the suite."
+          }
+        ]
+      },
+      "expected_manifest": {
+        "task_classification": "bugfix",
+        "task_classification_confidence": 0.92,
+        "classification_evidence": [
+          "The task hardens retry-window bugfix coverage after QA.",
+          "The changed path remains a runtime billing flow."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": true,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": true,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "Surviving billing mutants need classification before sign-off.",
+              "source_ref": "qa follow-up",
+              "extracted_from": "mutation audit"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "Mutation survivors remain on a billing path."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "Billing retry remains a runtime path."
+          },
+          {
+            "section_name": "11_validation_plan",
+            "status": "active",
+            "reason": "The case is defined by deterministic test-strength measurement."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "integration test: retry window dedupes duplicate invoices",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The mutation audit should stay anchored to the billing behavior.",
+            "target_files": [
+              "src/billing/retry_window.rs"
+            ],
+            "expected_failure_mode": "AssertionError: duplicate invoice count"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Material surviving mutants now dominate the verdict."
+        }
+      },
+      "expected_rationale": "A material surviving mutant now forces `weak` even when the aggregate mutation kill rate is still above threshold.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "pass",
+          "reason": "target_files_intersect"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "weak",
+          "coverage": 0.88,
+          "mutation_kill_rate": 0.74
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "invoke",
+            "reason": "target_files_intersect"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "invoke",
+            "reason": "surviving_mutants_present"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CASE-016",
+      "title": "Classify trivial surviving scheduler mutants",
+      "summary": "Post-QA refactor case where surviving mutants are judged trivial and the deterministic thresholds still pass.",
+      "task": {
+        "task_id": "TASK-CASE-016",
+        "files_to_modify": [
+          "src/scheduler/next_run.rs"
+        ],
+        "files_to_create": [
+          "tests/unit/next_run_strength.rs"
+        ]
+      },
+      "post_qa": {
+        "coverage": 0.83,
+        "mutation_kill_rate": 0.66,
+        "surviving_mutants": [
+          {
+            "mutant_id": "M-SCHED-2",
+            "materiality": "trivial",
+            "summary": "Equivalent timezone log string survives without changing scheduling behavior."
+          }
+        ]
+      },
+      "expected_manifest": {
+        "task_classification": "refactor",
+        "task_classification_confidence": 0.9,
+        "classification_evidence": [
+          "The task keeps behavior stable while tightening scheduler coverage.",
+          "The surviving mutant is on an internal scheduling helper."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": true,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": false
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "Scheduler mutation survivors need triage after QA.",
+              "source_ref": "qa follow-up",
+              "extracted_from": "mutation audit"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "The task is internal scheduler hardening."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "Scheduler execution is a runtime path even without direct user-facing behavior."
+          },
+          {
+            "section_name": "11_validation_plan",
+            "status": "active",
+            "reason": "The case is defined by test-strength verification."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "unit test: scheduler next_run preserves current cadence",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The refactor still needs deterministic cadence verification.",
+            "target_files": [
+              "src/scheduler/next_run.rs"
+            ],
+            "expected_failure_mode": "AssertionError: next_run cadence drift"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Trivial survivors should not force weak when the thresholds otherwise pass."
+        }
+      },
+      "expected_rationale": "The materiality judge still runs, but trivial survivors no longer downgrade an otherwise passing audit.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "pass",
+          "reason": "target_files_intersect"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "pass",
+          "coverage": 0.83,
+          "mutation_kill_rate": 0.66
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "invoke",
+            "reason": "target_files_intersect"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "invoke",
+            "reason": "surviving_mutants_present"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CASE-017",
+      "title": "Validate a multi-surface export flow plan",
+      "summary": "High-confidence feature case that activates both architect and operator overlays while leaving the fast judges available.",
+      "task": {
+        "task_id": "TASK-CASE-017",
+        "files_to_modify": [
+          "src/export/http_handler.ts",
+          "src/export/job_runner.ts"
+        ],
+        "files_to_create": [
+          "tests/integration/export_flow.spec.ts"
+        ]
+      },
+      "expected_manifest": {
+        "task_classification": "feature",
+        "task_classification_confidence": 0.94,
+        "classification_evidence": [
+          "The task adds a new export flow spanning API and runtime job execution.",
+          "Both service boundaries and user-facing behavior change."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": true,
+          "service_boundary_change": true,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": true,
+          "data_format_change": true,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": true
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "The export flow spans API, runtime job execution, and a user-visible format change.",
+              "source_ref": "feature brief",
+              "extracted_from": "request"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "The task crosses API and runtime boundaries."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "6_observability_slo",
+            "status": "active",
+            "reason": "The export flow changes a runtime and user-facing path."
+          },
+          {
+            "section_name": "10_rollout",
+            "status": "not_applicable",
+            "reason": "The request does not name rollout mechanics."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "integration test: export flow returns the new CSV contract",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The feature is defined by a deterministic export contract.",
+            "target_files": [
+              "src/export/http_handler.ts"
+            ],
+            "expected_failure_mode": "AssertionError: csv headers mismatch"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "This case exercises the architect plus operator overlay activation path."
+        }
+      },
+      "expected_rationale": "Architect and operator overlays should both activate on a feature that changes API shape, file format, and runtime behavior.",
+      "judge_policy": {
+        "fast_judge_available": true,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "active",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "pass",
+          "reason": "target_files_intersect"
+        },
+        "dod_overlays": [
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "18",
+          "19",
+          "20"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": [
+            "architect",
+            "operator"
+          ]
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "invoke",
+            "reason": "gate_0_specificity"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "invoke",
+            "reason": "target_files_intersect"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CASE-018",
+      "title": "Run plan review on a runtime without fast_judge availability",
+      "summary": "Fast-judge unavailability should surface as a machine-readable judge decision instead of silently falling back to counting rules.",
+      "task": {
+        "task_id": "TASK-CASE-018",
+        "files_to_modify": [
+          "docs/ops/incident-handoff.md"
+        ],
+        "files_to_create": []
+      },
+      "expected_manifest": {
+        "task_classification": "docs",
+        "task_classification_confidence": 0.87,
+        "classification_evidence": [
+          "The task updates operational docs only.",
+          "No runtime implementation change is requested."
+        ],
+        "change_surface": {
+          "new_attack_surface": false,
+          "runtime_path_change": false,
+          "service_boundary_change": false,
+          "external_integration": false,
+          "persistent_storage": false,
+          "api_change": false,
+          "data_format_change": false,
+          "auth_change": false,
+          "perf_sensitive": false,
+          "user_facing_operation": false
+        },
+        "claim_provenance": {
+          "supported": [
+            {
+              "claim": "The incident handoff doc needs revision.",
+              "source_ref": "docs task",
+              "extracted_from": "request"
+            }
+          ],
+          "unsupported": [],
+          "contradicted": []
+        },
+        "contamination": {
+          "flags": [],
+          "supported_claims": [
+            "The task is docs-only work."
+          ],
+          "unsupported_claims": [],
+          "contradicted_claims": [],
+          "needs_clarification": [],
+          "suspect_phrases": []
+        },
+        "section_policy": [
+          {
+            "section_name": "11_validation_plan",
+            "status": "active",
+            "reason": "The doc still needs deterministic validation."
+          }
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "markdownlint docs/ops/incident-handoff.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The docs edit should still validate deterministically.",
+            "target_files": [
+              "docs/ops/incident-handoff.md"
+            ],
+            "expected_failure_mode": "MD022 headings"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "This case exists to prove there is no silent counting fallback when fast_judge is missing."
+        }
+      },
+      "expected_rationale": "When fast_judge is unavailable, the judge-invocation policy must record an unavailable decision instead of pretending specificity was measured deterministically.",
+      "judge_policy": {
+        "fast_judge_available": false,
+        "deep_judge_available": true,
+        "content_slop_regex_pass": false,
+        "section_policy_review": false
+      },
+      "expected_stage_outputs": {
+        "triage": {
+          "label": "proceed",
+          "confidence_band": "proceed"
+        },
+        "section_policy": {
+          "5_security_review": "suppressed",
+          "6_observability_slo": "suppressed",
+          "10_rollout": "not_applicable",
+          "12_skill_trigger_configuration": "not_applicable"
+        },
+        "verifier_scope": {
+          "verdict": "pass",
+          "reason": "target_files_intersect"
+        },
+        "dod_overlays": [
+          "21",
+          "22"
+        ],
+        "council_personas": {
+          "core": [
+            "skeptic",
+            "executioner",
+            "first_principles"
+          ],
+          "overlays": []
+        },
+        "test_strength": {
+          "verdict": "n_a",
+          "coverage": 0,
+          "mutation_kill_rate": 0
+        },
+        "judge_calls": [
+          {
+            "judge": "brief-clarity-judge",
+            "decision": "skip",
+            "reason": "outside_middle_band"
+          },
+          {
+            "judge": "specificity-judge",
+            "decision": "unavailable",
+            "reason": "specificity_judge_unavailable"
+          },
+          {
+            "judge": "verifier-semantic-judge",
+            "decision": "unavailable",
+            "reason": "fast_judge_unavailable"
+          },
+          {
+            "judge": "mutant-materiality-judge",
+            "decision": "skip",
+            "reason": "no_surviving_mutants"
+          },
+          {
+            "judge": "slop-judge",
+            "decision": "skip",
+            "reason": "content_mode_not_active"
+          },
+          {
+            "judge": "section-policy-judge",
+            "decision": "skip",
+            "reason": "no_override_candidate"
+          }
+        ]
+      }
     }
   ]
 }

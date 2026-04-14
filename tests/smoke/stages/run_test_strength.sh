@@ -14,6 +14,7 @@ model="$5"
 output_path="$artifacts_dir/test_strength.json"
 schema_path="$repo_root/docs/schemas/test-strength-output.schema.json"
 input_path="$(mktemp)"
+python_support_dir="$workspace_dir/.adlc/python_support"
 
 # shellcheck source=/dev/null
 source "$repo_root/tests/smoke/stages/_invoke.sh"
@@ -26,6 +27,10 @@ cleanup() {
 
 trap cleanup EXIT
 
+mkdir -p "$python_support_dir"
+cp "$repo_root/tests/smoke/support/adlc_mutmut_compat.py" "$python_support_dir/"
+cp "$repo_root/tests/smoke/support/adlc_changed_coverage.py" "$python_support_dir/"
+
 jq -n \
   --arg workspace_path "$workspace_dir" \
   --argjson test_plan "$(jq -c '.' "$workspace_dir/.adlc/test_plan.json")" \
@@ -37,13 +42,19 @@ jq -n \
     mutation_config: {
       language: "python",
       tool: "mutmut",
+      run_command: "python3 -m adlc_mutmut_compat run",
+      results_command: "python3 -m adlc_mutmut_compat results",
+      show_command_prefix: "python3 -m adlc_mutmut_compat show",
       test_command: "python3 -m unittest discover -s tests -p '\''test_*.py'\''",
       target_files: ["src/scoreboard.py"]
-    }
+    },
+    coverage_summary_command: "python3 -m adlc_changed_coverage --coverage-json .adlc/coverage.json --output .adlc/changed_coverage.json src/scoreboard.py tests/test_render_scoreboard.py",
+    coverage_summary_path: ".adlc/changed_coverage.json"
   }' > "$input_path"
 
 (
   cd "$workspace_dir"
+  PYTHONPATH="$python_support_dir${PYTHONPATH:+:$PYTHONPATH}" \
   ADLC_MODEL="$model" \
     invoke_agent \
       --agent "$repo_root/agents/test-strength-auditor.md" \

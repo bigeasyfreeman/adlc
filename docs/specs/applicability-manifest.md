@@ -14,10 +14,11 @@ Carry one authoritative control-plane decision from triage into planning and bri
 Route by `task_classification_confidence`:
 
 - `task_classification_confidence >= 0.8` -> proceed
-- `0.6 <= task_classification_confidence < 0.8` -> route back through research with `low_confidence`
+- `0.6 <= task_classification_confidence < 0.8` -> route back through research with `low_confidence`, then run `brief-clarity-judge`
 - `task_classification_confidence < 0.6` -> emit `escalate`
 
 Confidence routing is part of the control plane. Planning should not continue silently when the confidence falls below the escalation threshold.
+In the middle band, the routing label remains `low_confidence`, but `brief-clarity-judge` decides whether the ambiguous task should proceed or escalate. That verdict is authoritative for downstream handling.
 
 ## Core Fields
 - `task_classification`: `feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security`
@@ -76,6 +77,14 @@ These triggers are the authoritative mapping consumed by the deterministic secti
 | `12_skill_trigger_configuration` | `active` | Activate only when the Build Brief explicitly adds, removes, or reconfigures skill triggers. Default `not_applicable`. |
 
 All other sections default to `active` when the section is required by the Build Brief template, and to `suppressed` with a concrete reason when the change surface does not warrant them.
+
+### Section Policy Override
+
+After the deterministic section-policy pass, a short `section-policy-judge` pass may promote a suppressed or `not_applicable` section when manifest evidence says the section still matters.
+
+- Overrides must cite manifest evidence, not generic caution.
+- Overrides only promote sections; they do not suppress active sections.
+- Every override entry must include `overridden_by: "section_policy_judge"`.
 
 Build-validation and lint-cleanup tasks should usually suppress at least half the brief sections. That suppression must come from the manifest, not from ad hoc prose.
 
@@ -139,7 +148,8 @@ The chosen verifier must:
       "section_name": "5_security_review",
       "status": "not_applicable",
       "reason": "No new attack surface or data handling change",
-      "trigger_fields": []
+      "trigger_fields": [],
+      "overridden_by": "section_policy_judge"
     }
   ],
   "verification_spec": {

@@ -109,7 +109,10 @@ jq -s '
 ' "$workspace_dir"/.adlc/test_plan.SMOKE_*.json > "$combined_plan_path"
 
 pre_exit=0
-python3 -m unittest discover -s tests -p 'test_*.py' > "$combined_pre_run_path" 2>&1 || pre_exit=$?
+(
+  cd "$workspace_dir"
+  python3 -m unittest discover -s tests -p 'test_*.py'
+) > "$combined_pre_run_path" 2>&1 || pre_exit=$?
 cp "$combined_plan_path" "$combined_plan_backup"
 cp "$combined_pre_run_path" "$combined_pre_run_backup"
 

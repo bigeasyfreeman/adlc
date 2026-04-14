@@ -162,59 +162,60 @@ Any FAIL = the task is not agent-ready. This is a **major finding**.
 
 ## Gate 0: Static Pre-Checks (Before Council Tokens Are Spent)
 
-Before any persona evaluates, run these static checks against the Build Brief. If any mandatory check fails, reject immediately with the specific failure — do not spend council tokens on a brief that is structurally incomplete.
+Before any persona evaluates, validate the payload against the contract schemas and run only the cheapest structural checks. Do not spend council tokens on pure presence checks.
 
-### Mandatory Checks
+### Gate 0 Work Split
 
-Every Build Brief must pass the core checks below before the council convenes. Overlay checks apply only when the applicability manifest marks the relevant surface active.
+- **Deterministic:** JSON schema validation, verifier target intersection, disagreement arithmetic.
+- **LLM judgement:** `specificity-judge`, plus `verifier-semantic-judge` when the deterministic intersection check is non-empty.
 
-- [ ] **task_classification present** — Brief must name the task class so overlay activation can be derived instead of guessed
-- [ ] **change_surface present** — Brief must state the relevant surface flags used to activate or suppress overlays
-- [ ] **applicability_manifest present** — Every active and inactive overlay must have a `status` and a concrete reason
-- [ ] **verification_spec present** — Brief must specify the primary verifier, expected pre-change failure, and expected post-change pass
-- [ ] **Existing patterns listed with file paths and reuse instructions** — Section 2 must include a pattern table mapping each pattern to its file path and explicit reuse/extend instructions
-- [ ] **Behavior changes documented (current to new)** — Every behavior modification must have a "current behavior" and "new behavior" description, not just the end state
-- [ ] **New component file tree specified** — Any new module/service/package must include the complete file tree (directories and files) that will be created
-- [ ] **STRIDE threat model complete (all 6 categories)** *(only when security overlay active)* — Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege must each be addressed (even if "N/A — [reason]")
-- [ ] **Security concerns table with specific mitigations** *(only when security overlay active)* — Each identified threat must have a concrete mitigation, not generic advice like "follow best practices"
-- [ ] **Failure modes table with impact and specific mitigation** — Every failure mode must include severity/impact rating AND a specific (not generic) mitigation strategy
-- [ ] **Backwards compatibility assessed** *(only when interface/data-format overlay active)* — Section 10 must explicitly state what breaks, what doesn't, and migration path for any breaking change
-- [ ] **Degradation strategy for external dependencies** *(only when external-integration overlay active)* — Every external dependency must have a documented behavior when that dependency is unavailable
-- [ ] **Performance/latency targets defined** *(only when performance overlay active)* — Section 8 must include numeric latency targets per operation (e.g., "p95 < 200ms"), not vague statements like "should be fast"
-- [ ] **Per-task: files_to_create/files_to_modify specified** — Every task must list explicit file paths for creation and modification, not just descriptions
-- [ ] **Per-task: reference_impl for extensions** — Every task that extends existing code must name the reference implementation file path the coding agent should study
-- [ ] **Per-task: dependency_ids form valid DAG** — Task dependency graph must be a directed acyclic graph (no circular dependencies, no missing dependency IDs)
-- [ ] **G/W/T roll-up covers all testable behaviors** — Every testable behavior described in the functional spec must have at least one Given/When/Then acceptance criterion
-- [ ] **Revision history section present** — Brief must include a revision history table tracking changes across council iterations
+Presence checks such as `task_classification`, `change_surface`, `applicability_manifest`, and `verification_spec` are satisfied by JSON schema validation at Gate 0 entry. Do not ask an LLM whether a required field exists.
+
+### Schema Validation
+
+- Validate the Build Brief against `docs/schemas/build-brief.schema.json`.
+- Validate the applicability manifest against `docs/schemas/applicability-manifest.schema.json`.
+- If either schema validation fails, stop immediately with `schema_validation = fail`.
+
+### Specificity Judge
+
+For every task, run `specificity-judge` with:
+
+- the task acceptance criteria list
+- `reference_impl`
+- `files_to_modify`
+- `verification_spec.primary_verifier.target`
+
+Thresholds:
+
+- `score >= 0.8` -> pass
+- `0.6 <= score < 0.8` -> warn
+- `score < 0.6` -> revise with reason `low_specificity`
+
+There is no counting fallback. If `fast_judge` is unavailable for the active runtime, emit `stuck` with reason `specificity_judge_unavailable`.
 
 ### Verifier Scope Intersection
 
 For every task, compare `verification_spec.target_files` against the union of `files_to_modify` and `files_to_create`.
 
-- If `target_files` is set and the intersection is non-empty, Gate 0 passes this check.
+- If `target_files` is set and the intersection is non-empty, Gate 0 passes the mechanical screen and then must run `verifier-semantic-judge` to confirm the verifier exercises the semantic change rather than merely touching the file.
 - If `target_files` is set and the intersection is empty, Gate 0 fails with verdict `REVISION_REQUIRED` and reason `verifier_no_coverage`.
 - If `target_files` is unset, record a legacy warning and continue without blocking.
 
 This check is mechanical. Do not waive it with prose if the verifier names files that the task does not touch.
 
-### Conditional Checks (Only If Applicable)
-
-These checks apply only when the project has the relevant capability. Skip with justification if not applicable:
-
-- [ ] **Data model changes documented** *(if project has DB)* — New/modified tables, columns, indexes, and migrations must be fully specified with types and constraints
-- [ ] **API changes with request/response schemas** *(if project has APIs)* — Every new or modified endpoint must include full request/response JSON schemas with example payloads
-- [ ] **Feature flag configuration** *(if project uses flags)* — Flag name, default state, targeting rules, and kill-switch behavior must be specified
-
 ### Gate 0 Verdict
 
 ```
 GATE 0 PRE-CHECK:
-│ Mandatory checks passed:  [X / required]
-│ Conditional checks:       [X applicable, X passed]
+│ Schema validation:        PASS / FAIL
+│ Specificity judge:        PASS / WARN / REVISE / STUCK
 │ Verifier scope check:     PASS / WARN / FAIL
-│ Gate 0 verdict:           PASS / FAIL
+│ Verifier semantic check:  PASS / SKIP / FAIL
+│ Gate 0 verdict:           PASS / FAIL / STUCK
 │
 │ If FAIL — return immediately with list of failed checks.
+│ If STUCK — return immediately with the missing-judge reason.
 │ Do NOT proceed to council evaluation.
 ```
 

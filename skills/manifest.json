@@ -10,11 +10,33 @@
       "dag_node": "triage",
       "model": "claude-sonnet-4-6",
       "runtime_model_map": {
-        "claude": "claude-sonnet-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-sonnet-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "skills": [],
       "labels": ["proceed", "low_confidence", "unclear", "escalate"]
@@ -25,11 +47,33 @@
       "dag_node": "research",
       "model": "claude-opus-4-6",
       "runtime_model_map": {
-        "claude": "claude-opus-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-opus-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "skills": ["codebase-research", "grafana-observability"],
       "labels": ["done"]
@@ -40,11 +84,33 @@
       "dag_node": "plan",
       "model": "claude-opus-4-6",
       "runtime_model_map": {
-        "claude": "claude-opus-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-opus-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "skills": ["codegen-context", "architecture-pattern"],
       "labels": ["done", "escalate"]
@@ -55,11 +121,33 @@
       "dag_node": "plan_review",
       "model": "claude-opus-4-6",
       "runtime_model_map": {
-        "claude": "claude-opus-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-opus-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "activation": {
         "mode": "core_plus_overlays",
@@ -67,7 +155,7 @@
         "task_classes": ["feature", "bugfix", "build_validation", "lint_cleanup", "refactor", "infra", "docs", "security"]
       },
       "skills": ["eval-council"],
-      "labels": ["lgtm", "revise", "blocked"]
+      "labels": ["lgtm", "revise", "blocked", "stuck"]
     },
     {
       "name": "test-author",
@@ -75,11 +163,33 @@
       "dag_node": "gen_tests",
       "model": "claude-sonnet-4-6",
       "runtime_model_map": {
-        "claude": "claude-sonnet-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-sonnet-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "skills": ["spec-to-tests", "tdd-enforcement", "qa-test-data"],
       "labels": ["done", "stuck", "revise"]
@@ -90,11 +200,33 @@
       "dag_node": "test_strength",
       "model": "claude-sonnet-4-6",
       "runtime_model_map": {
-        "claude": "claude-sonnet-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-sonnet-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "skills": ["test-strength"],
       "labels": ["pass", "weak", "stuck"]
@@ -105,11 +237,33 @@
       "dag_node": "code",
       "model": "claude-sonnet-4-6",
       "runtime_model_map": {
-        "claude": "claude-sonnet-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-sonnet-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "skills": ["tdd-enforcement", "systematic-debugging"],
       "labels": ["done", "stuck"],
@@ -121,11 +275,33 @@
       "dag_node": "code_review",
       "model": "claude-opus-4-6",
       "runtime_model_map": {
-        "claude": "claude-opus-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-opus-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "skills": ["eval-council"],
       "labels": ["lgtm", "revise"]
@@ -136,11 +312,33 @@
       "dag_node": "fixer",
       "model": "claude-sonnet-4-6",
       "runtime_model_map": {
-        "claude": "claude-sonnet-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-sonnet-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "skills": ["systematic-debugging"],
       "labels": ["fixed", "stuck"]
@@ -151,11 +349,33 @@
       "dag_node": "security",
       "model": "claude-opus-4-6",
       "runtime_model_map": {
-        "claude": "claude-opus-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-opus-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "skills": ["appsec-threat-model", "llm-security", "agentic-security", "api-security", "infra-security"],
       "labels": ["pass", "fail"]
@@ -166,11 +386,33 @@
       "dag_node": "pr_prep",
       "model": "claude-sonnet-4-6",
       "runtime_model_map": {
-        "claude": "claude-sonnet-4-6",
-        "codex": "gpt-5-codex",
-        "cursor": "default",
-        "antigravity": "gemini-2.5-pro",
-        "factory": "inherit"
+        "claude": {
+          "default": "claude-sonnet-4-6",
+          "fast_judge": "claude-haiku-4-5",
+          "deep_judge": "claude-opus-4-6"
+        },
+        "codex": {
+          "default": "gpt-5-codex",
+          "fast_judge": "gpt-5-mini",
+          "deep_judge": "gpt-5-codex"
+        },
+        "cursor": {
+          "default": "default",
+          "fast_judge": "inherit",
+          "deep_judge": "default",
+          "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
+        },
+        "antigravity": {
+          "default": "gemini-2.5-pro",
+          "fast_judge": "gemini-2.5-flash",
+          "deep_judge": "gemini-2.5-pro"
+        },
+        "factory": {
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit",
+          "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
+        }
       },
       "skills": [],
       "labels": ["done"]
@@ -205,6 +447,23 @@
       "contract_version": "1.0.0",
       "side_effect_profile": "mutating",
       "dag_nodes": ["plan", "scaffold"]
+    },
+    {
+      "name": "brief-clarity-judge",
+      "path": "skills/brief-clarity-judge/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "judgement",
+        "consumes_manifest": true,
+        "model_class": "fast_judge",
+        "cost_guard": {
+          "max_tokens_per_call": 700,
+          "expected_calls_per_run": 1
+        },
+        "produces": ["low_confidence_verdict"]
+      },
+      "dag_nodes": ["triage"]
     },
     {
       "name": "ci-cd-pipeline",
@@ -301,6 +560,23 @@
       "dag_nodes": ["security"]
     },
     {
+      "name": "mutant-materiality-judge",
+      "path": "skills/mutant-materiality-judge/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "judgement",
+        "consumes_manifest": true,
+        "model_class": "deep_judge",
+        "cost_guard": {
+          "max_tokens_per_call": 1400,
+          "expected_calls_per_run": 3
+        },
+        "produces": ["surviving_mutant_materiality"]
+      },
+      "dag_nodes": ["test_strength"]
+    },
+    {
       "name": "prd-generation",
       "path": "skills/prd-generation/SKILL.md",
       "contract_version": "1.0.0",
@@ -384,6 +660,23 @@
       "dag_nodes": ["plan", "code_review", "security"]
     },
     {
+      "name": "section-policy-judge",
+      "path": "skills/section-policy-judge/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "judgement",
+        "consumes_manifest": true,
+        "model_class": "fast_judge",
+        "cost_guard": {
+          "max_tokens_per_call": 700,
+          "expected_calls_per_run": 2
+        },
+        "produces": ["section_policy_override"]
+      },
+      "dag_nodes": ["plan", "plan_review"]
+    },
+    {
       "name": "ldd-enforcement",
       "path": "skills/ldd-enforcement/SKILL.md",
       "contract_version": "2.0.0",
@@ -447,6 +740,23 @@
       "dag_nodes": ["slop_gate", "pr_prep"]
     },
     {
+      "name": "slop-judge",
+      "path": "skills/slop-judge/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "judgement",
+        "consumes_manifest": true,
+        "model_class": "fast_judge",
+        "cost_guard": {
+          "max_tokens_per_call": 750,
+          "expected_calls_per_run": 3
+        },
+        "produces": ["content_slop_verdict"]
+      },
+      "dag_nodes": ["slop_gate", "pr_prep"]
+    },
+    {
       "name": "build-feature",
       "path": "skills/build-feature/SKILL.md",
       "contract_version": "2.0.0",
@@ -479,6 +789,40 @@
       "contract_version": "2.0.0",
       "side_effect_profile": "read_only",
       "dag_nodes": []
+    },
+    {
+      "name": "specificity-judge",
+      "path": "skills/specificity-judge/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "judgement",
+        "consumes_manifest": true,
+        "model_class": "fast_judge",
+        "cost_guard": {
+          "max_tokens_per_call": 900,
+          "expected_calls_per_run": 4
+        },
+        "produces": ["specificity_assessment"]
+      },
+      "dag_nodes": ["plan_review", "code_review"]
+    },
+    {
+      "name": "verifier-semantic-judge",
+      "path": "skills/verifier-semantic-judge/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "judgement",
+        "consumes_manifest": true,
+        "model_class": "fast_judge",
+        "cost_guard": {
+          "max_tokens_per_call": 650,
+          "expected_calls_per_run": 4
+        },
+        "produces": ["verifier_semantic_assessment"]
+      },
+      "dag_nodes": ["plan_review", "code_review"]
     }
   ]
 }

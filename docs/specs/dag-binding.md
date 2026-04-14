@@ -62,6 +62,7 @@ Before execution, runners should verify:
 - Smoke harness execution uses `tests/smoke/adapters/` as the source of truth for runtime-specific invocation logic.
 - Production orchestration uses `WORKFLOW.md` frontmatter `backends` as the source of truth for backend commands and auth environment names.
 - Runners must keep these two surfaces aligned: the adapter contract (`invoke_agent --agent --input --output --tools [--schema]`) is the canonical smoke shape, and `WORKFLOW.md` backends mirror that shape for production.
+- Judge skills resolve `model_class` slots such as `fast_judge` and `deep_judge` through `skills/manifest.json` for the active runtime before the adapter executes the call.
 
 ## Retry Semantics
 

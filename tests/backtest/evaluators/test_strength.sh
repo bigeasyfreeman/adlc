@@ -14,6 +14,7 @@ jq -ce '
   else
     (.post_qa.coverage // null) as $coverage
     | (.post_qa.mutation_kill_rate // null) as $kill_rate
+    | ([.post_qa.surviving_mutants[]? | select(.materiality == "material")] | length) as $material_survivors
     | if ($coverage == null or $kill_rate == null) then
         {
           "verdict": "stuck",
@@ -22,7 +23,7 @@ jq -ce '
         }
       elif (($coverage | type) != "number" or ($kill_rate | type) != "number") then
         error("post_qa coverage and mutation_kill_rate must be numeric")
-      elif ($coverage >= 0.8 and $kill_rate >= 0.6) then
+      elif ($coverage >= 0.8 and $kill_rate >= 0.6 and $material_survivors == 0) then
         {
           "verdict": "pass",
           "coverage": $coverage,

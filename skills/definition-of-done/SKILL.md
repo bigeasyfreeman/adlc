@@ -7,7 +7,10 @@ description: "Applicability-aware Definition of Done checklist. Core checks appl
 
 ## Overview
 
-Every task carries a DoD core baseline. Overlay checks are selected from the applicability manifest and only evaluated when the task actually touches that surface. A task is not complete until every active check is verified. Each check is binary (pass/fail) with a specified verification method. No judgment required — it passes or it doesn't.
+Every task carries a DoD core baseline. Overlay checks are selected from the applicability manifest and only evaluated when the task actually touches that surface. A task is not complete until every active check is verified. Each check is binary (pass/fail) with a specified verification method and a tag:
+
+- `automatable`: must be verified by tool output
+- `judgement`: may call an LLM or human reviewer
 
 ## When to Use
 
@@ -47,55 +50,55 @@ Extraction rules:
 
 ### Code Quality
 
-| # | Check | Scope | Verification | Blocks On |
-|---|-------|-------|-------------|-----------|
-| 1 | All linters pass | core | Automated: LDD gate | Any violation |
-| 2 | All tests pass | core | Automated: TDD suite | Any failure |
-| 3 | Code complexity within budget | core | Automated: CC < 15, SLOC < 50/fn | Exceeding ceiling |
-| 4 | No code slop or stub patterns | core | Automated: anti-slop scanner | `TODO`, `FIXME`, `PLACEHOLDER`, `todo!()`, `unimplemented!()`, `panic!(\"not implemented\")`, `NotImplementedError`, `pass`, empty placeholder bodies, commented-out code, fake/mock placeholder logic in shipped code |
+| # | Check | Tag | Scope | Verification | Blocks On |
+|---|-------|-----|-------|-------------|-----------|
+| 1 | All linters pass | `automatable` | core | Automated: LDD gate | Any violation |
+| 2 | All tests pass | `automatable` | core | Automated: TDD suite | Any failure |
+| 3 | Code complexity within budget | `automatable` | core | Automated: CC < 15, SLOC < 50/fn | Exceeding ceiling |
+| 4 | No code slop or stub patterns | `automatable` | core | Automated: anti-slop scanner | `TODO`, `FIXME`, `PLACEHOLDER`, `todo!()`, `unimplemented!()`, `panic!(\"not implemented\")`, `NotImplementedError`, `pass`, empty placeholder bodies, commented-out code, fake/mock placeholder logic in shipped code |
 
 ### Reuse & Patterns
 
-| # | Check | Scope | Verification | Blocks On |
-|---|-------|-------|-------------|-----------|
-| 15 | Reuse analysis confirmed | core | Automated + council | Reimplementation detected |
-| 16 | Existing conventions followed | core | Council review | Convention violation |
-| 17 | Antipattern checklist cleared | core | Automated + council | Known antipattern used |
+| # | Check | Tag | Scope | Verification | Blocks On |
+|---|-------|-----|-------|-------------|-----------|
+| 15 | Reuse analysis confirmed | `automatable` | core | Automated: reuse-analysis output | Reimplementation detected |
+| 16 | Existing conventions followed | `judgement` | core | Council review | Convention violation |
+| 17 | Antipattern checklist cleared | `automatable` | core | Automated: anti-slop plus antipattern scanner outputs | Known antipattern used |
 
 ## Security Overlay
 
-| # | Check | Scope | Verification | Blocks On |
-|---|-------|-------|-------------|-----------|
-| 5 | STRIDE threat model complete | overlay | Council: Security Auditor | Missing categories |
-| 6 | STRIDE mitigations implemented | overlay | Council + automated | Unimplemented mitigations |
-| 7 | OWASP Top 10 scan clean | overlay | Automated: SAST scan | High/Critical findings |
-| 8 | No hardcoded secrets | overlay | Automated: pattern scan | Any match |
-| 9 | Input validation at trust boundaries | overlay | Council review | Missing validation |
+| # | Check | Tag | Scope | Verification | Blocks On |
+|---|-------|-----|-------|-------------|-----------|
+| 5 | STRIDE threat model complete | `judgement` | overlay | Council: Security Auditor | Missing categories |
+| 6 | STRIDE mitigations implemented | `judgement` | overlay | Council review with cited implementation evidence | Unimplemented mitigations |
+| 7 | OWASP Top 10 scan clean | `automatable` | overlay | Automated: SAST scan | High/Critical findings |
+| 8 | No hardcoded secrets | `automatable` | overlay | Automated: pattern scan | Any match |
+| 9 | Input validation at trust boundaries | `judgement` | overlay | Council review | Missing validation |
 
 ## Observability Overlay
 
-| # | Check | Scope | Verification | Blocks On |
-|---|-------|-------|-------------|-----------|
-| 10 | Error logging at failure points | overlay | Automated: AST scan | Missing error logs |
-| 11 | Audit logging for state changes | overlay | Automated: AST scan | Missing audit logs |
-| 12 | Operational logging for health | overlay | Automated: AST scan | Missing general logs |
-| 13 | Log format matches convention | overlay | Automated: format check | Format mismatch |
-| 14 | Correlation IDs propagate | overlay | Automated: pattern check | Missing correlation |
+| # | Check | Tag | Scope | Verification | Blocks On |
+|---|-------|-----|-------|-------------|-----------|
+| 10 | Error logging at failure points | `automatable` | overlay | Automated: AST scan | Missing error logs |
+| 11 | Audit logging for state changes | `automatable` | overlay | Automated: AST scan | Missing audit logs |
+| 12 | Operational logging for health | `automatable` | overlay | Automated: AST scan | Missing general logs |
+| 13 | Log format matches convention | `automatable` | overlay | Automated: format check | Format mismatch |
+| 14 | Correlation IDs propagate | `automatable` | overlay | Automated: pattern check | Missing correlation |
 
 ## Integration Overlay
 
-| # | Check | Scope | Verification | Blocks On |
-|---|-------|-------|-------------|-----------|
-| 18 | Integration wiring complete | overlay | Automated: registration check | Missing wiring, dead routes, unwired providers, unused flags/config, placeholder entry points |
-| 19 | Scalability concerns documented | overlay | Council review | Undocumented |
-| 20 | Degradation strategy defined | overlay | Council (if applicable) | Missing strategy |
+| # | Check | Tag | Scope | Verification | Blocks On |
+|---|-------|-----|-------|-------------|-----------|
+| 18 | Integration wiring complete | `automatable` | overlay | Automated: registration check | Missing wiring, dead routes, unwired providers, unused flags/config, placeholder entry points |
+| 19 | Scalability concerns documented | `judgement` | overlay | Council review | Undocumented |
+| 20 | Degradation strategy defined | `judgement` | overlay | Council review | Missing strategy |
 
 ## Content Overlay (human-facing output only)
 
-| # | Check | Scope | Verification | Blocks On |
-|---|-------|-------|-------------|-----------|
-| 21 | Stop-slop gate passed | overlay | Automated: 5-dim scoring | Score < 35/50 |
-| 22 | Voice/brand compliance | overlay | Automated + council | Voice mismatch |
+| # | Check | Tag | Scope | Verification | Blocks On |
+|---|-------|-----|-------|-------------|-----------|
+| 21 | Stop-slop gate passed | `judgement` | overlay | Slop judge plus scoring output | Score < 35/50 |
+| 22 | Voice/brand compliance | `judgement` | overlay | Voice / brand review | Voice mismatch |
 
 ## Domain Adaptation
 

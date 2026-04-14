@@ -11,7 +11,7 @@ fixture_dir="$2"
 workspace_dir="$3"
 artifacts_dir="$4"
 model="$5"
-output_path="$artifacts_dir/council.json"
+output_path="$artifacts_dir/specificity.json"
 schema_path="$repo_root/docs/schemas/council-verdict-output.schema.json"
 input_path="$(mktemp)"
 pre_status="$(git -C "$workspace_dir" status --porcelain)"
@@ -59,10 +59,10 @@ validate_json "$output_path" "$schema_path"
 
 post_status="$(git -C "$workspace_dir" status --porcelain)"
 if [ "$post_status" != "$pre_status" ]; then
-  echo "council stage mutated the read-only workspace" >&2
+  echo "specificity stage mutated the read-only workspace" >&2
   printf 'before:\n%s\n' "$pre_status" >&2
   printf 'after:\n%s\n' "$post_status" >&2
   exit 1
 fi
 
-printf 'council artifact: %s\n' "$output_path"
+printf 'specificity artifact: %s\n' "$output_path"

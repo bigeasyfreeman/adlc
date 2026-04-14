@@ -1,7 +1,7 @@
 {
-  "run_at": "2026-04-14T00:50:07Z",
-  "total": 60,
-  "passed": 60,
+  "run_at": "2026-04-14T13:16:25Z",
+  "total": 126,
+  "passed": 126,
   "failed": 0,
   "cases": [
     {
@@ -12,8 +12,41 @@
         "verifier_scope": "pass",
         "dod_overlays": "pass",
         "council_personas": "pass",
-        "test_strength": "pass"
-      }
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "skip",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_unset_or_disjoint"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
     },
     {
       "id": "CASE-002",
@@ -23,8 +56,41 @@
         "verifier_scope": "pass",
         "dod_overlays": "pass",
         "council_personas": "pass",
-        "test_strength": "pass"
-      }
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "skip",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_unset_or_disjoint"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
     },
     {
       "id": "CASE-003",
@@ -34,8 +100,41 @@
         "verifier_scope": "pass",
         "dod_overlays": "pass",
         "council_personas": "pass",
-        "test_strength": "pass"
-      }
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "skip",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_unset_or_disjoint"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
     },
     {
       "id": "CASE-004",
@@ -45,8 +144,41 @@
         "verifier_scope": "pass",
         "dod_overlays": "pass",
         "council_personas": "pass",
-        "test_strength": "pass"
-      }
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "skip",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_unset_or_disjoint"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
     },
     {
       "id": "CASE-005",
@@ -56,8 +188,41 @@
         "verifier_scope": "pass",
         "dod_overlays": "pass",
         "council_personas": "pass",
-        "test_strength": "pass"
-      }
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "skip",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_unset_or_disjoint"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
     },
     {
       "id": "CASE-006",
@@ -67,8 +232,41 @@
         "verifier_scope": "pass",
         "dod_overlays": "pass",
         "council_personas": "pass",
-        "test_strength": "pass"
-      }
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "skip",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_unset_or_disjoint"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
     },
     {
       "id": "CASE-007",
@@ -78,8 +276,41 @@
         "verifier_scope": "pass",
         "dod_overlays": "pass",
         "council_personas": "pass",
-        "test_strength": "pass"
-      }
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "invoke",
+          "judge": "brief-clarity-judge",
+          "reason": "middle_confidence_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "skip",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_unset_or_disjoint"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
     },
     {
       "id": "CASE-008",
@@ -89,8 +320,41 @@
         "verifier_scope": "pass",
         "dod_overlays": "pass",
         "council_personas": "pass",
-        "test_strength": "pass"
-      }
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "skip",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_unset_or_disjoint"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
     },
     {
       "id": "CASE-009",
@@ -100,8 +364,41 @@
         "verifier_scope": "pass",
         "dod_overlays": "pass",
         "council_personas": "pass",
-        "test_strength": "pass"
-      }
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "invoke",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_intersect"
+        },
+        {
+          "decision": "invoke",
+          "judge": "mutant-materiality-judge",
+          "reason": "surviving_mutants_present"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
     },
     {
       "id": "CASE-010",
@@ -111,8 +408,393 @@
         "verifier_scope": "pass",
         "dod_overlays": "pass",
         "council_personas": "pass",
-        "test_strength": "pass"
-      }
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "invoke",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_intersect"
+        },
+        {
+          "decision": "invoke",
+          "judge": "mutant-materiality-judge",
+          "reason": "surviving_mutants_present"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
+    },
+    {
+      "id": "CASE-011",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "invoke",
+          "judge": "brief-clarity-judge",
+          "reason": "middle_confidence_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "skip",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_unset_or_disjoint"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
+    },
+    {
+      "id": "CASE-012",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "invoke",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_intersect"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
+    },
+    {
+      "id": "CASE-013",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "invoke",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_intersect"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "invoke",
+          "judge": "section-policy-judge",
+          "reason": "suppressed_section_review_requested"
+        }
+      ]
+    },
+    {
+      "id": "CASE-014",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "invoke",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_intersect"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "invoke",
+          "judge": "slop-judge",
+          "reason": "content_regex_cleared"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
+    },
+    {
+      "id": "CASE-015",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "invoke",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_intersect"
+        },
+        {
+          "decision": "invoke",
+          "judge": "mutant-materiality-judge",
+          "reason": "surviving_mutants_present"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
+    },
+    {
+      "id": "CASE-016",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "invoke",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_intersect"
+        },
+        {
+          "decision": "invoke",
+          "judge": "mutant-materiality-judge",
+          "reason": "surviving_mutants_present"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
+    },
+    {
+      "id": "CASE-017",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "invoke",
+          "judge": "specificity-judge",
+          "reason": "gate_0_specificity"
+        },
+        {
+          "decision": "invoke",
+          "judge": "verifier-semantic-judge",
+          "reason": "target_files_intersect"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
+    },
+    {
+      "id": "CASE-018",
+      "stages": {
+        "triage": "pass",
+        "section_policy": "pass",
+        "verifier_scope": "pass",
+        "dod_overlays": "pass",
+        "council_personas": "pass",
+        "test_strength": "pass",
+        "judge_invocation": "pass"
+      },
+      "judge_decisions": [
+        {
+          "decision": "skip",
+          "judge": "brief-clarity-judge",
+          "reason": "outside_middle_band"
+        },
+        {
+          "decision": "unavailable",
+          "judge": "specificity-judge",
+          "reason": "specificity_judge_unavailable"
+        },
+        {
+          "decision": "unavailable",
+          "judge": "verifier-semantic-judge",
+          "reason": "fast_judge_unavailable"
+        },
+        {
+          "decision": "skip",
+          "judge": "mutant-materiality-judge",
+          "reason": "no_surviving_mutants"
+        },
+        {
+          "decision": "skip",
+          "judge": "slop-judge",
+          "reason": "content_mode_not_active"
+        },
+        {
+          "decision": "skip",
+          "judge": "section-policy-judge",
+          "reason": "no_override_candidate"
+        }
+      ]
     }
   ]
 }

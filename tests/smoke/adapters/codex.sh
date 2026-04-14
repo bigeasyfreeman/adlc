@@ -160,13 +160,18 @@ _adlc_adapter_invoke_agent() {
   local original_xdg_state_home="${XDG_STATE_HOME-}"
   local original_xdg_cache_home="${XDG_CACHE_HOME-}"
   local original_openai_api_key="${OPENAI_API_KEY-}"
+  local original_pythonpath="${PYTHONPATH-}"
+  local original_pythonuserbase="${PYTHONUSERBASE-}"
+  local original_pythonno_usersite="${PYTHONNOUSERSITE-}"
   local auth_path=""
   local auth_note=""
   local schema_enforcement_note=""
   local developer_instructions=""
   local enabled_tools="[]"
+  local reasoning_effort="${ADLC_REASONING_EFFORT:-medium}"
   local sandbox_mode="read-only"
   local status=0
+  local preserved_python_user_site=""
   local -a cmd
 
   _adlc_codex_parse_args "$@" || return $?
@@ -208,6 +213,15 @@ _adlc_adapter_invoke_agent() {
   developer_instructions="$(jq -Rs . < "$_ADLC_AGENT_PATH")"
   enabled_tools="$(printf '%s' "$_ADLC_TOOLS_CSV" | jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
 
+  if command -v python3 >/dev/null 2>&1; then
+    preserved_python_user_site="$(
+      PYTHONNOUSERSITE= python3 - <<'PY'
+import site
+print(site.getusersitepackages())
+PY
+    )"
+  fi
+
   case ",$_ADLC_TOOLS_CSV," in
     *,Write,*|*,Edit,*|*,Bash,*)
       sandbox_mode="workspace-write"
@@ -236,6 +250,14 @@ _adlc_adapter_invoke_agent() {
   export XDG_CACHE_HOME="$temp_home/.cache"
   mkdir -p "$HOME/.codex" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME"
 
+  if [ -n "$preserved_python_user_site" ] && [ -d "$preserved_python_user_site" ]; then
+    export PYTHONPATH="${original_pythonpath:+$original_pythonpath:}$preserved_python_user_site"
+    if [ -n "$original_home" ] && [ -d "$original_home/Library/Python" ]; then
+      export PYTHONUSERBASE="$original_home/Library/Python"
+    fi
+    unset PYTHONNOUSERSITE
+  fi
+
   if [ "$auth_path" = "env" ]; then
     export OPENAI_API_KEY="${OPENAI_API_KEY}"
   else
@@ -259,7 +281,7 @@ _adlc_adapter_invoke_agent() {
     --sandbox "$sandbox_mode"
     --ephemeral
     -c 'approval_policy="never"'
-    -c 'model_reasoning_effort="high"'
+    -c "model_reasoning_effort=\"$reasoning_effort\""
     -c "developer_instructions=$developer_instructions"
     -c 'default_tools_enabled=false'
     -c "enabled_tools=$enabled_tools"
@@ -311,6 +333,24 @@ _adlc_adapter_invoke_agent() {
     export OPENAI_API_KEY="$original_openai_api_key"
   else
     unset OPENAI_API_KEY
+  fi
+
+  if [ -n "$original_pythonpath" ]; then
+    export PYTHONPATH="$original_pythonpath"
+  else
+    unset PYTHONPATH
+  fi
+
+  if [ -n "$original_pythonuserbase" ]; then
+    export PYTHONUSERBASE="$original_pythonuserbase"
+  else
+    unset PYTHONUSERBASE
+  fi
+
+  if [ -n "$original_pythonno_usersite" ]; then
+    export PYTHONNOUSERSITE="$original_pythonno_usersite"
+  else
+    unset PYTHONNOUSERSITE
   fi
 
   rm -rf "$temp_home"

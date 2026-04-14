@@ -237,6 +237,10 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "overridden_by": {
+            "type": "string",
+            "enum": ["section_policy_judge"]
           }
         }
       }

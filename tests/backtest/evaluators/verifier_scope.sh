@@ -9,7 +9,7 @@ fi
 case_file="$1"
 
 jq -ce '
-  (.expected_manifest.verification_spec.target_files // []) as $targets
+  (.expected_manifest.verification_spec.primary_verifier.target_files // .expected_manifest.verification_spec.target_files // []) as $targets
   | ((.task.files_to_modify // []) + (.task.files_to_create // [])) as $task_files
   | if ($targets | type) != "array" then
       error("target_files must be an array when present")

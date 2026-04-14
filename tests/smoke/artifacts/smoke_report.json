@@ -1,20 +1,44 @@
 {
-  "run_at": "2026-04-14T01:08:58Z",
+  "run_at": "2026-04-14T13:16:18Z",
   "model": "gpt-5-codex",
   "stages": [
     {
       "name": "triage",
       "ok": true,
       "artifact": "tests/smoke/artifacts/triage.json",
-      "duration_ms": 8332
+      "duration_ms": 6865
     },
     {
       "name": "spec_to_tests",
-      "ok": false,
+      "ok": true,
       "artifact": "tests/smoke/artifacts/spec_to_tests.json",
-      "duration_ms": 83778
+      "duration_ms": 145590
+    },
+    {
+      "name": "coder",
+      "ok": true,
+      "artifact": "tests/smoke/artifacts/coder.json",
+      "duration_ms": 56617
+    },
+    {
+      "name": "test_strength",
+      "ok": true,
+      "artifact": "tests/smoke/artifacts/test_strength.json",
+      "duration_ms": 110131
+    },
+    {
+      "name": "council",
+      "ok": true,
+      "artifact": "tests/smoke/artifacts/council.json",
+      "duration_ms": 26742
+    },
+    {
+      "name": "specificity",
+      "ok": true,
+      "artifact": "tests/smoke/artifacts/specificity.json",
+      "duration_ms": 21965
     }
   ],
-  "overall": "fail",
+  "overall": "pass",
   "cost_estimate_tokens": 50000
 }

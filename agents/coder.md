@@ -31,16 +31,21 @@ The assembled context includes `.adlc/test_plan.json` from the `test-author` age
 - If `.adlc/test_plan.json` is missing, emit `stuck` with `stuck_reason: "test_plan_missing"`.
 - Run the listed `generated_tests` as the primary verifier embodiment before editing.
 - Confirm `.adlc/pre_change_run.txt` shows the documented pre-change failure for the expected reason before editing.
+- When `verification_spec.primary_verifier.expected_failure_mode` is set, compare the observed stdout/stderr to that value deterministically first:
+  - exact substring match -> pass
+  - regex match when the expected value is explicitly formatted as regex -> pass
+  - otherwise compute Levenshtein distance; if the distance is within 20% of the expected string length, treat the result as ambiguous and use runtime-agnostic LLM judgement only then
 - Never modify or delete generated tests to make them pass. Their failure must drive the production code change.
 
 ## Loop
 
 1. Confirm the verifier from the assembled context
 2. Run the primary verifier
-3. If it fails for the right reason, make the smallest fix
-4. Re-run until the primary verifier passes
-5. Run any secondary verifiers
-6. Stop when the verifier contract is satisfied
+3. Confirm it failed for the right reason using deterministic matching before any LLM judgement
+4. If it fails for the right reason, make the smallest fix
+5. Re-run until the primary verifier passes
+6. Run any secondary verifiers
+7. Stop when the verifier contract is satisfied
 
 ## Zero-Read Principle
 

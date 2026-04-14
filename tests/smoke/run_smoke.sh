@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SMOKE_ROOT="$ROOT/tests/smoke"
 FIXTURE_DIR="$SMOKE_ROOT/fixtures/feature_bugfix"
+SPECIFICITY_FIXTURE_DIR="$SMOKE_ROOT/fixtures/feature_vague"
 ARTIFACTS_DIR="$SMOKE_ROOT/artifacts"
 WORKSPACE_DIR="$ARTIFACTS_DIR/workspace"
 STATE_DIR="$ARTIFACTS_DIR/stage_state"
@@ -107,6 +108,12 @@ snapshot_workspace() {
 }
 
 run_stage() {
+  run_stage_with_fixture "$FIXTURE_DIR" "$@"
+}
+
+run_stage_with_fixture() {
+  local fixture_dir="$1"
+  shift
   local name="$1"
   local stage_script="$2"
   local assertion_script="$3"
@@ -120,8 +127,8 @@ run_stage() {
   start_ms="$(now_ms)"
   : > "$log_path"
 
-  if "$stage_script" "$ROOT" "$FIXTURE_DIR" "$WORKSPACE_DIR" "$ARTIFACTS_DIR" "$MODEL_NAME" >> "$log_path" 2>&1 \
-    && "$assertion_script" "$FIXTURE_DIR" "$WORKSPACE_DIR" "$ARTIFACTS_DIR" >> "$log_path" 2>&1; then
+  if "$stage_script" "$ROOT" "$fixture_dir" "$WORKSPACE_DIR" "$ARTIFACTS_DIR" "$MODEL_NAME" >> "$log_path" 2>&1 \
+    && "$assertion_script" "$fixture_dir" "$WORKSPACE_DIR" "$ARTIFACTS_DIR" >> "$log_path" 2>&1; then
     if [ -n "$snapshot_dir" ]; then
       snapshot_workspace "$snapshot_dir"
     fi
@@ -191,6 +198,13 @@ run_stage "council" \
   "$SMOKE_ROOT/assertions/assert_council_verdict.sh" \
   "tests/smoke/artifacts/council.json" \
   "$STATE_DIR/test_strength"
+
+run_stage_with_fixture "$SPECIFICITY_FIXTURE_DIR" \
+  "specificity" \
+  "$SMOKE_ROOT/stages/run_specificity.sh" \
+  "$SMOKE_ROOT/assertions/assert_specificity.sh" \
+  "tests/smoke/artifacts/specificity.json" \
+  "$SPECIFICITY_FIXTURE_DIR"
 
 finalize_report "pass"
 printf 'smoke report: %s\n' "$REPORT_PATH"

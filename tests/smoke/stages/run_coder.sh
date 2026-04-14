@@ -92,7 +92,10 @@ cp "$combined_plan_path" "$workspace_dir/.adlc/test_plan.json"
 cp "$combined_pre_run_path" "$workspace_dir/.adlc/pre_change_run.txt"
 
 post_exit=0
-python3 -m unittest discover -s tests -p 'test_*.py' > "$workspace_dir/.adlc/post_change_run.txt" 2>&1 || post_exit=$?
+(
+  cd "$workspace_dir"
+  python3 -m unittest discover -s tests -p 'test_*.py'
+) > "$workspace_dir/.adlc/post_change_run.txt" 2>&1 || post_exit=$?
 
 jq -cn \
   --arg command "python3 -m unittest discover -s tests -p 'test_*.py'" \

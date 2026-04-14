@@ -65,6 +65,7 @@ labels:
 Each agent is a thin config: model + prompt template + injected skills.
 Agent prompts live in `agents/{name}.md`. Skills are synced into the workspace before execution.
 Set `ADLC_RUNTIME` to select a backend at orchestration time. The `Backend` column in the table below records the Claude default used when `ADLC_RUNTIME` is unset.
+Judge skills resolve their `fast_judge` and `deep_judge` slots through `skills/manifest.json` and the adapter-backed backend binding, not by hardcoded runtime names inside the skill docs.
 
 ### Node → Agent Mapping
 

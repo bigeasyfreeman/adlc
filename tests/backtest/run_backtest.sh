@@ -14,6 +14,7 @@ stages=(
   dod_overlays
   council_personas
   test_strength
+  judge_invocation
 )
 
 stage_script() {
@@ -37,6 +38,9 @@ stage_script() {
       ;;
     test_strength)
       printf '%s\n' "$EVALUATORS_DIR/test_strength.sh"
+      ;;
+    judge_invocation)
+      printf '%s\n' "$EVALUATORS_DIR/judge_invocation.sh"
       ;;
     *)
       echo "unknown stage: $stage_name" >&2
@@ -67,10 +71,20 @@ while IFS= read -r case_id; do
   dod_overlays_status=""
   council_personas_status=""
   test_strength_status=""
+  judge_invocation_status=""
+  judge_decisions='[]'
 
   for stage in "${stages[@]}"; do
-    expected="$(jq -cS --arg stage "$stage" '.expected_stage_outputs[$stage]' "$case_file")"
+    expected_key="$stage"
+    if [ "$stage" = "judge_invocation" ]; then
+      expected_key="judge_calls"
+    fi
+    expected="$(jq -cS --arg stage "$expected_key" '.expected_stage_outputs[$stage]' "$case_file")"
     actual="$( "$(stage_script "$stage")" "$case_file" | jq -cS '.' )"
+
+    if [ "$stage" = "judge_invocation" ]; then
+      judge_decisions="$actual"
+    fi
 
     total=$((total + 1))
     if [ "$expected" = "$actual" ]; then
@@ -102,6 +116,9 @@ while IFS= read -r case_id; do
       test_strength)
         test_strength_status="$stage_result"
         ;;
+      judge_invocation)
+        judge_invocation_status="$stage_result"
+        ;;
     esac
   done
 
@@ -113,6 +130,8 @@ while IFS= read -r case_id; do
     --arg dod_overlays "$dod_overlays_status" \
     --arg council_personas "$council_personas_status" \
     --arg test_strength "$test_strength_status" \
+    --arg judge_invocation "$judge_invocation_status" \
+    --argjson judge_decisions "$judge_decisions" \
     '{
       id: $id,
       stages: {
@@ -121,8 +140,10 @@ while IFS= read -r case_id; do
         verifier_scope: $verifier_scope,
         dod_overlays: $dod_overlays,
         council_personas: $council_personas,
-        test_strength: $test_strength
-      }
+        test_strength: $test_strength,
+        judge_invocation: $judge_invocation
+      },
+      judge_decisions: $judge_decisions
     }' >> "$report_cases_file"
 done < <(jq -r '.cases[].id' "$FIXTURE")
 

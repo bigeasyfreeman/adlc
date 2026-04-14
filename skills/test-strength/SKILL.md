@@ -1,13 +1,13 @@
 ---
 name: test-strength
-description: Audits generated test strength on changed files using coverage diff and mutation kill rate after QA passes.
+description: Audits generated test strength on changed files using deterministic coverage and mutation measurement, then judges only surviving-mutant materiality.
 contract_version: 1.0.0
 side_effect_profile: mutating
 ---
 
 # Why This Exists
 
-Passing tests are necessary but not sufficient. SWE-ABS-style test strength asks whether the generated verifier suite actually exercises the changed code and detects wrong behavior instead of merely replaying the happy path. This skill turns that question into a concrete audit before delivery.
+Passing tests are necessary but not sufficient. SWE-ABS-style test strength asks whether the generated verifier suite actually exercises the changed code and detects wrong behavior instead of merely replaying the happy path. This skill keeps coverage and mutation measurement deterministic, and uses LLM judgement only when surviving mutants still need interpretation.
 
 ## Trigger
 
@@ -22,6 +22,8 @@ Use these inputs:
 - language-appropriate mutation config
 
 Mutation tooling is optional at the repo level, but not optional for a passing audit. If the repo language is unsupported or the standard mutator is unavailable, emit `stuck` instead of silently passing.
+
+Judgement is not optional once mutants survive. Use `mutant-materiality-judge` via the active runtime's `deep_judge` slot to classify surviving mutants in batches.
 
 ## Supported Language Detection
 
@@ -41,7 +43,8 @@ If the changed files span multiple supported languages, audit the language that 
 4. Calculate coverage diff on changed executable lines only.
 5. Detect the repo language and the standard mutation tool for that language.
 6. Run mutation analysis on the changed files only.
-7. Write `.adlc/test_strength_report.json` with thresholds, per-file coverage, mutant counts, language detection rationale, and the verdict.
+7. If mutants survive, batch the surviving-mutant diffs and classify each survivor with `mutant-materiality-judge` as `trivial` or `material`.
+8. Write `.adlc/test_strength_report.json` with thresholds, per-file coverage, mutant counts, surviving-mutant classifications, language detection rationale, and the verdict.
 
 ## Gates
 
@@ -59,6 +62,8 @@ If the changed files span multiple supported languages, audit the language that 
   - JavaScript / TypeScript -> `stryker`
   - Rust -> `cargo-mutants`
 - If the mutator is unsupported or unavailable, emit `stuck`.
+- If any mutants survive, classify those survivors with `mutant-materiality-judge`.
+- Any `material` surviving mutant forces the overall verdict to `weak`, even when the aggregate kill rate is still above `0.6`.
 
 ## Output
 
@@ -164,6 +169,7 @@ Write `.adlc/test_strength_report.json`.
 
 - Coverage diff below `0.8` -> emit `weak`.
 - Mutation kill rate below `0.6` -> emit `weak`.
+- Any material surviving mutant -> emit `weak`.
 - Unsupported repo language -> emit `stuck`.
 - Standard mutator unavailable -> emit `stuck`.
 - Missing or invalid `.adlc/test_plan.json` -> emit `stuck`.
