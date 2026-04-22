@@ -12,6 +12,8 @@ Activated immediately on Build Brief completion. Consumes the full Build Brief m
 
 This skill is a document emitter and must conform to [docs/specs/emitter-contract.md](/Users/eric/adlc/docs/specs/emitter-contract.md). Honor the Build Brief's `applicability_manifest`; suppressed sections stay omitted or explicitly marked not applicable. Every mutation requires `contract_version`, idempotency handling, and permission logging.
 
+Preserve explicit reuse instructions, reference implementations, and tech-debt sequencing notes from the brief; these are execution constraints, not optional commentary.
+
 ## Local MCP Model
 
 ADLC does not ship a Notion client. This skill targets a locally installed MCP provider that can search, create, update, and relate Notion pages or database entries. Repo configuration resolves the provider name and binds the logical capabilities from the shared emitter contract to the provider's actual tool names.
@@ -90,11 +92,14 @@ Decompose the Build Brief into this page structure:
 ```text
 [Feature Name] -- Design Doc (parent page)
 ├── Architecture & Patterns
+│   └── Includes reuse guidance and reference implementation pointers when present
 ├── Risk & Security Assessment
 ├── Operations & Observability (only when active)
 ├── Implementation Plan
+│   └── Includes debt-prerequisite sequencing or deferred-cleanup notes when present
 ├── Decision Log
 ├── Open Questions & Blockers
+│   └── Includes deferred tech debt with owners when present
 └── Runbook (created shell when operational surfaces exist)
 ```
 
@@ -213,6 +218,8 @@ ADLC expects a locally installed MCP provider. Provider tool names may differ; r
 - [ ] All active Build Brief sections have a corresponding Notion page or block area.
 - [ ] Suppressed sections are omitted or explicitly marked not applicable.
 - [ ] Task database entries preserve verifier contracts when a task database is configured.
+- [ ] Reference implementations and explicit reuse instructions survive decomposition without being weakened
+- [ ] Blocking or deferred tech-debt notes survive decomposition with sequencing or owner context intact
 - [ ] Work-item backlinks are valid when provided.
 - [ ] Configured local MCP provider exposes the required logical capability bindings.
 - [ ] Retries deduplicate by stored ADLC metadata.

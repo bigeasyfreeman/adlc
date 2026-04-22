@@ -120,7 +120,7 @@ Public-repo hygiene is intentional:
 |-------|-----|-------|--------|
 | **triage** | Classify, route, or escalate | Sonnet | none |
 | **researcher** | Codebase analysis, PRD cross-reference | Opus | codebase-research, grafana |
-| **planner** | PRD + research into an applicability-aware Build Brief | Opus | codegen-context, architecture, security-review |
+| **planner** | PRD + research into an applicability-aware Build Brief | Opus | codegen-context, architecture, security-review, reuse-analysis |
 | **plan-reviewer** | 6-persona Eval Council with Gate 0 pre-checks | Opus | eval-council |
 | **test-author** | Authors failing verifier tests from Brief | Sonnet | spec-to-tests, tdd-enforcement, qa-test-data |
 | **coder** | LDD then verifier-led execution per task class | Sonnet | tdd-enforcement, ldd-enforcement, debugging |
@@ -128,7 +128,7 @@ Public-repo hygiene is intentional:
 | **fixer** | 4-phase root cause, then fix | Sonnet | systematic-debugging, fix-loop |
 | **security-reviewer** | STRIDE + 5 OWASP domains + OWASP Top 10 | Opus | security-review + 5 domain skills |
 | **pr-preparer** | Final PR package with DoD checklist | Sonnet | definition-of-done, stop-slop |
-| **PRD Agent** | Structured discovery, 3-5 turns, extract-first | Opus | prd-generation |
+| **PRD Agent** | Structured discovery, 3-5 turns, extract-first, repo-aware reuse/debt framing | Opus | prd-generation |
 | **Build Brief Agent** | Applicability-aware brief with core baseline and active overlays | Opus | codegen-context, architecture, security-review, reuse-analysis |
 
 Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.

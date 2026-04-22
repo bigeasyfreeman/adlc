@@ -62,7 +62,7 @@ ADLC does not ship a JIRA client. This skill targets a locally installed MCP pro
 }
 ```
 
-Every emitted ticket must preserve the task's `task_classification`, `verification_spec`, and any active overlay expectations from the brief's `applicability_manifest`. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
+Every emitted ticket must preserve the task's `task_classification`, `verification_spec`, `reference_impl`, explicit reuse instructions, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
 
 ## Mixed Acceptance Criteria Shapes
 
@@ -148,11 +148,20 @@ h2. Architecture Pattern
 Follow: [pattern name] per [file path reference]
 Reference implementation: [file path — the agent should study this file before coding]
 
+h2. Reuse / Existing Patterns
+* Reuse: [existing service/helper/pattern to extend]
+* Do Not Reimplement: [existing helper/service/pattern that must not be duplicated]
+
 h2. Constraints
 * Must: [must do items]
 * Must Not: [must not do items]
 * Escalate If: [escalation triggers]
 * Task Classification: [feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security]
+
+h2. Tech Debt / Cleanup Boundaries
+* Prerequisite debt: [blocking debt to pay down first, or "none"]
+* Deferred debt: [allowed deferral with owner, or "none"]
+* Why deferral is safe: [brief justification when deferred debt exists]
 
 h2. Dependencies
 * Depends on: [task IDs or "none — parallelizable"]
@@ -234,6 +243,8 @@ For each failure mode in the roll-up (Section 11):
 - [ ] Any acceptance-criteria `id` present upstream is preserved in the emitted ticket
 - [ ] Any `measurable_post_condition` present upstream is preserved in the emitted ticket or linked metadata
 - [ ] Verification contract fields survive decomposition without being weakened
+- [ ] Reference implementations and explicit reuse instructions survive decomposition without being weakened
+- [ ] Blocking or deferred tech-debt notes survive decomposition with sequencing context intact
 
 ## Required Local MCP Capabilities
 
@@ -326,6 +337,7 @@ ADLC expects a locally installed MCP provider. Provider tool names may differ; r
 - [ ] Dependency links exist between blocking tasks
 - [ ] No ticket exceeds 2h estimate (decomposed into sub-tasks)
 - [ ] Failure mode cross-references are linked
+- [ ] Tickets preserve reference implementations, reuse rules, and debt-boundary notes from the brief
 - [ ] Configured local MCP provider exposes the required logical capability bindings.
 - [ ] Epic links to the configured documentation parent page
 

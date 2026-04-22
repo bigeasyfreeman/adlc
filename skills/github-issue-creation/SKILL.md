@@ -62,7 +62,7 @@ ADLC does not ship a GitHub client. This skill targets a locally installed MCP p
 }
 ```
 
-Every emitted issue must preserve the task's `task_classification`, `verification_spec`, `dependency_ids`, and any active overlay expectations from the brief's `applicability_manifest`. Unsupported claims and non-sequitur guardrail lines do not become issue scope.
+Every emitted issue must preserve the task's `task_classification`, `verification_spec`, `dependency_ids`, `reference_impl`, explicit reuse instructions, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted issue. Unsupported claims and non-sequitur guardrail lines do not become issue scope.
 
 ## Output Contract
 
@@ -133,11 +133,20 @@ Emitter rules:
 - Follow: [pattern name]
 - Reference implementation: [file path]
 
+## Reuse / Existing Patterns
+- Reuse: [existing service/helper/pattern to extend]
+- Do Not Reimplement: [existing helper/service/pattern that must not be duplicated]
+
 ## Constraints
 - Must:
 - Must not:
 - Escalate if:
 - Task Classification: [feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security]
+
+## Tech Debt / Cleanup Boundaries
+- Prerequisite debt: [blocking debt to pay down first, or "none"]
+- Deferred debt: [allowed deferral with owner, or "none"]
+- Why deferral is safe: [brief justification when deferred debt exists]
 
 ## Dependencies
 - Depends on:
@@ -278,7 +287,7 @@ ADLC expects a locally installed MCP provider. Provider tool names may differ; r
 ## Quality Gates
 
 - [ ] Every task in the Build Brief has a corresponding GitHub issue.
-- [ ] Issue bodies preserve `task_classification`, `verification_spec`, dependencies, and file targets.
+- [ ] Issue bodies preserve `task_classification`, `verification_spec`, dependencies, file targets, reference implementations, and reuse/debt context.
 - [ ] Tracking issue contains a phase-ordered task view.
 - [ ] Configured local MCP provider exposes the required logical capability bindings.
 - [ ] Retries deduplicate by idempotency metadata.

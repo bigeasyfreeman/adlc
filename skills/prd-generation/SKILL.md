@@ -1,6 +1,6 @@
 # Skill: PRD Quality Evaluator
 
-> Validates a PRD against the standard template before it's handed to engineering. Catches missing fields, vague specs, orphan screens, undefined interactions, and TBDs without owners. Runs automatically before PRD finalization — the last gate before the ADLC pipeline consumes it.
+> Validates a PRD against the standard template before it's handed to engineering. Catches missing fields, vague specs, orphan screens, undefined interactions, missing reuse/debt framing, and TBDs without owners. Runs automatically before PRD finalization — the last gate before the ADLC pipeline consumes it.
 
 ---
 
@@ -135,6 +135,21 @@ Runs automatically when the PRD Agent completes Phase 7 (Review & Finalize). Als
 **Common failures:**
 - Missing dependency → "Screen 4 requires sending emails, but no email infrastructure is listed as a dependency."
 - Vague dependency → "'Backend support needed' is not specific. What API? What data? What service?"
+- Missing reuse boundary → "The PRD never says whether engineering should extend an existing service/component or build a new one. That omission creates avoidable design churn."
+- Missing debt risk → "The PRD does not capture the known system limitation or tech debt item that makes this slice risky, so engineering will discover it too late."
+
+### 6. Repo-Aware Reuse & Debt Framing (hard gate when context exists)
+
+When repo or stack context was available during PRD authoring, the evaluator must flag:
+
+- Missing callouts for existing services, components, or workflows that the feature should extend
+- Missing "do not reimplement" or architecture-boundary guidance when an obvious existing pattern exists
+- Missing tech-debt, legacy-system, or sequencing notes that would materially affect the first slice
+
+**Common failures:**
+- "Must use existing auth service" is absent even though the feature clearly crosses auth boundaries
+- The PRD assumes a clean new implementation while the current system has a known limitation (pagination, redirect-state loss, schema debt, brittle sync path)
+- The PRD leaves reuse/debt choices implicit, forcing the Build Brief to rediscover basic product constraints
 
 ---
 
@@ -144,8 +159,8 @@ Beyond quality, this evaluator assesses whether the PRD is ready for the ADLC pi
 
 | ADLC Consumer | What It Needs from PRD | How Evaluator Checks |
 |--------------|----------------------|---------------------|
-| Build Brief Agent | Capabilities, out of scope, personas, screen specs | Sections 1-5 present and filled |
-| Codebase Research | Dependencies, integration points | Section 5 has specific dependencies |
+| Build Brief Agent | Capabilities, out of scope, personas, screen specs, reuse/debt boundaries | Sections 1-5 present and constraints/risks specify reuse or debt where relevant |
+| Codebase Research | Dependencies, integration points, known blockers | Section 5 has specific dependencies and current-system risks |
 | QA Skill | Testable behaviors per screen | Field-detail tables have specific values (not "TBD") |
 | Codegen Assembly | Precise field specs | Every CTA, input, and display element has defined behavior |
 | Phase planning | Screen status badges | Every screen has a status badge |
@@ -205,6 +220,7 @@ adlc-prd ready --input ./prd.md
 - [ ] Findings include actionable recommendations, not just "this is missing"
 - [ ] Critical findings block handoff to engineering
 - [ ] The evaluator catches every pattern the ADLC Build Brief Agent would fail on
+- [ ] When repo context existed during PRD authoring, the evaluator flags missing reuse boundaries and missing blocking-tech-debt framing
 
 ## Framework Hardening Addendum
 
@@ -212,4 +228,3 @@ adlc-prd ready --input ./prd.md
 - **Schema validation:** Validate PRD payloads against `docs/schemas/prd-template.schema.json` before scoring readiness.
 - **Structured errors:** Return typed diagnostics for missing sections or malformed tables; do not silently skip required fields.
 - **Workflow metadata:** Emit `session_id`, `brief_id`, `phase`, and `stop_reason` for downstream orchestration.
-

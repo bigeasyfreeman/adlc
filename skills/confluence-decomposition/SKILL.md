@@ -44,7 +44,7 @@ ADLC does not ship a Confluence client. This skill targets a locally installed M
 }
 ```
 
-Honor the Build Brief's `applicability_manifest` when decomposing pages. Suppressed sections stay omitted or explicitly marked "not applicable"; the skill must not fabricate security, observability, or performance pages for tasks that do not activate them.
+Honor the Build Brief's `applicability_manifest` when decomposing pages. Suppressed sections stay omitted or explicitly marked "not applicable"; the skill must not fabricate security, observability, or performance pages for tasks that do not activate them. Preserve explicit reuse tables, reference implementations, and tech-debt sequencing notes from the brief; those are execution constraints, not optional narrative flavor.
 
 ## Mixed Acceptance Criteria Shapes
 
@@ -90,17 +90,17 @@ Decompose the Build Brief into this page structure:
 ```
 [Feature Name] -- Design Doc (parent page)
 ├── Architecture & Patterns
-│   └── Contains: active architecture/repo-finding sections + Mermaid diagram
+│   └── Contains: active architecture/repo-finding sections + Mermaid diagram + reuse/reference-implementation guidance
 ├── Risk & Security Assessment
 │   └── Contains: failure modes always, security analysis only when active
 ├── Operations & Observability
 │   └── Contains: observability/SLO/incident ownership only when active
 ├── Implementation Plan
-│   └── Contains: phased plan, task breakdown, verifier contracts
+│   └── Contains: phased plan, task breakdown, verifier contracts, and debt-prerequisite sequencing
 ├── Decision Log
 │   └── Contains: All Type 1/Type 2 decisions extracted from active sections
 ├── Open Questions & Blockers
-│   └── Contains: unresolved items and suppressed-section rationale where needed
+│   └── Contains: unresolved items, deferred tech debt with owners, and suppressed-section rationale where needed
 └── Runbook (created shell, populated by Incident Runbook Skill)
     └── Contains: incident ownership + failure mode roll-up when operational surfaces exist
 ```
@@ -233,6 +233,8 @@ ADLC expects a locally installed MCP provider. Provider tool names may differ; r
 - [ ] Mixed acceptance-criteria handlers read `.then` from objects and raw text from strings
 - [ ] Any acceptance-criteria `id` present upstream is preserved in the emitted Confluence content
 - [ ] Any `measurable_post_condition` present upstream is preserved in the emitted Confluence content
+- [ ] Reference implementations and explicit reuse instructions survive decomposition without being reduced to generic prose
+- [ ] Blocking or deferred tech-debt notes survive decomposition with sequencing or owner context intact
 - [ ] Mermaid diagrams render correctly in Confluence
 - [ ] All Type 1 decisions are marked with warning macros
 - [ ] JIRA links are valid (if tickets exist)

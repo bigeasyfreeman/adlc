@@ -111,16 +111,20 @@ Every work-item emitter must carry these fields forward from the Build Brief tas
 - acceptance criteria or Given/When/Then contract
 - `dependency_ids`
 - `reference_impl`
+- reuse or extend instructions, including any explicit "do not reimplement" guidance
 - `files_to_create` and `files_to_modify`
 - failure-mode cross references
+- prerequisite debt-paydown tasks or deferred-cleanup notes when present
 - explicit out-of-scope or escalation notes when present
 
 Every document emitter must preserve:
 
 - active Build Brief sections only
+- architecture and reuse guidance, including reference implementations when the brief names them
 - failure mode roll-up
 - decision log and open questions
 - task breakdown and verifier contract
+- tech-debt paydown, sequencing, or deferral notes when the brief includes them
 - suppressed-section rationale where omission could look accidental
 
 ## Logical Capability Sets
@@ -171,6 +175,7 @@ Platform-specific config may extend the shared contract, but it must not redefin
 2. Validate the Build Brief against `docs/schemas/build-brief.schema.json` before mutation.
 3. Validate `contract_version` using `docs/specs/skill-contract-versioning.md`.
 4. Preserve the applicability manifest. Suppressed sections stay omitted or marked not applicable.
+4.5. Preserve reuse and debt context. Do not collapse reference implementations, "do not reimplement" rules, or prerequisite paydown tasks into generic prose.
 5. Compute per-artifact idempotency keys before any external mutation.
 6. Emit permission logging entries before and after every mutating external action.
 7. Return created artifact metadata and dedupe status in a structured response.
@@ -197,4 +202,4 @@ Emitters must stop with one of:
 
 - Work-item emitters are verified by artifact template completeness and field preservation.
 - Document emitters are verified by section coverage, hierarchy correctness, and applicability-manifest fidelity.
-- No emitter may pass by publishing placeholder titles, empty sections, or tickets lacking verifier contracts.
+- No emitter may pass by publishing placeholder titles, empty sections, tickets lacking verifier contracts, or artifacts that drop reuse/debt constraints from the brief.
