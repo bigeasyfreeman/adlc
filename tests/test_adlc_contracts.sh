@@ -166,6 +166,14 @@ assert "smoke specificity fixture and assertion exist" "[ -f '$ROOT/tests/smoke/
 assert "run_smoke includes the specificity stage" "rg -q 'run_stage_with_fixture .*specificity|artifacts/specificity\\.json' '$ROOT/tests/smoke/run_smoke.sh'"
 
 echo ""
+echo "--- Production Readiness Probe ---"
+assert "codebase research gates production readiness probe by change surface" "rg -q 'Production Readiness Antipattern Probe' '$ROOT/skills/codebase-research/SKILL.md' && rg -q 'runtime_path_change.*service_boundary_change.*external_integration.*persistent_storage.*api_change.*perf_sensitive.*user_facing_operation' '$ROOT/skills/codebase-research/SKILL.md'"
+assert "production readiness probe requires evidence before findings" "rg -q 'Do not create a finding unless all five are present' '$ROOT/skills/codebase-research/SKILL.md' && rg -q 'Do not turn this catalog into scope by default' '$ROOT/skills/codebase-research/SKILL.md'"
+assert "production readiness probe output carries priority and verifier path" "rg -q 'production_readiness_probe' '$ROOT/skills/codebase-research/SKILL.md' && rg -q 'must_fix_for_v1 \\| monitor \\| fix_in_v2 \\| not_applicable' '$ROOT/skills/codebase-research/SKILL.md' && rg -q 'verification_path' '$ROOT/skills/codebase-research/SKILL.md'"
+assert "build brief consumes production readiness probe without making generic scope" "rg -q 'Production readiness scoping rule' '$ROOT/agents/ADLC-BUILD-BRIEF-AGENT.md' && rg -q 'must_fix_for_v1.*failure-mode mitigations and tasks' '$ROOT/agents/ADLC-BUILD-BRIEF-AGENT.md' && rg -q 'not_applicable.*do not become scope' '$ROOT/agents/ADLC-BUILD-BRIEF-AGENT.md'"
+assert "codegen context limits production readiness work to assigned findings" "rg -q 'evidence-backed production readiness probe findings assigned to this task' '$ROOT/skills/codegen-context/SKILL.md' && rg -q 'Do not ask the coding agent to implement unrelated catalog items' '$ROOT/skills/codegen-context/SKILL.md'"
+
+echo ""
 echo "--- Backtest Integrity ---"
 assert "backtest runner exists and is executable" "[ -x '$ROOT/tests/backtest/run_backtest.sh' ]"
 assert "triage evaluator exists and is executable" "[ -x '$ROOT/tests/backtest/evaluators/triage.sh' ]"

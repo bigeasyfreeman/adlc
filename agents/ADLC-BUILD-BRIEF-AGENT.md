@@ -409,6 +409,7 @@ Then the system returns a 409 conflict with the existing widget's ID.
 - Dependencies with status: exists / needs building / unknown
 - Failure modes inferred from new integration points (e.g., "email infra" → email delivery failure mode)
 - Rollback mechanism from repo map `ci_cd` section (feature flags, migration patterns)
+- Evidence-backed production readiness findings from `scalability.production_readiness_probe`
 
 **Only ask:** "What would hurt enterprise trust if this specific thing failed?" and any risks the agent can't infer from static analysis (e.g., performance under load, race conditions, data consistency across services).
 
@@ -417,6 +418,7 @@ Then the system returns a 409 conflict with the existing widget's ID.
 - Find circuit breakers, retry policies, fallback patterns
 - Check if similar migrations have been done before and how they were handled
 - Look for monitoring and alerting on affected services
+- Consume the production readiness antipattern probe only when it is `active`; ignore `not_applicable` findings and unsupported candidates
 
 **Then probe failure modes for each major component:**
 
@@ -430,6 +432,8 @@ Then the system returns a 409 conflict with the existing widget's ID.
 | How do we mitigate if it happens? | Limit damage |
 
 Do not skip this. Do not accept "it will be fine." Probe each component the engineer identified in Phase 3.
+
+**Production readiness scoping rule:** `must_fix_for_v1` probe findings become failure-mode mitigations and tasks. `monitor` findings become SLO/runbook signals. `fix_in_v2` findings become explicitly sequenced open items. `not_applicable` findings and catalog items without repo evidence do not become scope.
 
 ---
 
@@ -482,6 +486,8 @@ Do not skip this. Do not accept "it will be fine." Probe each component the engi
 - "Replay CTA Click-Through > 25%" → Customer signal
 
 **Pre-fill from repo map:** `observability` section provides existing monitoring, alerting, and SLO patterns. Propose SLO targets based on existing service baselines.
+
+**Pre-fill from production readiness probe:** If an active probe finding is priority `monitor`, convert it into a concrete metric, alert, dashboard panel, or runbook trigger. Do not invent monitoring for probe categories marked `not_applicable`.
 
 **Only ask:** On-call rotation, escalation contact (rarely in PRDs), and SLO targets if the PRD doesn't imply them.
 

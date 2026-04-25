@@ -936,6 +936,9 @@ grep -rn "findMany\|findAll\|select\|include:" --include="*.ts" | grep -v test |
 
 # Find connection pool and resource management
 grep -rn "pool\|connection\|maxConnections\|timeout" --include="*.ts" --include="*.yaml" --include="*.env*" | grep -v node_modules | head -10
+
+# Find production-readiness primitives and antipattern candidates
+grep -rn "health\|ready\|live\|graceful\|shutdown\|backup\|restore\|cdn\|compress\|rateLimit\|timeout\|circuit\|replica\|migration\|session\|upload\|websocket" --include="*.ts" --include="*.js" --include="*.py" --include="*.yaml" --include="*.yml" --include="*.tf" | grep -v test | grep -v node_modules | head -25
 ```
 
 **For each PRD capability, assess:**
@@ -944,6 +947,30 @@ grep -rn "pool\|connection\|maxConnections\|timeout" --include="*.ts" --include=
 - **Does it need caching?** If the feature will be read-heavy (e.g., viewing shared deliverables), check if caching patterns exist.
 - **Are there N+1 risks?** If the feature loads entities with relationships (e.g., deliverables with share recipients), check for eager loading patterns.
 - **Does the infrastructure support it?** Check if the current DB, cache, and queue can handle the additional load from this feature.
+
+**Production Readiness Antipattern Probe**
+
+This is an evidence-gated probe, not a generic checklist. Run it only when the task or applicability manifest touches at least one of:
+`runtime_path_change`, `service_boundary_change`, `external_integration`, `persistent_storage`, `api_change`, `perf_sensitive`, or `user_facing_operation`.
+
+Do not create a finding unless all five are present:
+- a triggering PRD capability or change surface
+- repo evidence or a PRD quote
+- the current implementation or missing primitive
+- the concrete failure mode
+- a priority and verification path
+
+If evidence is weak, mark the candidate `not_applicable` or put the unsupported claim in contamination. Do not turn this catalog into scope by default.
+
+Probe these failure classes:
+- **Capacity:** load/perf test coverage, pagination, query/index shape, compression, CDN/static asset pressure
+- **Process-local state:** in-memory sessions, local uploads, local logs, WebSocket affinity
+- **Background work:** synchronous email, long-running tasks, queues/workers
+- **Data integrity:** transactions, app-start migrations, restore-tested backups, FK/index coverage
+- **External dependencies:** connection timeouts, retries, circuit breakers, fallback/degraded behavior
+- **Abuse/resource control:** rate limits, payload limits, bot/expensive-operation protection
+- **Operability:** health checks, alerting, graceful shutdown, memory growth, incident runbook
+- **Secrets/deploy safety:** hardcoded secrets, CI log exposure, production config boundaries
 
 **Output: `scalability`**
 
@@ -970,6 +997,24 @@ grep -rn "pool\|connection\|maxConnections\|timeout" --include="*.ts" --include=
     "needed_for": ["string — which PRD capabilities benefit from caching"],
     "existing_cache": "string (file path) | null",
     "recommendation": "use_existing_cache | add_cache_layer | not_needed"
+  },
+  "production_readiness_probe": {
+    "status": "active | not_applicable",
+    "trigger_fields": ["runtime_path_change | service_boundary_change | external_integration | persistent_storage | api_change | perf_sensitive | user_facing_operation"],
+    "not_applicable_reason": "string | null",
+    "findings": [
+      {
+        "id": "PROD-001",
+        "failure_class": "capacity | process_local_state | background_work | data_integrity | external_dependency | abuse_resource_control | operability | secrets_deploy_safety",
+        "trigger": "string — PRD capability or change_surface field that makes this relevant",
+        "evidence": "string — repo path, PRD quote, or research reference",
+        "current_gap": "string — implementation detail or missing primitive",
+        "what_breaks": "string — concrete production failure mode",
+        "recommendation": "string — specific remediation or monitoring stance",
+        "priority": "must_fix_for_v1 | monitor | fix_in_v2 | not_applicable",
+        "verification_path": "string — automated test, load test, config check, runbook drill, or explicit human decision"
+      }
+    ]
   }
 }
 ```

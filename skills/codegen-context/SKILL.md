@@ -251,6 +251,7 @@ From the research deliverable, pull only what the task needs:
 - integration path
 - duplication risks
 - scalability concerns
+- evidence-backed production readiness probe findings assigned to this task
 - schema changes
 
 ### Step 2: Extract active brief sections
@@ -277,6 +278,8 @@ Every instruction must name:
 ### Step 5: Add negative constraints
 
 State explicitly what must not be duplicated, hidden, or invented.
+
+For production readiness findings, include only the specific `PROD-*` entries that the Build Brief assigned to the task. Do not ask the coding agent to implement unrelated catalog items such as queues, CDNs, replicas, load tests, or runbooks unless the finding has repo evidence, priority, and a verification path.
 
 ### Step 6: Add the verification loop
 
