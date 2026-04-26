@@ -46,6 +46,11 @@ _adlc_factory_parse_args() {
         ;;
     esac
   done
+
+  if [ -z "$_ADLC_OUTPUT_PATH" ]; then
+    echo "usage: invoke_agent --agent <path> --input <path> --output <path> --tools <csv> [--schema <path>]" >&2
+    return 64
+  fi
 }
 
 _adlc_factory_auth_path() {

@@ -15,10 +15,10 @@ assert() {
   local condition="$2"
   TOTAL=$((TOTAL + 1))
   if eval "$condition"; then
-    echo -e "  ${GREEN}PASS${NC} $desc"
+    printf '  %bPASS%b %s\n' "$GREEN" "$NC" "$desc"
     PASS=$((PASS + 1))
   else
-    echo -e "  ${RED}FAIL${NC} $desc"
+    printf '  %bFAIL%b %s\n' "$RED" "$NC" "$desc"
     FAIL=$((FAIL + 1))
   fi
 }
@@ -114,7 +114,7 @@ assert "planner records legacy_ac and low-confidence escalate policy" "rg -q 'le
 assert "JIRA skill handles mixed acceptance criteria shapes" "rg -q 'Mixed Acceptance Criteria Shapes|\\.then|measurable_post_condition' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "Confluence skill handles mixed acceptance criteria shapes" "rg -q 'Mixed Acceptance Criteria Shapes|\\.then|measurable_post_condition' '$ROOT/skills/confluence-decomposition/SKILL.md'"
 assert "DoD skill handles mixed acceptance criteria shapes" "rg -q 'Mixed Acceptance Criteria Shapes|\\.then|measurable_post_condition' '$ROOT/skills/definition-of-done/SKILL.md'"
-assert "dag binding contract exists and marks gen_tests as an agent node" "rg -q 'DAG Binding Contract|WORKFLOW\\.md|gen_tests is now an agent node' '$ROOT/docs/specs/dag-binding.md'"
+assert "workflow binding contract exists and marks gen_tests as an agent node" "rg -q 'Bounded Directed Workflow Binding Contract|WORKFLOW\\.md|gen_tests is an agent node' '$ROOT/docs/specs/dag-binding.md'"
 assert "triage implements confidence bands" "rg -q 'Confidence Bands|low_confidence|confidence_band|0.6 <= confidence < 0.8|< 0.6' '$ROOT/agents/triage.md'"
 assert "applicability manifest spec documents confidence policy" "rg -q 'Confidence Policy|low_confidence|task_classification_confidence < 0.6' '$ROOT/docs/specs/applicability-manifest.md'"
 assert "CASE-006 exists with escalate label and 0.55 confidence" "jq -e '.cases[] | select(.id==\"CASE-006\" and .expected_label==\"escalate\" and .expected_manifest.task_classification_confidence == 0.55)' '$ROOT/tests/fixtures/applicability-issue-set.json' >/dev/null"
@@ -277,7 +277,7 @@ assert "security feature activates security review" "jq -e '.cases[] | select(.i
 
 echo ""
 echo "═══════════════════════════════════════"
-echo -e "Results: ${GREEN}$PASS passed${NC}, ${RED}$FAIL failed${NC}, $TOTAL total"
+printf 'Results: %b%s passed%b, %b%s failed%b, %s total\n' "$GREEN" "$PASS" "$NC" "$RED" "$FAIL" "$NC" "$TOTAL"
 echo "═══════════════════════════════════════"
 
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1

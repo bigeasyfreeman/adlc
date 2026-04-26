@@ -84,6 +84,20 @@ assert_auth_missing() {
       --tools ""
 }
 
+assert_missing_output() {
+  local runtime="$1"
+  local adapter="$ROOT/tests/smoke/adapters/${runtime}.sh"
+
+  assert_case \
+    "${runtime} invoke_agent without output exits 64" \
+    64 \
+    'usage: invoke_agent --agent <path> --input <path> --output <path>' \
+    env -i PATH="/usr/bin:/bin" /bin/bash "$adapter" invoke_agent \
+      --agent "$dummy_agent" \
+      --input "$dummy_input" \
+      --tools ""
+}
+
 assert_cli_missing() {
   local runtime="$1"
   local adapter="$ROOT/tests/smoke/adapters/${runtime}.sh"
@@ -111,6 +125,10 @@ assert_auth_missing codex 'codex auth missing: set OPENAI_API_KEY or ADLC_SMOKE_
 assert_auth_missing cursor 'cursor auth missing: set CURSOR_API_KEY or install the cursor CLI with native auth configured'
 assert_auth_missing antigravity 'antigravity auth missing: set GOOGLE_API_KEY or GEMINI_API_KEY'
 assert_auth_missing factory 'factory auth missing: set FACTORY_API_KEY'
+
+assert_missing_output cursor
+assert_missing_output antigravity
+assert_missing_output factory
 
 assert_cli_missing claude ANTHROPIC_API_KEY dummy 'claude CLI is not installed'
 assert_cli_missing codex OPENAI_API_KEY dummy 'codex CLI not installed'

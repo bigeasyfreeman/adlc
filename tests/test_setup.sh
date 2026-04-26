@@ -20,10 +20,10 @@ assert() {
   local condition="$2"
   TOTAL=$((TOTAL + 1))
   if eval "$condition"; then
-    echo -e "  ${GREEN}PASS${NC} $desc"
+    printf '  %bPASS%b %s\n' "$GREEN" "$NC" "$desc"
     PASS=$((PASS + 1))
   else
-    echo -e "  ${RED}FAIL${NC} $desc"
+    printf '  %bFAIL%b %s\n' "$RED" "$NC" "$desc"
     FAIL=$((FAIL + 1))
   fi
 }
@@ -81,7 +81,7 @@ assert_dir_exists "platform/ exists" "$ADLC_DIR/platform"
 SKILL_COUNT=$(find "$ADLC_DIR/skills" -mindepth 2 -maxdepth 2 -type f -name "SKILL.md" | wc -l | tr -d ' ')
 assert "$SKILL_COUNT skill SKILL.md files in source" "[ '$SKILL_COUNT' -gt '0' ]"
 
-# Count source agents (excluding legacy pointers)
+# Count source agents (excluding non-installable reference docs)
 AGENT_COUNT=$(find "$ADLC_DIR/agents" -maxdepth 1 -type f -name "*.md" ! -name "ADLC-BUILD-BRIEF-AGENT.md" ! -name "PM-PRD-AGENT.md" | wc -l | tr -d ' ')
 assert "$AGENT_COUNT installable agent configs in source" "[ '$AGENT_COUNT' -gt '0' ]"
 
@@ -113,8 +113,8 @@ assert_file_exists "researcher agent" "$TARGET/.claude/agents/researcher.md"
 assert_file_exists "coder agent" "$TARGET/.claude/agents/coder.md"
 assert_file_exists "security-reviewer agent" "$TARGET/.claude/agents/security-reviewer.md"
 
-# Verify no legacy agents leaked
-assert "No legacy agents in agents" "[ ! -f '$TARGET/.claude/agents/ADLC-BUILD-BRIEF-AGENT.md' ] && [ ! -f '$TARGET/.claude/agents/PM-PRD-AGENT.md' ]"
+# Verify non-installable reference docs did not leak into installed agents
+assert "No reference docs in agents" "[ ! -f '$TARGET/.claude/agents/ADLC-BUILD-BRIEF-AGENT.md' ] && [ ! -f '$TARGET/.claude/agents/PM-PRD-AGENT.md' ]"
 
 # Verify agent frontmatter
 assert_file_contains "triage has model: sonnet" "$TARGET/.claude/agents/triage.md" "model: sonnet"
@@ -273,7 +273,7 @@ echo ""
 # ═══════════════════════════════════════════════════
 
 echo "═══════════════════════════════════════"
-echo -e "Results: ${GREEN}$PASS passed${NC}, ${RED}$FAIL failed${NC}, $TOTAL total"
+printf 'Results: %b%s passed%b, %b%s failed%b, %s total\n' "$GREEN" "$PASS" "$NC" "$RED" "$FAIL" "$NC" "$TOTAL"
 echo "═══════════════════════════════════════"
 
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1

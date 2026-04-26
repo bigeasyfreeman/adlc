@@ -29,7 +29,7 @@ Step 8: Audit + Engagement Tracking
 ```
 
 ### Step 1: Content Brief
-- **Skill:** `content-brief` (Magnus domain PRD)
+- **External Magnus dependency:** `content-brief` (Magnus domain PRD)
 - Structure signal into: topic, angle, ICP target, platform, voice constraints, format, anti-slop rules
 - Reject ambiguous briefs (no clear ICP, no clear angle)
 
@@ -43,7 +43,7 @@ Step 8: Audit + Engagement Tracking
 - First Principles: Does this serve the ICP?
 
 ### Step 3: Draft
-- **Skill:** `content-forge`
+- **External Magnus dependency:** `content-forge`
 - Voice profile loaded (`eric-voice-profile.md`)
 - Draft against brief constraints
 - STRIDE brand risk awareness during drafting
@@ -56,7 +56,7 @@ Step 8: Audit + Engagement Tracking
 - Max 3 revision attempts, then escalate
 
 ### Step 5: Platform Adapt
-- **Skill:** `content-adapt`
+- **External Magnus dependency:** `content-adapt`
 - Generate platform-native versions (LinkedIn, X, email, etc.)
 - EACH version individually slop-gated (35/50)
 - Platform constraints enforced (character limits, format rules)
@@ -67,7 +67,7 @@ Step 8: Audit + Engagement Tracking
 - Operator: Ready to publish across all target platforms?
 
 ### Step 7: Publish
-- **Skill:** `content-publish`
+- **External Magnus dependency:** `content-publish`
 - Publish via Postiz CLI
 - Capture: platform, URL, timestamp, content_id
 

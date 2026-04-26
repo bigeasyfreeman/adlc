@@ -69,7 +69,7 @@ install_claude() {
   mkdir -p "$TARGET/.claude/agents"
   for agent in "$ADLC_DIR"/agents/*.md; do
     name="$(basename "$agent")"
-    # Skip legacy pointers
+    # Skip non-installable top-level reference docs
     [[ "$name" == "ADLC-BUILD-BRIEF-AGENT.md" ]] && continue
     [[ "$name" == "PM-PRD-AGENT.md" ]] && continue
     cp "$agent" "$TARGET/.claude/agents/$name"
@@ -77,11 +77,10 @@ install_claude() {
   echo "  ✓ $INSTALLABLE_AGENT_COUNT installable agents installed to .claude/agents/"
 
   # CLAUDE.md instructions
-  cp "$ADLC_DIR/platform/CLAUDE.md" "$TARGET/CLAUDE.md" 2>/dev/null || \
-    cp "$ADLC_DIR/platform/instructions.md" "$TARGET/CLAUDE.md" 2>/dev/null || true
+  cp "$ADLC_DIR/platform/CLAUDE.md" "$TARGET/CLAUDE.md"
 
   # Workflow files
-  cp "$ADLC_DIR/WORKFLOW.dot" "$TARGET/.claude/WORKFLOW.dot" 2>/dev/null || true
+  cp "$ADLC_DIR/WORKFLOW.dot" "$TARGET/.claude/WORKFLOW.dot"
 
   echo "  ✓ Claude Code setup complete"
 }
@@ -93,8 +92,7 @@ install_codex() {
   sync_skills "$TARGET/.agents/skills"
 
   # AGENTS.md instructions
-  cp "$ADLC_DIR/platform/AGENTS.md" "$TARGET/AGENTS.md" 2>/dev/null || \
-    cp "$ADLC_DIR/platform/instructions.md" "$TARGET/AGENTS.md" 2>/dev/null || true
+  cp "$ADLC_DIR/platform/AGENTS.md" "$TARGET/AGENTS.md"
 
   echo "  ✓ Codex setup complete"
 }
@@ -160,7 +158,7 @@ install_factory() {
   echo "  ✓ $SOURCE_SKILL_COUNT skill docs installed to .factory/docs/"
 
   # AGENTS.md
-  cp "$ADLC_DIR/platform/AGENTS.md" "$TARGET/AGENTS.md" 2>/dev/null || true
+  cp "$ADLC_DIR/platform/AGENTS.md" "$TARGET/AGENTS.md"
 
   echo "  ✓ Factory setup complete"
 }

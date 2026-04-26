@@ -60,8 +60,8 @@ cp -r skills/codebase-research/ ~/my-project/.claude/skills/codebase-research/
 ### Build Loop
 
 ```
-start → triage → research → prd → plan ↔ plan_review → scaffold → gen_tests →
-  ldd_gate → context_assembly → code (fan-out) ↔ code_review ↔ fixer →
+start → triage → research → plan ↔ plan_review → scaffold → gen_tests →
+  context_assembly → code (fan-out) ↔ code_review ↔ fixer →
   security → qa → test_strength → slop_gate → pr_prep → engineer_review → done
 ```
 
@@ -120,16 +120,16 @@ Public-repo hygiene is intentional:
 |-------|-----|-------|--------|
 | **triage** | Classify, route, or escalate | Sonnet | none |
 | **researcher** | Codebase analysis, PRD cross-reference | Opus | codebase-research, grafana |
-| **planner** | PRD + research into an applicability-aware Build Brief | Opus | codegen-context, architecture, security-review, reuse-analysis |
+| **planner** | PRD + research into an applicability-aware Build Brief | Opus | codegen-context, architecture, reuse-analysis |
 | **plan-reviewer** | 6-persona Eval Council with Gate 0 pre-checks | Opus | eval-council |
 | **test-author** | Authors failing verifier tests from Brief | Sonnet | spec-to-tests, tdd-enforcement, qa-test-data |
-| **coder** | LDD then verifier-led execution per task class | Sonnet | tdd-enforcement, ldd-enforcement, debugging |
-| **code-reviewer** | Quality, correctness, and security | Opus | eval-council, security-review |
+| **coder** | Verifier-led execution per task class | Sonnet | tdd-enforcement, systematic-debugging |
+| **code-reviewer** | Quality and correctness review | Opus | eval-council |
 | **fixer** | 4-phase root cause, then fix | Sonnet | systematic-debugging, fix-loop |
 | **security-reviewer** | STRIDE + 5 OWASP domains + OWASP Top 10 | Opus | security-review + 5 domain skills |
-| **pr-preparer** | Final PR package with DoD checklist | Sonnet | definition-of-done, stop-slop |
-| **PRD Agent** | Structured discovery, 3-5 turns, extract-first, repo-aware reuse/debt framing | Opus | prd-generation |
-| **Build Brief Agent** | Applicability-aware brief with core baseline and active overlays | Opus | codegen-context, architecture, security-review, reuse-analysis |
+| **pr-preparer** | Final PR package with DoD checklist | Sonnet | none |
+| **PRD Agent** | Non-installable reference doc for structured discovery and repo-aware reuse/debt framing | Opus | prd-generation |
+| **Build Brief Agent** | Non-installable reference doc for applicability-aware brief generation | Opus | codegen-context, architecture, reuse-analysis |
 
 Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 
@@ -176,7 +176,7 @@ The Build Brief Agent produces a brief with an `applicability_manifest`, a core 
 | 13 | Open Items | Always |
 | 14 | Revision History (council finding IDs → changes) | Always |
 
-Every task requires: files_to_create/modify, reference_impl, dependency_ids, `task_classification`, `verification_spec`, failure modes, and enough acceptance criteria to define the verifier contract.
+Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, failure modes, and enough acceptance criteria to define the verifier contract.
 
 ## Customization
 
@@ -205,7 +205,7 @@ adlc/
 ├── setup.sh               # One-command install
 ├── WORKFLOW.dot            # Pipeline graph
 ├── WORKFLOW.md             # Config
-├── agents/                 # Source agent configs (includes legacy pointers)
+├── agents/                 # Source agent configs plus non-installable reference docs
 ├── skills/                 # Skill definitions + manifest.json
 ├── platform/               # CLAUDE.md, AGENTS.md, agents-antigravity.md
 ├── examples/               # Example PRD

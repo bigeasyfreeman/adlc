@@ -95,5 +95,6 @@ docs/schemas/test-author-output.schema.json.
 `generated_tests`, `pre_change_run_path`, `verifier_target_intersection`, and
 `self_check`.
 
-If the task cannot be classified, output a JSON object with label "escalate"
-and a concrete reason. Do not output natural-language apologies.
+If the task cannot be classified or a valid verifier cannot be authored from
+the provided contract, output a schema-valid JSON object with label "stuck"
+and a concrete `reason`. Do not output natural-language apologies.

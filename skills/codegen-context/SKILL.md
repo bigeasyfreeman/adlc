@@ -34,10 +34,10 @@ This skill runs before the coding agent starts. Its output is the coding agent's
 ```json
 {
   "task": {
-    "id": "BE-001",
+    "task_id": "BE-001",
     "task_classification": "feature | bugfix | build_validation | lint_cleanup",
-    "description": "string",
-    "acceptance_criteria_gwt": [],
+    "objective": "string",
+    "acceptance_criteria": [],
     "verification_spec": {
       "primary_verifier": {
         "type": "test | reproducer | command",
@@ -52,10 +52,10 @@ This skill runs before the coding agent starts. Its output is the coding agent's
       "scope_note": "string"
     },
     "pattern_ref": "string",
-    "reference_implementation": "string",
+    "reference_impl": "string",
     "files_to_create": ["file paths"],
     "files_to_modify": ["file paths"],
-    "dependency_ids": ["task IDs"],
+    "dependencies": ["task IDs"],
     "parallel": true,
     "manual_test_plan": [{"step": "string", "action": "string", "expected": "string"}]
   },

@@ -62,7 +62,7 @@ ADLC does not ship a GitHub client. This skill targets a locally installed MCP p
 }
 ```
 
-Every emitted issue must preserve the task's `task_classification`, `verification_spec`, `dependency_ids`, `reference_impl`, explicit reuse instructions, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted issue. Unsupported claims and non-sequitur guardrail lines do not become issue scope.
+Every emitted issue must preserve the task's `task_classification`, `verification_spec`, `dependencies`, `reference_impl`, explicit reuse instructions, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted issue. Unsupported claims and non-sequitur guardrail lines do not become issue scope.
 
 ## Output Contract
 

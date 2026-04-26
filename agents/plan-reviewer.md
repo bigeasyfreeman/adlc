@@ -94,5 +94,6 @@ You MUST output exactly one JSON object. No prose. No markdown. No code fences.
 No preamble. No explanation. The object MUST validate against
 docs/schemas/council-verdict-output.schema.json.
 
-If the task cannot be classified, output a JSON object with label "escalate"
-and a concrete reason. Do not output natural-language apologies.
+If the task cannot be classified or reviewed against the supplied contract,
+output a schema-valid JSON object with label "stuck" and a concrete
+`stuck_reason`. Do not output natural-language apologies.

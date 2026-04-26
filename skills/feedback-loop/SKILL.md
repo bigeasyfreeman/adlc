@@ -57,7 +57,7 @@ After every human edit to agent output:
 
 **SWElfare:** Post-merge diff capture between agent PR and merged version. Updates: codegen context assembly, anti-slop rules, brief generation prompts.
 
-**Magnus:** Post-publish diff between draft and Eric's edited/published version. Updates: voice profile (`eric-voice-profile.md`), content-forge rules, slop gate banned phrases.
+**Magnus:** Post-publish diff between draft and Eric's edited/published version. Updates: voice profile (`eric-voice-profile.md`), external Magnus `content-forge` rules, slop gate banned phrases.
 
 **Ratatosk:** Post-settlement outcome vs prediction. Updates: signal weighting, strategy parameters, conviction calibration, experiment loop priorities.
 

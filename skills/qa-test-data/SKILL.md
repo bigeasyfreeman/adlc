@@ -40,9 +40,9 @@ Activated after the Build Brief and task classification are available. Consumes 
   "tasks": [
     {
       "task_id": "string",
-      "task_description": "string",
-      "acceptance_criteria_gwt": [],
-      "reference_implementation": "string",
+      "objective": "string",
+      "acceptance_criteria": [],
+      "reference_impl": "string",
       "language": "typescript | python | scala | go",
       "test_directory": "string"
     }

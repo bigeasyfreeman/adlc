@@ -112,7 +112,7 @@
           "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
         }
       },
-      "skills": ["codegen-context", "architecture-pattern"],
+      "skills": ["codegen-context", "architecture-pattern", "reuse-analysis"],
       "labels": ["done", "escalate"]
     },
     {
@@ -702,7 +702,7 @@
       "path": "skills/ldd-enforcement/SKILL.md",
       "contract_version": "2.0.0",
       "side_effect_profile": "read_only",
-      "dag_nodes": ["code", "ldd_gate"]
+      "dag_nodes": ["code"]
     },
     {
       "name": "observability-contract",

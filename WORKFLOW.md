@@ -1,6 +1,6 @@
 ---
 # ADLC Workflow Configuration
-# This file defines agents, backends, routing, and concurrency for the DAG pipeline.
+# This file defines agents, backends, routing, and retry caps for the bounded directed workflow.
 
 workflow: WORKFLOW.dot
 
@@ -73,7 +73,7 @@ Judge skills resolve their `fast_judge` and `deep_judge` slots through `skills/m
 |----------|-------|---------|-------|-----------------|
 | `triage` | `agents/triage.md` | claude | claude-sonnet-4-6 | — |
 | `research` | `agents/researcher.md` | claude | claude-opus-4-6 | codebase-research, grafana-observability |
-| `plan` | `agents/planner.md` | claude | claude-opus-4-6 | codegen-context, architecture-pattern |
+| `plan` | `agents/planner.md` | claude | claude-opus-4-6 | codegen-context, architecture-pattern, reuse-analysis |
 | `plan_review` | `agents/plan-reviewer.md` | claude | claude-opus-4-6 | eval-council |
 | `scaffold` | *tool node* | — | — | architecture-pattern |
 | `gen_tests` | `agents/test-author.md` | claude | claude-sonnet-4-6 | spec-to-tests, tdd-enforcement, qa-test-data |

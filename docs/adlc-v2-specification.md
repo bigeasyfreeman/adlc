@@ -431,7 +431,7 @@ Tasks flagged `parallel: true` get separate context documents and can be dispatc
 
 For tasks requiring new modules, interfaces, or structural additions:
 - Generate port interfaces (following repo convention: trait, interface, ABC, protocol)
-- Generate adapter stubs (extends port, has TODO-with-ticket-reference markers)
+- Generate adapter implementation targets and contracts; unresolved work belongs in the implementation guide, not runtime source.
 - Generate domain types (entities, value objects, enums)
 - Generate wiring/registration (DI bindings, factory registrations)
 - Generate directory structure (following existing conventions)

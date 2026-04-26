@@ -1,5 +1,5 @@
-// ADLC Pipeline — Directed Acyclic Graph
-// Node shapes: box=agent, component=fan-out, hexagon=human-gate, diamond=conditional, rect(dashed)=tool; tool nodes are dashed and gen_tests is now an agent node.
+// ADLC Pipeline — Bounded Directed Workflow
+// Node shapes: box=agent, component=fan-out, hexagon=human-gate, diamond=conditional, rect(dashed)=tool; tool nodes are dashed and gen_tests is an agent node.
 // Edge labels drive routing: lgtm, revise, escalate, low_confidence, pass, fail, weak, stuck
 
 digraph ADLC {
@@ -26,7 +26,7 @@ digraph ADLC {
     plan_review [shape=box, label="Plan Review\nEval Council", style=filled, fillcolor="#fff3e6"]
 
     // ─── Scaffold + Tests (scaffold deterministic, verifier authoring agentic) ───
-    scaffold [shape=box, label="Scaffold\nArchitecture Stubs", style="dashed,filled", fillcolor="#f0f0f0"]
+    scaffold [shape=box, label="Scaffold\nArchitecture Contracts", style="dashed,filled", fillcolor="#f0f0f0"]
     gen_tests [shape=box, label="Generate Verifiers\nAuthor Failing Tests / Reproducers", style=filled, fillcolor="#e6f3ff"]
 
     // ─── Context Assembly (deterministic) ───

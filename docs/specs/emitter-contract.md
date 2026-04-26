@@ -109,7 +109,7 @@ Every work-item emitter must carry these fields forward from the Build Brief tas
 - `task_classification`
 - `verification_spec`
 - acceptance criteria or Given/When/Then contract
-- `dependency_ids`
+- `dependencies`
 - `reference_impl`
 - reuse or extend instructions, including any explicit "do not reimplement" guidance
 - `files_to_create` and `files_to_modify`

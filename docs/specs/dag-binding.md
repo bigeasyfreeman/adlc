@@ -1,8 +1,8 @@
-# DAG Binding Contract
+# Bounded Directed Workflow Binding Contract
 
 ## Source of Truth
 
-`WORKFLOW.md` is the execution binding contract for ADLC DAG runners.
+`WORKFLOW.md` is the execution binding contract for ADLC workflow runners.
 
 Runners must consume these sections together:
 
@@ -12,7 +12,7 @@ Runners must consume these sections together:
 - the `Node -> Agent Mapping` table
 - the `Tool Nodes` block
 
-`WORKFLOW.dot` defines the graph topology and legal labeled transitions. `WORKFLOW.md` defines how each node actually runs.
+`WORKFLOW.dot` defines the graph topology and legal labeled transitions, including bounded retry back-edges. `WORKFLOW.md` defines how each node actually runs and caps retries.
 
 ## Binding Rules
 
@@ -36,7 +36,7 @@ Agent nodes are bound by the `Node -> Agent Mapping` table.
 - Labels emitted by branching agents must be valid for both the agent frontmatter and the workflow graph.
 - Linear success nodes may emit `done` while following their sole unlabeled success edge.
 
-`gen_tests` is now an agent node bound to `agents/test-author.md`. It must not be routed to a shell command or tool stub.
+`gen_tests` is an agent node bound to `agents/test-author.md`. It must not be routed to a shell command or tool stub.
 
 ## Tool Nodes
 

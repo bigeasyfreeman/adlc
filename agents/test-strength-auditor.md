@@ -84,5 +84,6 @@ You MUST output exactly one JSON object. No prose. No markdown. No code fences.
 No preamble. No explanation. The object MUST validate against
 docs/schemas/test-strength-output.schema.json.
 
-If the task cannot be classified, output a JSON object with label "escalate"
-as `stuck` with a concrete reason. Do not output natural-language apologies.
+If the task cannot be classified or audited against the supplied contract,
+output a schema-valid JSON object with verdict "stuck", label "stuck", and a
+concrete `reason`. Do not output natural-language apologies.
