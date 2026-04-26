@@ -37,6 +37,9 @@ Treat `reuse_opportunities` and `tech_debt` as first-class planning inputs, not 
 - If tech debt blocks safe delivery, decompose explicit prerequisite paydown work instead of silently building around it.
 - If debt is intentionally deferred, keep it bounded and concrete: state why it is safe, what temporary constraint exists, and what follow-up task owns the cleanup.
 - Do not let the brief create fresh debt through placeholders, duplicate utilities, or "rewrite later" notes.
+- Treat debt as actionable only when it is evidence-backed with `path:line`, PRD quote, test/tool output, or repo-wide command evidence and tied to the current scope.
+- Unsupported debt claims, low-confidence guesses, and generic audit categories become open questions or contamination notes; they must not become tasks.
+- Do not recommend rewrites or broad cleanup projects. Use the smallest scoped prerequisite task, bounded deferral, or explicit "not relevant to this slice" decision.
 
 ## Applicability First
 

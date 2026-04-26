@@ -52,6 +52,28 @@ When `prd_content` is provided, the skill automatically:
 - Scopes the tech debt analysis to areas the feature touches
 - Generates the PRD × Codebase cross-reference table
 
+## Debt Evidence And Calibration
+
+Before asserting tech debt, orient on the repo rather than pattern-matching against generic best practices:
+
+- Read the README, package manifests, and architecture docs/ADRs when present.
+- Map the major modules and write a short architecture mental model in the human-readable research deliverable before listing debt.
+- Inspect recent churn and large files; prioritize the intersection of high-churn and high-size files when looking for fragile areas.
+- If the mental model contradicts the README or docs, record that as a documentation-drift candidate with evidence.
+
+Every concrete `tech_debt`, `risk_areas`, `duplication_risks`, or `improvement_opportunities` finding must include:
+
+- Category and claim
+- Evidence as `path:line`, explicit PRD quote, test/tool output, or repo-wide command evidence
+- Current-scope impact or a clear note that it is background context only
+- Concrete failure mode or maintenance cost
+- Confidence: `high`, `medium`, or `low`
+- Scoped recommendation; do not recommend rewrites or broad cleanup projects
+
+If evidence is weak, do not promote the item into scope. Put it in open questions, contamination, or a short `false_positives_considered` note in the research deliverable. The deliverable should explain any notable "looks bad but is actually fine" calls so downstream planners can distinguish real debt from grep artifacts.
+
+Do not aim for a finding count. One material, cited debt item is better than ten generic concerns. Use stack-specific tools only when they are already available in the repo or explicitly permitted; missing tools are noted without blocking analysis.
+
 ## Output Contract
 
 ```json
@@ -695,6 +717,11 @@ git log --format=format: --name-only --since="6 months ago" | sort | uniq -c | s
 # Large files (complexity risk)
 find . -name "*.ts" -o -name "*.py" -o -name "*.scala" | grep -v node_modules | xargs wc -l 2>/dev/null | sort -rn | head -20
 
+# High-churn x large-file overlap (cheap debt signal; inspect before judging)
+comm -12 \
+  <(git log --format=format: --name-only --since="6 months ago" | sort | uniq | sort) \
+  <(find . \( -name "*.ts" -o -name "*.py" -o -name "*.scala" -o -name "*.go" -o -name "*.rs" \) -not -path "*/node_modules/*" -not -path "*/vendor/*" -exec wc -l {} + 2>/dev/null | sort -rn | head -50 | awk '{gsub(/^\\.\\//, "", $2); print $2}' | sort)
+
 # Files with many imports (coupling risk)
 for f in $(find . -name "*.ts" -not -path "*/node_modules/*" | head -100); do echo "$(grep -c "import" "$f") $f"; done | sort -rn | head -15
 
@@ -709,17 +736,29 @@ grep -rn "TODO\|FIXME\|HACK" --include="*.ts" --include="*.py" | grep -v node_mo
 [
   {
     "file": "src/server/routes/widgetRoutes.ts",
-    "reason": "hotspot — 47 changes in 6 months, 380 lines, 12 imports",
+    "reason": "hotspot — 47 changes in 6 months, 380 lines, 12 imports; evidence src/server/routes/widgetRoutes.ts:1",
+    "category": "architectural_decay",
+    "scope_impact": "current PRD touches widget routing",
+    "failure_mode": "route changes are likely to collide with unrelated widget behavior",
+    "confidence": "medium",
     "recommendation": "consider splitting into sub-routers"
   },
   {
     "file": "src/domain/services/CreditService.ts",
-    "reason": "280 lines, complex business logic, 8 TODOs",
+    "reason": "280 lines, complex business logic, 8 TODOs; evidence src/domain/services/CreditService.ts:42",
+    "category": "test_debt",
+    "scope_impact": "current PRD changes credit calculations",
+    "failure_mode": "untested branches can regress billing outcomes",
+    "confidence": "high",
     "recommendation": "high-risk area for new changes — extra review needed"
   },
   {
     "file": "src/server/integrations/legacy.ts",
-    "reason": "hardcoded API key, no tests, 0 changes in 4 months",
+    "reason": "hardcoded API key, no tests, 0 changes in 4 months; evidence src/server/integrations/legacy.ts:17",
+    "category": "security_hygiene",
+    "scope_impact": "background context unless current PRD touches legacy integration",
+    "failure_mode": "secret exposure or brittle integration behavior",
+    "confidence": "medium",
     "recommendation": "security review before touching"
   }
 ]
