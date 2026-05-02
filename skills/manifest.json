@@ -473,6 +473,13 @@
       "dag_nodes": ["pr_prep"]
     },
     {
+      "name": "helm-argocd-deployment",
+      "path": "skills/helm-argocd-deployment/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "dag_nodes": ["scaffold", "qa", "pr_prep"]
+    },
+    {
       "name": "codebase-research",
       "path": "skills/codebase-research/SKILL.md",
       "contract_version": "1.0.0",
