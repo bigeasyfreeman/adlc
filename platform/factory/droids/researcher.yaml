@@ -1,0 +1,14 @@
+name: adlc-researcher
+description: >
+  Deep codebase analyst that produces structured repo maps and research
+  deliverables. Analyzes a repository against a PRD to find reuse
+  opportunities, tech debt, and contradictions. Reports what exists —
+  never proposes solutions.
+model: claude-opus-4-6
+tools:
+  - Read
+  - Grep
+  - Glob
+  - LS
+  - Execute
+  - WebSearch

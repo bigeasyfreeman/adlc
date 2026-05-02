@@ -28,6 +28,19 @@ backends:
     command: "tests/smoke/adapters/factory.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
     env:
       FACTORY_API_KEY: "${FACTORY_API_KEY}"
+    # Factory-specific notes:
+    #   Fan-out: Factory's Task tool enables parallel subagent dispatch.
+    #     Independent coding tasks dispatch via Task("adlc-coder", "<context>")
+    #     and converge at code review. Maps directly to ADLC's fan-out model.
+    #   Model mapping:
+    #     - Fast agents (triage, coder, fixer, pr-preparer): model: inherit
+    #       Inherits the session model (typically Sonnet-tier).
+    #     - Deep agents (researcher, planner, plan-reviewer, security-reviewer,
+    #       code-reviewer): model: claude-opus-4-6 for deep reasoning.
+    #   Skills: Installed to .factory/docs/skills/ and auto-injected into droid context.
+    #   Droids: YAML configs in .factory/droids/ define agent capabilities and tool access.
+    #   MCP: External integrations (Jira, Slack, Grafana) use MCP servers configured
+    #     at the workspace level, not per-droid.
 
 default_backend: claude
 

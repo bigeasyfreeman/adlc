@@ -1,0 +1,13 @@
+name: adlc-triage
+description: >
+  Lightweight task classifier for the ADLC pipeline. Reads a task input
+  (PRD, issue, feature request) and classifies it as actionable, unclear,
+  or needing human judgment. Classification only — never starts research,
+  planning, or coding.
+model: inherit
+tools:
+  - Read
+  - Grep
+  - Glob
+  - LS
+  - WebSearch
