@@ -1,0 +1,16 @@
+name: adlc-coder
+description: >
+  Verifier-led coding agent that executes one self-contained task at a
+  time. Preserves the task's verifier contract: behavior tests for
+  features, reproducers for bugs, failing commands for build/lint work.
+  Uses only assembled context — never searches the codebase. Emits
+  'stuck' if context is missing.
+model: inherit
+tools:
+  - Read
+  - Grep
+  - Glob
+  - LS
+  - Execute
+  - Edit
+  - Create

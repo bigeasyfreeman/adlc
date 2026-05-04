@@ -35,7 +35,7 @@ usage() {
   echo "  codex         → .agents/skills/ + AGENTS.md"
   echo "  cursor        → .cursor/rules/"
   echo "  antigravity   → .agent/skills/ + agents.md"
-  echo "  factory       → .factory/droids/"
+  echo "  factory       → .factory/droids/ + .factory/docs/skills/"
   echo "  all           → Install for all platforms"
   echo ""
   echo "Examples:"
@@ -139,26 +139,48 @@ install_antigravity() {
 install_factory() {
   echo "→ Factory"
 
-  # Droids (agents as .md files in .factory/droids/)
+  # Droid YAML configs (Factory-native droid definitions)
   mkdir -p "$TARGET/.factory/droids"
+  local droid_count=0
+  if [ -d "$ADLC_DIR/platform/factory/droids" ]; then
+    for droid in "$ADLC_DIR"/platform/factory/droids/*.yaml; do
+      [ -f "$droid" ] || continue
+      cp "$droid" "$TARGET/.factory/droids/$(basename "$droid")"
+      droid_count=$((droid_count + 1))
+    done
+  fi
+  echo "  ✓ $droid_count droid configs installed to .factory/droids/"
+
+  # Agent markdown files as droids (for agents without YAML configs)
   for agent in "$ADLC_DIR"/agents/*.md; do
     name="$(basename "$agent" .md)"
     [[ "$name" == "ADLC-BUILD-BRIEF-AGENT" ]] && continue
     [[ "$name" == "PM-PRD-AGENT" ]] && continue
     cp "$agent" "$TARGET/.factory/droids/adlc-${name}.md"
   done
-  echo "  ✓ $INSTALLABLE_AGENT_COUNT installable agents installed to .factory/droids/"
+  echo "  ✓ $INSTALLABLE_AGENT_COUNT agent configs installed to .factory/droids/"
 
-  # Skills as approved docs
-  mkdir -p "$TARGET/.factory/docs"
+  # Skills as docs (Factory's doc injection path)
+  mkdir -p "$TARGET/.factory/docs/skills"
   for skill_dir in "$ADLC_DIR"/skills/*/; do
     skill_name="$(basename "$skill_dir")"
-    cp "$skill_dir/SKILL.md" "$TARGET/.factory/docs/adlc-${skill_name}.md"
+    cp "$skill_dir/SKILL.md" "$TARGET/.factory/docs/skills/adlc-${skill_name}.md"
   done
-  echo "  ✓ $SOURCE_SKILL_COUNT skill docs installed to .factory/docs/"
+  echo "  ✓ $SOURCE_SKILL_COUNT skill docs installed to .factory/docs/skills/"
 
-  # AGENTS.md
-  cp "$ADLC_DIR/platform/AGENTS.md" "$TARGET/AGENTS.md"
+  # AGENTS.md (Factory-specific platform instructions)
+  if [ -f "$ADLC_DIR/platform/factory/AGENTS.md" ]; then
+    cp "$ADLC_DIR/platform/factory/AGENTS.md" "$TARGET/AGENTS.md"
+  else
+    cp "$ADLC_DIR/platform/AGENTS.md" "$TARGET/AGENTS.md"
+  fi
+
+  # MCP server hints
+  echo "  ℹ  Recommended MCP servers for full integration skill support:"
+  echo "     - GitHub MCP (built-in) for github-issue-creation"
+  echo "     - Atlassian MCP for jira-ticket-creation, confluence-decomposition"
+  echo "     - Slack MCP for slack-orchestration"
+  echo "     - Grafana MCP for grafana-observability"
 
   echo "  ✓ Factory setup complete"
 }
