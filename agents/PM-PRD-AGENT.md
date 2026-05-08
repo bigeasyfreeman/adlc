@@ -66,6 +66,8 @@ If a metric cannot be quantified yet, it gets a TBD with a named owner and a dea
 5. You generate the complete PRD in the standard template format
 6. The PRD feeds directly into the ADLC Build Brief Agent (PRD + repo → production code)
 
+ADLC usage can be `prd_only`, `decompose_only`, or `prd_and_decompose`. This PRD agent owns the `prd_only` and PRD half of `prd_and_decompose`: the PRD must contain enough scope locks, Type 1 decision callouts, reuse boundaries, tech-debt sequencing, validation expectations, and Definition of Done signals for downstream decomposition to produce one-shot enterprise-ready tickets without inventing scope.
+
 **Target: 3-5 conversational turns.** Not a 20-question interview. If the PM gives you a rich description, you fill in most of the PRD and ask only about genuine gaps.
 
 ---
@@ -146,6 +148,8 @@ This section is a negative-space contract. It tells engineering what NOT to buil
 When repo context exists, Dependencies & Risks must also capture:
 - Which existing services, components, or workflows should be extended instead of rebuilt
 - Which current-system limitations or tech debt items could block safe delivery or force sequencing changes
+- Which Type 1 decisions must be resolved before implementation, with owner and deadline
+- Which validation tasks and evidence will prove the first slice is production-grade
 
 ## Personas / Consumers
 

@@ -35,16 +35,24 @@ This skill runs before the coding agent starts. Its output is the coding agent's
 {
   "task": {
     "task_id": "BE-001",
+    "artifact_type": "implementation_task | validation_task",
     "task_classification": "feature | bugfix | build_validation | lint_cleanup",
     "objective": "string",
+    "decision_contract": {},
     "acceptance_criteria": [],
+    "tech_debt_boundaries": {},
+    "compatibility_contract": {},
+    "evidence_responsibilities": [],
+    "definition_of_done": [],
     "verification_spec": {
       "primary_verifier": {
         "type": "test | reproducer | command",
         "command": "string",
         "target": "string",
         "expected_pre_change": "fail",
-        "expected_post_change": "pass"
+        "expected_post_change": "pass",
+        "target_files": ["file paths"],
+        "expected_failure_mode": "string"
       },
       "secondary_verifiers": [],
       "must_fail_before_change": true,
@@ -62,6 +70,7 @@ This skill runs before the coding agent starts. Its output is the coding agent's
   "build_brief": {
     "applicability_manifest": {},
     "existing_patterns": [{"pattern": "string", "file_path": "string", "reuse_instructions": "string"}],
+    "enterprise_readiness_contract": {},
     "compatibility_constraints": {
       "backwards_compat": "string",
       "forward_compat": "string",
@@ -105,6 +114,7 @@ Hard rule:
 - Every file listed in `files_to_modify` must have its current content inlined
 - Every file in `reference_impl` must have its code inlined
 - Every behavioral test artifact, fixture, and command verifier relevant to the task must be inlined
+- Every implementation task must include its decision contract, tech debt boundaries, compatibility contract, evidence responsibilities, and Definition of Done. If the task is blocked by an unresolved Type 1 decision, do not assemble a coding prompt; return `stuck` with reason `unresolved_decision_blocks_implementation`.
 
 What gets inlined:
 - Reference implementation code
@@ -133,6 +143,8 @@ The assembled prompt must carry the verifier contract explicitly.
 - Primary verifier: `[type + command/test/reproducer]`
 - Expected pre-change result: fail
 - Expected post-change result: pass
+- Target files: `[verification_spec.primary_verifier.target_files]`
+- Expected failure mode: `[verification_spec.primary_verifier.expected_failure_mode]`
 - Secondary verifiers: `[optional list]`
 - Scope note: `[why this verifier is sufficient]`
 
@@ -220,21 +232,27 @@ These are the exact files this task touches.
 [Paste only the relevant pattern table entries from the Build Brief.]
 
 ## 7. Compatibility Constraints
-[Paste only the constraints that are active for this task.]
+[Paste the task `compatibility_contract`, active enterprise readiness compatibility constraints, and any rollout or migration expectations.]
 
-## 8. Performance Budget
+## 8. Tech Debt Boundaries
+[Paste prerequisite debt, deferred debt, and safe-deferral rationale. Do not ask the coding agent to implement unrelated catalog items.]
+
+## 9. Evidence and Definition of Done
+[Paste evidence responsibilities and binary Definition of Done checks.]
+
+## 10. Performance Budget
 [Paste only the targets that are active for this task.]
 
-## 9. Schema
+## 11. Schema
 [Paste only the relevant schema sections.]
 
-## 10. What Not To Do
+## 12. What Not To Do
 [Paste the negative constraints from duplication and verifier quality.]
 
-## 11. Manual Test Plan
+## 13. Manual Test Plan
 [Paste if present.]
 
-## 12. Verification
+## 14. Verification
 Run the primary verifier first.
 If it fails for the wrong reason, adjust the verifier.
 If it fails for the right reason, make the smallest change that makes it pass.

@@ -23,6 +23,7 @@ Your preloaded skills contain codegen-context assembly and architecture-pattern 
 - Engineer feedback (if revision loop)
 - Triage output, including task classification, change surface, and contamination flags
 - Triage output confidence, confidence band, and any human override signal
+- Requested `adlc_mode`: `prd_only`, `decompose_only`, or `prd_and_decompose`
 
 ## Extract First, Ask Second
 
@@ -62,11 +63,21 @@ If `task_classification_confidence < 0.6` and no explicit human override is pres
 **Plan (How)** — Architecture, service placement, integration wiring, schema changes, security, observability, failure modes, applicability decisions, reuse strategy, and tech-debt paydown or containment decisions
 **Tasks (Do)** — Self-contained work items with: ID, G/W/T criteria, pattern reference, dependencies, files to change, integration wiring, verifier, parallel flag, and concrete `reference_impl`
 
+Honor `adlc_mode`:
+- `prd_only`: produce the PRD/Build Brief and enterprise readiness contract; do not invent implementation tickets.
+- `decompose_only`: consume an existing PRD/brief and emit scoped artifacts for downstream systems.
+- `prd_and_decompose`: generate the PRD/brief and then decompose it into downstream artifacts in the same run.
+
 Emit structured acceptance criteria by default. Every task should output objects with `id`, `given`, `when`, `then`, and optional `measurable_post_condition`.
 
 If any upstream material arrives with string-only acceptance criteria, keep planning moving but add `legacy_ac` to the manifest `classification_evidence` so downstream consumers know normalization occurred.
 
 Task-writing rules:
+- Classify every downstream artifact as exactly one `artifact_type`: `scope_lock_epic`, `decision_gate`, `implementation_task`, or `validation_task`.
+- A `scope_lock_epic` is context only. It preserves scope, primitives, non-goals, and source links for child work, but it is not executable and must not carry file-change instructions.
+- A `decision_gate` exists only when a Type 1 decision is unresolved after prompting. It blocks dependent implementation until the named owner resolves the decision.
+- An `implementation_task` cannot depend on an unresolved Type 1 decision. If the decision is unresolved, emit the blocking `decision_gate` and keep implementation blocked.
+- Generate validation tasks automatically for each decomposition series. Validation tasks own verifier execution, evidence capture, compatibility checks, and final Definition of Done proof.
 - Lead each task description with the concrete user or system behavior that changes. Architecture labels can follow, but they are not the opening sentence.
 - For `feature` work, make the verifier a failing test, fixture, or check for the intended behavior. Do not frame the task as "prove the old code lacks the feature" unless that absence is itself the defect.
 - Keep unsupported comparison or guardrail sentences out of the task body. If they matter, capture them in contamination notes or prior-attempt context with evidence.
@@ -75,11 +86,15 @@ Task-writing rules:
 - If a task introduces a new abstraction, justify why the existing pattern cannot absorb the change without creating worse coupling.
 - If tech debt must be paid down before feature work, split that work into an explicit prerequisite task rather than burying it in implementation notes.
 - `anti_slop_rules` must forbid reimplementing cited helpers, services, or patterns when they already exist.
+- Each implementation and validation task must include `decision_contract`, `tech_debt_boundaries`, `compatibility_contract`, `evidence_responsibilities`, `definition_of_done`, `files_to_modify`, `files_to_create`, `verification_spec.primary_verifier.target_files`, and `verification_spec.primary_verifier.expected_failure_mode`.
+- Compatibility is production engineering first: backwards compatibility, forwards compatibility, rollout or migration path, observability, rollback/degradation, and failure modes. Compliance posture is captured as evidence, not as scope expansion unless the PRD or repo requires it.
 
 ## Decision Classification
 
 - **Type 1** (irreversible): Data model, public API, auth boundaries → escalate
 - **Type 2** (reversible): Implementation, internal APIs, UI → decide now, document rationale
+
+Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved, emit a `decision_gate` artifact with owner, deadline, blocked implementation IDs, and the exact question to resolve. Do not silently convert unresolved Type 1 work into implementation scope.
 
 ## Output
 
@@ -87,7 +102,9 @@ Task-writing rules:
 {
   "label": "done | escalate",
   "brief": {
+    "adlc_mode": "prd_only | decompose_only | prd_and_decompose",
     "applicability_manifest": {},
+    "enterprise_readiness_contract": {},
     "spec": {},
     "plan": {},
     "tasks": [],

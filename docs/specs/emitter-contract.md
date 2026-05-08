@@ -31,6 +31,7 @@ Repo configuration binds ADLC's logical emitter capabilities to whatever tool na
 ```json
 {
   "contract_version": "1.x",
+  "adlc_mode": "prd_only | decompose_only | prd_and_decompose",
   "build_brief_id": "string",
   "feature_name": "string",
   "owner": "string",
@@ -40,6 +41,15 @@ Repo configuration binds ADLC's logical emitter capabilities to whatever tool na
   "task_breakdown": {},
   "phased_plan": {},
   "architecture_patterns": {},
+  "enterprise_readiness_contract": {
+    "production_grade_target": "string",
+    "backward_compatibility": "string",
+    "forward_compatibility": "string",
+    "failure_mode_coverage": [],
+    "definition_of_done": [],
+    "validation_tasks": [],
+    "compliance_posture": "string"
+  },
   "failure_modes": [],
   "mcp_provider": {
     "server_name": "string",
@@ -71,6 +81,9 @@ Repo configuration binds ADLC's logical emitter capabilities to whatever tool na
       "id": "string",
       "title": "string",
       "url": "string",
+      "artifact_type": "scope_lock_epic | decision_gate | implementation_task | validation_task",
+      "executable": true,
+      "blocks_implementation": false,
       "area": "backend | frontend | infra | observability",
       "phase": 1,
       "linked_failure_modes": ["FM-001"],
@@ -106,16 +119,23 @@ Repo configuration binds ADLC's logical emitter capabilities to whatever tool na
 
 Every work-item emitter must carry these fields forward from the Build Brief task:
 
+- `artifact_type`
 - `task_classification`
+- `decision_contract`
 - `verification_spec`
 - acceptance criteria or Given/When/Then contract
 - `dependencies`
 - `reference_impl`
 - reuse or extend instructions, including any explicit "do not reimplement" guidance
 - `files_to_create` and `files_to_modify`
+- `tech_debt_boundaries`
+- `compatibility_contract`
+- `evidence_responsibilities`
+- `definition_of_done`
 - failure-mode cross references
 - prerequisite debt-paydown tasks or deferred-cleanup notes when present
 - explicit out-of-scope or escalation notes when present
+- the top-level `enterprise_readiness_contract`
 
 Every document emitter must preserve:
 
@@ -176,6 +196,9 @@ Platform-specific config may extend the shared contract, but it must not redefin
 3. Validate `contract_version` using `docs/specs/skill-contract-versioning.md`.
 4. Preserve the applicability manifest. Suppressed sections stay omitted or marked not applicable.
 4.5. Preserve reuse and debt context. Do not collapse reference implementations, "do not reimplement" rules, or prerequisite paydown tasks into generic prose.
+4.6. Preserve artifact taxonomy. `scope_lock_epic` artifacts are parent/context artifacts only, `decision_gate` artifacts block implementation, `implementation_task` artifacts are executable coding work, and `validation_task` artifacts own evidence capture and final readiness proof.
+4.7. Reject unresolved dependency aliases before mutation. Every dependency must resolve to a Build Brief artifact ID or an already-emitted target artifact ID.
+4.8. Ensure decomposition-mode payloads include automatic validation tasks in the enterprise readiness contract, and emit those validation tasks as first-class work items when the target supports work-item artifacts.
 5. Compute per-artifact idempotency keys before any external mutation.
 6. Emit permission logging entries before and after every mutating external action.
 7. Return created artifact metadata and dedupe status in a structured response.
@@ -196,10 +219,12 @@ Emitters must stop with one of:
 - `permission_denied`
 - `provider_capability_missing`
 - `dependency_unavailable`
+- `unresolved_dependency_alias`
+- `unresolved_decision_blocks_implementation`
 - `external_mutation_partial`
 
 ## Verification Expectations
 
-- Work-item emitters are verified by artifact template completeness and field preservation.
+- Work-item emitters are verified by artifact template completeness, artifact taxonomy preservation, decision-gate blocking semantics, automatic validation task preservation, and field preservation.
 - Document emitters are verified by section coverage, hierarchy correctness, and applicability-manifest fidelity.
 - No emitter may pass by publishing placeholder titles, empty sections, tickets lacking verifier contracts, or artifacts that drop reuse/debt constraints from the brief.

@@ -182,9 +182,18 @@ Presence checks such as `task_classification`, `change_surface`, `applicability_
 For every task, run `specificity-judge` with:
 
 - the task acceptance criteria list
+- `artifact_type`
+- `decision_contract`
 - `reference_impl`
 - `files_to_modify`
+- `files_to_create`
+- `tech_debt_boundaries`
+- `compatibility_contract`
+- `evidence_responsibilities`
+- `definition_of_done`
 - `verification_spec.primary_verifier.target`
+- `verification_spec.primary_verifier.target_files`
+- `verification_spec.primary_verifier.expected_failure_mode`
 
 Thresholds:
 
@@ -200,9 +209,20 @@ For every task, compare `verification_spec.target_files` against the union of `f
 
 - If `target_files` is set and the intersection is non-empty, Gate 0 passes the mechanical screen and then must run `verifier-semantic-judge` to confirm the verifier exercises the semantic change rather than merely touching the file.
 - If `target_files` is set and the intersection is empty, Gate 0 fails with verdict `REVISION_REQUIRED` and reason `verifier_no_coverage`.
-- If `target_files` is unset, record a legacy warning and continue without blocking.
+- If `target_files` is unset on a Build Brief task, Gate 0 fails with verdict `REVISION_REQUIRED` and reason `verifier_scope_unset`.
 
 This check is mechanical. Do not waive it with prose if the verifier names files that the task does not touch.
+
+### Artifact Readiness Checks
+
+For every task artifact:
+
+- `scope_lock_epic` must be context-only and must not include executable file-change instructions.
+- `decision_gate` must carry an unresolved Type 1 decision, owner, deadline, blocked implementation IDs, and the exact question to resolve.
+- `implementation_task` must not have an unresolved Type 1 decision or `blocks_implementation = true`.
+- `validation_task` must own verifier execution, evidence capture, compatibility checks, and final Definition of Done proof.
+- Decomposition-mode briefs must include validation tasks in the enterprise readiness contract.
+- Dependencies must resolve to Build Brief artifact IDs or already-emitted target artifact IDs; unresolved aliases fail Gate 0.
 
 ### Gate 0 Verdict
 

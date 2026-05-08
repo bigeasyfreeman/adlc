@@ -14,6 +14,7 @@ Runs automatically when the PRD Agent completes Phase 7 (Review & Finalize). Als
 
 ```json
 {
+  "adlc_mode": "prd_only | prd_and_decompose",
   "prd_content": "string (full PRD markdown)",
   "strict_mode": true
 }
@@ -50,6 +51,12 @@ Runs automatically when the PRD Agent completes Phase 7 (Review & Finalize). Als
     "screens_not_ready": ["Screen 1: no field-detail table", "Screen 5: OPEN status"],
     "phase_1_candidates": ["screens with IN PROGRESS or FULLY DESIGNED status"],
     "missing_for_codegen": ["items the ADLC system needs but PRD doesn't provide"]
+  },
+  "decomposition_readiness": {
+    "scope_lock_epics": ["string"],
+    "decision_gates_required": ["string"],
+    "implementation_primitives": ["string"],
+    "validation_tasks_required": ["string"]
   },
   "summary": "string"
 }
@@ -164,8 +171,11 @@ Beyond quality, this evaluator assesses whether the PRD is ready for the ADLC pi
 | QA Skill | Testable behaviors per screen | Field-detail tables have specific values (not "TBD") |
 | Codegen Assembly | Precise field specs | Every CTA, input, and display element has defined behavior |
 | Phase planning | Screen status badges | Every screen has a status badge |
+| Ticket decomposition | Scope locks, Type 1 decisions, reuse boundaries, validation tasks | PRD names primitives, non-goals, blockers, and evidence expectations clearly enough to decompose without guessing |
 
 **Output: `engineering_readiness`** — lists which screens are ready for engineering (status IN PROGRESS or FULLY DESIGNED + complete field-detail table) and which are not. This directly feeds the Build Brief's Phase 1/2/3 scoping.
+
+**Output: `decomposition_readiness`** — lists the scope-lock epics, required decision gates, implementation primitives, and automatic validation tasks the PRD implies. In `prd_and_decompose` mode, missing decomposition readiness is blocking because it would force coding agents to invent scope or primitives later.
 
 ---
 

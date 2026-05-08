@@ -108,6 +108,20 @@ bash tests/backtest/run_backtest.sh
 ADLC_RUNTIME=codex ADLC_SMOKE_SETTINGS_CODEX=~/path/to/config.toml SMOKE=1 MODEL=gpt-5-codex bash tests/smoke/run_smoke.sh
 ```
 
+Agent-native discovery and validation:
+
+```bash
+bin/adlc list-agents --json
+bin/adlc list-phases --json
+bin/adlc validate-artifact --schema build-brief --input .adlc/build_brief.json --json
+bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
+bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json
+bin/adlc resume-workflow --workspace . --json
+bin/adlc emit-work-items --target linear --build-brief .adlc/build_brief.json --dry-run --json
+bin/adlc mcp-tools --json
+bin/adlc mcp-serve
+```
+
 Public-repo hygiene is intentional:
 
 - auth examples use placeholders only

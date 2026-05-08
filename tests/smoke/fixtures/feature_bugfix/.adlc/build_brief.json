@@ -1,5 +1,6 @@
 {
   "version": "1.0.0",
+  "adlc_mode": "decompose_only",
   "brief_id": "SMOKE-BRIEF-FEATURE-BUGFIX",
   "prd_id": "SMOKE-PRD-FEATURE-BUGFIX",
   "applicability_manifest": {
@@ -89,6 +90,24 @@
       "scope_note": "Use the native unittest discovery command against src/scoreboard.py."
     }
   },
+  "enterprise_readiness_contract": {
+    "production_grade_target": "Keep the smoke fixture production-grade for its scope: deterministic behavior, no new dependencies, and verifier-led changes in the existing module.",
+    "backward_compatibility": "Existing average_score empty-input behavior and unittest discovery stay compatible.",
+    "forward_compatibility": "The renderer output remains deterministic and local to src/scoreboard.py so future smoke tasks can extend it without new framework assumptions.",
+    "failure_mode_coverage": [
+      "Average divisor regressions are covered by tests/test_average_score.py.",
+      "Renderer ranking, footer, and empty-state regressions are covered by tests/test_render_scoreboard.py."
+    ],
+    "definition_of_done": [
+      "Primary verifiers pass for both implementation tasks.",
+      "Full unittest discovery passes.",
+      "No new dependencies, helper modules, or placeholder wiring are introduced."
+    ],
+    "validation_tasks": [
+      "SMOKE_VALIDATION_SCOREBOARD"
+    ],
+    "compliance_posture": "No compliance-specific surface exists in this toy fixture; evidence is limited to deterministic local test artifacts."
+  },
   "sections": {
     "1_context": "Goal: make the toy scoreboard module safe for a nightly Layer 2 smoke run. Current behavior: average_score inflates multi-entry averages, and render_scoreboard does not emit ranked output, empty-state text, or an average footer. Revision History:\\n| Version | Date | Change |\\n|---|---|---|\\n| 1.0.0 | 2026-04-13 | Seeded Layer 2 smoke brief for one bugfix and one feature task. |",
     "2_scope_and_constraints": "Pattern table:\\n| Pattern | File | Reuse instruction |\\n|---|---|---|\\n| Pure function helpers | src/scoreboard.py | Extend the existing helpers in place; keep stdlib-only behavior. |\\n| unittest discovery | tests/test_average_score.py | Keep unittest.TestCase style and test_*.py naming so python3 -m unittest discover stays deterministic. |\\nConstraints:\\n- No new dependencies.\\n- Keep all behavior in src/scoreboard.py.\\n- Preserve deterministic text output so failing assertions stay readable.\\nCurrent behavior -> new behavior:\\n- average_score currently divides by max(1, len(entries) - 1) -> divide by len(entries).\\n- render_scoreboard currently returns a name list -> return ranked lines, an average footer, and a clear empty-state string.",
@@ -99,10 +118,19 @@
     "7_execution_plan": "1. Author or refresh failing tests for both tasks using the existing unittest convention. 2. Fix average_score first because the feature footer depends on it. 3. Implement ranked render output and empty-state behavior. 4. Re-run the deterministic unittest suite. 5. Audit test strength on src/scoreboard.py, then submit the brief to council review. Dependency DAG: SMOKE_FEATURE_SCOREBOARD depends on SMOKE_BUGFIX_AVERAGE.",
     "8_task_tickets": [
       {
+        "artifact_type": "implementation_task",
         "task_id": "SMOKE_BUGFIX_AVERAGE",
         "title": "Fix average_score off-by-one behavior",
         "objective": "Correct average_score so it divides by the full entry count for deterministic scoreboard data.",
         "task_classification": "bugfix",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "smoke-harness",
+          "deadline": "not_applicable",
+          "blocks_implementation": false,
+          "resolution": "No Type 1 decision is required for this fixture task."
+        },
         "scope": [
           "Correct the multi-entry divisor in src/scoreboard.py",
           "Preserve empty-input behavior at 0.0",
@@ -133,6 +161,16 @@
           "No unfinished markers or placeholder text",
           "Do not change the repo away from unittest"
         ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "none",
+          "deferral_safety": "No debt is deferred; the task stays inside existing src/scoreboard.py and unittest patterns."
+        },
+        "compatibility_contract": {
+          "backward": "Preserve average_score([]) returning 0.0 and the existing function signature.",
+          "forward": "Keep the implementation simple enough for render_scoreboard and future scoring helpers to reuse.",
+          "migration_or_rollout": "No migration or rollout is required for the local smoke fixture."
+        },
         "implementation_notes": [
           "Keep the behavior in src/scoreboard.py.",
           "Do not add helper modules or third-party libraries."
@@ -154,6 +192,15 @@
           "must_be_deterministic": true,
           "scope_note": "Keep the bugfix anchored to tests/test_average_score.py."
         },
+        "evidence_responsibilities": [
+          "Capture the failing average_score reproducer before coding.",
+          "Capture a passing tests.test_average_score run after coding."
+        ],
+        "definition_of_done": [
+          "average_score divides by the full entry count for positive and mixed-value entries.",
+          "average_score([]) remains 0.0.",
+          "python3 -m unittest tests.test_average_score -v passes."
+        ],
         "failure_modes": [
           "HIGH: Returning an inflated average would keep the user-facing footer wrong; mitigation: preserve the failing reproducer until the divisor is corrected."
         ],
@@ -178,10 +225,19 @@
         "reference_impl": "src/scoreboard.py"
       },
       {
+        "artifact_type": "implementation_task",
         "task_id": "SMOKE_FEATURE_SCOREBOARD",
         "title": "Add ranked scoreboard rendering with empty-state text",
         "objective": "Add a user-facing render_scoreboard output that shows rank, points, and an average footer.",
         "task_classification": "feature",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "smoke-harness",
+          "deadline": "not_applicable",
+          "blocks_implementation": false,
+          "resolution": "No Type 1 decision is required for this fixture task."
+        },
         "scope": [
           "Render one ranked line per entry",
           "Append an average footer using average_score",
@@ -221,6 +277,16 @@
           "No unfinished markers or placeholder text",
           "Keep render output deterministic and newline-separated"
         ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "SMOKE_BUGFIX_AVERAGE must land first so the footer can reuse corrected average_score behavior.",
+          "deferred_debt": "none",
+          "deferral_safety": "No debt is deferred; the feature extends existing src/scoreboard.py behavior only."
+        },
+        "compatibility_contract": {
+          "backward": "Preserve the render_scoreboard function signature and stdlib-only module contract.",
+          "forward": "Use average_score for the footer so later score formatting changes have one calculation path.",
+          "migration_or_rollout": "No migration or rollout is required; the deterministic smoke tests define the local behavior change."
+        },
         "implementation_notes": [
           "Reuse average_score for the footer rather than duplicating the calculation.",
           "Keep the render output in src/scoreboard.py."
@@ -242,6 +308,15 @@
           "must_be_deterministic": true,
           "scope_note": "Keep the feature anchored to tests/test_render_scoreboard.py."
         },
+        "evidence_responsibilities": [
+          "Capture failing render_scoreboard assertions before coding.",
+          "Capture passing render_scoreboard and full unittest discovery runs after coding."
+        ],
+        "definition_of_done": [
+          "render_scoreboard emits ranked lines and an average footer for non-empty input.",
+          "render_scoreboard returns No scores yet. for empty input.",
+          "python3 -m unittest tests.test_render_scoreboard -v passes."
+        ],
         "failure_modes": [
           "MEDIUM: Returning unreadable or incomplete output would break the user-facing contract; mitigation: keep exact expected strings in the generated tests."
         ],

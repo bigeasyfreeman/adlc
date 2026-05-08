@@ -21,6 +21,7 @@ ADLC does not ship a Linear client. This skill targets a locally installed MCP p
 ```json
 {
   "contract_version": "1.x",
+  "adlc_mode": "prd_only | decompose_only | prd_and_decompose",
   "build_brief_id": "string",
   "feature_name": "string",
   "owner": "string",
@@ -58,11 +59,12 @@ ADLC does not ship a Linear client. This skill targets a locally installed MCP p
     "phase_3": []
   },
   "architecture_patterns": {},
+  "enterprise_readiness_contract": {},
   "failure_modes": []
 }
 ```
 
-Every emitted issue must preserve the task's `task_classification`, `verification_spec`, `dependencies`, `reference_impl`, explicit reuse instructions, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted issue.
+Every emitted issue must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `dependencies`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted issue. The top-level `enterprise_readiness_contract` must remain visible from the project/parent artifact and referenced by validation issues.
 
 ## Output Contract
 
@@ -80,6 +82,8 @@ Every emitted issue must preserve the task's `task_classification`, `verificatio
       "identifier": "ENG-124",
       "url": "string",
       "title": "string",
+      "artifact_type": "scope_lock_epic | decision_gate | implementation_task | validation_task",
+      "blocks_implementation": false,
       "area": "backend | frontend | infra | observability",
       "phase": 1,
       "assignee": "string (if provided)",
@@ -109,7 +113,14 @@ Every emitted issue must preserve the task's `task_classification`, `verificatio
 
 ### 2. Create Issues from Task Breakdown
 
-For each task in the Build Brief task breakdown, create one Linear issue.
+For each artifact in the Build Brief task breakdown, create one Linear issue unless `adlc_mode` is `prd_only`.
+
+Artifact rules:
+- `scope_lock_epic`: create or update the Linear project or parent issue as context only; no file-change instructions, no coding assignee by default.
+- `decision_gate`: create a blocking issue with the owner, deadline, exact decision question, and blocked implementation IDs.
+- `implementation_task`: create executable coding work only when its `decision_contract.status` is `not_applicable` or `resolved`.
+- `validation_task`: create first-class validation work that owns verifier execution, evidence capture, compatibility checks, and Definition of Done proof.
+- Stop before mutation if dependencies contain unresolved aliases or if an implementation task is blocked by an unresolved decision.
 
 **Title format:** `[Area] [Verb] [Specific Deliverable]`
 
@@ -117,6 +128,18 @@ For each task in the Build Brief task breakdown, create one Linear issue.
 ```md
 ## Task
 [Self-contained task description]
+
+## Artifact Type
+- Type: [scope_lock_epic | decision_gate | implementation_task | validation_task]
+- Executable: [yes/no]
+- Blocks implementation: [yes/no]
+
+## Decision Contract
+- Type 1 decision: [true/false]
+- Status: [not_applicable | unresolved | resolved]
+- Owner:
+- Deadline:
+- Resolution:
 
 ## Acceptance Criteria (Given/When/Then)
 - Given ...
@@ -142,6 +165,11 @@ For each task in the Build Brief task breakdown, create one Linear issue.
 - Deferred debt: [allowed deferral with owner, or "none"]
 - Why deferral is safe: [brief justification when deferred debt exists]
 
+## Compatibility Contract
+- Backward compatibility:
+- Forward compatibility:
+- Migration or rollout:
+
 ## Dependencies
 - Depends on:
 - Blocks:
@@ -150,7 +178,15 @@ For each task in the Build Brief task breakdown, create one Linear issue.
 - Primary verifier: [test | command | reproducer] — [target]
 - Expected before change: fail
 - Expected after change: pass
+- Target files:
+- Expected failure mode:
 - Overlay checks: [only when active]
+
+## Evidence Responsibilities
+- [tests/logs/screenshots/audit/deploy evidence this issue owns]
+
+## Definition of Done
+- [binary completion check]
 
 ## Agent Instructions
 - Files to modify:
@@ -279,7 +315,11 @@ ADLC expects a locally installed MCP provider. Provider tool names may differ; r
 ## Quality Gates
 
 - [ ] Every task in the Build Brief has a corresponding Linear issue.
-- [ ] Issue bodies preserve `task_classification`, `verification_spec`, dependencies, file targets, reference implementations, and reuse/debt context.
+- [ ] Issue bodies preserve `artifact_type`, `decision_contract`, `task_classification`, `verification_spec`, dependencies, file targets, reference implementations, reuse/debt context, compatibility contracts, evidence responsibilities, and Definition of Done.
+- [ ] Scope-lock epics are context-only and do not carry executable file-change instructions.
+- [ ] Decision-gate issues block dependent implementation issues until resolved.
+- [ ] Validation tasks are emitted automatically for decomposition-mode briefs and reference the enterprise readiness contract.
+- [ ] Unresolved dependency aliases fail before any external mutation.
 - [ ] Phase and area metadata are represented with deterministic labels or fields.
 - [ ] Configured local MCP provider exposes the required logical capability bindings.
 - [ ] Retries deduplicate by stored ADLC metadata.

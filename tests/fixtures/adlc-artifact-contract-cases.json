@@ -1,0 +1,402 @@
+{
+  "contract_version": "1.0.0",
+  "description": "Deterministic artifact-contract cases for ADLC decomposition readiness.",
+  "cases": [
+    {
+      "id": "ART-001-valid-decomposition",
+      "expected_verdict": "pass",
+      "expected_reasons": [],
+      "brief": {
+        "adlc_mode": "decompose_only",
+        "enterprise_readiness_contract": {
+          "validation_tasks": [
+            "XIA-VAL-001"
+          ]
+        },
+        "sections": {
+          "8_task_tickets": [
+            {
+              "task_id": "XIA-SCOPE-001",
+              "artifact_type": "scope_lock_epic",
+              "task_classification": "feature",
+              "decision_contract": {
+                "type1_decision": false,
+                "status": "not_applicable",
+                "blocks_implementation": false
+              },
+              "dependencies": [],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-SCOPE-XIA-001",
+                  "given": "the XIA PRD is decomposed",
+                  "when": "child artifacts are emitted",
+                  "then": "the child work stays inside the scoped primitives"
+                }
+              ],
+              "files_to_modify": [],
+              "files_to_create": []
+            },
+            {
+              "task_id": "XIA-DECIDE-001",
+              "artifact_type": "decision_gate",
+              "task_classification": "feature",
+              "bpe_classification": "type_1",
+              "decision_contract": {
+                "type1_decision": true,
+                "status": "unresolved",
+                "blocks_implementation": true
+              },
+              "dependencies": [],
+              "blocked_artifact_ids": [
+                "XIA-BE-001"
+              ],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-DECIDE-XIA-001",
+                  "given": "the data retention decision is unresolved",
+                  "when": "implementation planning reaches storage work",
+                  "then": "the storage work remains blocked until the owner decides"
+                }
+              ],
+              "files_to_modify": [],
+              "files_to_create": []
+            },
+            {
+              "task_id": "XIA-BE-001",
+              "artifact_type": "implementation_task",
+              "task_classification": "feature",
+              "decision_contract": {
+                "type1_decision": false,
+                "status": "resolved",
+                "blocks_implementation": false
+              },
+              "dependencies": [
+                "XIA-DECIDE-001"
+              ],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-BE-XIA-001",
+                  "given": "retention scope is resolved",
+                  "when": "the storage workflow runs",
+                  "then": "it extends the existing repository primitive"
+                }
+              ],
+              "files_to_modify": [
+                "src/server/storage.ts"
+              ],
+              "files_to_create": []
+            },
+            {
+              "task_id": "XIA-VAL-001",
+              "artifact_type": "validation_task",
+              "task_classification": "build_validation",
+              "decision_contract": {
+                "type1_decision": false,
+                "status": "not_applicable",
+                "blocks_implementation": false
+              },
+              "dependencies": [
+                "XIA-BE-001"
+              ],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-VAL-XIA-001",
+                  "given": "the implementation task is complete",
+                  "when": "the validation suite runs",
+                  "then": "the compatibility and evidence checks pass"
+                }
+              ],
+              "files_to_modify": [],
+              "files_to_create": []
+            }
+          ]
+        }
+      },
+      "emitter_dry_runs": {
+        "linear": {
+          "dry_run": true,
+          "artifacts": [
+            {
+              "id": "XIA-SCOPE-001",
+              "artifact_type": "scope_lock_epic",
+              "decision_contract": {
+                "status": "not_applicable",
+                "blocks_implementation": false
+              }
+            },
+            {
+              "id": "XIA-DECIDE-001",
+              "artifact_type": "decision_gate",
+              "decision_contract": {
+                "status": "unresolved",
+                "blocks_implementation": true
+              }
+            },
+            {
+              "id": "XIA-BE-001",
+              "artifact_type": "implementation_task",
+              "decision_contract": {
+                "status": "resolved",
+                "blocks_implementation": false
+              }
+            },
+            {
+              "id": "XIA-VAL-001",
+              "artifact_type": "validation_task",
+              "decision_contract": {
+                "status": "not_applicable",
+                "blocks_implementation": false
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ART-002-unresolved-type1-in-implementation",
+      "expected_verdict": "fail",
+      "expected_reasons": [
+        "unresolved_type1_in_implementation"
+      ],
+      "brief": {
+        "adlc_mode": "decompose_only",
+        "enterprise_readiness_contract": {
+          "validation_tasks": [
+            "XIA-VAL-001"
+          ]
+        },
+        "sections": {
+          "8_task_tickets": [
+            {
+              "task_id": "XIA-BE-001",
+              "artifact_type": "implementation_task",
+              "task_classification": "feature",
+              "decision_contract": {
+                "type1_decision": true,
+                "status": "unresolved",
+                "blocks_implementation": true
+              },
+              "dependencies": [],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-BE-XIA-001",
+                  "given": "retention scope is unresolved",
+                  "when": "implementation starts",
+                  "then": "the agent would have to guess storage semantics"
+                }
+              ],
+              "files_to_modify": [
+                "src/server/storage.ts"
+              ],
+              "files_to_create": []
+            },
+            {
+              "task_id": "XIA-VAL-001",
+              "artifact_type": "validation_task",
+              "task_classification": "build_validation",
+              "decision_contract": {
+                "type1_decision": false,
+                "status": "not_applicable",
+                "blocks_implementation": false
+              },
+              "dependencies": [
+                "XIA-BE-001"
+              ],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-VAL-XIA-001",
+                  "given": "implementation is complete",
+                  "when": "validation runs",
+                  "then": "evidence exists"
+                }
+              ],
+              "files_to_modify": [],
+              "files_to_create": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ART-003-duplicate-parent-child-scope",
+      "expected_verdict": "fail",
+      "expected_reasons": [
+        "parent_child_duplicate_scope"
+      ],
+      "brief": {
+        "adlc_mode": "decompose_only",
+        "enterprise_readiness_contract": {
+          "validation_tasks": [
+            "XIA-VAL-001"
+          ]
+        },
+        "sections": {
+          "8_task_tickets": [
+            {
+              "task_id": "XIA-SCOPE-001",
+              "artifact_type": "scope_lock_epic",
+              "task_classification": "feature",
+              "decision_contract": {
+                "type1_decision": false,
+                "status": "not_applicable",
+                "blocks_implementation": false
+              },
+              "dependencies": [],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-XIA-DUP-001",
+                  "given": "the user searches",
+                  "when": "the backend receives the query",
+                  "then": "the API returns scoped results"
+                }
+              ],
+              "files_to_modify": [],
+              "files_to_create": []
+            },
+            {
+              "task_id": "XIA-BE-001",
+              "artifact_type": "implementation_task",
+              "task_classification": "feature",
+              "decision_contract": {
+                "type1_decision": false,
+                "status": "resolved",
+                "blocks_implementation": false
+              },
+              "dependencies": [],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-XIA-DUP-001",
+                  "given": "the user searches",
+                  "when": "the backend receives the query",
+                  "then": "the API returns scoped results"
+                }
+              ],
+              "files_to_modify": [
+                "src/server/search.ts"
+              ],
+              "files_to_create": []
+            },
+            {
+              "task_id": "XIA-VAL-001",
+              "artifact_type": "validation_task",
+              "task_classification": "build_validation",
+              "decision_contract": {
+                "type1_decision": false,
+                "status": "not_applicable",
+                "blocks_implementation": false
+              },
+              "dependencies": [
+                "XIA-BE-001"
+              ],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-VAL-XIA-001",
+                  "given": "implementation is complete",
+                  "when": "validation runs",
+                  "then": "evidence exists"
+                }
+              ],
+              "files_to_modify": [],
+              "files_to_create": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ART-004-validation-task-missing",
+      "expected_verdict": "fail",
+      "expected_reasons": [
+        "missing_validation_task"
+      ],
+      "brief": {
+        "adlc_mode": "prd_and_decompose",
+        "enterprise_readiness_contract": {
+          "validation_tasks": [
+            "XIA-VAL-001"
+          ]
+        },
+        "sections": {
+          "8_task_tickets": [
+            {
+              "task_id": "XIA-BE-001",
+              "artifact_type": "implementation_task",
+              "task_classification": "feature",
+              "decision_contract": {
+                "type1_decision": false,
+                "status": "resolved",
+                "blocks_implementation": false
+              },
+              "dependencies": [],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-BE-XIA-001",
+                  "given": "the feature is scoped",
+                  "when": "implementation runs",
+                  "then": "the existing primitive is extended"
+                }
+              ],
+              "files_to_modify": [
+                "src/server/storage.ts"
+              ],
+              "files_to_create": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ART-005-emitter-drops-taxonomy",
+      "expected_verdict": "fail",
+      "expected_reasons": [
+        "emitter_drops_artifact_taxonomy",
+        "emitter_missing_decision_contract",
+        "emitter_missing_validation_task"
+      ],
+      "brief": {
+        "adlc_mode": "decompose_only",
+        "enterprise_readiness_contract": {
+          "validation_tasks": [
+            "XIA-VAL-001"
+          ]
+        },
+        "sections": {
+          "8_task_tickets": [
+            {
+              "task_id": "XIA-VAL-001",
+              "artifact_type": "validation_task",
+              "task_classification": "build_validation",
+              "decision_contract": {
+                "type1_decision": false,
+                "status": "not_applicable",
+                "blocks_implementation": false
+              },
+              "dependencies": [],
+              "acceptance_criteria": [
+                {
+                  "id": "AC-VAL-XIA-001",
+                  "given": "the emitted issue exists",
+                  "when": "an agent consumes it",
+                  "then": "the agent can see validation ownership"
+                }
+              ],
+              "files_to_modify": [],
+              "files_to_create": []
+            }
+          ]
+        }
+      },
+      "emitter_dry_runs": {
+        "linear": {
+          "dry_run": true,
+          "artifacts": [
+            {
+              "id": "XIA-VAL-001",
+              "title": "Validate XIA readiness"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -23,6 +23,18 @@ You ask sharp questions. You challenge complexity. You surface real risks. You f
 
 This is not bureaucracy. It is structured clarity.
 
+## Operating Modes
+
+ADLC can run in three modes:
+
+| Mode | Output |
+|------|--------|
+| `prd_only` | Create the PRD/Build Brief and enterprise readiness contract without forcing implementation tickets. |
+| `decompose_only` | Decompose an existing PRD/brief into scope-lock, decision, implementation, and validation artifacts. |
+| `prd_and_decompose` | Create the PRD/Build Brief and immediately decompose it for execution. |
+
+Every mode must preserve the applicability manifest and enterprise readiness contract. Decomposition modes must also produce agent-ready artifacts that can be emitted into Linear, GitHub, JIRA, or another downstream work manager.
+
 ---
 
 ## How This Works
@@ -101,7 +113,7 @@ Every decision surfaced during the brief gets tagged:
 
 When in doubt, ask: "If we got this wrong, can we change it in a sprint without customer impact?" If yes, Type 2. If no, Type 1.
 
-Type 1 decisions that remain unresolved after the brief trigger a Slack escalation via the Slack Orchestration Skill. They do not silently sit in a doc.
+Type 1 decisions that remain unresolved after the brief become explicit `decision_gate` artifacts with a named owner, deadline, blocked implementation IDs, and the exact question to resolve. They may also trigger Slack escalation via the Slack Orchestration Skill. They do not silently sit in a doc, and they do not get buried inside executable implementation tasks.
 
 ---
 
@@ -564,11 +576,17 @@ For each area -- Backend, Frontend, Infra, Observability -- collect:
 
 | Field | Description |
 |-------|------------|
+| Artifact Type | `scope_lock_epic`, `decision_gate`, `implementation_task`, or `validation_task` |
 | Task ID | Unique ID (e.g., BE-001) for dependency tracking |
 | Task | Concrete deliverable. Rewrite if vague. |
+| Decision Contract | Type 1/Type 2 status, owner, deadline, blocking effect, and resolution |
 | Acceptance Criteria | **Given/When/Then format required.** Maps directly to test assertions. |
 | Verification Contract | Primary verifier with task-class-aware phrasing. Feature work uses intended-behavior tests; bugfix/build/lint work uses direct reproducers or commands. |
 | Anti-Slop Rules | Explicit banned placeholder/stub patterns and wiring-completeness rules. Mandatory on every task. |
+| Tech Debt Boundaries | Prerequisite debt, deferred debt, and why any deferral is safe |
+| Compatibility Contract | Backward compatibility, forward compatibility, and rollout/migration path |
+| Evidence Responsibilities | Which artifact owns tests, logs, screenshots, audit output, or deploy evidence |
+| Definition of Done | Binary completion proof, including verifier and compatibility evidence |
 | Constraints | Must do / Must not do / Escalation triggers |
 | Estimated Hours | Target 2h or less per task. Decompose if larger. |
 | Architecture Pattern | Which pattern from Phase 2 applies, with file path reference |
@@ -588,11 +606,16 @@ Bad: "Returns errors on invalid input"
 Good: "Given a POST to /api/v1/widgets with an empty name field, When the request is processed, Then the API returns 400 with `{error: 'name is required'}` and no widget is created."
 
 **Task-writing rules:**
+- A `scope_lock_epic` is context only. It locks scope, primitives, non-goals, source links, and child IDs. It is not executable and must not include file-change instructions.
+- A `decision_gate` is the only valid output for unresolved Type 1 decisions. It blocks dependent implementation until the owner resolves it.
+- An `implementation_task` must extend an existing path or explicitly justify why no existing primitive can absorb the change.
+- A `validation_task` is generated automatically for each decomposed series and owns verifier execution, evidence capture, compatibility checks, and final Definition of Done proof.
 - Lead each task description with the concrete system or user behavior that changes.
 - Feature-task RED steps describe failing tests for the intended behavior or edge cases.
 - Bugfix/build-validation/lint-cleanup RED steps use the narrowest reproducer or failing command.
 - Strip unsupported comparison lines and non-sequiturs from the task body; keep them only in contamination or prior-attempt notes when evidenced.
 - State invariants positively first. Use "must not" for grounded boundaries and known bad shortcuts.
+- Production readiness means backwards and forwards compatibility, observability, rollback/degradation, realistic failure modes, and evidence. Compliance posture is considered through the evidence suite, but it must not explode implementation scope unless required by the PRD or repo.
 
 **Parallelism flags:** Mark tasks as independent when they don't share state or depend on each other's output. Independent tasks can be executed by multiple coding agents simultaneously. This is how you get 3x velocity from the same task list.
 
@@ -952,6 +975,11 @@ When all sections are complete, generate the Build Brief as a single markdown do
 | **Files to create** | [exact file paths] |
 | **Files to modify** | [exact file paths] |
 | **Reference impl** | [file path(s) to follow as pattern] |
+| **Artifact type** | [scope_lock_epic / decision_gate / implementation_task / validation_task] |
+| **Decision contract** | [not_applicable / unresolved / resolved, owner, deadline, blocks implementation, resolution] |
+| **Tech debt boundaries** | [prerequisite debt, deferred debt, deferral safety] |
+| **Compatibility contract** | [backward, forward, migration or rollout] |
+| **Evidence responsibilities** | [tests/logs/screenshots/audit/deploy evidence this artifact owns] |
 | **Feature flag** | [flag name if gated, or N/A] |
 
 **Description:** [What to build. Specific enough that a coding agent with only this ticket produces working code. Include: what pattern to follow, what library to use, what existing code to extend. No ambiguity.]
@@ -966,6 +994,13 @@ Lead with the concrete behavior the system must have after the change. Architect
 - Why this verifier is correct: [ties to intended behavior or observed defect]
 - Expected before change: fail
 - Expected after change: pass
+- Target files: [exact files the verifier must cover]
+- Expected failure mode: [the failure signal before implementation]
+
+**Definition of Done:**
+- [binary completion check]
+- [compatibility evidence]
+- [verification evidence]
 
 **Manual Test Plan:** [CONDITIONAL — include for auth flows, integrations, visual UI]
 1. [Step-by-step manual verification procedure]
@@ -1067,6 +1102,7 @@ Every task in Section 9 MUST have ALL of these. The Eval Council Executioner rej
 | Field | Required | Notes |
 |-------|----------|-------|
 | Task ID | Yes | Unique, prefixed by type (T1, BE-001, FE-001) |
+| Artifact type | Yes | `scope_lock_epic`, `decision_gate`, `implementation_task`, or `validation_task` |
 | Agent type | Yes | Default "generic" — prompt user if they want specific assignment |
 | Description | Yes | Specific enough for autonomous execution. No "set up" or "add tests" vagueness. |
 | Files to create | Yes (if new) | Exact paths |
@@ -1074,6 +1110,11 @@ Every task in Section 9 MUST have ALL of these. The Eval Council Executioner rej
 | Reference impl | Yes (if extending) | File path(s) showing the pattern to follow |
 | Dependencies | Yes | Task IDs or "None" |
 | Task classification | Yes | `feature`, `bugfix`, `build_validation`, `lint_cleanup`, `refactor`, `infra`, `docs`, or `security` |
+| Decision contract | Yes | Unresolved Type 1 decisions must be `decision_gate`, not implementation scope |
+| Tech debt boundaries | Yes | Prerequisite debt, deferred debt, and safe-deferral rationale |
+| Compatibility contract | Yes | Backward, forward, and rollout/migration expectations |
+| Evidence responsibilities | Yes | Verifier, observability, deploy, or compliance evidence owned by this artifact |
+| Definition of Done | Yes | Concrete proof required before the artifact can close |
 | Verification spec | Yes | Primary verifier + fail-before/pass-after contract |
 | Acceptance criteria | Yes | G/W/T format, minimum 2 per task |
 | Feature flag | Conditional | If project uses feature flags |

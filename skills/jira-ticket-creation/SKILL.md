@@ -21,6 +21,7 @@ ADLC does not ship a JIRA client. This skill targets a locally installed MCP pro
 ```json
 {
   "contract_version": "1.x",
+  "adlc_mode": "prd_only | decompose_only | prd_and_decompose",
   "build_brief_id": "string",
   "feature_name": "string",
   "owner": "string",
@@ -58,11 +59,12 @@ ADLC does not ship a JIRA client. This skill targets a locally installed MCP pro
     "phase_3": []
   },
   "architecture_patterns": {},
+  "enterprise_readiness_contract": {},
   "failure_modes": []
 }
 ```
 
-Every emitted ticket must preserve the task's `task_classification`, `verification_spec`, `reference_impl`, explicit reuse instructions, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
+Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
 
 ## Mixed Acceptance Criteria Shapes
 
@@ -88,6 +90,8 @@ Extraction rules:
       "key": "PROJ-124",
       "url": "string",
       "title": "string",
+      "artifact_type": "scope_lock_epic | decision_gate | implementation_task | validation_task",
+      "blocks_implementation": false,
       "type": "Story | Task | Sub-task",
       "area": "backend | frontend | infra | observability",
       "phase": 1,
@@ -121,13 +125,16 @@ Create an epic for the feature:
 
 ### 2. Create Tickets from Task Breakdown
 
-For each task in the Build Brief task breakdown, create a ticket:
+For each artifact in the Build Brief task breakdown, create a ticket unless `adlc_mode` is `prd_only`:
 
 **Title format:** `[Area] [Verb] [Specific Deliverable]`
 - Good: `[BE] Add POST /api/v1/widgets endpoint with validation`
 - Bad: `Set up the API`
 
 Emitter rules:
+- Preserve artifact taxonomy. `scope_lock_epic` is context only, `decision_gate` blocks implementation, `implementation_task` is executable coding work, and `validation_task` owns evidence and final readiness proof.
+- Do not create executable implementation tickets when `decision_contract.status` is `unresolved`; create or preserve the blocking decision gate instead.
+- Stop before mutation if dependencies contain unresolved aliases.
 - Keep the first sentence concrete and behavior-first.
 - Preserve positive invariants from the brief before negative bans.
 - Do not emit defensive comparison lines unless they are grounded by the brief's contamination or prior-failure evidence.
@@ -136,6 +143,18 @@ Emitter rules:
 ```
 h2. Task
 [Task description from brief — self-contained, no references to "the spec" or "as discussed". Lead with the user/system behavior that changes, then the architecture details.]
+
+h2. Artifact Type
+* Type: [scope_lock_epic | decision_gate | implementation_task | validation_task]
+* Executable: [yes/no]
+* Blocks Implementation: [yes/no]
+
+h2. Decision Contract
+* Type 1 decision: [true/false]
+* Status: [not_applicable | unresolved | resolved]
+* Owner: [name]
+* Deadline: [date or not_applicable]
+* Resolution: [resolved decision or exact question to answer]
 
 h2. Acceptance Criteria (Given/When/Then)
 {panel:title=Done When}
@@ -163,6 +182,11 @@ h2. Tech Debt / Cleanup Boundaries
 * Deferred debt: [allowed deferral with owner, or "none"]
 * Why deferral is safe: [brief justification when deferred debt exists]
 
+h2. Compatibility Contract
+* Backward compatibility: [existing consumers and behavior preserved]
+* Forward compatibility: [future phases accommodated without premature lock-in]
+* Migration or rollout: [feature flag, migration, rollout, rollback, or N/A]
+
 h2. Dependencies
 * Depends on: [task IDs or "none — parallelizable"]
 * Blocks: [task IDs or "none"]
@@ -171,8 +195,16 @@ h2. Verification Contract
 * Primary verifier: [test | command | reproducer] — [target]
 * Expected before change: fail
 * Expected after change: pass
+* Target files: [exact files the verifier must cover]
+* Expected failure mode: [pre-change failure signal]
 * Verifier phrasing: [feature = intended behavior; bugfix/build/lint = direct reproducer or command]
 * Overlay checks: [security/observability/performance only when active]
+
+h2. Evidence Responsibilities
+* [tests/logs/screenshots/audit/deploy evidence this ticket owns]
+
+h2. Definition of Done
+* [binary completion check]
 
 h2. Agent Instructions
 [Self-contained context — everything a coding agent needs to implement this task without searching]
@@ -331,6 +363,11 @@ ADLC expects a locally installed MCP provider. Provider tool names may differ; r
 ## Quality Gates
 
 - [ ] Every task in Section 8 has a corresponding JIRA ticket
+- [ ] Ticket bodies preserve `artifact_type`, `decision_contract`, compatibility contracts, evidence responsibilities, and Definition of Done.
+- [ ] Scope-lock epics are context-only and do not carry executable file-change instructions.
+- [ ] Decision-gate tickets block dependent implementation tickets until resolved.
+- [ ] Validation tasks are emitted automatically for decomposition-mode briefs and reference the enterprise readiness contract.
+- [ ] Unresolved dependency aliases fail before any external mutation.
 - [ ] All tickets have acceptance criteria (not empty)
 - [ ] All tickets reference an architecture pattern from Section 2
 - [ ] Phase 1 tickets are in the sprint

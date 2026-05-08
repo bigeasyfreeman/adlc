@@ -6,15 +6,25 @@
   "additionalProperties": false,
   "required": [
     "version",
+    "adlc_mode",
     "brief_id",
     "prd_id",
     "applicability_manifest",
+    "enterprise_readiness_contract",
     "sections"
   ],
   "properties": {
     "version": {
       "type": "string",
       "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "adlc_mode": {
+      "type": "string",
+      "enum": [
+        "prd_only",
+        "decompose_only",
+        "prd_and_decompose"
+      ]
     },
     "brief_id": {
       "type": "string",
@@ -24,8 +34,8 @@
       "type": "string",
       "minLength": 1
     },
-    "applicability_manifest": {
-      "$ref": "applicability-manifest.schema.json"
+    "enterprise_readiness_contract": {
+      "$ref": "#/definitions/enterprise_readiness_contract"
     },
     "sections": {
       "type": "object",
@@ -85,7 +95,7 @@
         },
         "8_task_tickets": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "items": {
             "$ref": "#/definitions/task"
           }
@@ -126,24 +136,65 @@
           ]
         }
       }
+    },
+    "applicability_manifest": {
+      "$ref": "applicability-manifest.schema.json"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "adlc_mode": {
+            "enum": [
+              "decompose_only",
+              "prd_and_decompose"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "enterprise_readiness_contract": {
+            "properties": {
+              "validation_tasks": {
+                "minItems": 1
+              }
+            }
+          },
+          "sections": {
+            "properties": {
+              "8_task_tickets": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "definitions": {
     "task": {
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "artifact_type",
         "task_id",
         "title",
         "objective",
         "task_classification",
+        "decision_contract",
         "scope",
         "out_of_scope",
         "dependencies",
         "acceptance_criteria",
         "anti_slop_rules",
+        "tech_debt_boundaries",
+        "compatibility_contract",
         "implementation_notes",
         "verification_spec",
+        "evidence_responsibilities",
+        "definition_of_done",
         "failure_modes",
         "bpe_classification",
         "owner",
@@ -152,6 +203,15 @@
         "reference_impl"
       ],
       "properties": {
+        "artifact_type": {
+          "type": "string",
+          "enum": [
+            "scope_lock_epic",
+            "decision_gate",
+            "implementation_task",
+            "validation_task"
+          ]
+        },
         "task_id": {
           "type": "string",
           "pattern": "^[A-Z0-9_-]+$"
@@ -176,6 +236,9 @@
             "docs",
             "security"
           ]
+        },
+        "decision_contract": {
+          "$ref": "#/definitions/decision_contract"
         },
         "scope": {
           "type": "array",
@@ -246,6 +309,12 @@
             "minLength": 1
           }
         },
+        "tech_debt_boundaries": {
+          "$ref": "#/definitions/tech_debt_boundaries"
+        },
+        "compatibility_contract": {
+          "$ref": "#/definitions/compatibility_contract"
+        },
         "implementation_notes": {
           "type": "array",
           "items": {
@@ -254,6 +323,22 @@
         },
         "verification_spec": {
           "$ref": "#/definitions/verification_spec"
+        },
+        "evidence_responsibilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "definition_of_done": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "contracts": {
           "type": "array",
@@ -314,6 +399,246 @@
           "type": "string",
           "minLength": 1
         }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "artifact_type": {
+                "const": "implementation_task"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "decision_contract": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "not_applicable",
+                      "resolved"
+                    ]
+                  },
+                  "blocks_implementation": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "artifact_type": {
+                "const": "scope_lock_epic"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "files_to_modify": {
+                "maxItems": 0
+              },
+              "files_to_create": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "artifact_type": {
+                "const": "decision_gate"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bpe_classification": {
+                "const": "type_1"
+              },
+              "decision_contract": {
+                "properties": {
+                  "type1_decision": {
+                    "const": true
+                  },
+                  "status": {
+                    "const": "unresolved"
+                  },
+                  "blocks_implementation": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "artifact_type": {
+                "const": "validation_task"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task_classification": {
+                "const": "build_validation"
+              },
+              "decision_contract": {
+                "properties": {
+                  "blocks_implementation": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "enterprise_readiness_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "production_grade_target",
+        "backward_compatibility",
+        "forward_compatibility",
+        "failure_mode_coverage",
+        "definition_of_done",
+        "validation_tasks",
+        "compliance_posture"
+      ],
+      "properties": {
+        "production_grade_target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "backward_compatibility": {
+          "type": "string",
+          "minLength": 1
+        },
+        "forward_compatibility": {
+          "type": "string",
+          "minLength": 1
+        },
+        "failure_mode_coverage": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "definition_of_done": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "validation_tasks": {
+          "type": "array",
+          "minItems": 0,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "compliance_posture": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "decision_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type1_decision",
+        "status",
+        "owner",
+        "deadline",
+        "blocks_implementation",
+        "resolution"
+      ],
+      "properties": {
+        "type1_decision": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "unresolved",
+            "resolved"
+          ]
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deadline": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blocks_implementation": {
+          "type": "boolean"
+        },
+        "resolution": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "tech_debt_boundaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prerequisite_debt",
+        "deferred_debt",
+        "deferral_safety"
+      ],
+      "properties": {
+        "prerequisite_debt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deferred_debt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deferral_safety": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "compatibility_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backward",
+        "forward",
+        "migration_or_rollout"
+      ],
+      "properties": {
+        "backward": {
+          "type": "string",
+          "minLength": 1
+        },
+        "forward": {
+          "type": "string",
+          "minLength": 1
+        },
+        "migration_or_rollout": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "verification_spec": {
@@ -354,7 +679,9 @@
         "type",
         "target",
         "expected_pre_change",
-        "expected_post_change"
+        "expected_post_change",
+        "target_files",
+        "expected_failure_mode"
       ],
       "properties": {
         "type": {
