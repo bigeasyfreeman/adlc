@@ -121,6 +121,7 @@ Every work-item emitter must carry these fields forward from the Build Brief tas
 
 - `artifact_type`
 - `task_classification`
+- `work_item_metadata` when present (`area`, `area_label`, `phase_label`, `target_project`, `labels`, `external_refs`)
 - `decision_contract`
 - `verification_spec`
 - acceptance criteria or Given/When/Then contract
@@ -210,6 +211,54 @@ Platform-specific config may extend the shared contract, but it must not redefin
 - Permission log shape is defined in [docs/specs/permission-logging.md](/Users/eric/adlc/docs/specs/permission-logging.md).
 - Retries must return prior artifact metadata when the key is already terminal.
 
+## Readiness Gate
+
+Before any external mutation, ADLC computes a deterministic readiness report on the normalized payload. The report is included in the emitter output under `readiness_report`.
+
+```json
+{
+  "status": "ready | blocked",
+  "issues": [
+    {
+      "severity": "blocking",
+      "rule": "unresolved_dependency_alias",
+      "task_id": "TASK-001",
+      "message": "dependency GOV-A1 does not resolve to a task_id"
+    }
+  ],
+  "totals": {
+    "tasks": 6,
+    "ready": 5,
+    "blocked": 1,
+    "issues": 1
+  }
+}
+```
+
+### Readiness Rules
+
+The readiness checker validates:
+
+1. **Dependency resolution** — every `dependencies` entry resolves to a `task_id` in the brief.
+2. **Validation task resolution** — every `enterprise_readiness_contract.validation_tasks` entry resolves to an emitted `validation_task` artifact.
+3. **Decision gate semantics** — `decision_gate` tasks must have `blocks_implementation=true`, `decision_contract.status=unresolved`, and `decision_contract.type1_decision=true`.
+4. **Implementation task semantics** — `implementation_task` tasks must not block implementation and must have `decision_contract.status` in `[resolved, not_applicable]`.
+5. **Required fields** — `implementation_task` and `validation_task` artifacts must have non-empty:
+   - `verification_spec.primary_verifier.target`
+   - `acceptance_criteria`
+   - `evidence_responsibilities`
+   - `definition_of_done`
+   - `compatibility_contract`
+   - `tech_debt_boundaries`
+   - `failure_modes`
+6. **Phase-project map** — when a `--phase-project-map` is provided, any task with a `phase_label` that exists in the map must have a matching `target_project` in `work_item_metadata`.
+
+### CLI Flags
+
+- `--require-ready`: dry-runs and mutations exit nonzero when readiness status is `blocked`.
+- `--bypass-readiness-check`: permits mutation even when readiness is `blocked`.
+- `--phase-project-map <json-or-path>`: optional JSON object, or path to one, mapping phase labels to project names (e.g. `{"coding":"ProjectX"}`).
+
 ## Stop Reasons
 
 Emitters must stop with one of:
@@ -222,6 +271,7 @@ Emitters must stop with one of:
 - `unresolved_dependency_alias`
 - `unresolved_decision_blocks_implementation`
 - `external_mutation_partial`
+- `readiness_check_blocked`
 
 ## Verification Expectations
 

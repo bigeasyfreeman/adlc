@@ -222,7 +222,15 @@
         "files_to_create": [
           "tests/test_average_score.py"
         ],
-        "reference_impl": "src/scoreboard.py"
+        "reference_impl": "src/scoreboard.py",
+        "work_item_metadata": {
+          "area": "backend",
+          "area_label": "backend",
+          "phase_label": "coding",
+          "target_project": "smoke",
+          "labels": ["smoke", "bugfix"],
+          "external_refs": ["EXT-1"]
+        }
       },
       {
         "artifact_type": "implementation_task",
@@ -338,6 +346,87 @@
         "files_to_create": [
           "tests/test_render_scoreboard.py"
         ],
+        "reference_impl": "src/scoreboard.py"
+      },
+      {
+        "artifact_type": "validation_task",
+        "task_id": "SMOKE_VALIDATION_SCOREBOARD",
+        "title": "Validate scoreboard fix and feature integration",
+        "objective": "Run full test suite and verify smoke fixture readiness.",
+        "task_classification": "build_validation",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "smoke-harness",
+          "deadline": "not_applicable",
+          "blocks_implementation": false,
+          "resolution": "No Type 1 decision is required for this fixture task."
+        },
+        "scope": [
+          "Run python3 -m unittest discover",
+          "Verify average_score and render_scoreboard assertions"
+        ],
+        "out_of_scope": [
+          "Code changes"
+        ],
+        "dependencies": [
+          "SMOKE_FEATURE_SCOREBOARD"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-VALIDATE-01",
+            "given": "the smoke fixture codebase",
+            "when": "python3 -m unittest discover runs",
+            "then": "all tests pass with zero failures",
+            "measurable_post_condition": "exit code is 0"
+          }
+        ],
+        "anti_slop_rules": [
+          "No unfinished markers or placeholder text"
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "none",
+          "deferral_safety": "No debt is deferred; validation is read-only."
+        },
+        "compatibility_contract": {
+          "backward": "Preserve existing unittest conventions.",
+          "forward": "Keep validation deterministic for future smoke runs.",
+          "migration_or_rollout": "No migration required."
+        },
+        "implementation_notes": [
+          "Run from repo root."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "test",
+            "target": "python3 -m unittest discover -s tests -p 'test_*.py'",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The smoke fixture is defined by the deterministic unittest suite.",
+            "target_files": [
+              "src/scoreboard.py"
+            ],
+            "expected_failure_mode": "suite should pass after fixes"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Keep the validation anchored to the existing unittest suite."
+        },
+        "evidence_responsibilities": [
+          "Capture the full unittest discovery output as evidence."
+        ],
+        "definition_of_done": [
+          "python3 -m unittest discover passes with zero failures."
+        ],
+        "failure_modes": [
+          "LOW: Test environment drift would invalidate the validation signal; mitigation: pin to python3 unittest discover."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "smoke-harness",
+        "files_to_modify": [],
+        "files_to_create": [],
         "reference_impl": "src/scoreboard.py"
       }
     ],

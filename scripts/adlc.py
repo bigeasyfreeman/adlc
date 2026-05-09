@@ -682,6 +682,22 @@ def stable_hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
 
+def load_phase_project_map(value: str | None) -> Dict[str, str] | None:
+    if not value:
+        return None
+    candidate = Path(value)
+    raw = candidate.read_text(encoding="utf-8") if candidate.exists() else value
+    parsed = json.loads(raw)
+    if not isinstance(parsed, dict):
+        raise ValueError("--phase-project-map must be a JSON object or a path to one")
+    phase_project_map: Dict[str, str] = {}
+    for key, project in parsed.items():
+        if not isinstance(key, str) or not isinstance(project, str) or not key.strip() or not project.strip():
+            raise ValueError("--phase-project-map entries must be non-empty string pairs")
+        phase_project_map[key.strip()] = project.strip()
+    return phase_project_map
+
+
 def build_brief_feature_name(brief: Dict[str, Any]) -> str:
     sections = brief.get("sections", {})
     for key in ("0_goal", "1_context", "feature_name"):
@@ -698,6 +714,165 @@ def task_blocks_implementation(task: Dict[str, Any]) -> bool:
 
 def task_executable(task: Dict[str, Any]) -> bool:
     return task.get("artifact_type") in {"implementation_task", "validation_task"}
+
+
+def compute_readiness_report(
+    brief: Dict[str, Any],
+    tasks: List[Dict[str, Any]],
+    phase_project_map: Dict[str, str] | None,
+) -> Dict[str, Any]:
+    issues: List[Dict[str, Any]] = []
+    task_ids = {t["task_id"] for t in tasks}
+    validation_task_ids = {t["task_id"] for t in tasks if t.get("artifact_type") == "validation_task"}
+    erc = brief.get("enterprise_readiness_contract", {})
+    erc_validation_tasks = erc.get("validation_tasks", [])
+
+    for task in tasks:
+        for dep in task.get("dependencies", []):
+            if dep not in task_ids:
+                issues.append({
+                    "severity": "blocking",
+                    "rule": "unresolved_dependency_alias",
+                    "task_id": task["task_id"],
+                    "message": f"dependency {dep} does not resolve to a task_id",
+                })
+
+    for vt_id in erc_validation_tasks:
+        if vt_id not in validation_task_ids:
+            issues.append({
+                "severity": "blocking",
+                "rule": "validation_task_resolution",
+                "task_id": "<enterprise_readiness_contract>",
+                "message": f"validation_tasks entry {vt_id} does not resolve to a validation_task artifact",
+            })
+
+    for task in tasks:
+        if task.get("artifact_type") == "decision_gate":
+            dc = task.get("decision_contract", {})
+            if not dc.get("blocks_implementation"):
+                issues.append({
+                    "severity": "blocking",
+                    "rule": "decision_gate_blocks_implementation",
+                    "task_id": task["task_id"],
+                    "message": "decision_gate must have blocks_implementation=true",
+                })
+            if dc.get("status") != "unresolved":
+                issues.append({
+                    "severity": "blocking",
+                    "rule": "decision_gate_unresolved",
+                    "task_id": task["task_id"],
+                    "message": "decision_gate must have decision_contract.status=unresolved",
+                })
+            if not dc.get("type1_decision"):
+                issues.append({
+                    "severity": "blocking",
+                    "rule": "decision_gate_type1",
+                    "task_id": task["task_id"],
+                    "message": "decision_gate must have decision_contract.type1_decision=true",
+                })
+
+    for task in tasks:
+        atype = task.get("artifact_type")
+        if atype == "implementation_task":
+            dc = task.get("decision_contract", {})
+            if dc.get("blocks_implementation"):
+                issues.append({
+                    "severity": "blocking",
+                    "rule": "implementation_task_blocks",
+                    "task_id": task["task_id"],
+                    "message": "implementation_task must not block implementation",
+                })
+            if dc.get("status") not in ("resolved", "not_applicable"):
+                issues.append({
+                    "severity": "blocking",
+                    "rule": "implementation_task_decision_status",
+                    "task_id": task["task_id"],
+                    "message": "implementation_task must have decision_contract.status in [resolved, not_applicable]",
+                })
+
+    for task in tasks:
+        atype = task.get("artifact_type")
+        if atype in ("implementation_task", "validation_task"):
+            checks = [
+                ("verification_spec.primary_verifier.target", task.get("verification_spec", {}).get("primary_verifier", {}).get("target")),
+                ("acceptance_criteria", task.get("acceptance_criteria")),
+                ("evidence_responsibilities", task.get("evidence_responsibilities")),
+                ("definition_of_done", task.get("definition_of_done")),
+                ("compatibility_contract", task.get("compatibility_contract")),
+                ("tech_debt_boundaries", task.get("tech_debt_boundaries")),
+                ("failure_modes", task.get("failure_modes")),
+            ]
+            for field_name, value in checks:
+                missing = False
+                if value is None:
+                    missing = True
+                elif isinstance(value, list) and len(value) == 0:
+                    missing = True
+                elif isinstance(value, dict):
+                    if field_name == "compatibility_contract":
+                        for sub in ("backward", "forward", "migration_or_rollout"):
+                            if not isinstance(value.get(sub), str) or not value.get(sub):
+                                missing = True
+                                break
+                    elif field_name == "tech_debt_boundaries":
+                        for sub in ("prerequisite_debt", "deferred_debt", "deferral_safety"):
+                            if not isinstance(value.get(sub), str) or not value.get(sub):
+                                missing = True
+                                break
+                elif isinstance(value, str) and not value.strip():
+                    missing = True
+                if missing:
+                    issues.append({
+                        "severity": "blocking",
+                        "rule": "missing_required_field",
+                        "task_id": task["task_id"],
+                        "message": f"{field_name} is empty or missing",
+                    })
+
+    if phase_project_map:
+        for task in tasks:
+            meta = task.get("work_item_metadata", {})
+            phase_label = meta.get("phase_label")
+            if phase_label and phase_label in phase_project_map:
+                expected_project = phase_project_map[phase_label]
+                target_project = meta.get("target_project")
+                if not target_project:
+                    issues.append({
+                        "severity": "blocking",
+                        "rule": "phase_project_map_missing_target_project",
+                        "task_id": task["task_id"],
+                        "message": f"phase_label '{phase_label}' expects target_project '{expected_project}' but target_project is missing",
+                    })
+                elif target_project != expected_project:
+                    issues.append({
+                        "severity": "blocking",
+                        "rule": "phase_project_map_mismatch",
+                        "task_id": task["task_id"],
+                        "message": f"phase_label '{phase_label}' expects target_project '{expected_project}' but found '{target_project}'",
+                    })
+
+    deduped: List[Dict[str, Any]] = []
+    seen: set = set()
+    for issue in issues:
+        key = (issue["rule"], issue.get("task_id", ""), issue["message"])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(issue)
+
+    blocked_task_ids = {issue["task_id"] for issue in deduped if issue.get("task_id") in task_ids}
+    blocked_count = len(blocked_task_ids)
+    status = "blocked" if deduped else "ready"
+
+    return {
+        "status": status,
+        "issues": deduped,
+        "totals": {
+            "tasks": len(tasks),
+            "ready": len(tasks) - blocked_count if blocked_count else len(tasks),
+            "blocked": blocked_count,
+            "issues": len(deduped),
+        },
+    }
 
 
 def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str, Any] | None = None) -> Dict[str, Any]:
@@ -717,6 +892,7 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
     artifacts = []
     for index, task in enumerate(tasks, start=1):
         task_id = task["task_id"]
+        meta = task.get("work_item_metadata", {})
         idempotency_key = f"{brief_id}:{target}:{task_id}:upsert"
         artifact = {
             "id": task_id,
@@ -726,8 +902,12 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "task_classification": task.get("task_classification"),
             "executable": task_executable(task),
             "blocks_implementation": task_blocks_implementation(task),
-            "area": "unknown",
+            "area": meta.get("area") or meta.get("area_label") or "unknown",
             "phase": index,
+            "phase_label": meta.get("phase_label"),
+            "target_project": meta.get("target_project"),
+            "labels": meta.get("labels", []),
+            "external_refs": meta.get("external_refs", []),
             "linked_failure_modes": task.get("failure_modes", []),
             "idempotency_key": idempotency_key,
             "emission_status": "deduplicated" if idempotency_key in terminal_keys else "pending",
@@ -846,8 +1026,31 @@ def emit_work_items_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, An
         brief_path = Path.cwd() / brief_path
     state_path = resolve_under_workspace(args.state, workspace, DEFAULT_STATE_PATH)
     state = load_workflow_state(state_path) if state_path.exists() else None
+
+    phase_project_map = load_phase_project_map(getattr(args, "phase_project_map", None))
+
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path.resolve())
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path.resolve())
+    tasks = brief.get("sections", {}).get("8_task_tickets", [])
+    readiness_report = compute_readiness_report(brief, tasks, phase_project_map)
+
+    require_ready = getattr(args, "require_ready", False)
+    bypass_readiness = getattr(args, "bypass_readiness_check", False)
+
+    if require_ready and readiness_report["status"] == "blocked":
+        raise ValueError(f"readiness check failed: {readiness_report['totals']['issues']} blocking issue(s)")
+
     payload = normalized_work_item_payload(brief_path.resolve(), args.target, state)
+    payload["readiness_report"] = readiness_report
     dry_run = args.dry_run or not args.allow_mutation
+
+    if not dry_run and readiness_report["status"] == "blocked" and not bypass_readiness:
+        raise ValueError(
+            f"readiness check blocked: {readiness_report['totals']['issues']} blocking issue(s). "
+            "Use --bypass-readiness-check to force."
+        )
 
     result: Dict[str, Any] = {
         "dry_run": dry_run,
@@ -989,6 +1192,9 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "dry_run": {"type": "boolean", "default": True},
                     "allow_mutation": {"type": "boolean", "default": False},
                     "provider_command": {"type": "string"},
+                    "require_ready": {"type": "boolean", "default": False},
+                    "phase_project_map": {"type": "string"},
+                    "bypass_readiness_check": {"type": "boolean", "default": False},
                 },
             },
         },
@@ -1072,6 +1278,9 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             dry_run=arguments.get("dry_run", True),
             allow_mutation=arguments.get("allow_mutation", False),
             provider_command=arguments.get("provider_command"),
+            require_ready=arguments.get("require_ready", False),
+            phase_project_map=arguments.get("phase_project_map"),
+            bypass_readiness_check=arguments.get("bypass_readiness_check", False),
             json=True,
         )
         exit_code, payload = emit_work_items_payload(args)
@@ -1220,6 +1429,9 @@ def build_parser() -> argparse.ArgumentParser:
     emit.add_argument("--dry-run", action="store_true", help="Prepare payload without external mutation.")
     emit.add_argument("--allow-mutation", action="store_true", help="Permit local provider mutation.")
     emit.add_argument("--provider-command", help="Local provider command that accepts the normalized payload on stdin.")
+    emit.add_argument("--require-ready", action="store_true", help="Fail if readiness report is blocked.")
+    emit.add_argument("--phase-project-map", help="JSON object, or path to one, mapping phase labels to project names.")
+    emit.add_argument("--bypass-readiness-check", action="store_true", help="Force mutation even if readiness is blocked.")
     emit.add_argument("--json", action="store_true", help="Emit JSON.")
     emit.set_defaults(func=command_emit_work_items)
 

@@ -398,6 +398,42 @@
         "reference_impl": {
           "type": "string",
           "minLength": 1
+        },
+        "work_item_metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "area": {
+              "type": "string",
+              "minLength": 1
+            },
+            "area_label": {
+              "type": "string",
+              "minLength": 1
+            },
+            "phase_label": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_project": {
+              "type": "string",
+              "minLength": 1
+            },
+            "labels": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "external_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       },
       "allOf": [

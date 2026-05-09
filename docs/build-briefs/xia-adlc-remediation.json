@@ -1,0 +1,672 @@
+{
+  "version": "1.0.0",
+  "adlc_mode": "decompose_only",
+  "brief_id": "XIA-ADLC-REMEDIATION",
+  "prd_id": "XIA-ADLC-REMEDIATION-PRD",
+  "applicability_manifest": {
+    "version": "1.0.0",
+    "task_classification": "refactor",
+    "task_classification_confidence": 0.95,
+    "classification_evidence": [
+      "Cleanup backlog and hygiene issues in ADLC/Linear execution."
+    ],
+    "change_surface": {
+      "new_attack_surface": false,
+      "runtime_path_change": false,
+      "service_boundary_change": false,
+      "external_integration": false,
+      "persistent_storage": false,
+      "api_change": false,
+      "data_format_change": false,
+      "auth_change": false,
+      "perf_sensitive": false,
+      "user_facing_operation": false
+    },
+    "claim_provenance": {
+      "supported": [],
+      "unsupported": [],
+      "contradicted": []
+    },
+    "contamination": {
+      "flags": [],
+      "supported_claims": [],
+      "unsupported_claims": [],
+      "contradicted_claims": [],
+      "needs_clarification": [],
+      "suspect_phrases": []
+    },
+    "section_policy": [
+      {
+        "section_name": "5_security_review",
+        "status": "suppressed",
+        "reason": "No security surface changes."
+      },
+      {
+        "section_name": "6_observability_slo",
+        "status": "suppressed",
+        "reason": "No runtime changes."
+      },
+      {
+        "section_name": "9_risks",
+        "status": "active",
+        "reason": "Cleanup carries coordination risk."
+      },
+      {
+        "section_name": "11_validation_plan",
+        "status": "active",
+        "reason": "Validation tasks required."
+      }
+    ],
+    "verification_spec": {
+      "primary_verifier": {
+        "type": "command",
+        "target": "adlc validate-artifact --schema build-brief --input docs/build-briefs/xia-adlc-remediation.json",
+        "expected_pre_change": "fail",
+        "expected_post_change": "pass",
+        "target_files": [],
+        "expected_failure_mode": "validation fails before cleanup"
+      },
+      "must_fail_before_change": true,
+      "must_be_deterministic": true,
+      "scope_note": "Verify with ADLC CLI"
+    }
+  },
+  "enterprise_readiness_contract": {
+    "production_grade_target": "Restore ADLC/Linear execution hygiene without regressing existing behavior.",
+    "backward_compatibility": "Preserve existing ADLC schema and CLI contracts.",
+    "forward_compatibility": "Enable phase-project maps and readiness gating for future briefs.",
+    "failure_mode_coverage": [
+      "Incomplete cleanup leaves future tickets under-specified."
+    ],
+    "definition_of_done": [
+      "All validation tasks pass",
+      "Readiness report is green"
+    ],
+    "validation_tasks": [
+      "XIA-VAL-SPLIT"
+    ],
+    "compliance_posture": "No compliance-specific surface."
+  },
+  "sections": {
+    "1_context": "XIA active backlog has 56 active tickets with hygiene gaps: 52 need cleanup, 23 phase/project mismatches, 33 missing ADLC sections, 10 missing idempotency keys, 7 unresolved GOV-* aliases.",
+    "2_scope_and_constraints": "Use ADLC decomposition to plan cleanup safely. Do not mutate existing production code.",
+    "3_repo_findings": "ADLC repo contains schema, CLI, and emitter contracts. Linear integration is via local MCP provider.",
+    "4_architecture": "Thin CLI layer over JSON contracts. Readiness gating happens in scripts/adlc.py before emitter mutation.",
+    "5_security_review": null,
+    "6_observability_slo": null,
+    "7_execution_plan": "1. Index Socraticode contract. 2. Reconcile Linear tickets. 3. Resolve decision blockers. 4. Clean aliases and dependencies. 5. Implement ADLC readiness gate. 6. Split and run validation tasks.",
+    "8_task_tickets": [
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "XIA-SOC-INDEX",
+        "title": "Socraticode indexing contract",
+        "objective": "Establish a deterministic indexing contract for Socraticode so downstream tooling can resolve symbols reliably.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "xia-cleanup",
+          "deadline": "2026-05-15",
+          "blocks_implementation": false,
+          "resolution": "No Type 1 decision required."
+        },
+        "scope": [
+          "Define indexing contract",
+          "Verify symbol resolution"
+        ],
+        "out_of_scope": [
+          "Production code changes"
+        ],
+        "dependencies": [],
+        "acceptance_criteria": [
+          {
+            "id": "AC-SOC-01",
+            "given": "the repo",
+            "when": "indexed",
+            "then": "all public symbols are resolvable",
+            "measurable_post_condition": "index coverage >= 95%"
+          }
+        ],
+        "anti_slop_rules": [
+          "No placeholder text"
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "none",
+          "deferral_safety": "Cleanup only; no production logic changes."
+        },
+        "compatibility_contract": {
+          "backward": "Preserve existing symbol resolution behavior.",
+          "forward": "Enable deterministic indexing for future tooling.",
+          "migration_or_rollout": "No migration required."
+        },
+        "implementation_notes": [
+          "Document contract in docs/specs."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "adlc validate-artifact --schema build-brief --input docs/build-briefs/xia-adlc-remediation.json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "target_files": [],
+            "expected_failure_mode": "missing indexing contract"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate with ADLC CLI"
+        },
+        "evidence_responsibilities": [
+          "Capture CLI output."
+        ],
+        "definition_of_done": [
+          "Indexing contract is documented and validated."
+        ],
+        "failure_modes": [
+          "LOW: Incomplete checklist coverage."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "xia-cleanup",
+        "files_to_modify": [],
+        "files_to_create": [
+          "docs/specs/socraticode-indexing.md"
+        ],
+        "reference_impl": "scripts/adlc.py",
+        "work_item_metadata": {
+          "area": "validation",
+          "area_label": "area:validation",
+          "phase_label": "phase:m2",
+          "target_project": "M2: Hosted Foundation",
+          "labels": [
+            "phase:m2",
+            "area:validation",
+            "adlc-remediation"
+          ],
+          "external_refs": [
+            "XIA-Socraticode-indexing"
+          ]
+        }
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "XIA-LIN-RECON",
+        "title": "Linear reconciliation pass",
+        "objective": "Audit and reconcile Linear ticket metadata against ADLC build briefs.",
+        "task_classification": "refactor",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "xia-cleanup",
+          "deadline": "2026-05-15",
+          "blocks_implementation": false,
+          "resolution": "No Type 1 decision required."
+        },
+        "scope": [
+          "Audit 56 active tickets",
+          "Fix phase/project mismatches"
+        ],
+        "out_of_scope": [
+          "Mutating production runtime"
+        ],
+        "dependencies": [
+          "XIA-SOC-INDEX"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-LIN-01",
+            "given": "the backlog",
+            "when": "reconciled",
+            "then": "phase and project labels match ADLC briefs",
+            "measurable_post_condition": "mismatch count is zero"
+          }
+        ],
+        "anti_slop_rules": [
+          "No placeholder text"
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "none",
+          "deferral_safety": "Cleanup only; no production logic changes."
+        },
+        "compatibility_contract": {
+          "backward": "Preserve existing Linear ticket history.",
+          "forward": "Enable automated reconciliation in future.",
+          "migration_or_rollout": "No migration required."
+        },
+        "implementation_notes": [
+          "Use ADLC emit-work-items to normalize metadata."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "adlc emit-work-items --target linear --dry-run --require-ready",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "target_files": [],
+            "expected_failure_mode": "reconciliation incomplete"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate with ADLC CLI"
+        },
+        "evidence_responsibilities": [
+          "Capture mismatch report before and after."
+        ],
+        "definition_of_done": [
+          "All phase/project mismatches are resolved."
+        ],
+        "failure_modes": [
+          "LOW: Incomplete checklist coverage."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "xia-cleanup",
+        "files_to_modify": [],
+        "files_to_create": [],
+        "reference_impl": "scripts/adlc.py",
+        "work_item_metadata": {
+          "area": "policy",
+          "area_label": "area:policy",
+          "phase_label": "phase:m2",
+          "target_project": "M2: Hosted Foundation",
+          "labels": [
+            "phase:m2",
+            "area:policy",
+            "adlc-remediation"
+          ],
+          "external_refs": [
+            "XIA-Linear-reconciliation"
+          ]
+        }
+      },
+      {
+        "artifact_type": "decision_gate",
+        "task_id": "XIA-DEC-BLOCK",
+        "title": "Decision blocker tickets",
+        "objective": "Resolve Type 1 decisions blocking cleanup implementation.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": true,
+          "status": "unresolved",
+          "owner": "xia-cleanup",
+          "deadline": "2026-05-10",
+          "blocks_implementation": true,
+          "resolution": "Pending council review."
+        },
+        "scope": [
+          "Identify unresolved Type 1 decisions",
+          "Escalate to council"
+        ],
+        "out_of_scope": [
+          "Implementation work"
+        ],
+        "dependencies": [],
+        "acceptance_criteria": [
+          {
+            "id": "AC-DEC-01",
+            "given": "unresolved decisions",
+            "when": "reviewed",
+            "then": "each has a resolution path",
+            "measurable_post_condition": "council acknowledges all blockers"
+          }
+        ],
+        "anti_slop_rules": [
+          "No placeholder text"
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "none",
+          "deferral_safety": "Cleanup only; no production logic changes."
+        },
+        "compatibility_contract": {
+          "backward": "Preserve existing decision log format.",
+          "forward": "Enable automated decision tracking.",
+          "migration_or_rollout": "No migration required."
+        },
+        "implementation_notes": [
+          "Track in ADLC workflow state."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "adlc resume-workflow --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "target_files": [],
+            "expected_failure_mode": "unresolved blockers"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate with ADLC CLI"
+        },
+        "evidence_responsibilities": [
+          "Capture council verdict."
+        ],
+        "definition_of_done": [
+          "All Type 1 blockers have a resolution path."
+        ],
+        "failure_modes": [
+          "HIGH: Unresolved blockers stall downstream work."
+        ],
+        "bpe_classification": "type_1",
+        "owner": "xia-cleanup",
+        "files_to_modify": [],
+        "files_to_create": [],
+        "reference_impl": "n/a",
+        "work_item_metadata": {
+          "area": "policy",
+          "area_label": "area:policy",
+          "phase_label": "phase:m2",
+          "target_project": "M2: Hosted Foundation",
+          "labels": [
+            "phase:m2",
+            "area:policy",
+            "adlc-remediation",
+            "decision-gate"
+          ],
+          "external_refs": [
+            "XIA-Type1-decisions"
+          ]
+        }
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "XIA-ALIAS-CLEAN",
+        "title": "Alias and dependency cleanup",
+        "objective": "Resolve unresolved GOV-* aliases and fix dependency references.",
+        "task_classification": "lint_cleanup",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "xia-cleanup",
+          "deadline": "2026-05-15",
+          "blocks_implementation": false,
+          "resolution": "No Type 1 decision required."
+        },
+        "scope": [
+          "Resolve GOV-* aliases",
+          "Validate dependency graph"
+        ],
+        "out_of_scope": [
+          "Production code changes"
+        ],
+        "dependencies": [
+          "XIA-LIN-RECON"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ALIAS-01",
+            "given": "the dependency graph",
+            "when": "cleaned",
+            "then": "all aliases resolve to real task IDs",
+            "measurable_post_condition": "zero unresolved aliases"
+          }
+        ],
+        "anti_slop_rules": [
+          "No placeholder text"
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "none",
+          "deferral_safety": "Cleanup only; no production logic changes."
+        },
+        "compatibility_contract": {
+          "backward": "Preserve existing dependency links.",
+          "forward": "Enable alias-free dependency graphs.",
+          "migration_or_rollout": "No migration required."
+        },
+        "implementation_notes": [
+          "Use ADLC validate-artifact to verify."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "adlc validate-artifact --schema build-brief --input docs/build-briefs/xia-adlc-remediation.json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "target_files": [],
+            "expected_failure_mode": "unresolved aliases remain"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate with ADLC CLI"
+        },
+        "evidence_responsibilities": [
+          "Capture alias resolution report."
+        ],
+        "definition_of_done": [
+          "All GOV-* aliases resolved or escalated."
+        ],
+        "failure_modes": [
+          "MEDIUM: Missed aliases break downstream tickets."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "xia-cleanup",
+        "files_to_modify": [],
+        "files_to_create": [],
+        "reference_impl": "scripts/adlc.py",
+        "work_item_metadata": {
+          "area": "policy",
+          "area_label": "area:policy",
+          "phase_label": "phase:m2",
+          "target_project": "M2: Hosted Foundation",
+          "labels": [
+            "phase:m2",
+            "area:policy",
+            "adlc-remediation"
+          ],
+          "external_refs": [
+            "XIA-alias-cleanup"
+          ]
+        }
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "XIA-ADLC-READY",
+        "title": "ADLC readiness gate",
+        "objective": "Implement the readiness gating feature in ADLC emit-work-items.",
+        "task_classification": "feature",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "xia-cleanup",
+          "deadline": "2026-05-15",
+          "blocks_implementation": false,
+          "resolution": "Approved by council."
+        },
+        "scope": [
+          "Add readiness report",
+          "Add CLI flags",
+          "Update MCP declarations"
+        ],
+        "out_of_scope": [
+          "Vendor SDK changes"
+        ],
+        "dependencies": [
+          "XIA-DEC-BLOCK",
+          "XIA-ALIAS-CLEAN"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-READY-01",
+            "given": "a build brief",
+            "when": "emit-work-items runs",
+            "then": "readiness report is deterministic and included",
+            "measurable_post_condition": "--require-ready exits nonzero when blocked"
+          }
+        ],
+        "anti_slop_rules": [
+          "No placeholder text"
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "none",
+          "deferral_safety": "Cleanup only; no production logic changes."
+        },
+        "compatibility_contract": {
+          "backward": "Preserve existing ADLC CLI behavior.",
+          "forward": "Enable readiness gating for all future briefs.",
+          "migration_or_rollout": "No migration required."
+        },
+        "implementation_notes": [
+          "Modify scripts/adlc.py only."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "python3 -m py_compile scripts/adlc.py",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "target_files": [
+              "scripts/adlc.py"
+            ],
+            "expected_failure_mode": "syntax or schema errors"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate with py_compile"
+        },
+        "evidence_responsibilities": [
+          "Capture test suite results."
+        ],
+        "definition_of_done": [
+          "py_compile passes",
+          "tests/test_adlc_cli.sh passes"
+        ],
+        "failure_modes": [
+          "LOW: CLI flag naming confusion; mitigation: document in emitter-contract.md."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "xia-cleanup",
+        "files_to_modify": [
+          "scripts/adlc.py",
+          "docs/specs/emitter-contract.md",
+          "docs/schemas/build-brief.schema.json"
+        ],
+        "files_to_create": [],
+        "reference_impl": "scripts/adlc.py",
+        "work_item_metadata": {
+          "area": "policy",
+          "area_label": "area:policy",
+          "phase_label": "phase:m2",
+          "target_project": "M2: Hosted Foundation",
+          "labels": [
+            "phase:m2",
+            "area:policy",
+            "adlc-remediation"
+          ],
+          "external_refs": [
+            "XIA-ADLC-readiness-gate"
+          ]
+        }
+      },
+      {
+        "artifact_type": "validation_task",
+        "task_id": "XIA-VAL-SPLIT",
+        "title": "Validation task split",
+        "objective": "Run end-to-end validation that all cleanup tasks meet ADLC enterprise readiness criteria.",
+        "task_classification": "build_validation",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "xia-cleanup",
+          "deadline": "2026-05-15",
+          "blocks_implementation": false,
+          "resolution": "No Type 1 decision required."
+        },
+        "scope": [
+          "Validate schema compliance",
+          "Validate readiness report"
+        ],
+        "out_of_scope": [
+          "Code changes"
+        ],
+        "dependencies": [
+          "XIA-ADLC-READY"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-VAL-01",
+            "given": "the remediation brief",
+            "when": "validated",
+            "then": "emit-work-items --require-ready passes",
+            "measurable_post_condition": "readiness_report.status == ready"
+          }
+        ],
+        "anti_slop_rules": [
+          "No placeholder text"
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "none",
+          "deferral_safety": "Validation is read-only."
+        },
+        "compatibility_contract": {
+          "backward": "Preserve existing validation conventions.",
+          "forward": "Enable automated validation for future briefs.",
+          "migration_or_rollout": "No migration required."
+        },
+        "implementation_notes": [
+          "Run from repo root."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "adlc emit-work-items --target linear --build-brief docs/build-briefs/xia-adlc-remediation.json --dry-run --require-ready",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "target_files": [
+              "docs/build-briefs/xia-adlc-remediation.json"
+            ],
+            "expected_failure_mode": "readiness check blocked"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate with ADLC CLI"
+        },
+        "evidence_responsibilities": [
+          "Capture the full emitter dry-run output."
+        ],
+        "definition_of_done": [
+          "Readiness report status is ready.",
+          "All validation tasks resolve correctly."
+        ],
+        "failure_modes": [
+          "LOW: Test environment drift would invalidate the validation signal."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "xia-cleanup",
+        "files_to_modify": [],
+        "files_to_create": [],
+        "reference_impl": "scripts/adlc.py",
+        "work_item_metadata": {
+          "area": "validation",
+          "area_label": "area:validation",
+          "phase_label": "phase:m4",
+          "target_project": "M4: Policy Graduation",
+          "labels": [
+            "phase:m4",
+            "area:validation",
+            "adlc-remediation"
+          ],
+          "external_refs": [
+            "XIA-validation-split"
+          ]
+        }
+      }
+    ],
+    "9_risks": [
+      "HIGH: Unresolved GOV-* aliases break dependency resolution."
+    ],
+    "10_rollout": null,
+    "11_validation_plan": [
+      "adlc emit-work-items --target linear --build-brief docs/build-briefs/xia-adlc-remediation.json --dry-run --require-ready"
+    ],
+    "12_skill_trigger_configuration": null
+  }
+}
