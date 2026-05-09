@@ -198,7 +198,7 @@ Platform-specific config may extend the shared contract, but it must not redefin
 4. Preserve the applicability manifest. Suppressed sections stay omitted or marked not applicable.
 4.5. Preserve reuse and debt context. Do not collapse reference implementations, "do not reimplement" rules, or prerequisite paydown tasks into generic prose.
 4.6. Preserve artifact taxonomy. `scope_lock_epic` artifacts are parent/context artifacts only, `decision_gate` artifacts block implementation, `implementation_task` artifacts are executable coding work, and `validation_task` artifacts own evidence capture and final readiness proof.
-4.7. Reject unresolved dependency aliases before mutation. Every dependency must resolve to a Build Brief artifact ID or an already-emitted target artifact ID.
+4.7. Reject unresolved dependency aliases before mutation. Every dependency must resolve to a Build Brief artifact ID or an already-emitted target artifact ID recorded in terminal workflow state for the same Build Brief, target, work-item emitter tool, and `upsert_artifact` operation.
 4.8. Ensure decomposition-mode payloads include automatic validation tasks in the enterprise readiness contract, and emit those validation tasks as first-class work items when the target supports work-item artifacts.
 5. Compute per-artifact idempotency keys before any external mutation.
 6. Emit permission logging entries before and after every mutating external action.
@@ -209,6 +209,7 @@ Platform-specific config may extend the shared contract, but it must not redefin
 
 - Key format is defined in [docs/specs/idempotency-keys.md](/Users/eric/adlc/docs/specs/idempotency-keys.md).
 - Permission log shape is defined in [docs/specs/permission-logging.md](/Users/eric/adlc/docs/specs/permission-logging.md).
+- Mutation providers must return per-artifact metadata keyed by `idempotency_key` when they create, update, or deduplicate work items. The item should include `artifact_id` and `artifact_ref`; target-native names such as `key`, `identifier`, `number`, `id`, or `url` are accepted and normalized into workflow state.
 - Retries must return prior artifact metadata when the key is already terminal.
 
 ## Readiness Gate
@@ -239,7 +240,7 @@ Before any external mutation, ADLC computes a deterministic readiness report on 
 
 The readiness checker validates:
 
-1. **Dependency resolution** — every `dependencies` entry resolves to a `task_id` in the brief.
+1. **Dependency resolution** — every `dependencies` entry resolves to a `task_id` in the brief or an already-emitted target artifact ID recorded in scoped terminal workflow state.
 2. **Validation task resolution** — every `enterprise_readiness_contract.validation_tasks` entry resolves to an emitted `validation_task` artifact.
 3. **Decision gate semantics** — `decision_gate` tasks must have `blocks_implementation=true`, `decision_contract.status=unresolved`, and `decision_contract.type1_decision=true`.
 4. **Implementation task semantics** — `implementation_task` tasks must not block implementation and must have `decision_contract.status` in `[resolved, not_applicable]`.
@@ -258,6 +259,10 @@ The readiness checker validates:
 - `--require-ready`: dry-runs and mutations exit nonzero when readiness status is `blocked`.
 - `--bypass-readiness-check`: permits mutation even when readiness is `blocked`.
 - `--phase-project-map <json-or-path>`: optional JSON object, or path to one, mapping phase labels to project names (e.g. `{"coding":"ProjectX"}`).
+
+## Reconciliation
+
+Existing tracker estates must be reconciled through the product-neutral process in [docs/specs/work-item-reconciliation.md](/Users/eric/adlc/docs/specs/work-item-reconciliation.md). Generic emitter skills must not embed product-specific tracker IDs, phase maps, or cleanup runbooks.
 
 ## Stop Reasons
 

@@ -283,6 +283,13 @@ assert "workflow-state schema supports DAG node phases" "jq -e '.properties.phas
 assert "README lists stateful ADLC CLI commands" "rg -q 'run --brief-id|run-phase triage|resume-workflow|emit-work-items' '$ROOT/README.md'"
 
 echo ""
+echo "--- Work-Item Reconciliation ---"
+assert "work-item reconciliation contract exists" "[ -f '$ROOT/docs/specs/work-item-reconciliation.md' ]"
+assert "work-item reconciliation requires read-only audit before mutation" "rg -q 'read-only estate audit' '$ROOT/docs/specs/work-item-reconciliation.md' && rg -q 'Mutate the tracker only after explicit approval' '$ROOT/docs/specs/work-item-reconciliation.md' && rg -q 'proposed_mutations.*empty' '$ROOT/docs/specs/work-item-reconciliation.md'"
+assert "work-item reconciliation stays product-neutral" "rg -q 'product-neutral' '$ROOT/docs/specs/work-item-reconciliation.md' && rg -q 'must not embed.*ticket IDs' '$ROOT/docs/specs/work-item-reconciliation.md' && rg -q 'Generic ADLC skills' '$ROOT/docs/specs/work-item-reconciliation.md'"
+assert "emitter contract references product-neutral reconciliation" "rg -q 'work-item-reconciliation' '$ROOT/docs/specs/emitter-contract.md' && rg -q 'Generic emitter skills must not embed product-specific tracker IDs' '$ROOT/docs/specs/emitter-contract.md'"
+
+echo ""
 echo "--- Socraticode Indexing Contract ---"
 assert "Socraticode indexing contract exists" "[ -f '$ROOT/docs/specs/socraticode-indexing.md' ]"
 assert "Socraticode contract locks coverage threshold and source set" "rg -q 'coverage = indexed_contract_files / eligible_contract_files|>= 95%|eligible contract files' '$ROOT/docs/specs/socraticode-indexing.md'"

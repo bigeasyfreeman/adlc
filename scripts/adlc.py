@@ -716,25 +716,48 @@ def task_executable(task: Dict[str, Any]) -> bool:
     return task.get("artifact_type") in {"implementation_task", "validation_task"}
 
 
+def terminal_side_effect_dependency_ids(state: Dict[str, Any] | None, target: str, brief_id: str) -> set:
+    if not state:
+        return set()
+    dependency_ids = set()
+    expected_tool = f"{target}-work-item-emitter"
+    expected_key_prefix = f"{brief_id}:{target}:"
+    for item in state.get("side_effects", []):
+        if item.get("status") not in {"completed", "deduplicated"}:
+            continue
+        if item.get("tool_name") != expected_tool or item.get("operation") != "upsert_artifact":
+            continue
+        idempotency_key = item.get("idempotency_key")
+        if not isinstance(idempotency_key, str) or not idempotency_key.startswith(expected_key_prefix):
+            continue
+        for key in ("artifact_id", "artifact_ref"):
+            value = item.get(key)
+            if isinstance(value, str) and value.strip():
+                dependency_ids.add(value.strip())
+    return dependency_ids
+
+
 def compute_readiness_report(
     brief: Dict[str, Any],
     tasks: List[Dict[str, Any]],
     phase_project_map: Dict[str, str] | None,
+    external_dependency_ids: set | None = None,
 ) -> Dict[str, Any]:
     issues: List[Dict[str, Any]] = []
     task_ids = {t["task_id"] for t in tasks}
+    resolvable_dependency_ids = task_ids | (external_dependency_ids or set())
     validation_task_ids = {t["task_id"] for t in tasks if t.get("artifact_type") == "validation_task"}
     erc = brief.get("enterprise_readiness_contract", {})
     erc_validation_tasks = erc.get("validation_tasks", [])
 
     for task in tasks:
         for dep in task.get("dependencies", []):
-            if dep not in task_ids:
+            if dep not in resolvable_dependency_ids:
                 issues.append({
                     "severity": "blocking",
                     "rule": "unresolved_dependency_alias",
                     "task_id": task["task_id"],
-                    "message": f"dependency {dep} does not resolve to a task_id",
+                    "message": f"dependency {dep} does not resolve to a task_id or emitted target artifact",
                 })
 
     for vt_id in erc_validation_tasks:
@@ -928,11 +951,12 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
 
     dependency_links = []
     task_ids = {task["task_id"] for task in tasks}
+    resolvable_dependency_ids = task_ids | terminal_side_effect_dependency_ids(state, target, brief_id)
     for task in tasks:
         for dependency in task.get("dependencies", []):
-            if dependency not in task_ids:
+            if dependency not in resolvable_dependency_ids:
                 raise ValueError(f"unresolved_dependency_alias: {task['task_id']} depends on {dependency}")
-            dependency_links.append({"from": dependency, "to": task["task_id"]})
+            dependency_links.append({"from": dependency, "to": task["task_id"], "type": "blocks"})
 
     return {
         "contract_version": "1.0.0",
@@ -959,6 +983,48 @@ def append_permission_log(workspace: Path, entry: Dict[str, Any]) -> None:
         handle.write(json.dumps(entry, sort_keys=True) + "\n")
 
 
+def first_nonempty_text(item: Dict[str, Any] | None, keys: Iterable[str]) -> str | None:
+    if not item:
+        return None
+    for key in keys:
+        value = item.get(key)
+        if isinstance(value, (str, int)) and str(value).strip():
+            return str(value).strip()
+    return None
+
+
+def provider_results_by_idempotency_key(provider_result: Dict[str, Any] | None) -> Dict[str, Dict[str, Any]]:
+    if not provider_result:
+        return {}
+    candidates: List[Dict[str, Any]] = []
+    if isinstance(provider_result.get("idempotency_key"), str):
+        candidates.append(provider_result)
+    for key in ("artifacts", "issues", "tickets", "items", "results"):
+        value = provider_result.get(key)
+        if isinstance(value, list):
+            candidates.extend(item for item in value if isinstance(item, dict))
+
+    mapped: Dict[str, Dict[str, Any]] = {}
+    for item in candidates:
+        idempotency_key = item.get("idempotency_key")
+        if isinstance(idempotency_key, str) and idempotency_key.strip():
+            mapped[idempotency_key.strip()] = item
+    return mapped
+
+
+def normalized_side_effect_status(value: Any, default: str) -> str:
+    if value in {"attempted", "deduplicated", "completed", "failed"}:
+        return value
+    return default
+
+
+def provider_result_has_failed_items(provider_result: Dict[str, Any] | None) -> bool:
+    return any(
+        item.get("status") == "failed"
+        for item in provider_results_by_idempotency_key(provider_result).values()
+    )
+
+
 def record_emitter_side_effects(
     state: Dict[str, Any],
     target: str,
@@ -966,6 +1032,7 @@ def record_emitter_side_effects(
     status: str,
     provider_result: Dict[str, Any] | None = None,
 ) -> None:
+    provider_by_key = provider_results_by_idempotency_key(provider_result)
     existing_terminal = {
         item.get("idempotency_key")
         for item in state.get("side_effects", [])
@@ -973,18 +1040,30 @@ def record_emitter_side_effects(
     }
     for artifact in payload.get("artifacts", []):
         idempotency_key = artifact["idempotency_key"]
+        provider_item = provider_by_key.get(idempotency_key)
         if idempotency_key in existing_terminal:
             side_effect_status = "deduplicated"
         else:
-            side_effect_status = status
+            side_effect_status = normalized_side_effect_status(
+                provider_item.get("status") if provider_item else None,
+                status,
+            )
+        artifact_id = first_nonempty_text(
+            provider_item,
+            ("artifact_id", "key", "identifier", "number", "id"),
+        ) or artifact["id"]
+        artifact_ref = first_nonempty_text(
+            provider_item,
+            ("artifact_ref", "url", "html_url", "web_url"),
+        ) or artifact["url"]
         state.setdefault("side_effects", []).append(
             {
                 "idempotency_key": idempotency_key,
                 "tool_name": f"{target}-work-item-emitter",
                 "operation": "upsert_artifact",
                 "status": side_effect_status,
-                "artifact_id": artifact["id"],
-                "artifact_ref": artifact["url"],
+                "artifact_id": artifact_id,
+                "artifact_ref": artifact_ref,
                 "timestamp": utc_now(),
                 **({"error": provider_result.get("error")} if provider_result and provider_result.get("error") else {}),
             }
@@ -1034,7 +1113,12 @@ def emit_work_items_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, An
         raise ValueError("build brief failed schema validation: " + "; ".join(errors))
     brief = read_json(brief_path.resolve())
     tasks = brief.get("sections", {}).get("8_task_tickets", [])
-    readiness_report = compute_readiness_report(brief, tasks, phase_project_map)
+    readiness_report = compute_readiness_report(
+        brief,
+        tasks,
+        phase_project_map,
+        terminal_side_effect_dependency_ids(state, args.target, brief["brief_id"]),
+    )
 
     require_ready = getattr(args, "require_ready", False)
     bypass_readiness = getattr(args, "bypass_readiness_check", False)
@@ -1080,14 +1164,21 @@ def emit_work_items_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, An
         },
     )
     provider_result = invoke_provider_command(args.provider_command, payload, workspace)
-    side_effect_status = "completed" if provider_result.get("status") != "failed" else "failed"
-    record_emitter_side_effects(state, args.target, payload, side_effect_status, provider_result)
+    provider_failed = provider_result.get("status") == "failed"
+    partial_failure = not provider_failed and provider_result_has_failed_items(provider_result)
+    default_side_effect_status = "failed" if provider_failed else "completed"
+    record_emitter_side_effects(state, args.target, payload, default_side_effect_status, provider_result)
+    if partial_failure:
+        provider_result["status"] = "failed"
+        provider_result["stop_reason"] = "external_mutation_partial"
+    elif provider_failed and provider_result_has_failed_items(provider_result):
+        provider_result.setdefault("stop_reason", "external_mutation_partial")
     state["updated_at"] = utc_now()
     state.setdefault("checkpoint", {})["last_emitter_result"] = provider_result
     save_workflow_state(state_path, state)
     result["provider_result"] = provider_result
     result["state"] = state
-    return (0 if side_effect_status == "completed" else 1), result
+    return (1 if provider_failed or partial_failure else 0), result
 
 
 def command_emit_work_items(args: argparse.Namespace) -> int:
