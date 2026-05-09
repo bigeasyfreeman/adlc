@@ -283,6 +283,14 @@ assert "workflow-state schema supports DAG node phases" "jq -e '.properties.phas
 assert "README lists stateful ADLC CLI commands" "rg -q 'run --brief-id|run-phase triage|resume-workflow|emit-work-items' '$ROOT/README.md'"
 
 echo ""
+echo "--- Socraticode Indexing Contract ---"
+assert "Socraticode indexing contract exists" "[ -f '$ROOT/docs/specs/socraticode-indexing.md' ]"
+assert "Socraticode contract locks coverage threshold and source set" "rg -q 'coverage = indexed_contract_files / eligible_contract_files|>= 95%|eligible contract files' '$ROOT/docs/specs/socraticode-indexing.md'"
+assert "Socraticode contract names required MCP operations" "rg -q 'codebase_index|codebase_status|codebase_search|codebase_symbols|codebase_symbol|codebase_graph_stats' '$ROOT/docs/specs/socraticode-indexing.md'"
+assert "Socraticode contract protects local snapshots from validation mutation" "rg -q 'codedb\\.snapshot|must not be edited|Snapshot contamination' '$ROOT/docs/specs/socraticode-indexing.md'"
+assert "Socraticode contract proves ADLC readiness symbols resolve" "rg -q 'compute_readiness_report|normalized_work_item_payload|emit_work_items_payload|linear-ticket-creation|agent-native-interface' '$ROOT/docs/specs/socraticode-indexing.md'"
+
+echo ""
 echo "--- Truthfulness ---"
 assert "setup script does not hardcode 22 skills" "! rg -q '22 skills' '$ROOT/setup.sh'"
 assert "platform CLAUDE doc does not hardcode 22 skills" "! rg -q '22 skills' '$ROOT/platform/CLAUDE.md'"
