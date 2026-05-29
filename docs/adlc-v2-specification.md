@@ -82,7 +82,7 @@ The Build Loop ships features. The Fix Loop repairs production. The Feedback Loo
 ```
 Phase -1: Intake & Scope Routing
 Phase  0: PRD Agent (structured discovery)
-Phase  1: Build Brief (technical design + security + observability + reuse)
+Phase  1: Build Brief (technical design + security + observability + reuse + comprehension context)
 Phase  2: Eval Council — HEAVY GATE (post-brief)
 Phase  3: Scaffold + Codegen Context Assembly
 Phase  4: Execution (LDD → TDD → Implement)
@@ -173,6 +173,33 @@ Phase  6: PR + Ship
 - [ ] No ambiguous language ("improve," "enhance," "better" without quantification)
 - [ ] Pipeline audit log entry: `{ phase: 0, prd_id, problem_hash, constraint_count, timestamp }`
 
+#### 0.1 Graph Research And Task Memory Preflight
+
+Before broad source search, ADLC runs graph-backed research when repo context is available.
+
+| Tool | Role | Contract |
+|------|------|----------|
+| Graphify | Repository and corpus knowledge graph | Architecture map, dependency paths, reuse candidates, compatibility paths, and dark-code hotspots |
+| Beads | Dependency-aware task memory | Ready-work selection, blockers, issue relationships, and durable agent handoff notes |
+
+Graphify is the research substrate. Beads is the work graph. Do not swap their roles.
+
+Graph research output records:
+- graph freshness and whether a refresh was AST-only or semantic
+- graph queries run before raw grep
+- backward-compatibility and forward-compatibility paths
+- reuse paths with file references
+- direct verification for every critical graph-derived claim
+- dark-code hotspots that require context artifacts
+
+Beads output records:
+- ready tasks
+- blockers and parent-child relationships
+- durable memories surfaced by `bd prime`
+- task IDs that should own follow-up work
+
+If Graphify is unavailable, the Build Brief can continue only with a reduced-confidence note and an explicit verification task or open question for affected compatibility claims.
+
 ---
 
 ### Phase 1: Build Brief
@@ -259,6 +286,31 @@ Per task:
 - **Prior art:** Previous implementations of similar functionality (in this repo or sibling repos)
 
 The reuse analysis uses AST-based discovery + keyword matching + LLM-filtered relevance scoring (existing SWElfare `reuse_discovery.py` pattern, universalized).
+
+#### 1.6 Comprehension Context
+
+For any new or materially changed module, service, public interface, schema, event, queue, persistence path, retry behavior, ownership boundary, or graph-identified dark-code hotspot, the Build Brief must require context-layer artifacts.
+
+The three layers are:
+
+| Layer | Artifact | Purpose |
+|-------|----------|---------|
+| Structural | `MODULE_MANIFEST.md` or `CONTEXT.md` | Documents dependencies, dependents, data flows, shared resources, deployment, and ownership |
+| Semantic | Behavioral contracts near interfaces | Documents idempotency, failure modes, performance envelope, side effects, retry semantics, and data classification |
+| Philosophical | Decision log or ADR | Documents why the design exists, alternatives rejected, consequences, and warnings against unsafe "obvious" changes |
+
+Unknown reasoning is not filled with guesses. It is captured as: `Reasoning unknown. Treat as load-bearing; do not modify without investigation.`
+
+#### 1.7 Dark-Code Risk Assessment
+
+When the change surface includes service boundaries, persistent state, external integrations, runtime paths, auth, or AI-agent-controlled workflows, the Build Brief carries a dark-code risk note.
+
+The assessment distinguishes:
+- structural dark code: emergent runtime paths, untyped cross-service data flows, non-engineer-created production workflows, and unowned behaviors
+- velocity dark code: AI-generated code shipped without proportional review depth or comprehension artifacts
+- compounding factors: ownership gaps, lost institutional knowledge, observability mistaken for understanding, and regulatory explainability exposure
+
+The planner may only include findings grounded in supplied org context, repo evidence, graph evidence, or direct user answers. Missing team, AI-usage, or incident data is recorded as `insufficient data to assess`.
 
 #### 1.6 Antipatterns / Constraints / "What This Isn't"
 

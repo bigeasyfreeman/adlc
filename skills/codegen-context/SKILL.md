@@ -76,6 +76,8 @@ This skill runs before the coding agent starts. Its output is the coding agent's
       "forward_compat": "string",
       "degradation_strategy": "string"
     },
+    "graph_research_evidence": {},
+    "context_layer_requirements": [],
     "performance_budget": [{"operation": "string", "latency_target": "string", "constraint": "string"}]
   },
   "research_deliverable": {
@@ -100,6 +102,11 @@ This skill runs before the coding agent starts. Its output is the coding agent's
     "architecture": {},
     "conventions": {},
     "tech_stack": {}
+  },
+  "context_artifacts": {
+    "module_manifest": "markdown string | null",
+    "behavioral_contracts": "markdown string | null",
+    "decision_log": "markdown string | null"
   }
 }
 ```
@@ -125,6 +132,8 @@ What gets inlined:
 - Scaffolded contracts and implementation guide
 - The existing pattern table from the Build Brief
 - Compatibility constraints and performance budget when active
+- Graph research evidence relevant to compatibility, reuse, and blast radius
+- Module manifests, behavioral contracts, and decision-log warnings when the task touches those modules
 
 What does not get inlined:
 - Unrelated files
@@ -237,22 +246,25 @@ These are the exact files this task touches.
 ## 8. Tech Debt Boundaries
 [Paste prerequisite debt, deferred debt, and safe-deferral rationale. Do not ask the coding agent to implement unrelated catalog items.]
 
-## 9. Evidence and Definition of Done
+## 9. Comprehension Context
+[Paste relevant module manifest entries, behavioral contracts, decision-log warnings, graph research evidence, and unresolved context gaps.]
+
+## 10. Evidence and Definition of Done
 [Paste evidence responsibilities and binary Definition of Done checks.]
 
-## 10. Performance Budget
+## 11. Performance Budget
 [Paste only the targets that are active for this task.]
 
-## 11. Schema
+## 12. Schema
 [Paste only the relevant schema sections.]
 
-## 12. What Not To Do
+## 13. What Not To Do
 [Paste the negative constraints from duplication and verifier quality.]
 
-## 13. Manual Test Plan
+## 14. Manual Test Plan
 [Paste if present.]
 
-## 14. Verification
+## 15. Verification
 Run the primary verifier first.
 If it fails for the wrong reason, adjust the verifier.
 If it fails for the right reason, make the smallest change that makes it pass.
@@ -277,6 +289,8 @@ From the research deliverable, pull only what the task needs:
 Pull in only the brief sections that the applicability manifest marks active:
 - existing patterns
 - compatibility constraints when applicable
+- graph research evidence for compatibility, reuse, and blast radius
+- context-layer artifacts and decision-log warnings when applicable
 - performance budget when applicable
 
 ### Step 3: Inline the right verification artifacts

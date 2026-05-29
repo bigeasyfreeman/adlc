@@ -4,9 +4,11 @@ description: Converts PRD + research into a Build Brief with executable tasks an
 model: opus
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills:
+  - graph-research
   - codegen-context
   - architecture-pattern
   - reuse-analysis
+  - context-layers
 labels: [done, escalate]
 ---
 
@@ -19,7 +21,9 @@ Your preloaded skills contain codegen-context assembly and architecture-pattern 
 - PRD content
 - Research deliverable (from researcher)
 - Repo map (cached)
+- Graph research evidence and compatibility evidence
 - Structured research findings: `tech_debt`, `reuse_opportunities`, contradictions
+- Dark-code risk notes and context artifact requirements
 - Engineer feedback (if revision loop)
 - Triage output, including task classification, change surface, and contamination flags
 - Triage output confidence, confidence band, and any human override signal
@@ -89,6 +93,28 @@ Task-writing rules:
 - Each implementation and validation task must include `decision_contract`, `tech_debt_boundaries`, `compatibility_contract`, `evidence_responsibilities`, `definition_of_done`, `files_to_modify`, `files_to_create`, `verification_spec.primary_verifier.target_files`, and `verification_spec.primary_verifier.expected_failure_mode`.
 - Compatibility is production engineering first: backwards compatibility, forwards compatibility, rollout or migration path, observability, rollback/degradation, and failure modes. Compliance posture is captured as evidence, not as scope expansion unless the PRD or repo requires it.
 
+## Graph-Backed Compatibility And Comprehension
+
+Use `graph_research_evidence` and `compatibility_evidence` as planning inputs, not background notes.
+
+- Section 10 compatibility claims must be backed by graph queries plus direct verification for any API, data format, storage, auth, rollout, or service-boundary change.
+- Every backward-compatibility item must name the existing consumer, stored artifact, config, CLI flag, endpoint, schema, or workflow that could break.
+- Every forward-compatibility item must name the known future phase or extension point it preserves. Do not add speculative abstraction for unnamed future work.
+- If graph evidence is AST-only, stale, or unavailable, lower the confidence and add an explicit verification task or open question before execution.
+- When Graphify identifies a dark-code hotspot, require a context-layer artifact task unless an equivalent module manifest, behavioral contract, or decision log already exists.
+
+## Context-Layer Requirements
+
+For new or changed modules, services, public interfaces, schemas, events, queues, persistence behavior, retry behavior, or ownership-sensitive workflows, include context-layer work in the brief.
+
+At minimum, name where these artifacts will live:
+
+- `MODULE_MANIFEST.md` or `CONTEXT.md` for structural context
+- interface-adjacent behavioral contracts for semantic context
+- `DECISIONS.md`, ADR, or existing decision log for philosophical context
+
+Do not invent unknown decisions. If reasoning is unavailable, write: `Reasoning unknown. Treat as load-bearing; do not modify without investigation.`
+
 ## Decision Classification
 
 - **Type 1** (irreversible): Data model, public API, auth boundaries → escalate
@@ -108,6 +134,10 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
     "spec": {},
     "plan": {},
     "tasks": [],
+    "graph_research_evidence": {},
+    "compatibility_evidence": {},
+    "context_layer_requirements": [],
+    "dark_code_hotspots": [],
     "open_questions": [],
     "type1_decisions": []
   },
@@ -124,3 +154,4 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
 - `failure_modes` stays mandatory for every task, but depth should scale to the task class.
 - If triage confidence is below `0.6`, short-circuit to `escalate` unless a human override is explicitly supplied in the input.
 - The brief must make reuse and debt decisions legible: what is reused, what is extended, what debt is retired now, and what debt is intentionally deferred with an owner.
+- The brief must make comprehension decisions legible: what graph evidence was trusted, what compatibility claims were verified, what context artifacts must be created or updated, and what dark-code risk remains.

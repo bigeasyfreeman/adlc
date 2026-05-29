@@ -24,6 +24,7 @@ The Eval Council runs at these points in the ADLC lifecycle:
 |-----------|-----------------|-----------|
 | **Post-Brief** | Complete Build Brief before engineer review | Yes — brief cannot be presented for approval until council passes |
 | **Post-Repo-Analysis** | Codebase Research repo map before it feeds downstream | Yes — downstream skills consume this; errors compound |
+| **Post-Comprehension-Gate** | Comprehension artifact for medium+ blast-radius changes | Yes — code cannot proceed to security review while system implications are unclear |
 | **Post-Skill-Output** | Each skill's output before it's published/committed | Configurable — blocking for work-item/document emitters, non-blocking for scaffolding |
 | **Pre-Deploy** | Aggregated state: all tickets done, tests pass, runbook exists | Yes — deploy gate |
 | **Post-Incident** | Retrospective: did the brief predict this failure mode? | No — learning loop, feeds back into future briefs |
@@ -59,6 +60,7 @@ Suppressed overlays must carry a concrete `not_applicable` reason tied to manife
 - Are the service boundaries clean? Is domain logic leaking into infrastructure?
 - Is the blast radius of changes accurately assessed?
 - Are there implicit coupling points that aren't called out?
+- Are Graphify-derived dependency paths confirmed against source before compatibility claims become tasks?
 - Would a senior engineer look at this and say "yes, this is how we do things here"?
 
 **Catches:** Pattern violations, unnecessary complexity, coupling risks, missed service boundaries, over-engineering.
@@ -121,6 +123,7 @@ Suppressed overlays must carry a concrete `not_applicable` reason tied to manife
 - Are dependencies between tasks explicit by task ID? If task BE-003 depends on BE-001, is that stated?
 - Are independent tasks flagged for parallel execution? (Missed parallelism = wasted velocity.)
 - Does any task reference "the spec" or "as discussed" instead of embedding the actual context? (This breaks agent agnosticism.)
+- If a module manifest, behavioral contract, or decision log is required, does the task name the artifact path and update criteria?
 
 **Self-containment test (applied to every task):**
 ```
@@ -238,6 +241,17 @@ GATE 0 PRE-CHECK:
 │ If STUCK — return immediately with the missing-judge reason.
 │ Do NOT proceed to council evaluation.
 ```
+
+### Comprehension Gate Check
+
+For code-review payloads that include `comprehension_artifact`, enforce:
+
+- `CLEAR` may proceed when findings are notes or all warnings are answered by the Build Brief, graph evidence, tests, or context artifacts.
+- `REVIEW REQUIRED` returns `revise` unless every question before merging has a cited answer.
+- `HOLD` returns `revise` and requires senior engineer review before the pipeline can continue.
+- Missing graph research or context-layer artifacts for medium+ blast-radius changes is a major finding.
+
+This gate reviews understanding, not style. Passing tests do not override a missing comprehension artifact.
 
 ---
 

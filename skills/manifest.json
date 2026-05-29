@@ -75,7 +75,7 @@
           "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
         }
       },
-      "skills": ["codebase-research", "grafana-observability"],
+      "skills": ["graph-research", "codebase-research", "dark-code-audit", "grafana-observability"],
       "labels": ["done"]
     },
     {
@@ -112,7 +112,7 @@
           "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
         }
       },
-      "skills": ["codegen-context", "architecture-pattern", "reuse-analysis"],
+      "skills": ["graph-research", "codegen-context", "architecture-pattern", "reuse-analysis", "context-layers"],
       "labels": ["done", "escalate"]
     },
     {
@@ -303,7 +303,7 @@
           "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
         }
       },
-      "skills": ["eval-council"],
+      "skills": ["eval-council", "graph-research", "comprehension-gate"],
       "labels": ["lgtm", "revise"]
     },
     {
@@ -487,11 +487,61 @@
       "dag_nodes": ["research"]
     },
     {
+      "name": "graph-research",
+      "path": "skills/graph-research/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "core",
+        "consumes_manifest": true,
+        "produces": ["graph_research_evidence", "compatibility_evidence", "task_memory_context"]
+      },
+      "dag_nodes": ["research", "plan", "code_review"]
+    },
+    {
       "name": "codegen-context",
       "path": "skills/codegen-context/SKILL.md",
       "contract_version": "1.0.0",
       "side_effect_profile": "read_only",
       "dag_nodes": ["plan", "context_assembly"]
+    },
+    {
+      "name": "context-layers",
+      "path": "skills/context-layers/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "overlay",
+        "consumes_manifest": true,
+        "trigger_fields": ["new_module", "new_interface", "service_boundary_change", "api_change", "data_format_change", "persistent_storage"],
+        "produces": ["module_manifest", "behavioral_contracts", "decision_log"]
+      },
+      "dag_nodes": ["plan", "context_assembly", "code_review"]
+    },
+    {
+      "name": "dark-code-audit",
+      "path": "skills/dark-code-audit/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "overlay",
+        "consumes_manifest": true,
+        "trigger_fields": ["service_boundary_change", "external_integration", "persistent_storage", "runtime_path_change", "auth_change"],
+        "produces": ["dark_code_risk_assessment"]
+      },
+      "dag_nodes": ["research", "plan"]
+    },
+    {
+      "name": "comprehension-gate",
+      "path": "skills/comprehension-gate/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "core_plus_overlays",
+        "consumes_manifest": true,
+        "produces": ["comprehension_artifact"]
+      },
+      "dag_nodes": ["code_review", "pr_prep"]
     },
     {
       "name": "confluence-decomposition",
