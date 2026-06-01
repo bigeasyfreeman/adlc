@@ -947,11 +947,12 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "paved_road_refs": task.get("paved_road_refs", []),
             "intent_contract_refs": task.get("intent_contract_refs", []),
             "production_invariant_coverage": task.get("production_invariant_coverage", []),
-            "slop_quality_gate": task.get("slop_quality_gate"),
             "evidence_responsibilities": task.get("evidence_responsibilities", []),
             "definition_of_done": task.get("definition_of_done", []),
             "failure_modes": task.get("failure_modes", []),
         }
+        if task.get("slop_quality_gate") is not None:
+            artifact["slop_quality_gate"] = task["slop_quality_gate"]
         artifacts.append(artifact)
 
     dependency_links = []

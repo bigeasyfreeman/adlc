@@ -96,6 +96,11 @@ assert_emit_preserves_slop_quality_gate() {
   return "$status"
 }
 
+assert_emit_omits_absent_slop_quality_gate() {
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$ROOT/docs/build-briefs/xia-adlc-remediation.json" --dry-run --json |
+    jq -e 'all(.artifacts[]; has("slop_quality_gate") | not)' >/dev/null
+}
+
 echo "ADLC Contract Checks"
 echo "Root: $ROOT"
 echo ""
@@ -165,6 +170,7 @@ assert "planner defines artifact taxonomy and automatic validation tasks" "rg -q
 assert "planner blocks unresolved Type 1 implementation" "rg -q 'unresolved Type 1.*decision_gate|decision_gate.*unresolved Type 1' '$ROOT/agents/planner.md'"
 assert "planner emits scalable AI code primitive evidence" "rg -q 'Scalable AI Code Primitives|construct_map|paved_road_refs|production_invariant_coverage|Verifiability gate' '$ROOT/agents/planner.md'"
 assert "planner emits slop quality gates for generated outputs" "rg -q 'Slop Quality Gate|slop_quality_gate|case_promotion_sources|generated-output surface' '$ROOT/agents/planner.md'"
+assert "planner omits slop quality gates when not applicable" "rg -q 'omit .*slop_quality_gate|Do not add the gate as ceremony' '$ROOT/agents/planner.md'"
 assert "code reviewer runs comprehension gate" "rg -q 'Comprehension Gate|comprehension_artifact|REVIEW REQUIRED|HOLD' '$ROOT/agents/code-reviewer.md'"
 assert "code reviewer checks scalable AI code primitives" "rg -q 'Scalable code primitives|construct-map refs|paved-road refs|production invariant coverage' '$ROOT/agents/code-reviewer.md'"
 assert "code reviewer checks slop quality gates" "rg -q 'Slop quality gate|missing_slop_quality_gate|slop score.*below threshold|missing_slop_case_promotion' '$ROOT/agents/code-reviewer.md'"
@@ -192,6 +198,7 @@ assert "work item emitters preserve scalable AI code primitives" "rg -q 'Scalabl
 assert "work item emitters preserve slop quality gates" "rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "emit-work-items preserves scalable AI code primitive refs" "assert_emit_preserves_scalable_primitives"
 assert "emit-work-items preserves slop quality gates" "assert_emit_preserves_slop_quality_gate"
+assert "emit-work-items omits absent slop quality gates" "assert_emit_omits_absent_slop_quality_gate"
 assert "Notion decomposition respects applicability manifest" "rg -q 'contract_version|applicability_manifest|active Build Brief sections' '$ROOT/skills/notion-decomposition/SKILL.md'"
 assert "JIRA ticket creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "GitHub issue creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/github-issue-creation/SKILL.md'"

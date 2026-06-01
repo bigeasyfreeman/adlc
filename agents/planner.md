@@ -76,7 +76,7 @@ For every task that changes prompt behavior, model selection, agent roles, gener
 - `failure_action`: `block`, `revise`, `human_approval`, or post-ship `monitor`
 - `case_promotion_sources`: how failures become future eval cases
 
-If the task has no generated-output surface, include `slop_quality_gate` with `applicability: not_applicable` and a concrete reason. Do not add the gate as ceremony for lint-only, build-validation, or deterministic code-only work.
+If the task has no generated-output surface, omit `slop_quality_gate`. If upstream material already included the field, preserve it only as `applicability: not_applicable` with a concrete reason. Do not add the gate as ceremony for lint-only, build-validation, or deterministic code-only work.
 
 ## Applicability First
 
