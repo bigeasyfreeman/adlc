@@ -75,7 +75,7 @@
           "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
         }
       },
-      "skills": ["graph-research", "codebase-research", "dark-code-audit", "grafana-observability"],
+      "skills": ["graph-research", "codebase-research", "paved-road-registry", "dark-code-audit", "grafana-observability"],
       "labels": ["done"]
     },
     {
@@ -112,7 +112,7 @@
           "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
         }
       },
-      "skills": ["graph-research", "codegen-context", "architecture-pattern", "reuse-analysis", "context-layers"],
+      "skills": ["graph-research", "codegen-context", "architecture-pattern", "reuse-analysis", "paved-road-registry", "context-layers"],
       "labels": ["done", "escalate"]
     },
     {
@@ -303,7 +303,7 @@
           "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
         }
       },
-      "skills": ["eval-council", "graph-research", "comprehension-gate"],
+      "skills": ["eval-council", "graph-research", "paved-road-registry", "comprehension-gate"],
       "labels": ["lgtm", "revise"]
     },
     {
@@ -784,6 +784,18 @@
       "dag_nodes": ["plan", "code_review"]
     },
     {
+      "name": "paved-road-registry",
+      "path": "skills/paved-road-registry/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "core",
+        "consumes_manifest": true,
+        "produces": ["paved_road_candidates", "paved_road_refs", "paved_road_gaps"]
+      },
+      "dag_nodes": ["research", "plan", "context_assembly", "code_review"]
+    },
+    {
       "name": "definition-of-done",
       "path": "skills/definition-of-done/SKILL.md",
       "contract_version": "2.0.0",
@@ -843,7 +855,7 @@
         "mode": "orchestration",
         "consumes_manifest": true,
         "task_classes": ["feature", "bugfix", "refactor", "infra", "security"],
-        "activates": ["eval-council", "definition-of-done", "security-review", "observability-contract"]
+        "activates": ["eval-council", "paved-road-registry", "definition-of-done", "security-review", "observability-contract"]
       },
       "dag_nodes": []
     },

@@ -61,6 +61,7 @@ Suppressed overlays must carry a concrete `not_applicable` reason tied to manife
 - Is the blast radius of changes accurately assessed?
 - Are there implicit coupling points that aren't called out?
 - Are Graphify-derived dependency paths confirmed against source before compatibility claims become tasks?
+- Does the task follow a cited paved road, or justify why no existing pattern can absorb the change?
 - Would a senior engineer look at this and say "yes, this is how we do things here"?
 
 **Catches:** Pattern violations, unnecessary complexity, coupling risks, missed service boundaries, over-engineering.
@@ -124,6 +125,7 @@ Suppressed overlays must carry a concrete `not_applicable` reason tied to manife
 - Are independent tasks flagged for parallel execution? (Missed parallelism = wasted velocity.)
 - Does any task reference "the spec" or "as discussed" instead of embedding the actual context? (This breaks agent agnosticism.)
 - If a module manifest, behavioral contract, or decision log is required, does the task name the artifact path and update criteria?
+- Does the task include construct-map refs, paved-road refs, intent contract refs, verifier evidence, and production invariant coverage when the change surface warrants them?
 
 **Self-containment test (applied to every task):**
 ```
@@ -192,6 +194,10 @@ For every task, run `specificity-judge` with:
 - `files_to_create`
 - `tech_debt_boundaries`
 - `compatibility_contract`
+- `construct_map_refs`
+- `paved_road_refs`
+- `intent_contract_refs`
+- `production_invariant_coverage`
 - `evidence_responsibilities`
 - `definition_of_done`
 - `verification_spec.primary_verifier.target`
@@ -227,6 +233,18 @@ For every task artifact:
 - Decomposition-mode briefs must include validation tasks in the enterprise readiness contract.
 - Dependencies must resolve to Build Brief artifact IDs or already-emitted target artifact IDs; unresolved aliases fail Gate 0.
 
+### Scalable AI Code Primitive Checks
+
+For every implementation task that changes code, schemas, runtime behavior, persistence, tests, or deployment conventions:
+
+- `construct_map_refs` should cite relevant constructs or explicitly state why construct mapping is not applicable.
+- `paved_road_refs` should cite the repo-local pattern or include `no_paved_road_found` with the closest convention and review rationale.
+- `intent_contract_refs` should point to the behavior, constraints, tradeoffs, non-goals, and verifier the coding agent must preserve.
+- `production_invariant_coverage` must cover relevant identity, auth, tenancy, data integrity, persistence, ordering, idempotency, retries, sensitive data, migration, downgrade, dependency-failure, or observability invariants.
+- Verifiability must be concrete. If the task has no deterministic verifier and no bounded human-judgment checkpoint, return `REVISION_REQUIRED` with reason `unverifiable_delegation`.
+
+Do not require these fields for trivial docs, lint-only, or build-validation tasks when the applicability manifest proves no code path or build pattern changes.
+
 ### Gate 0 Verdict
 
 ```
@@ -250,6 +268,7 @@ For code-review payloads that include `comprehension_artifact`, enforce:
 - `REVIEW REQUIRED` returns `revise` unless every question before merging has a cited answer.
 - `HOLD` returns `revise` and requires senior engineer review before the pipeline can continue.
 - Missing graph research or context-layer artifacts for medium+ blast-radius changes is a major finding.
+- Missing paved-road evidence, construct-map references, or production invariant coverage for medium+ blast-radius code changes is a major finding.
 
 This gate reviews understanding, not style. Passing tests do not override a missing comprehension artifact.
 

@@ -42,6 +42,16 @@ Required behavior:
 
 The research deliverable must include `graph_research_evidence`, `compatibility_evidence`, and any dark-code hotspots that require `context-layers`.
 
+## Scalable AI Code Primitive Research
+
+When repo context is available, the research deliverable must also produce evidence for AI-scalable implementation:
+
+- `construct_map`: affected modules, packages, services, CLIs, schemas, configs, env vars, persistence paths, APIs, internal interfaces, reverse dependencies, tests, fixtures, and validation surfaces.
+- `paved_road_evidence`: repo-local approved or preferred build paths, reference implementations, conventions, `do_not_reimplement` rules, and any explicit `no_paved_road_found` gaps.
+- `load_bearing_invariants`: identity, auth, tenancy, data integrity, persistence, ordering, idempotency, retries, sensitive data, migration, downgrade, observability, and dependency-failure assumptions that the planned work could affect.
+
+These are evidence records, not redesign proposals. If the graph suggests a relationship but source, schema, docs, tests, or command output do not verify it, record the claim as an accuracy gap instead of turning it into scope.
+
 ## Input Contract
 
 ```json
@@ -107,6 +117,19 @@ Do not aim for a finding count. One material, cited debt item is better than ten
     "dependency_graph": {},
     "risk_areas": []
   },
+  "construct_map": {
+    "constructs": [],
+    "relationships": [],
+    "validation_surfaces": [],
+    "blast_radius": [],
+    "accuracy_gaps": []
+  },
+  "paved_road_evidence": {
+    "candidates": [],
+    "gaps": [],
+    "recommended_refs": []
+  },
+  "load_bearing_invariants": [],
   "service_placement": {
     "verdict": "correct_service | wrong_service | needs_discussion",
     "reasoning": "string",

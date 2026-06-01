@@ -131,6 +131,7 @@ Every work-item emitter must carry these fields forward from the Build Brief tas
 - `files_to_create` and `files_to_modify`
 - `tech_debt_boundaries`
 - `compatibility_contract`
+- `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, and `production_invariant_coverage` when present
 - `evidence_responsibilities`
 - `definition_of_done`
 - failure-mode cross references

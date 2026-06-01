@@ -85,14 +85,14 @@ Judge skills resolve their `fast_judge` and `deep_judge` slots through `skills/m
 | DAG Node | Agent | Backend | Model | Skills Injected |
 |----------|-------|---------|-------|-----------------|
 | `triage` | `agents/triage.md` | claude | claude-sonnet-4-6 | — |
-| `research` | `agents/researcher.md` | claude | claude-opus-4-6 | graph-research, codebase-research, dark-code-audit, grafana-observability |
-| `plan` | `agents/planner.md` | claude | claude-opus-4-6 | graph-research, codegen-context, architecture-pattern, reuse-analysis, context-layers |
+| `research` | `agents/researcher.md` | claude | claude-opus-4-6 | graph-research, codebase-research, paved-road-registry, dark-code-audit, grafana-observability |
+| `plan` | `agents/planner.md` | claude | claude-opus-4-6 | graph-research, codegen-context, architecture-pattern, reuse-analysis, paved-road-registry, context-layers |
 | `plan_review` | `agents/plan-reviewer.md` | claude | claude-opus-4-6 | eval-council |
 | `scaffold` | *tool node* | — | — | architecture-pattern |
 | `gen_tests` | `agents/test-author.md` | claude | claude-sonnet-4-6 | spec-to-tests, tdd-enforcement, qa-test-data |
 | `context_assembly` | *tool node* | — | — | codegen-context |
 | `code` | `agents/coder.md` | claude | claude-sonnet-4-6 | tdd-enforcement, systematic-debugging |
-| `code_review` | `agents/code-reviewer.md` | claude | claude-opus-4-6 | eval-council, graph-research, comprehension-gate |
+| `code_review` | `agents/code-reviewer.md` | claude | claude-opus-4-6 | eval-council, graph-research, paved-road-registry, comprehension-gate |
 | `security` | `agents/security-reviewer.md` | claude | claude-opus-4-6 | appsec-threat-model, llm-security, agentic-security, api-security, infra-security |
 | `qa` | *tool node* | — | — | — |
 | `test_strength` | `agents/test-strength-auditor.md` | claude | claude-sonnet-4-6 | test-strength |
@@ -115,8 +115,9 @@ scaffold:
 context_assembly:
   command: |
     # Assemble per-task prompts with zero-read principle
-    # Inlines: graph evidence, research, contracts/guides, tests, schemas, patterns,
-    # compatibility constraints, and context-layer artifacts
+    # Inlines: graph evidence, construct maps, paved-road refs, intent, invariants,
+    # research, contracts/guides, tests, schemas, patterns, compatibility constraints,
+    # and context-layer artifacts
 
 qa:
   command: |

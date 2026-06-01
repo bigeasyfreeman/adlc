@@ -64,7 +64,7 @@ ADLC does not ship a JIRA client. This skill targets a locally installed MCP pro
 }
 ```
 
-Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
+Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
 
 ## Mixed Acceptance Criteria Shapes
 
@@ -186,6 +186,12 @@ h2. Compatibility Contract
 * Backward compatibility: [existing consumers and behavior preserved]
 * Forward compatibility: [future phases accommodated without premature lock-in]
 * Migration or rollout: [feature flag, migration, rollout, rollback, or N/A]
+
+h2. Scalable AI Code Primitives
+* Construct map refs: [affected constructs, relationships, validation surfaces]
+* Paved-road refs: [approved reference paths or explicit no_paved_road_found]
+* Intent contract refs: [behavior/why/constraints/non-goals source]
+* Production invariant coverage: [identity/auth/tenancy/data/persistence/ordering/idempotency/retry/observability/etc. status + evidence]
 
 h2. Dependencies
 * Depends on: [task IDs or "none — parallelizable"]
@@ -363,7 +369,7 @@ ADLC expects a locally installed MCP provider. Provider tool names may differ; r
 ## Quality Gates
 
 - [ ] Every task in Section 8 has a corresponding JIRA ticket
-- [ ] Ticket bodies preserve `artifact_type`, `decision_contract`, compatibility contracts, evidence responsibilities, and Definition of Done.
+- [ ] Ticket bodies preserve `artifact_type`, `decision_contract`, compatibility contracts, construct-map refs, paved-road refs, intent refs, production invariant coverage, evidence responsibilities, and Definition of Done.
 - [ ] Scope-lock epics are context-only and do not carry executable file-change instructions.
 - [ ] Decision-gate tickets block dependent implementation tickets until resolved.
 - [ ] Validation tasks are emitted automatically for decomposition-mode briefs and reference the enterprise readiness contract.

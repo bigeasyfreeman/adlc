@@ -23,6 +23,36 @@ assert() {
   fi
 }
 
+assert_emit_preserves_scalable_primitives() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].construct_map_refs) = ["graph:construct:adlc-cli"] |
+    (.sections."8_task_tickets"[0].paved_road_refs) = ["skill:paved-road-registry#adlc-cli"] |
+    (.sections."8_task_tickets"[0].intent_contract_refs) = ["brief:intent:XIA-SOC-INDEX"] |
+    (.sections."8_task_tickets"[0].production_invariant_coverage) = [
+      {
+        "invariant": "data_integrity",
+        "status": "covered",
+        "evidence": ["docs/schemas/build-brief.schema.json"]
+      }
+    ]
+  ' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp"
+
+  local status=0
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --json |
+    jq -e '
+      .artifacts[0].construct_map_refs[0] == "graph:construct:adlc-cli" and
+      .artifacts[0].paved_road_refs[0] == "skill:paved-road-registry#adlc-cli" and
+      .artifacts[0].intent_contract_refs[0] == "brief:intent:XIA-SOC-INDEX" and
+      .artifacts[0].production_invariant_coverage[0].invariant == "data_integrity" and
+      .artifacts[0].production_invariant_coverage[0].status == "covered"
+    ' >/dev/null || status=$?
+
+  rm -f "$tmp"
+  return "$status"
+}
+
 echo "ADLC Contract Checks"
 echo "Root: $ROOT"
 echo ""
@@ -46,6 +76,8 @@ assert "task schema requires artifact taxonomy and decision contract" "jq -e '. 
 assert "task schema requires enterprise execution contracts" "jq -e '. as \$s | (\$s.definitions.task.required | index(\"tech_debt_boundaries\")) and (\$s.definitions.task.required | index(\"compatibility_contract\")) and (\$s.definitions.task.required | index(\"evidence_responsibilities\")) and (\$s.definitions.task.required | index(\"definition_of_done\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema requires verification_spec" "jq -e '.definitions.task.required | index(\"verification_spec\")' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "verifier schema requires target files and expected failure mode" "jq -e '.definitions.verifier.required as \$r | (\$r | index(\"target_files\")) and (\$r | index(\"expected_failure_mode\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "task schema preserves scalable AI code primitive refs" "jq -e '.definitions.task.properties.construct_map_refs.type == \"array\" and .definitions.task.properties.paved_road_refs.type == \"array\" and .definitions.task.properties.intent_contract_refs.type == \"array\" and (.definitions.task.properties.production_invariant_coverage.items.properties.status.enum | index(\"requires_human_judgment\")) and (.definitions.task.properties.production_invariant_coverage.items.properties.invariant.enum | index(\"idempotency\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "enterprise readiness contract can carry scalable primitive rollups" "jq -e '.definitions.enterprise_readiness_contract.properties.construct_map_refs.type == \"array\" and .definitions.enterprise_readiness_contract.properties.paved_road_refs.type == \"array\" and .definitions.enterprise_readiness_contract.properties.production_invariant_coverage.type == \"array\"' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "implementation tasks cannot carry unresolved Type 1 decisions" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"implementation_task\") | (.then.properties.decision_contract.properties.status.enum | index(\"unresolved\") | not) and .then.properties.decision_contract.properties.blocks_implementation.const == false' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "scope-lock epics cannot carry file-change instructions" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"scope_lock_epic\") | .then.properties.files_to_modify.maxItems == 0 and .then.properties.files_to_create.maxItems == 0' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "decision gates enforce Type 1 blocking semantics" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"decision_gate\") | .then.properties.bpe_classification.const == \"type_1\" and .then.properties.decision_contract.properties.type1_decision.const == true and .then.properties.decision_contract.properties.status.const == \"unresolved\" and .then.properties.decision_contract.properties.blocks_implementation.const == true' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
@@ -61,16 +93,21 @@ assert "artifact contract evaluator passes" "'$ROOT/tests/artifact_contract/eval
 
 echo ""
 echo "--- Prompt Contracts ---"
+assert "scalable AI code primitives spec exists" "[ -f '$ROOT/docs/specs/scalable-ai-code-primitives.md' ] && rg -q 'Graph-Backed Construct Map|Agent Paved-Road Registry|Verifiability Gate|Production Invariant Coverage' '$ROOT/docs/specs/scalable-ai-code-primitives.md'"
 assert "triage emits task classification" "rg -q 'task_classification' '$ROOT/agents/triage.md'"
 assert "PRD agent captures reuse and tech debt boundaries" "rg -q 'reuse|tech debt|existing system, component, or workflow|existing services, components, or patterns|blocking tech debt' '$ROOT/agents/PM-PRD-AGENT.md'"
 assert "PRD evaluator checks reuse and tech debt readiness" "rg -q 'missing reuse boundary|missing debt risk|Repo-Aware Reuse & Debt Framing|reuse/debt boundaries' '$ROOT/skills/prd-generation/SKILL.md'"
 assert "codebase research evidence-gates debt findings" "rg -q 'Debt Evidence And Calibration|path:line|false_positives_considered|Do not aim for a finding count' '$ROOT/skills/codebase-research/SKILL.md'"
+assert "codebase research emits scalable primitive evidence" "rg -q 'Scalable AI Code Primitive Research|construct_map|paved_road_evidence|load_bearing_invariants' '$ROOT/skills/codebase-research/SKILL.md'"
 assert "graph research skill defines Graphify and Beads roles" "rg -q 'Graphify.*research substrate|Beads.*work graph|compatibility_evidence|dark_code_hotspots' '$ROOT/skills/graph-research/SKILL.md'"
+assert "graph research skill captures construct maps and paved roads" "rg -q 'Construct Map Rules|construct_map|paved_road_refs|validation surfaces' '$ROOT/skills/graph-research/SKILL.md'"
+assert "paved-road registry skill defines evidence-backed build paths" "rg -q 'paved_road_candidates|no_paved_road_found|allowed_departure|do_not_reimplement' '$ROOT/skills/paved-road-registry/SKILL.md'"
 assert "dark-code audit skill captures structural and velocity risk" "rg -q 'Structural Dark Code|Velocity Dark Code|insufficient data to assess|comprehension infrastructure' '$ROOT/skills/dark-code-audit/SKILL.md'"
 assert "context-layers skill defines all three artifacts" "rg -q 'Module Manifest|Behavioral Contracts|Decision Log|Reasoning unknown' '$ROOT/skills/context-layers/SKILL.md'"
 assert "comprehension-gate skill defines blocking verdicts" "rg -q 'Comprehension Verdict|CLEAR|REVIEW REQUIRED|HOLD|Passing tests' '$ROOT/skills/comprehension-gate/SKILL.md'"
 assert "researcher emits calibrated debt findings" "rg -q 'architecture mental model|false positives considered|debt_calibration|Unsupported or low-confidence debt claims' '$ROOT/agents/researcher.md'"
 assert "researcher emits graph and dark-code evidence" "rg -q 'graph_research_evidence|compatibility_evidence|dark_code_risk|Graphify before broad raw search|Beads only as task-memory' '$ROOT/agents/researcher.md'"
+assert "researcher emits construct maps and paved-road evidence" "rg -q 'construct_map|paved_road_evidence|load_bearing_invariants|no_paved_road_found' '$ROOT/agents/researcher.md'"
 assert "planner references applicability manifest" "rg -q 'applicability_manifest' '$ROOT/agents/planner.md'"
 assert "planner supports ADLC PRD and decomposition modes" "rg -q 'prd_only.*decompose_only.*prd_and_decompose|decompose_only.*prd_and_decompose' '$ROOT/agents/planner.md'"
 assert "planner requires graph-backed compatibility and context layers" "rg -q 'Graph-Backed Compatibility And Comprehension|context-layer artifact|MODULE_MANIFEST|Graphify identifies a dark-code hotspot' '$ROOT/agents/planner.md'"
@@ -80,21 +117,28 @@ assert "planner requires reference implementations and debt prerequisite handlin
 assert "planner keeps unsupported debt out of scope" "rg -q 'Unsupported debt claims|must not become tasks|Do not recommend rewrites|path:line' '$ROOT/agents/planner.md'"
 assert "planner defines artifact taxonomy and automatic validation tasks" "rg -q 'scope_lock_epic|decision_gate|implementation_task|validation_task' '$ROOT/agents/planner.md' && rg -q 'Generate validation tasks automatically' '$ROOT/agents/planner.md'"
 assert "planner blocks unresolved Type 1 implementation" "rg -q 'unresolved Type 1.*decision_gate|decision_gate.*unresolved Type 1' '$ROOT/agents/planner.md'"
+assert "planner emits scalable AI code primitive evidence" "rg -q 'Scalable AI Code Primitives|construct_map|paved_road_refs|production_invariant_coverage|Verifiability gate' '$ROOT/agents/planner.md'"
 assert "code reviewer runs comprehension gate" "rg -q 'Comprehension Gate|comprehension_artifact|REVIEW REQUIRED|HOLD' '$ROOT/agents/code-reviewer.md'"
+assert "code reviewer checks scalable AI code primitives" "rg -q 'Scalable code primitives|construct-map refs|paved-road refs|production invariant coverage' '$ROOT/agents/code-reviewer.md'"
 assert "coder uses verification_spec" "rg -q 'verification_spec' '$ROOT/agents/coder.md'"
 assert "verification discipline is task-class-aware" "rg -q 'build_validation|lint_cleanup' '$ROOT/skills/tdd-enforcement/SKILL.md'"
 assert "codegen context consumes verification_spec" "rg -q 'verification_spec' '$ROOT/skills/codegen-context/SKILL.md'"
+assert "codegen context inlines scalable AI code primitives" "rg -q 'missing_scalable_code_primitives|Scalable AI Code Primitives|construct_map_refs|paved_road_refs|production_invariant_coverage' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "DoD uses core baseline and overlays" "rg -q 'core baseline|overlay' '$ROOT/skills/definition-of-done/SKILL.md'"
 assert "eval council checks applicability manifest" "rg -q 'applicability_manifest' '$ROOT/skills/eval-council/SKILL.md'"
+assert "eval council gates scalable AI code primitives" "rg -q 'Scalable AI Code Primitive Checks|unverifiable_delegation|paved_road_refs|production_invariant_coverage' '$ROOT/skills/eval-council/SKILL.md'"
 assert "fix loop uses primary verifier wording" "rg -q 'primary verifier' '$ROOT/skills/fix-loop/SKILL.md'"
 assert "shared emitter contract covers supported targets and local MCP providers" "rg -q 'GitHub|Linear|Notion|Work-item emitter|Document emitter|locally installed MCP provider|capability_bindings' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves reuse and tech debt context" "rg -q 'reference_impl|reuse|tech-debt|deferred-cleanup|do not reimplement' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves artifact taxonomy and enterprise readiness" "rg -q 'artifact_type|decision_contract|enterprise_readiness_contract|validation_task|unresolved_dependency_alias' '$ROOT/docs/specs/emitter-contract.md'"
+assert "shared emitter contract preserves scalable AI code primitives" "rg -q 'construct_map_refs|paved_road_refs|intent_contract_refs|production_invariant_coverage' '$ROOT/docs/specs/emitter-contract.md'"
 assert "JIRA ticket creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "Confluence decomposition respects applicability manifest" "rg -q 'contract_version|applicability_manifest|active Build Brief sections' '$ROOT/skills/confluence-decomposition/SKILL.md'"
 assert "GitHub issue creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/github-issue-creation/SKILL.md'"
 assert "Linear ticket creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "Linear ticket creation preserves artifact taxonomy and enterprise readiness" "rg -q 'artifact_type|Decision Contract|Compatibility Contract|Evidence Responsibilities|Definition of Done|enterprise readiness contract' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
+assert "work item emitters preserve scalable AI code primitives" "rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
+assert "emit-work-items preserves scalable AI code primitive refs" "assert_emit_preserves_scalable_primitives"
 assert "Notion decomposition respects applicability manifest" "rg -q 'contract_version|applicability_manifest|active Build Brief sections' '$ROOT/skills/notion-decomposition/SKILL.md'"
 assert "JIRA ticket creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "GitHub issue creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/github-issue-creation/SKILL.md'"
@@ -108,10 +152,12 @@ assert "Notion decomposition requires local MCP provider bindings" "rg -q 'local
 
 echo ""
 echo "--- Activation Metadata ---"
+assert "paved-road registry has activation metadata" "jq -e '.skills[] | select(.name==\"paved-road-registry\") | .activation.consumes_manifest == true and (.dag_nodes | index(\"research\")) != null and (.dag_nodes | index(\"plan\")) != null and (.dag_nodes | index(\"context_assembly\")) != null and (.dag_nodes | index(\"code_review\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "security-review has activation metadata" "jq -e '.skills[] | select(.name==\"security-review\") | .activation.consumes_manifest == true' '$ROOT/skills/manifest.json' >/dev/null"
 assert "observability-contract has activation metadata" "jq -e '.skills[] | select(.name==\"observability-contract\") | .activation.mode == \"overlay\"' '$ROOT/skills/manifest.json' >/dev/null"
 assert "definition-of-done declares core checks" "jq -e '.skills[] | select(.name==\"definition-of-done\") | (.activation.core_checks | length) > 0' '$ROOT/skills/manifest.json' >/dev/null"
 assert "build-feature consumes manifest" "jq -e '.skills[] | select(.name==\"build-feature\") | .activation.consumes_manifest == true' '$ROOT/skills/manifest.json' >/dev/null"
+assert "build-feature activates paved-road registry" "jq -e '.skills[] | select(.name==\"build-feature\") | (.activation.activates | index(\"paved-road-registry\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "github issue creation is registered for pr_prep" "jq -e '.skills[] | select(.name==\"github-issue-creation\") | .side_effect_profile == \"mutating\" and (.dag_nodes | index(\"pr_prep\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "linear ticket creation is registered for pr_prep" "jq -e '.skills[] | select(.name==\"linear-ticket-creation\") | .side_effect_profile == \"mutating\" and (.dag_nodes | index(\"pr_prep\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "notion decomposition is registered for pr_prep" "jq -e '.skills[] | select(.name==\"notion-decomposition\") | .side_effect_profile == \"mutating\" and (.dag_nodes | index(\"pr_prep\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
@@ -161,7 +207,7 @@ assert "WORKFLOW.md binds slop_gate command" "rg -q '^slop_gate:' '$ROOT/WORKFLO
 assert "manifest registers test-strength skill with consumes_manifest" "jq -e '.skills[] | select(.name==\"test-strength\") | .activation.consumes_manifest == true and (.activation.produces | index(\"test_strength_report\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "manifest registers triage low_confidence and planner escalate labels" "jq -e '.agents[] | select(.name==\"triage\") | (.labels | index(\"low_confidence\")) != null' '$ROOT/skills/manifest.json' >/dev/null && jq -e '.agents[] | select(.name==\"planner\") | (.labels | index(\"escalate\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "manifest registers graph research and comprehension skills" "jq -e '.skills[] | select(.name==\"graph-research\") | (.dag_nodes | index(\"research\")) != null and (.dag_nodes | index(\"code_review\")) != null' '$ROOT/skills/manifest.json' >/dev/null && jq -e '.skills[] | select(.name==\"comprehension-gate\") | (.dag_nodes | index(\"code_review\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
-assert "manifest wires researcher planner and code reviewer to new skills" "jq -e '(.agents[] | select(.name==\"researcher\") | (.skills | index(\"graph-research\")) != null and (.skills | index(\"dark-code-audit\")) != null) and (.agents[] | select(.name==\"planner\") | (.skills | index(\"context-layers\")) != null) and (.agents[] | select(.name==\"code-reviewer\") | (.skills | index(\"comprehension-gate\")) != null)' '$ROOT/skills/manifest.json' >/dev/null"
+assert "manifest wires researcher planner and code reviewer to new skills" "jq -e '(.agents[] | select(.name==\"researcher\") | (.skills | index(\"graph-research\")) != null and (.skills | index(\"dark-code-audit\")) != null and (.skills | index(\"paved-road-registry\")) != null) and (.agents[] | select(.name==\"planner\") | (.skills | index(\"context-layers\")) != null and (.skills | index(\"paved-road-registry\")) != null) and (.agents[] | select(.name==\"code-reviewer\") | (.skills | index(\"comprehension-gate\")) != null and (.skills | index(\"paved-road-registry\")) != null)' '$ROOT/skills/manifest.json' >/dev/null"
 
 echo ""
 echo "--- LLM vs Deterministic Rebalance ---"

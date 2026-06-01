@@ -133,12 +133,12 @@ Public-repo hygiene is intentional:
 | Agent | Job | Model | Skills |
 |-------|-----|-------|--------|
 | **triage** | Classify, route, or escalate | Sonnet | none |
-| **researcher** | Graph-backed codebase analysis, PRD cross-reference, dark-code risk notes | Opus | graph-research, codebase-research, dark-code-audit, grafana |
-| **planner** | PRD + research into an applicability-aware Build Brief | Opus | graph-research, codegen-context, architecture, reuse-analysis, context-layers |
+| **researcher** | Graph-backed codebase analysis, PRD cross-reference, dark-code risk notes | Opus | graph-research, codebase-research, paved-road-registry, dark-code-audit, grafana |
+| **planner** | PRD + research into an applicability-aware Build Brief | Opus | graph-research, codegen-context, architecture, reuse-analysis, paved-road-registry, context-layers |
 | **plan-reviewer** | 6-persona Eval Council with Gate 0 pre-checks | Opus | eval-council |
 | **test-author** | Authors failing verifier tests from Brief | Sonnet | spec-to-tests, tdd-enforcement, qa-test-data |
 | **coder** | Verifier-led execution per task class | Sonnet | tdd-enforcement, systematic-debugging |
-| **code-reviewer** | Quality, correctness, and comprehension review | Opus | eval-council, graph-research, comprehension-gate |
+| **code-reviewer** | Quality, correctness, and comprehension review | Opus | eval-council, graph-research, paved-road-registry, comprehension-gate |
 | **fixer** | 4-phase root cause, then fix | Sonnet | systematic-debugging, fix-loop |
 | **security-reviewer** | STRIDE + 5 OWASP domains + OWASP Top 10 | Opus | security-review + 5 domain skills |
 | **pr-preparer** | Final PR package with DoD checklist | Sonnet | none |
@@ -152,7 +152,7 @@ Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 Skill definitions are injected into agents at startup. Runtime install counts are derived by `setup.sh` rather than hardcoded in docs.
 
 **Core Engineering:**
-`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `definition-of-done` (22-check DoD) · `spec-to-tests` (failing-test authoring from Brief)
+`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `definition-of-done` (22-check DoD) · `spec-to-tests` (failing-test authoring from Brief)
 
 **Security:**
 `security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`
@@ -249,6 +249,7 @@ adlc/
 
 - [`docs/adlc-v2-specification.md`](docs/adlc-v2-specification.md) — Full ADLC v2 spec (philosophy, pipeline, cross-cutting concerns)
 - [`docs/specs/graph-research-and-comprehension.md`](docs/specs/graph-research-and-comprehension.md) — Graphify, Beads, context-layer, and comprehension-gate contract
+- [`docs/specs/scalable-ai-code-primitives.md`](docs/specs/scalable-ai-code-primitives.md) — Graph-backed context, paved-road reuse, verifiability, and production invariant contract
 - [`docs/adlc-v2-tickets.md`](docs/adlc-v2-tickets.md) — 58-ticket implementation roadmap
 
 ## Acknowledgments

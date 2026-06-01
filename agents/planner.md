@@ -8,6 +8,7 @@ skills:
   - codegen-context
   - architecture-pattern
   - reuse-analysis
+  - paved-road-registry
   - context-layers
 labels: [done, escalate]
 ---
@@ -21,6 +22,7 @@ Your preloaded skills contain codegen-context assembly and architecture-pattern 
 - PRD content
 - Research deliverable (from researcher)
 - Repo map (cached)
+- Construct map, validation surfaces, paved-road evidence, and load-bearing invariant notes
 - Graph research evidence and compatibility evidence
 - Structured research findings: `tech_debt`, `reuse_opportunities`, contradictions
 - Dark-code risk notes and context artifact requirements
@@ -45,6 +47,18 @@ Treat `reuse_opportunities` and `tech_debt` as first-class planning inputs, not 
 - Treat debt as actionable only when it is evidence-backed with `path:line`, PRD quote, test/tool output, or repo-wide command evidence and tied to the current scope.
 - Unsupported debt claims, low-confidence guesses, and generic audit categories become open questions or contamination notes; they must not become tasks.
 - Do not recommend rewrites or broad cleanup projects. Use the smallest scoped prerequisite task, bounded deferral, or explicit "not relevant to this slice" decision.
+
+## Scalable AI Code Primitives
+
+Build Briefs must preserve the primitives that keep AI-generated code scalable:
+
+- **Graph-backed construct map:** cite relevant modules, services, packages, CLIs, schemas, config/env, public APIs, internal interfaces, persistence paths, reverse dependencies, and validation surfaces from Graphify plus direct verification.
+- **Intent contract:** capture behavior, why it matters, constraints, non-goals, tradeoffs, edge cases, load-bearing assumptions, and verifier before implementation.
+- **Agent paved-road registry:** name the repo-local pattern or reference implementation the task must follow. If no paved road exists, record `no_paved_road_found` and the closest convention.
+- **Verifiability gate:** classify whether the task is deterministic, bounded judgment, or unverifiable. Unverifiable work becomes a `decision_gate` or explicit human checkpoint instead of autonomous implementation.
+- **Production invariant coverage:** when the task touches identity, auth, tenancy, data integrity, persistence, ordering, retries, idempotency, sensitive data, migrations, downgrade, or observability, name the invariant and how the verifier or DoD protects it.
+
+Do not turn these primitives into generic production-readiness prose. Every claim needs a path, graph query, schema, test, fixture, command, or context artifact.
 
 ## Applicability First
 
@@ -87,6 +101,7 @@ Task-writing rules:
 - Keep unsupported comparison or guardrail sentences out of the task body. If they matter, capture them in contamination notes or prior-attempt context with evidence.
 - State required invariants positively first. Use "must not" only for grounded failure modes, architecture boundaries, or real prior mistakes.
 - Every task must cite a concrete `reference_impl` or existing pattern to extend. If no reusable implementation exists, say so explicitly and name the closest convention to follow.
+- Every task that changes code must cite `paved_road_refs` or explicitly state `no_paved_road_found` with the closest convention and review rationale.
 - If a task introduces a new abstraction, justify why the existing pattern cannot absorb the change without creating worse coupling.
 - If tech debt must be paid down before feature work, split that work into an explicit prerequisite task rather than burying it in implementation notes.
 - `anti_slop_rules` must forbid reimplementing cited helpers, services, or patterns when they already exist.
@@ -98,6 +113,7 @@ Task-writing rules:
 Use `graph_research_evidence` and `compatibility_evidence` as planning inputs, not background notes.
 
 - Section 10 compatibility claims must be backed by graph queries plus direct verification for any API, data format, storage, auth, rollout, or service-boundary change.
+- Construct-map claims must name the affected construct, relationship, validation surface, and evidence source. Graph-derived construct claims remain lower confidence until directly verified.
 - Every backward-compatibility item must name the existing consumer, stored artifact, config, CLI flag, endpoint, schema, or workflow that could break.
 - Every forward-compatibility item must name the known future phase or extension point it preserves. Do not add speculative abstraction for unnamed future work.
 - If graph evidence is AST-only, stale, or unavailable, lower the confidence and add an explicit verification task or open question before execution.
@@ -135,7 +151,11 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
     "plan": {},
     "tasks": [],
     "graph_research_evidence": {},
+    "construct_map": {},
+    "paved_road_evidence": {},
     "compatibility_evidence": {},
+    "intent_contract": {},
+    "production_invariant_coverage": [],
     "context_layer_requirements": [],
     "dark_code_hotspots": [],
     "open_questions": [],
@@ -155,3 +175,4 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
 - If triage confidence is below `0.6`, short-circuit to `escalate` unless a human override is explicitly supplied in the input.
 - The brief must make reuse and debt decisions legible: what is reused, what is extended, what debt is retired now, and what debt is intentionally deferred with an owner.
 - The brief must make comprehension decisions legible: what graph evidence was trusted, what compatibility claims were verified, what context artifacts must be created or updated, and what dark-code risk remains.
+- The brief must make scalable-code decisions legible: what construct relationships matter, what paved road is followed or deliberately left, what proves the output, and what production invariants remain uncovered.
