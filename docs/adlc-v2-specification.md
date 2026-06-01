@@ -5,6 +5,11 @@
 **Status:** Draft
 **Scope:** Universal — governs SWElfare, Ratatosk, Magnus, and all future Torbin Network agents
 
+> Alignment note: this draft predates the applicability-manifest refactor. Any
+> universal security, test-strength, observability, or slop-gate language should
+> now be interpreted through the live contract in `agents/triage.md`,
+> `agents/planner.md`, and `docs/schemas/*.json`.
+
 ---
 
 ## 0. Governing Philosophy
@@ -82,7 +87,7 @@ The Build Loop ships features. The Fix Loop repairs production. The Feedback Loo
 ```
 Phase -1: Intake & Scope Routing
 Phase  0: PRD Agent (structured discovery)
-Phase  1: Build Brief (technical design + security + observability + reuse)
+Phase  1: Build Brief (technical design + security + observability + reuse + comprehension context)
 Phase  2: Eval Council — HEAVY GATE (post-brief)
 Phase  3: Scaffold + Codegen Context Assembly
 Phase  4: Execution (LDD → TDD → Implement)
@@ -173,6 +178,33 @@ Phase  6: PR + Ship
 - [ ] No ambiguous language ("improve," "enhance," "better" without quantification)
 - [ ] Pipeline audit log entry: `{ phase: 0, prd_id, problem_hash, constraint_count, timestamp }`
 
+#### 0.1 Graph Research And Task Memory Preflight
+
+Before broad source search, ADLC runs graph-backed research when repo context is available.
+
+| Tool | Role | Contract |
+|------|------|----------|
+| Graphify | Repository and corpus knowledge graph | Architecture map, dependency paths, reuse candidates, compatibility paths, and dark-code hotspots |
+| Beads | Dependency-aware task memory | Ready-work selection, blockers, issue relationships, and durable agent handoff notes |
+
+Graphify is the research substrate. Beads is the work graph. Do not swap their roles.
+
+Graph research output records:
+- graph freshness and whether a refresh was AST-only or semantic
+- graph queries run before raw grep
+- backward-compatibility and forward-compatibility paths
+- reuse paths with file references
+- direct verification for every critical graph-derived claim
+- dark-code hotspots that require context artifacts
+
+Beads output records:
+- ready tasks
+- blockers and parent-child relationships
+- durable memories surfaced by `bd prime`
+- task IDs that should own follow-up work
+
+If Graphify is unavailable, the Build Brief can continue only with a reduced-confidence note and an explicit verification task or open question for affected compatibility claims.
+
 ---
 
 ### Phase 1: Build Brief
@@ -259,6 +291,31 @@ Per task:
 - **Prior art:** Previous implementations of similar functionality (in this repo or sibling repos)
 
 The reuse analysis uses AST-based discovery + keyword matching + LLM-filtered relevance scoring (existing SWElfare `reuse_discovery.py` pattern, universalized).
+
+#### 1.6 Comprehension Context
+
+For any new or materially changed module, service, public interface, schema, event, queue, persistence path, retry behavior, ownership boundary, or graph-identified dark-code hotspot, the Build Brief must require context-layer artifacts.
+
+The three layers are:
+
+| Layer | Artifact | Purpose |
+|-------|----------|---------|
+| Structural | `MODULE_MANIFEST.md` or `CONTEXT.md` | Documents dependencies, dependents, data flows, shared resources, deployment, and ownership |
+| Semantic | Behavioral contracts near interfaces | Documents idempotency, failure modes, performance envelope, side effects, retry semantics, and data classification |
+| Philosophical | Decision log or ADR | Documents why the design exists, alternatives rejected, consequences, and warnings against unsafe "obvious" changes |
+
+Unknown reasoning is not filled with guesses. It is captured as: `Reasoning unknown. Treat as load-bearing; do not modify without investigation.`
+
+#### 1.7 Dark-Code Risk Assessment
+
+When the change surface includes service boundaries, persistent state, external integrations, runtime paths, auth, or AI-agent-controlled workflows, the Build Brief carries a dark-code risk note.
+
+The assessment distinguishes:
+- structural dark code: emergent runtime paths, untyped cross-service data flows, non-engineer-created production workflows, and unowned behaviors
+- velocity dark code: AI-generated code shipped without proportional review depth or comprehension artifacts
+- compounding factors: ownership gaps, lost institutional knowledge, observability mistaken for understanding, and regulatory explainability exposure
+
+The planner may only include findings grounded in supplied org context, repo evidence, graph evidence, or direct user answers. Missing team, AI-usage, or incident data is recorded as `insufficient data to assess`.
 
 #### 1.6 Antipatterns / Constraints / "What This Isn't"
 
@@ -577,9 +634,9 @@ Banned phrases: "Here's the thing," "The uncomfortable truth is," "Let me be cle
 
 | Repo | What gets slop-gated |
 |------|---------------------|
-| SWElfare | PR descriptions, issue comments, documentation, error messages |
-| Ratatosk | Morning briefings, Telegram messages, trade summaries, performance reports |
-| Magnus | ALL content output (this is Magnus's primary product) |
+| SWElfare | Generated PR descriptions, issue comments, documentation, and error messages when `generated_output_surface.active=true` |
+| Ratatosk | Generated morning briefings, Telegram messages, trade summaries, and performance reports when `generated_output_surface.active=true` |
+| Magnus | Generated content output when `generated_output_surface.active=true` |
 
 #### 5.3 Council Review (Elevated/Critical Risk Tiers)
 
@@ -1004,7 +1061,7 @@ Magnus needs ADLC adapted to content operations.
 | Phase 6 Ship | Publish via Postiz CLI + audit logged + performance tracking initiated |
 | Fix Loop | Engagement anomaly → investigate (format? timing? topic?) → adjust strategy → re-execute |
 | Feedback Loop | Human edits to content → diff capture → voice profile refinement → content-forge skill update |
-| Stop Slop | ALL output — this is Magnus's primary quality gate. Full 8 rules + 5-dimension scoring + banned phrases |
+| Stop Slop | Generated content output when `generated_output_surface.active=true`; this is Magnus's primary quality gate, but it is still applicability-driven |
 | Observability | Content performance (engagement, reach, conversion), pipeline metrics (acceptance rate, edit distance), audit logging (all editorial decisions) |
 
 ---
@@ -1021,7 +1078,7 @@ Magnus needs ADLC adapted to content operations.
 | `codegen-context` | Phase 3 entry | 3 | Zero-read context assembly |
 | `architecture-pattern` | Phase 3 (when scaffolding needed) | 3 | Port/adapter/type/wiring generation |
 | `tdd-enforcement` | Phase 4 Step 2 | 4 | RED-GREEN-REFACTOR per criterion |
-| `stop-slop` | Phase 5 (all output) | 5 | Code slop + content slop detection |
+| `stop-slop` | Phase 5 (generated-output surfaces) | 5 | Code slop + content slop detection |
 | `security-review` | Phase 1 (STRIDE) + Phase 5 (OWASP) | 1, 5 | Threat modeling and vulnerability scanning |
 | `reuse-analysis` | Phase 1 (discovery) + Phase 5 (verification) | 1, 5 | Pattern continuation enforcement |
 | `observability-contract` | Phase 1 (specification) + Phase 5 (verification) | 1, 5 | Logging mandate enforcement |
@@ -1159,7 +1216,7 @@ adlc:
 
 ### 8.1 Priority Order
 
-1. **Stop Slop wiring** — Quick win. Wire existing content slop gate into Magnus (all output), Ratatosk (briefings/Telegram), SWElfare (PR descriptions).
+1. **Stop Slop wiring** — Quick win. Wire existing content slop gate into generated-output surfaces for Magnus, Ratatosk briefings/Telegram, and SWElfare PR descriptions.
 2. **Security (STRIDE + OWASP)** — Risk reduction. Add STRIDE to brief generation, OWASP scan to post-execution gate. Add Security Auditor persona to council.
 3. **LDD** — Add lint gate before TDD in SWElfare execution. Configure per-repo linters for Ratatosk/Magnus.
 4. **Observability contract** — Add logging mandate to brief and verify in post-execution gate.

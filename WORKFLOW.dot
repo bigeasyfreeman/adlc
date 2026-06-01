@@ -38,15 +38,15 @@ digraph ADLC {
     // ─── Code Review (agentic) ───
     code_review [shape=box, label="Code Review", style=filled, fillcolor="#fff3e6"]
 
-    // ─── Security Review (agentic) ───
-    security [shape=box, label="Security Review\n5 OWASP Domains", style=filled, fillcolor="#ffe6e6"]
+    // ─── Security Review (conditional agentic overlay) ───
+    security [shape=box, label="Security Review\nConditional Overlay", style=filled, fillcolor="#ffe6e6"]
 
     // ─── QA + CI (deterministic tool node) ───
     qa [shape=box, label="QA + CI\nRun Tests & Lint", style="dashed,filled", fillcolor="#f0f0f0"]
 
-    // ─── Test Strength + Slop Gate ───
-    test_strength [shape=box, label="Test Strength\nCoverage + Mutation Audit", style=filled, fillcolor="#e6f3ff"]
-    slop_gate [shape=box, label="Slop Gate\nStop-Slop Audit", style="dashed,filled", fillcolor="#f0f0f0"]
+    // ─── Test Strength + Slop Gate (conditional overlays) ───
+    test_strength [shape=box, label="Test Strength\nConditional Audit", style=filled, fillcolor="#e6f3ff"]
+    slop_gate [shape=box, label="Slop Gate\nGenerated-Output Contract", style="dashed,filled", fillcolor="#f0f0f0"]
 
     // ─── PR Assembly (agentic) ───
     pr_prep [shape=box, label="PR Prep\nAssemble Package", style=filled, fillcolor="#e6f3ff"]
@@ -89,7 +89,8 @@ digraph ADLC {
     // Code → Review loop
     code -> code_review
     code_review -> fixer         [label="revise", style=dashed, color="#cc6600"]
-    code_review -> security      [label="lgtm"]
+    code_review -> security      [label="lgtm + security active"]
+    code_review -> qa            [label="lgtm + security inactive", style=dashed, color="#666666"]
     fixer -> code                [label="fixed"]
     fixer -> escalate            [label="stuck", color="red"]
 
@@ -98,11 +99,14 @@ digraph ADLC {
     security -> fixer            [label="fail", color="red"]
 
     // QA gate
-    qa -> test_strength          [label="pass"]
+    qa -> test_strength          [label="pass + test-strength active"]
+    qa -> slop_gate              [label="pass + test-strength inactive + slop active", style=dashed, color="#666666"]
+    qa -> pr_prep                [label="pass + overlays inactive", style=dashed, color="#666666"]
     qa -> fixer                  [label="fail", style=dashed, color="#cc6600"]
 
     // Test-strength gate
-    test_strength -> slop_gate   [label="pass"]
+    test_strength -> slop_gate   [label="pass + slop active"]
+    test_strength -> pr_prep     [label="pass + slop inactive", style=dashed, color="#666666"]
     test_strength -> fixer       [label="weak", color="red"]
     test_strength -> escalate    [label="stuck", color="red"]
 

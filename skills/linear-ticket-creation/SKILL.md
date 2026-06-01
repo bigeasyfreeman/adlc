@@ -64,7 +64,7 @@ ADLC does not ship a Linear client. This skill targets a locally installed MCP p
 }
 ```
 
-Every emitted issue must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `dependencies`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted issue. The top-level `enterprise_readiness_contract` must remain visible from the project/parent artifact and referenced by validation issues.
+Every emitted issue must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `dependencies`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `slop_quality_gate`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted issue. The top-level `enterprise_readiness_contract` must remain visible from the project/parent artifact and referenced by validation issues.
 
 ## Output Contract
 
@@ -169,6 +169,24 @@ Artifact rules:
 - Backward compatibility:
 - Forward compatibility:
 - Migration or rollout:
+
+## Scalable AI Code Primitives
+- Construct map refs: [affected constructs, relationships, validation surfaces]
+- Paved-road refs: [approved reference paths or explicit no_paved_road_found]
+- Intent contract refs: [behavior/why/constraints/non-goals source]
+- Production invariant coverage: [identity/auth/tenancy/data/persistence/ordering/idempotency/retry/observability/etc. status + evidence]
+
+## Slop Quality Gate
+- Applicability: [required | not_applicable]
+- Reason:
+- Mode: [code | content | product_output | agent_output | mixed]
+- Metrics:
+- Threshold:
+- Eval cases:
+- Baseline score:
+- Regression tolerance:
+- Failure action:
+- Case promotion sources:
 
 ## Dependencies
 - Depends on:
@@ -315,7 +333,7 @@ ADLC expects a locally installed MCP provider. Provider tool names may differ; r
 ## Quality Gates
 
 - [ ] Every task in the Build Brief has a corresponding Linear issue.
-- [ ] Issue bodies preserve `artifact_type`, `decision_contract`, `task_classification`, `verification_spec`, dependencies, file targets, reference implementations, reuse/debt context, compatibility contracts, evidence responsibilities, and Definition of Done.
+- [ ] Issue bodies preserve `artifact_type`, `decision_contract`, `task_classification`, `verification_spec`, dependencies, file targets, reference implementations, reuse/debt context, compatibility contracts, construct-map refs, paved-road refs, intent refs, production invariant coverage, slop quality gate, evidence responsibilities, and Definition of Done.
 - [ ] Scope-lock epics are context-only and do not carry executable file-change instructions.
 - [ ] Decision-gate issues block dependent implementation issues until resolved.
 - [ ] Validation tasks are emitted automatically for decomposition-mode briefs and reference the enterprise readiness contract.

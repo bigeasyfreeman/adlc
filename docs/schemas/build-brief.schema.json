@@ -134,6 +134,36 @@
               "type": "null"
             }
           ]
+        },
+        "13_comprehension_context": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "14_graph_research_evidence": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "15_dark_code_risk": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -302,12 +332,19 @@
           }
         },
         "anti_slop_rules": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+          "oneOf": [
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            {
+              "$ref": "#/definitions/not_applicable_reason"
+            }
+          ]
         },
         "tech_debt_boundaries": {
           "$ref": "#/definitions/tech_debt_boundaries"
@@ -434,6 +471,104 @@
               }
             }
           }
+        },
+        "comprehension_context_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "compatibility_evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "dark_code_hotspots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "construct_map_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "paved_road_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "intent_contract_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "production_invariant_coverage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "invariant",
+              "status",
+              "evidence"
+            ],
+            "properties": {
+              "invariant": {
+                "type": "string",
+                "enum": [
+                  "identity",
+                  "auth",
+                  "tenancy",
+                  "data_integrity",
+                  "persistence",
+                  "ordering",
+                  "idempotency",
+                  "retries",
+                  "sensitive_data",
+                  "migration",
+                  "downgrade",
+                  "observability",
+                  "dependency_failure",
+                  "other"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "covered",
+                  "not_applicable",
+                  "gap",
+                  "requires_human_judgment"
+                ]
+              },
+              "evidence": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "slop_quality_gate": {
+          "$ref": "#/definitions/slop_quality_gate"
+        },
+        "generated_output_surface": {
+          "$ref": "#/definitions/generated_output_surface"
         }
       },
       "allOf": [
@@ -588,6 +723,27 @@
         "compliance_posture": {
           "type": "string",
           "minLength": 1
+        },
+        "construct_map_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "paved_road_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "production_invariant_coverage": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -632,50 +788,64 @@
       }
     },
     "tech_debt_boundaries": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "prerequisite_debt",
-        "deferred_debt",
-        "deferral_safety"
-      ],
-      "properties": {
-        "prerequisite_debt": {
-          "type": "string",
-          "minLength": 1
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "prerequisite_debt",
+            "deferred_debt",
+            "deferral_safety"
+          ],
+          "properties": {
+            "prerequisite_debt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "deferred_debt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "deferral_safety": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         },
-        "deferred_debt": {
-          "type": "string",
-          "minLength": 1
-        },
-        "deferral_safety": {
-          "type": "string",
-          "minLength": 1
+        {
+          "$ref": "#/definitions/not_applicable_reason"
         }
-      }
+      ]
     },
     "compatibility_contract": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "backward",
-        "forward",
-        "migration_or_rollout"
-      ],
-      "properties": {
-        "backward": {
-          "type": "string",
-          "minLength": 1
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "backward",
+            "forward",
+            "migration_or_rollout"
+          ],
+          "properties": {
+            "backward": {
+              "type": "string",
+              "minLength": 1
+            },
+            "forward": {
+              "type": "string",
+              "minLength": 1
+            },
+            "migration_or_rollout": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         },
-        "forward": {
-          "type": "string",
-          "minLength": 1
-        },
-        "migration_or_rollout": {
-          "type": "string",
-          "minLength": 1
+        {
+          "$ref": "#/definitions/not_applicable_reason"
         }
-      }
+      ]
     },
     "verification_spec": {
       "type": "object",
@@ -707,6 +877,254 @@
           "minLength": 1
         }
       }
+    },
+    "not_applicable_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applicability",
+        "reason"
+      ],
+      "properties": {
+        "applicability": {
+          "const": "not_applicable"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "generated_output_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active",
+        "reason"
+      ],
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "modes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "code",
+              "content",
+              "product_output",
+              "agent_output",
+              "mixed"
+            ]
+          }
+        }
+      }
+    },
+    "slop_quality_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applicability",
+        "reason"
+      ],
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "required",
+            "not_applicable"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "code",
+            "content",
+            "product_output",
+            "agent_output",
+            "mixed"
+          ]
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "metric_type",
+                  "validator_ref"
+                ],
+                "properties": {
+                  "metric_type": {
+                    "type": "string",
+                    "enum": [
+                      "exact_match",
+                      "schema_validity",
+                      "semantic_similarity",
+                      "rubric_score",
+                      "test_strength",
+                      "task_specific_validator",
+                      "other"
+                    ]
+                  },
+                  "validator_ref": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "rationale": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "eval_cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "source",
+                  "input",
+                  "expected_quality",
+                  "metric"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "golden",
+                      "human_edit",
+                      "council_rejection",
+                      "runtime_failure",
+                      "production_sample",
+                      "incident",
+                      "support_ticket",
+                      "analytics_drop",
+                      "other"
+                    ]
+                  },
+                  "input": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "expected_quality": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "golden_output": {
+                    "type": "string"
+                  },
+                  "rubric": {
+                    "type": "string"
+                  },
+                  "metric": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "threshold": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "baseline_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "regression_tolerance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "failure_action": {
+          "type": "string",
+          "enum": [
+            "block",
+            "revise",
+            "human_approval",
+            "monitor"
+          ]
+        },
+        "case_promotion_sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "human_edit",
+              "council_rejection",
+              "runtime_failure",
+              "production_sample",
+              "incident",
+              "support_ticket",
+              "analytics_drop",
+              "other"
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "applicability": {
+                "const": "required"
+              }
+            },
+            "required": [
+              "applicability"
+            ]
+          },
+          "then": {
+            "required": [
+              "mode",
+              "threshold",
+              "metrics",
+              "eval_cases",
+              "failure_action"
+            ]
+          }
+        }
+      ]
     },
     "verifier": {
       "type": "object",

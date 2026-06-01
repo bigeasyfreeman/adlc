@@ -42,6 +42,28 @@ This skill runs before the coding agent starts. Its output is the coding agent's
     "acceptance_criteria": [],
     "tech_debt_boundaries": {},
     "compatibility_contract": {},
+    "construct_map_refs": ["graph:construct:service-or-module"],
+    "paved_road_refs": ["skill:paved-road-registry#reference-id"],
+    "intent_contract_refs": ["brief:intent:task-id"],
+    "production_invariant_coverage": [
+      {
+        "invariant": "identity | auth | tenancy | data_integrity | persistence | ordering | idempotency | retries | sensitive_data | migration | downgrade | observability | dependency_failure | other",
+        "status": "covered | not_applicable | gap | requires_human_judgment",
+        "evidence": ["string"]
+      }
+    ],
+    "slop_quality_gate": {
+      "applicability": "required | not_applicable",
+      "reason": "string",
+      "mode": "code | content | product_output | agent_output | mixed",
+      "threshold": 0.7,
+      "metrics": ["string"],
+      "eval_cases": ["string or structured case"],
+      "baseline_score": 0.82,
+      "regression_tolerance": 0.03,
+      "failure_action": "block | revise | human_approval | monitor",
+      "case_promotion_sources": ["human_edit", "council_rejection", "production_sample"]
+    },
     "evidence_responsibilities": [],
     "definition_of_done": [],
     "verification_spec": {
@@ -76,11 +98,20 @@ This skill runs before the coding agent starts. Its output is the coding agent's
       "forward_compat": "string",
       "degradation_strategy": "string"
     },
+    "graph_research_evidence": {},
+    "construct_map": {},
+    "paved_road_evidence": {},
+    "intent_contract": {},
+    "production_invariant_coverage": [],
+    "context_layer_requirements": [],
     "performance_budget": [{"operation": "string", "latency_target": "string", "constraint": "string"}]
   },
   "research_deliverable": {
     "service_placement": {},
     "integration_paths": {},
+    "construct_map": {},
+    "paved_road_evidence": {},
+    "load_bearing_invariants": [],
     "duplication_risks": {},
     "scalability": {},
     "schema_intelligence": {}
@@ -100,6 +131,11 @@ This skill runs before the coding agent starts. Its output is the coding agent's
     "architecture": {},
     "conventions": {},
     "tech_stack": {}
+  },
+  "context_artifacts": {
+    "module_manifest": "markdown string | null",
+    "behavioral_contracts": "markdown string | null",
+    "decision_log": "markdown string | null"
   }
 }
 ```
@@ -115,6 +151,8 @@ Hard rule:
 - Every file in `reference_impl` must have its code inlined
 - Every behavioral test artifact, fixture, and command verifier relevant to the task must be inlined
 - Every implementation task must include its decision contract, tech debt boundaries, compatibility contract, evidence responsibilities, and Definition of Done. If the task is blocked by an unresolved Type 1 decision, do not assemble a coding prompt; return `stuck` with reason `unresolved_decision_blocks_implementation`.
+- Every code-changing implementation task must include its construct-map refs, paved-road refs or explicit `no_paved_road_found`, intent contract refs, and production invariant coverage. If these are missing for a medium+ blast-radius code path, return `stuck` with reason `missing_scalable_code_primitives`.
+- Every task that changes generated-output behavior must include its `slop_quality_gate`, including eval cases, metrics, threshold, failure action, and case-promotion sources. If missing for a generated-output surface, return `stuck` with reason `missing_slop_quality_gate`.
 
 What gets inlined:
 - Reference implementation code
@@ -124,7 +162,14 @@ What gets inlined:
 - Relevant schema definitions
 - Scaffolded contracts and implementation guide
 - The existing pattern table from the Build Brief
+- Task-relevant construct relationships, validation surfaces, and blast-radius notes
+- Paved-road reference implementations, allowed departures, and `do_not_reimplement` rules
+- Intent constraints, explicit non-goals, load-bearing assumptions, and human-judgment checkpoints
+- Production invariant coverage for the task, including any gaps or review-required items
+- Slop quality gate cases, rubrics, metrics, threshold, baseline score, regression tolerance, and failure-promotion instructions when active
 - Compatibility constraints and performance budget when active
+- Graph research evidence relevant to compatibility, reuse, and blast radius
+- Module manifests, behavioral contracts, and decision-log warnings when the task touches those modules
 
 What does not get inlined:
 - Unrelated files
@@ -234,25 +279,44 @@ These are the exact files this task touches.
 ## 7. Compatibility Constraints
 [Paste the task `compatibility_contract`, active enterprise readiness compatibility constraints, and any rollout or migration expectations.]
 
-## 8. Tech Debt Boundaries
+## 8. Scalable AI Code Primitives
+### Construct Map
+[Paste only construct_map_refs relevant to this task: affected constructs, relationships, validation surfaces, and direct evidence.]
+
+### Paved Road
+[Paste paved_road_refs, reference_impl content, do_not_reimplement rules, allowed_departure, and any explicit no_paved_road_found rationale.]
+
+### Intent Contract
+[Paste behavior, why, constraints, non-goals, edge cases, load-bearing assumptions, and review checkpoints.]
+
+### Production Invariants
+[Paste production_invariant_coverage entries, status, evidence, and required verifier or human-judgment checkpoint.]
+
+## 9. Tech Debt Boundaries
 [Paste prerequisite debt, deferred debt, and safe-deferral rationale. Do not ask the coding agent to implement unrelated catalog items.]
 
-## 9. Evidence and Definition of Done
+## 10. Comprehension Context
+[Paste relevant module manifest entries, behavioral contracts, decision-log warnings, graph research evidence, and unresolved context gaps.]
+
+## 11. Evidence and Definition of Done
 [Paste evidence responsibilities and binary Definition of Done checks.]
 
-## 10. Performance Budget
+## 12. Performance Budget
 [Paste only the targets that are active for this task.]
 
-## 11. Schema
+## 13. Schema
 [Paste only the relevant schema sections.]
 
-## 12. What Not To Do
+## 14. Slop Quality Gate (only when active)
+[Include this section only when the task changes generated-output behavior. Paste `slop_quality_gate`: applicability reason, mode, eval cases, metrics, threshold, baseline score, regression tolerance, failure action, and case-promotion sources. Omit the section entirely for code-only, docs-only, lint-only, and build-validation tasks with no generated-output surface.]
+
+## 15. What Not To Do
 [Paste the negative constraints from duplication and verifier quality.]
 
-## 13. Manual Test Plan
+## 16. Manual Test Plan
 [Paste if present.]
 
-## 14. Verification
+## 17. Verification
 Run the primary verifier first.
 If it fails for the wrong reason, adjust the verifier.
 If it fails for the right reason, make the smallest change that makes it pass.
@@ -266,6 +330,10 @@ Then run the secondary verifiers.
 ### Step 1: Extract task-relevant research
 
 From the research deliverable, pull only what the task needs:
+- construct-map entries for affected modules, interfaces, schemas, configs, state, tests, and reverse dependencies
+- paved-road candidates or the explicit `no_paved_road_found` gap
+- load-bearing invariant notes and validation surfaces
+- generated-output failure samples, accepted slop eval cases, quality thresholds, and feedback-loop case-promotion sources
 - integration path
 - duplication risks
 - scalability concerns
@@ -277,6 +345,10 @@ From the research deliverable, pull only what the task needs:
 Pull in only the brief sections that the applicability manifest marks active:
 - existing patterns
 - compatibility constraints when applicable
+- graph research evidence for compatibility, reuse, and blast radius
+- construct map, paved-road evidence, intent contract, and production invariant coverage when the task changes code, schema, runtime behavior, persistence, API contracts, or deployment conventions
+- slop quality gate when the task changes generated-output behavior, prompt behavior, model selection, agent roles, content, product output, response templates, or output validators
+- context-layer artifacts and decision-log warnings when applicable
 - performance budget when applicable
 
 ### Step 3: Inline the right verification artifacts
@@ -298,6 +370,8 @@ Every instruction must name:
 State explicitly what must not be duplicated, hidden, or invented.
 
 For production readiness findings, include only the specific `PROD-*` entries that the Build Brief assigned to the task. Do not ask the coding agent to implement unrelated catalog items such as queues, CDNs, replicas, load tests, or runbooks unless the finding has repo evidence, priority, and a verification path.
+
+For paved-road findings, include only repo-local reference implementations and explicit allowed departures. Do not ask the coding agent to invent a parallel framework, schema style, emitter format, or build convention unless the Build Brief names `no_paved_road_found` and records why existing patterns cannot absorb the work.
 
 ### Step 6: Add the verification loop
 

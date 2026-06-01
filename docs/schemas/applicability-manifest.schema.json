@@ -209,7 +209,10 @@
               "9_risks",
               "10_rollout",
               "11_validation_plan",
-              "12_skill_trigger_configuration"
+              "12_skill_trigger_configuration",
+              "13_comprehension_context",
+              "14_graph_research_evidence",
+              "15_dark_code_risk"
             ]
           },
           "status": {

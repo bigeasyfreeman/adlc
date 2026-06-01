@@ -117,7 +117,7 @@ Invoke droids by name or let Factory route based on your task:
 - Agents emit structured labels: `lgtm`, `revise`, `escalate`, `pass`, `fail`
 - Parallel tasks explicitly flagged — serial execution of independent tasks is a velocity failure
 - No TODO/FIXME/PLACEHOLDER in shipped code
-- Security review runs appsec-threat-model baseline on every change
+- Security review runs only when the applicability manifest marks a security-relevant surface active
 
 ## Build & Test
 

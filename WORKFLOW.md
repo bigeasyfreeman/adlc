@@ -85,14 +85,14 @@ Judge skills resolve their `fast_judge` and `deep_judge` slots through `skills/m
 | DAG Node | Agent | Backend | Model | Skills Injected |
 |----------|-------|---------|-------|-----------------|
 | `triage` | `agents/triage.md` | claude | claude-sonnet-4-6 | — |
-| `research` | `agents/researcher.md` | claude | claude-opus-4-6 | codebase-research, grafana-observability |
-| `plan` | `agents/planner.md` | claude | claude-opus-4-6 | codegen-context, architecture-pattern, reuse-analysis |
+| `research` | `agents/researcher.md` | claude | claude-opus-4-6 | graph-research, codebase-research, paved-road-registry, dark-code-audit, grafana-observability |
+| `plan` | `agents/planner.md` | claude | claude-opus-4-6 | graph-research, codegen-context, architecture-pattern, reuse-analysis, paved-road-registry, context-layers |
 | `plan_review` | `agents/plan-reviewer.md` | claude | claude-opus-4-6 | eval-council |
 | `scaffold` | *tool node* | — | — | architecture-pattern |
 | `gen_tests` | `agents/test-author.md` | claude | claude-sonnet-4-6 | spec-to-tests, tdd-enforcement, qa-test-data |
 | `context_assembly` | *tool node* | — | — | codegen-context |
 | `code` | `agents/coder.md` | claude | claude-sonnet-4-6 | tdd-enforcement, systematic-debugging |
-| `code_review` | `agents/code-reviewer.md` | claude | claude-opus-4-6 | eval-council |
+| `code_review` | `agents/code-reviewer.md` | claude | claude-opus-4-6 | eval-council, graph-research, paved-road-registry, comprehension-gate |
 | `security` | `agents/security-reviewer.md` | claude | claude-opus-4-6 | appsec-threat-model, llm-security, agentic-security, api-security, infra-security |
 | `qa` | *tool node* | — | — | — |
 | `test_strength` | `agents/test-strength-auditor.md` | claude | claude-sonnet-4-6 | test-strength |
@@ -101,9 +101,17 @@ Judge skills resolve their `fast_judge` and `deep_judge` slots through `skills/m
 | `pr_prep` | `agents/pr-preparer.md` | claude | claude-sonnet-4-6 | — |
 | `engineer_review` | *human gate* | — | — | — |
 
+`security`, `test_strength`, and `slop_gate` are conditional overlays. A runner
+enters them only when the applicability manifest or task-level surface evidence
+activates the corresponding surface. Inactive overlays are skipped rather than
+converted into boilerplate work.
+
 ### Tool Nodes (Deterministic — No LLM)
 
-Tool nodes run shell commands. They are cheap, fast, and reliable.
+Tool nodes run shell commands. They are cheap, fast, and reliable. Overlay nodes
+run only when the Build Brief `applicability_manifest` or task surface marks the
+surface active; otherwise the runner follows the skip/no-op edge shown in
+`WORKFLOW.dot`.
 
 ```yaml
 scaffold:
@@ -115,7 +123,9 @@ scaffold:
 context_assembly:
   command: |
     # Assemble per-task prompts with zero-read principle
-    # Inlines: research, contracts/guides, tests, schemas, patterns
+    # Inlines: graph evidence, construct maps, paved-road refs, intent, invariants,
+    # research, contracts/guides, tests, schemas, patterns, compatibility constraints,
+    # and context-layer artifacts
 
 qa:
   command: |
@@ -125,7 +135,7 @@ qa:
 
 slop_gate:
   command: |
-    stop-slop all --commit HEAD
+    bin/adlc slop-gate --build-brief ${BUILD_BRIEF:?} --json
 ```
 
 ### Fan-Out Configuration

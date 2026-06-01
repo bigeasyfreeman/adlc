@@ -28,6 +28,30 @@ This skill runs once, produces a canonical repo map + research deliverable, and 
 
 ---
 
+## Graph-First Research Gate
+
+Before broad raw-source search, run the `graph-research` skill when repo context is available.
+
+Required behavior:
+- If `graphify-out/wiki/index.md` exists, use it as the first navigation surface.
+- If `graphify-out/GRAPH_REPORT.md` exists, read it and compare its built commit to `git rev-parse HEAD`.
+- If the graph is stale and Graphify is installed, run `graphify update .` and record that this is AST-only unless semantic extraction is also run.
+- Query Graphify for relevant modules, reuse candidates, compatibility paths, and dark-code hotspots before using grep or glob as the primary discovery mechanism.
+- Treat Graphify as a map, not final proof. Verify critical claims against source files, schemas, tests, docs, or command output.
+- If Beads is present, run `bd prime` for task-memory context and keep those findings separate from code evidence.
+
+The research deliverable must include `graph_research_evidence`, `compatibility_evidence`, and any dark-code hotspots that require `context-layers`.
+
+## Scalable AI Code Primitive Research
+
+When repo context is available, the research deliverable must also produce evidence for AI-scalable implementation:
+
+- `construct_map`: affected modules, packages, services, CLIs, schemas, configs, env vars, persistence paths, APIs, internal interfaces, reverse dependencies, tests, fixtures, and validation surfaces.
+- `paved_road_evidence`: repo-local approved or preferred build paths, reference implementations, conventions, `do_not_reimplement` rules, and any explicit `no_paved_road_found` gaps.
+- `load_bearing_invariants`: identity, auth, tenancy, data integrity, persistence, ordering, idempotency, retries, sensitive data, migration, downgrade, observability, and dependency-failure assumptions that the planned work could affect.
+
+These are evidence records, not redesign proposals. If the graph suggests a relationship but source, schema, docs, tests, or command output do not verify it, record the claim as an accuracy gap instead of turning it into scope.
+
 ## Input Contract
 
 ```json
@@ -93,6 +117,19 @@ Do not aim for a finding count. One material, cited debt item is better than ten
     "dependency_graph": {},
     "risk_areas": []
   },
+  "construct_map": {
+    "constructs": [],
+    "relationships": [],
+    "validation_surfaces": [],
+    "blast_radius": [],
+    "accuracy_gaps": []
+  },
+  "paved_road_evidence": {
+    "candidates": [],
+    "gaps": [],
+    "recommended_refs": []
+  },
+  "load_bearing_invariants": [],
   "service_placement": {
     "verdict": "correct_service | wrong_service | needs_discussion",
     "reasoning": "string",

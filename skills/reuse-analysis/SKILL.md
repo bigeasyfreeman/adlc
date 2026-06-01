@@ -9,6 +9,8 @@ description: "Discovers existing functions/patterns/utilities that must be reuse
 
 Before building anything new, prove it doesn't already exist. This skill discovers reusable code, enforces pattern continuation, and prevents antipattern repetition.
 
+Use this with `paved-road-registry`: reuse-analysis finds concrete helpers, functions, and modules not to reimplement; paved-road-registry records the broader repo-local build contract for APIs, CLIs, schemas, storage, auth, observability, tests, and runtime conventions.
+
 ## When to Use
 
 - **Phase 1 (discovery):** Scan codebase for existing patterns before design

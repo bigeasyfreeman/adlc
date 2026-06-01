@@ -12,7 +12,7 @@ The Build Brief Agent produces a technical design. Seven downstream skills consu
 
 The Eval Council catches failures before they propagate. It is the last structured review before humans approve and machines execute. Core personas always run; overlay personas activate from the task applicability manifest when the change surface warrants them.
 
-**Opt-OUT, not opt-IN for active surfaces.** Every Build Brief and every skill output with an active surface gets evaluated by default. The burden of proof is on exclusion. "It looks fine" and "we're in a hurry" are not valid reasons to skip evaluation. Valid reasons: "This is a trivial config change with no behavior change" or "This output is identical to a previously approved output." Inactive overlays still require a concrete `not_applicable` reason.
+**Opt-OUT, not opt-IN for active surfaces.** Every Build Brief and every skill output with an active surface gets evaluated by default. The burden of proof is on exclusion. "It looks fine" and "we're in a hurry" are not valid reasons to skip evaluation. Valid reasons: "This is a trivial config change with no behavior change" or "This output is identical to a previously approved output." Inactive overlays inherit their skip reason from the `applicability_manifest`; personas should not restate duplicate `not_applicable` prose.
 
 ---
 
@@ -24,6 +24,7 @@ The Eval Council runs at these points in the ADLC lifecycle:
 |-----------|-----------------|-----------|
 | **Post-Brief** | Complete Build Brief before engineer review | Yes — brief cannot be presented for approval until council passes |
 | **Post-Repo-Analysis** | Codebase Research repo map before it feeds downstream | Yes — downstream skills consume this; errors compound |
+| **Post-Comprehension-Gate** | Comprehension artifact for medium+ blast-radius changes | Yes — code cannot proceed to security review while system implications are unclear |
 | **Post-Skill-Output** | Each skill's output before it's published/committed | Configurable — blocking for work-item/document emitters, non-blocking for scaffolding |
 | **Pre-Deploy** | Aggregated state: all tickets done, tests pass, runbook exists | Yes — deploy gate |
 | **Post-Incident** | Retrospective: did the brief predict this failure mode? | No — learning loop, feeds back into future briefs |
@@ -47,7 +48,7 @@ Core personas always run. Overlay personas activate from `change_surface` flags 
 | `operator` | Overlay | `runtime_path_change OR user_facing_operation` |
 | `security_auditor` | Overlay focus (expands Skeptic) | `new_attack_surface OR auth_change OR external_integration` |
 
-Suppressed overlays must carry a concrete `not_applicable` reason tied to manifest evidence, per the opt-OUT policy.
+Suppressed overlays use the concrete reason already recorded in the manifest section policy. Do not ask each persona to duplicate that reason.
 
 ### 1. The Architect
 
@@ -59,6 +60,8 @@ Suppressed overlays must carry a concrete `not_applicable` reason tied to manife
 - Are the service boundaries clean? Is domain logic leaking into infrastructure?
 - Is the blast radius of changes accurately assessed?
 - Are there implicit coupling points that aren't called out?
+- Are Graphify-derived dependency paths confirmed against source before compatibility claims become tasks?
+- Does the task follow a cited paved road, or justify why no existing pattern can absorb the change?
 - Would a senior engineer look at this and say "yes, this is how we do things here"?
 
 **Catches:** Pattern violations, unnecessary complexity, coupling risks, missed service boundaries, over-engineering.
@@ -121,6 +124,8 @@ Suppressed overlays must carry a concrete `not_applicable` reason tied to manife
 - Are dependencies between tasks explicit by task ID? If task BE-003 depends on BE-001, is that stated?
 - Are independent tasks flagged for parallel execution? (Missed parallelism = wasted velocity.)
 - Does any task reference "the spec" or "as discussed" instead of embedding the actual context? (This breaks agent agnosticism.)
+- If a module manifest, behavioral contract, or decision log is required, does the task name the artifact path and update criteria?
+- Does the task include construct-map refs, paved-road refs, intent contract refs, verifier evidence, and production invariant coverage when the change surface warrants them?
 
 **Self-containment test (applied to every task):**
 ```
@@ -189,6 +194,10 @@ For every task, run `specificity-judge` with:
 - `files_to_create`
 - `tech_debt_boundaries`
 - `compatibility_contract`
+- `construct_map_refs`
+- `paved_road_refs`
+- `intent_contract_refs`
+- `production_invariant_coverage`
 - `evidence_responsibilities`
 - `definition_of_done`
 - `verification_spec.primary_verifier.target`
@@ -224,6 +233,40 @@ For every task artifact:
 - Decomposition-mode briefs must include validation tasks in the enterprise readiness contract.
 - Dependencies must resolve to Build Brief artifact IDs or already-emitted target artifact IDs; unresolved aliases fail Gate 0.
 
+### Scalable AI Code Primitive Checks
+
+For every implementation task that changes code, schemas, runtime behavior, persistence, tests, or deployment conventions:
+
+- `construct_map_refs` should cite relevant constructs or explicitly state why construct mapping is not applicable.
+- `paved_road_refs` should cite the repo-local pattern or include `no_paved_road_found` with the closest convention and review rationale.
+- `intent_contract_refs` should point to the behavior, constraints, tradeoffs, non-goals, and verifier the coding agent must preserve.
+- `production_invariant_coverage` must cover relevant identity, auth, tenancy, data integrity, persistence, ordering, idempotency, retries, sensitive data, migration, downgrade, dependency-failure, or observability invariants.
+- Verifiability must be concrete. If the task has no deterministic verifier and no bounded human-judgment checkpoint, return `REVISION_REQUIRED` with reason `unverifiable_delegation`.
+
+Do not require these fields for trivial docs, lint-only, or build-validation tasks when the applicability manifest proves no code path or build pattern changes.
+
+### Slop Quality Gate Checks
+
+For every task that changes prompt behavior, model selection, agent roles, generated content, response templates, product output, user-visible AI output, or output validators:
+
+- `slop_quality_gate` must be present.
+- `slop_quality_gate.applicability` must be `required` unless the task proves there is no generated-output surface.
+- Required gates must include `mode`, `threshold`, `metrics`, `eval_cases`, and `failure_action`.
+- `threshold` must be numeric from 0 to 1. Default to `0.70` only when the Build Brief explicitly says it is using the ADLC default.
+- `eval_cases` must include at least one real, golden, human-edit, council-rejection, runtime-failure, production-sample, incident, support-ticket, analytics-drop, or realistic edge input. Happy-path-only examples are insufficient.
+- `failure_action` must be `block`, `revise`, or `human_approval` for pre-ship gates. `monitor` is allowed only for post-ship sampling tasks that do not change shipped output.
+- If `baseline_score` and `regression_tolerance` are present, a score drop beyond tolerance returns `REVISION_REQUIRED` with reason `slop_regression`.
+
+Missing or weak gates return:
+
+- `missing_slop_quality_gate` when the field is absent for an active generated-output surface.
+- `missing_slop_eval_cases` when no cases are provided.
+- `missing_slop_metric` when no metric converts output to a score.
+- `slop_threshold_unset` when no threshold is provided.
+- `slop_score_below_threshold` when the latest score is below threshold.
+
+Do not require `slop_quality_gate` for trivial docs, lint-only, build-validation, deterministic refactors, or code-only work when the applicability manifest proves no generated-output behavior changes.
+
 ### Gate 0 Verdict
 
 ```
@@ -238,6 +281,18 @@ GATE 0 PRE-CHECK:
 │ If STUCK — return immediately with the missing-judge reason.
 │ Do NOT proceed to council evaluation.
 ```
+
+### Comprehension Gate Check
+
+For code-review payloads that include `comprehension_artifact`, enforce:
+
+- `CLEAR` may proceed when findings are notes or all warnings are answered by the Build Brief, graph evidence, tests, or context artifacts.
+- `REVIEW REQUIRED` returns `revise` unless every question before merging has a cited answer.
+- `HOLD` returns `revise` and requires senior engineer review before the pipeline can continue.
+- Missing graph research or context-layer artifacts for medium+ blast-radius changes is a major finding.
+- Missing paved-road evidence, construct-map references, or production invariant coverage for medium+ blast-radius code changes is a major finding.
+
+This gate reviews understanding, not style. Passing tests do not override a missing comprehension artifact.
 
 ---
 

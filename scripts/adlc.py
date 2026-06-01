@@ -716,6 +716,122 @@ def task_executable(task: Dict[str, Any]) -> bool:
     return task.get("artifact_type") in {"implementation_task", "validation_task"}
 
 
+def is_not_applicable_reason(value: Any) -> bool:
+    return isinstance(value, dict) and value.get("applicability") == "not_applicable" and bool(value.get("reason"))
+
+
+def task_has_generated_output_surface(task: Dict[str, Any]) -> bool:
+    surface = task.get("generated_output_surface")
+    if isinstance(surface, bool):
+        return surface
+    if isinstance(surface, dict):
+        return bool(surface.get("active"))
+    return False
+
+
+def slop_gate_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not task_executable(task) or not task_has_generated_output_surface(task):
+        return []
+
+    task_id = task["task_id"]
+    gate = task.get("slop_quality_gate")
+    if not isinstance(gate, dict):
+        return [
+            {
+                "severity": "blocking",
+                "rule": "missing_slop_quality_gate",
+                "task_id": task_id,
+                "message": "generated_output_surface.active=true requires slop_quality_gate",
+            }
+        ]
+
+    issues: List[Dict[str, Any]] = []
+    if gate.get("applicability") != "required":
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "slop_quality_gate_not_required",
+                "task_id": task_id,
+                "message": "generated-output tasks must set slop_quality_gate.applicability=required",
+            }
+        )
+
+    for field_name in ("mode", "threshold", "metrics", "eval_cases", "failure_action"):
+        value = gate.get(field_name)
+        missing = value is None or (isinstance(value, (list, dict, str)) and not value)
+        if missing:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": f"missing_slop_{field_name}",
+                    "task_id": task_id,
+                    "message": f"generated-output slop gate is missing {field_name}",
+                }
+            )
+        elif field_name == "metrics":
+            for index, metric in enumerate(value):
+                if not (
+                    isinstance(metric, dict)
+                    and isinstance(metric.get("metric_type"), str)
+                    and metric.get("metric_type")
+                    and isinstance(metric.get("validator_ref"), str)
+                    and metric.get("validator_ref")
+                ):
+                    issues.append(
+                        {
+                            "severity": "blocking",
+                            "rule": "missing_slop_metric_validator",
+                            "task_id": task_id,
+                            "message": f"generated-output metric {index} must name metric_type and validator_ref",
+                        }
+                    )
+    return issues
+
+
+def slop_gate_payload(brief_path: Path) -> Dict[str, Any]:
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+
+    brief = read_json(brief_path)
+    tasks = brief.get("sections", {}).get("8_task_tickets", [])
+    issues: List[Dict[str, Any]] = []
+    task_results = []
+    for task in tasks:
+        task_issues = slop_gate_issues_for_task(task)
+        issues.extend(task_issues)
+        gate = task.get("slop_quality_gate")
+        if task_has_generated_output_surface(task):
+            result = "blocked" if task_issues else "passed"
+        elif isinstance(gate, dict) and gate.get("applicability") == "required":
+            result = "passed"
+        elif isinstance(gate, dict):
+            result = "skipped"
+        else:
+            result = "not_applicable"
+        task_results.append(
+            {
+                "task_id": task["task_id"],
+                "generated_output_surface": task_has_generated_output_surface(task),
+                "result": result,
+                "slop_quality_gate": gate,
+                "issues": task_issues,
+            }
+        )
+
+    return {
+        "status": "blocked" if issues else "pass",
+        "build_brief_id": brief.get("brief_id"),
+        "issues": issues,
+        "tasks": task_results,
+        "summary": {
+            "tasks": len(tasks),
+            "generated_output_surfaces": sum(1 for task in tasks if task_has_generated_output_surface(task)),
+            "issues": len(issues),
+        },
+    }
+
+
 def terminal_side_effect_dependency_ids(state: Dict[str, Any] | None, target: str, brief_id: str) -> set:
     if not state:
         return set()
@@ -832,7 +948,9 @@ def compute_readiness_report(
                 elif isinstance(value, list) and len(value) == 0:
                     missing = True
                 elif isinstance(value, dict):
-                    if field_name == "compatibility_contract":
+                    if is_not_applicable_reason(value):
+                        missing = False
+                    elif field_name == "compatibility_contract":
                         for sub in ("backward", "forward", "migration_or_rollout"):
                             if not isinstance(value.get(sub), str) or not value.get(sub):
                                 missing = True
@@ -851,6 +969,8 @@ def compute_readiness_report(
                         "task_id": task["task_id"],
                         "message": f"{field_name} is empty or missing",
                     })
+
+            issues.extend(slop_gate_issues_for_task(task))
 
     if phase_project_map:
         for task in tasks:
@@ -943,10 +1063,16 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "files_to_modify": task.get("files_to_modify", []),
             "tech_debt_boundaries": task.get("tech_debt_boundaries"),
             "compatibility_contract": task.get("compatibility_contract"),
+            "construct_map_refs": task.get("construct_map_refs", []),
+            "paved_road_refs": task.get("paved_road_refs", []),
+            "intent_contract_refs": task.get("intent_contract_refs", []),
+            "production_invariant_coverage": task.get("production_invariant_coverage", []),
             "evidence_responsibilities": task.get("evidence_responsibilities", []),
             "definition_of_done": task.get("definition_of_done", []),
             "failure_modes": task.get("failure_modes", []),
         }
+        if task.get("slop_quality_gate") is not None:
+            artifact["slop_quality_gate"] = task["slop_quality_gate"]
         artifacts.append(artifact)
 
     dependency_links = []
@@ -1195,6 +1321,27 @@ def command_emit_work_items(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def command_slop_gate(args: argparse.Namespace) -> int:
+    try:
+        brief_path = Path(args.build_brief)
+        if not brief_path.is_absolute():
+            brief_path = ROOT / brief_path
+        payload = slop_gate_payload(brief_path)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
+    if args.json:
+        write_json(payload)
+    else:
+        print(
+            f"{payload['build_brief_id']}: slop gate {payload['status']} "
+            f"({payload['summary']['generated_output_surfaces']} generated-output surfaces, "
+            f"{payload['summary']['issues']} issues)"
+        )
+    return 0 if payload["status"] == "pass" else 1
+
+
 def mcp_tools() -> List[Dict[str, Any]]:
     return [
         {
@@ -1289,6 +1436,18 @@ def mcp_tools() -> List[Dict[str, Any]]:
                 },
             },
         },
+        {
+            "name": "adlc_slop_gate",
+            "description": "Validate generated-output slop quality gate contracts for a Build Brief.",
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                },
+            },
+        },
     ]
 
 
@@ -1376,6 +1535,15 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         )
         exit_code, payload = emit_work_items_payload(args)
         return tool_result(payload, is_error=exit_code != 0)
+    if name == "adlc_slop_gate":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_slop_gate requires string argument: build_brief")
+        brief_path = Path(build_brief)
+        if not brief_path.is_absolute():
+            brief_path = ROOT / brief_path
+        payload = slop_gate_payload(brief_path)
+        return tool_result(payload, is_error=payload["status"] != "pass")
     raise KeyError(f"Unknown tool: {name}")
 
 
@@ -1525,6 +1693,11 @@ def build_parser() -> argparse.ArgumentParser:
     emit.add_argument("--bypass-readiness-check", action="store_true", help="Force mutation even if readiness is blocked.")
     emit.add_argument("--json", action="store_true", help="Emit JSON.")
     emit.set_defaults(func=command_emit_work_items)
+
+    slop_gate = subparsers.add_parser("slop-gate", help="Validate generated-output slop gate contracts for a Build Brief.")
+    slop_gate.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
+    slop_gate.add_argument("--json", action="store_true", help="Emit JSON.")
+    slop_gate.set_defaults(func=command_slop_gate)
 
     mcp = subparsers.add_parser("mcp-tools", help="Emit MCP-compatible tool declarations for the ADLC CLI.")
     mcp.add_argument("--json", action="store_true", help="Emit JSON.")

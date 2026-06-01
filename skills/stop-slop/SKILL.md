@@ -3,52 +3,86 @@ skill: stop-slop
 version: 2.0
 description: Dual-mode slop detection for code and content. ADLC v2 spec.
 when:
-  - glob: "**/*.md"
-    event: pre-commit
-  - glob: "**/*.txt"
-    event: pre-commit
-  - glob: "**/*.py"
-    event: pre-commit
-  - glob: "**/*.ts"
-    event: pre-commit
-  - glob: "**/*.js"
-    event: pre-commit
-  - glob: "**/*.jsx"
-    event: pre-commit
-  - glob: "**/*.tsx"
-    event: pre-commit
-  - agent: magnus
-    event: content_drafting
-  - agent: magnus
-    event: content_strategy
-  - agent: sander
-    event: outreach_copy
-  - agent: sander
-    event: outreach_delivery
-  - command: stop-slop
-  - command: slop-check
+  - build_brief_field: slop_quality_gate
+    applicability: required
+  - task_surface: generated_output_surface
+    active: true
+  - command: adlc slop-gate
 ---
 
 # Stop Slop v2: Code + Content Pattern Removal
 
-> Dual-mode slop detector. Mode 1 catches placeholder code, god functions, duplication, and missing wiring. Mode 2 catches AI writing patterns, banned phrases, and weak prose. Both modes gate delivery.
+> Dual-mode slop guidance for generated-output surfaces. Mode 1 names deterministic code checks that may run when project config enables them. Mode 2 defines rubric-based content and product-output evaluation. ADLC core gates the Build Brief contract with `bin/adlc slop-gate`; project-specific linters or content checkers can plug in behind that contract.
 
 ---
 
+## Output Eval Loop
+
+Stop Slop is an output-side quality gate, not a prompt-improvement checklist. A better prompt can still produce bad output; ADLC only trusts output after it has been scored against a benchmark.
+
+For any generated-output surface, the benchmark is:
+
+```json
+{
+  "slop_quality_gate": {
+    "applicability": "required | not_applicable",
+    "reason": "string",
+    "mode": "code | content | product_output | agent_output | mixed",
+    "threshold": 0.7,
+    "metrics": ["rubric_score | exact_match | schema_validity | semantic_similarity | test_strength"],
+    "eval_cases": [
+      {
+        "id": "SLOP-001",
+        "source": "golden | human_edit | council_rejection | runtime_failure | production_sample | incident | support_ticket | analytics_drop | other",
+        "input": "string",
+        "expected_quality": "string",
+        "golden_output": "optional string",
+        "rubric": "optional string",
+        "metric": "string",
+        "threshold": 0.7
+      }
+    ],
+    "baseline_score": 0.82,
+    "regression_tolerance": 0.03,
+    "failure_action": "block | revise | human_approval | monitor",
+    "case_promotion_sources": ["human_edit", "council_rejection", "production_sample"]
+  }
+}
+```
+
+Run the loop in three places:
+
+1. **Pre-ship regression:** prompt, model, content-template, agent-role, or product-output changes re-run saved eval cases and compare against the baseline.
+2. **Delivery guard:** output below threshold is blocked or revised before it reaches a user, ticket, issue, PR, document, or release.
+3. **Post-ship sampling:** live generated-output systems sample real executions and score them with the same benchmark.
+
+Default thresholds:
+
+- Code: hard failures block; warnings follow the code slop scoring below; verification quality delegates to `test-strength` (`coverage >= 0.8`, `mutation_kill_rate >= 0.6`, no material surviving mutants).
+- Content, product output, and agent output: `score >= 0.70` unless the Build Brief sets a stricter threshold.
+- Any score regression larger than `regression_tolerance` blocks unless `failure_action = human_approval` and the human approval is captured.
+
+Every failure should produce a candidate eval case before it becomes a new style rule. Candidate sources include human edits, council rejections, runtime failures, production samples, incidents, support tickets, and analytics drops tied to generated-output quality.
+
+See [docs/specs/slop-eval-loop.md](/Users/eric/adlc/docs/specs/slop-eval-loop.md).
+
 ## Mode 1: Code Slop
 
-Detects structural code problems that indicate incomplete, lazy, or AI-generated code. Runs on all `.py`, `.ts`, `.js`, `.jsx`, `.tsx` files.
+Detects structural code problems that indicate incomplete, lazy, or AI-generated code. This mode runs only when project configuration or the task's `slop_quality_gate` opts into code-output checks.
 
 ### Detection Patterns
 
 #### 1. Placeholder Detection
 
-Regex rules. Any match is a hard failure — no scoring, immediate fix required.
+Regex rules are path-aware. A match is a hard failure only in shipped executable
+source where the pattern leaves incomplete behavior. Tests, fixtures, examples,
+and docs may use TODO/FIXME or placeholders when the surrounding verifier proves
+they are intentional.
 
 ```
 pass\s*(#.*)?$          # bare pass statements
-TODO\b                  # TODO comments
-FIXME\b                 # FIXME comments
+TODO\b                  # TODO comments in shipped executable source only
+FIXME\b                 # FIXME comments in shipped executable source only
 raise NotImplementedError
 \.\.\.\s*$              # ellipsis as function body
 ```
@@ -156,7 +190,9 @@ Hard failures block the commit/delivery. Warnings accumulate:
 
 ## Mode 2: Content Slop
 
-Detects AI writing patterns in prose. Runs on all `.md`, `.txt` files and all agent content outputs. Every outbound piece — content, outreach, proposals — runs through this before delivery.
+Detects AI writing patterns in prose, product output, and agent output when the
+Build Brief marks a generated-output surface active. It does not run on every
+`.md` or `.txt` file by default.
 
 ### Content Mode Flow
 
@@ -169,10 +205,14 @@ Detects AI writing patterns in prose. Runs on all `.md`, `.txt` files and all ag
 
 ```json
 {
-  "mode": "general | outreach",
+  "mode": "general | outreach | product_output | agent_output",
   "regex_screen": "pass",
   "content": "string",
-  "audience": "internal | external"
+  "audience": "internal | external",
+  "rubric": ["specific criterion"],
+  "threshold": 0.7,
+  "baseline_score": 0.82,
+  "regression_tolerance": 0.03
 }
 ```
 
@@ -181,24 +221,45 @@ Detects AI writing patterns in prose. Runs on all `.md`, `.txt` files and all ag
 ```json
 {
   "verdict": "pass | revise",
+  "score": 0.0,
+  "threshold": 0.7,
+  "criterion_scores": [
+    {
+      "criterion": "specificity",
+      "score": 0.0,
+      "reason": "string"
+    }
+  ],
+  "regression_delta": 0.0,
   "rationale": "string",
-  "signals": ["generic_filler", "passive_evasion", "tautology"]
+  "signals": ["generic_filler", "passive_evasion", "tautology"],
+  "new_eval_case_candidate": {
+    "source": "council_rejection | human_edit | runtime_failure | production_sample | other",
+    "input": "optional string",
+    "bad_output": "string",
+    "expected_quality": "string",
+    "metric": "rubric_score",
+    "threshold": 0.7
+  }
 }
 ```
 
-### The Eight Rules
+### Rubric Dimensions
+
+These dimensions guide scoring. They are not blanket bans in ADLC core.
 
 **1. Active voice. Human subjects.**
 Find the actor. Make them the subject. "The team shipped it" not "It was shipped." "You read the data and concluded" not "The data tells us."
 
-**2. Cut all adverbs (-ly words).**
-No -ly words. No really, just, literally, genuinely, honestly, simply, actually, deeply, truly, fundamentally, inherently, inevitably, interestingly, importantly, crucially.
+**2. Reduce filler adverbs.**
+Flag repeated filler adverbs when they weaken specificity. Do not fail a piece
+because one legitimate adverb appears.
 
 **3. No throat-clearing openers.**
 State the point. Not "Here's the thing:" or "Let me be clear:" or "The uncomfortable truth is." Start with the content.
 
-**4. No binary contrasts ("Not X. But Y.").**
-"Not X. But Y." becomes "Y." Drop the negation. State the point directly. The reader does not need the runway.
+**4. Avoid empty binary contrasts.**
+Flag "Not X. But Y." only when the contrast adds no information.
 
 **5. No rhetorical setups ("Here's what I mean:").**
 "Here's what I mean:" becomes the meaning itself. "Think about it:" becomes trust the reader. "What if I told you" becomes just tell them.
@@ -237,7 +298,8 @@ Put the reader in the room. Concrete scenes over narrator-from-a-distance. "You 
 - moving forward → next
 
 #### Adverbs
-really, just, literally, genuinely, honestly, simply, actually, deeply, truly, fundamentally, inherently, inevitably, interestingly, importantly, crucially
+Repeated filler adverbs can lower the rubric score when they replace concrete
+detail.
 
 #### Filler phrases
 - "At its core" / "In today's X" / "It's worth noting"
@@ -275,10 +337,10 @@ really, just, literally, genuinely, honestly, simply, actually, deeply, truly, f
 | "the conversation moves toward" | "they steered toward" |
 
 #### Sentence structure
-- No em-dashes. Use commas or periods.
-- No three-item lists. Use two or one.
-- No sentences starting with What/When/Where/Which/Who/Why/How — lead with subject or verb.
-- No paragraphs starting with "So".
+- Prefer commas or periods over decorative em dashes.
+- Three-item lists are allowed when they carry real distinctions.
+- Sentences may start with What/When/Where/Which/Who/Why/How when the question is doing real work.
+- Paragraphs may start with "So" when the transition is useful.
 - Vary sentence length. No three consecutive equal-length sentences.
 - No every paragraph ending with a punchy one-liner.
 
@@ -325,14 +387,16 @@ Below threshold = revise internally. At or above threshold = proceed to human re
 
 ## Integration
 
-### Magnus Brand Foundation
+### Optional Project Brand Foundation
 
-After stop-slop scoring, also verify against the Magnus brand foundation (`charters/magnus-brand-foundation.md`):
+After stop-slop scoring, a project may optionally verify against a local brand
+foundation, for example `charters/<project>-brand-foundation.md`:
 - No vocabulary from "never use" list
 - Sentence structure matches Eric's voice patterns
 - Side-by-side test: does this read as Eric or as AI?
 
-Stop-slop clears the AI patterns. Brand foundation checks the voice. Both must pass.
+Stop-slop clears AI-output quality patterns. Brand checks are project-local
+overlays, not ADLC core requirements.
 
 ### Configuration
 
@@ -358,7 +422,10 @@ content_slop:
 ### CLI Interface
 
 ```bash
-# Mode 1: Code slop check
+# Build Brief contract check, implemented in this repo
+bin/adlc slop-gate --build-brief ./build-brief.json --json
+
+# Optional project-provided Mode 1: Code slop check
 stop-slop code --input ./src/ --output ./code-report.json
 
 # Mode 2: Content slop score
@@ -370,6 +437,6 @@ stop-slop content --input ./draft.md --revise --passes 2 --output ./revised.md
 # Outreach mode (higher threshold: 38/50)
 stop-slop content --input ./outreach.md --mode outreach
 
-# Run both modes on a commit
-stop-slop all --commit HEAD
+# Optional project-provided full check
+your-stop-slop-runner all --commit HEAD
 ```
