@@ -132,6 +132,7 @@ Every work-item emitter must carry these fields forward from the Build Brief tas
 - `tech_debt_boundaries`
 - `compatibility_contract`
 - `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, and `production_invariant_coverage` when present
+- `slop_quality_gate` when present, including applicability reason, eval cases, metrics, threshold, failure action, and case-promotion sources
 - `evidence_responsibilities`
 - `definition_of_done`
 - failure-mode cross references
@@ -253,6 +254,7 @@ The readiness checker validates:
    - `compatibility_contract`
    - `tech_debt_boundaries`
    - `failure_modes`
+   - `slop_quality_gate` when the task changes generated-output behavior, or an explicit `not_applicable` reason when the brief includes the field
 6. **Phase-project map** — when a `--phase-project-map` is provided, any task with a `phase_label` that exists in the map must have a matching `target_project` in `work_item_metadata`.
 
 ### CLI Flags

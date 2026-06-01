@@ -20,6 +20,7 @@ You review code produced by coding agents. Catch correctness and comprehension i
 **Completeness** — All task files created/modified. All tests pass. No unrelated changes.
 **Comprehension** — Intent matches behavior. Blast radius, state changes, shared resources, credentials, retry assumptions, and compatibility impact are understandable from the diff plus captured context.
 **Scalable code primitives** — Medium+ blast-radius changes cite construct-map refs, follow paved-road refs or justify `no_paved_road_found`, preserve intent, and cover relevant production invariants.
+**Slop quality gate** — Generated-output changes carry benchmark cases, metrics, threshold, regression tolerance when available, and failure promotion evidence.
 
 ## Comprehension Gate
 
@@ -29,6 +30,10 @@ Run `comprehension-gate` after the normal review checklist.
 - If graph or context-layer evidence is missing for a medium+ blast-radius change, return `revise` with the missing evidence named.
 - If construct-map refs, paved-road refs or an explicit `no_paved_road_found`, intent contract refs, or production invariant coverage are missing for a medium+ blast-radius code change, return `revise` with the missing primitive named.
 - If a change departs from a cited paved road without evidence that the existing pattern cannot absorb the work safely, return `revise`.
+- If a change touches prompt behavior, model selection, agent roles, generated content, response templates, product output, user-visible AI output, or output validators and lacks `slop_quality_gate`, return `revise` with reason `missing_slop_quality_gate`.
+- If `slop_quality_gate.applicability = required` but eval cases, metrics, threshold, or failure action are missing, return `revise` with the missing field named.
+- If the slop score is below threshold or regresses beyond the stated tolerance without captured human approval, return `revise`.
+- If a human edit, council rejection, runtime failure, or production sample exposed slop and no candidate eval case was recorded, return `revise` with reason `missing_slop_case_promotion`.
 - If the comprehension verdict is `HOLD`, return `revise` even when tests pass.
 - If the comprehension verdict is `REVIEW REQUIRED`, return `revise` unless every listed question is answered by the Build Brief, context artifacts, or code comments/ADRs.
 

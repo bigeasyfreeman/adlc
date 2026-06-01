@@ -827,12 +827,17 @@
       "path": "skills/stop-slop/SKILL.md",
       "contract_version": "2.0.0",
       "side_effect_profile": "read_only",
+      "activation": {
+        "mode": "core_plus_overlays",
+        "consumes_manifest": true,
+        "produces": ["slop_quality_report", "slop_eval_case_candidates"]
+      },
       "dag_nodes": ["slop_gate", "pr_prep"]
     },
     {
       "name": "slop-judge",
       "path": "skills/slop-judge/SKILL.md",
-      "contract_version": "1.0.0",
+      "contract_version": "2.0.0",
       "side_effect_profile": "read_only",
       "activation": {
         "mode": "judgement",
@@ -842,7 +847,7 @@
           "max_tokens_per_call": 750,
           "expected_calls_per_run": 3
         },
-        "produces": ["content_slop_verdict"]
+        "produces": ["content_slop_verdict", "slop_quality_score", "slop_eval_case_candidates"]
       },
       "dag_nodes": ["slop_gate", "pr_prep"]
     },

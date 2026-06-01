@@ -60,6 +60,24 @@ Build Briefs must preserve the primitives that keep AI-generated code scalable:
 
 Do not turn these primitives into generic production-readiness prose. Every claim needs a path, graph query, schema, test, fixture, command, or context artifact.
 
+## Slop Quality Gate
+
+Build Briefs must treat AI slop as an output-side eval problem. Prompt changes, larger context, or stronger models are not proof that the output is safe to ship.
+
+For every task that changes prompt behavior, model selection, agent roles, generated content, response templates, product output, user-visible AI output, or output validators, include `slop_quality_gate`:
+
+- `applicability`: `required`
+- `reason`: why this task has a generated-output surface
+- `mode`: `code`, `content`, `product_output`, `agent_output`, or `mixed`
+- `threshold`: numeric score from 0 to 1, default `0.70` only when explicitly adopting ADLC default
+- `metrics`: exact match, schema validity, semantic similarity, rubric score, test strength, or task-specific validator
+- `eval_cases`: real, golden, human-edit, council-rejection, runtime-failure, production-sample, incident, support-ticket, analytics-drop, or realistic edge cases
+- `baseline_score` and `regression_tolerance` when a previous benchmark exists
+- `failure_action`: `block`, `revise`, `human_approval`, or post-ship `monitor`
+- `case_promotion_sources`: how failures become future eval cases
+
+If the task has no generated-output surface, include `slop_quality_gate` with `applicability: not_applicable` and a concrete reason. Do not add the gate as ceremony for lint-only, build-validation, or deterministic code-only work.
+
 ## Applicability First
 
 Before filling the brief, compute one applicability manifest:
@@ -106,6 +124,7 @@ Task-writing rules:
 - If tech debt must be paid down before feature work, split that work into an explicit prerequisite task rather than burying it in implementation notes.
 - `anti_slop_rules` must forbid reimplementing cited helpers, services, or patterns when they already exist.
 - Each implementation and validation task must include `decision_contract`, `tech_debt_boundaries`, `compatibility_contract`, `evidence_responsibilities`, `definition_of_done`, `files_to_modify`, `files_to_create`, `verification_spec.primary_verifier.target_files`, and `verification_spec.primary_verifier.expected_failure_mode`.
+- Tasks that change generated-output behavior must include `slop_quality_gate`; tasks without such a surface must either omit it or mark it `not_applicable` with a concrete reason.
 - Compatibility is production engineering first: backwards compatibility, forwards compatibility, rollout or migration path, observability, rollback/degradation, and failure modes. Compliance posture is captured as evidence, not as scope expansion unless the PRD or repo requires it.
 
 ## Graph-Backed Compatibility And Comprehension
@@ -156,6 +175,7 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
     "compatibility_evidence": {},
     "intent_contract": {},
     "production_invariant_coverage": [],
+    "slop_quality_gate": {},
     "context_layer_requirements": [],
     "dark_code_hotspots": [],
     "open_questions": [],

@@ -245,6 +245,28 @@ For every implementation task that changes code, schemas, runtime behavior, pers
 
 Do not require these fields for trivial docs, lint-only, or build-validation tasks when the applicability manifest proves no code path or build pattern changes.
 
+### Slop Quality Gate Checks
+
+For every task that changes prompt behavior, model selection, agent roles, generated content, response templates, product output, user-visible AI output, or output validators:
+
+- `slop_quality_gate` must be present.
+- `slop_quality_gate.applicability` must be `required` unless the task proves there is no generated-output surface.
+- Required gates must include `mode`, `threshold`, `metrics`, `eval_cases`, and `failure_action`.
+- `threshold` must be numeric from 0 to 1. Default to `0.70` only when the Build Brief explicitly says it is using the ADLC default.
+- `eval_cases` must include at least one real, golden, human-edit, council-rejection, runtime-failure, production-sample, incident, support-ticket, analytics-drop, or realistic edge input. Happy-path-only examples are insufficient.
+- `failure_action` must be `block`, `revise`, or `human_approval` for pre-ship gates. `monitor` is allowed only for post-ship sampling tasks that do not change shipped output.
+- If `baseline_score` and `regression_tolerance` are present, a score drop beyond tolerance returns `REVISION_REQUIRED` with reason `slop_regression`.
+
+Missing or weak gates return:
+
+- `missing_slop_quality_gate` when the field is absent for an active generated-output surface.
+- `missing_slop_eval_cases` when no cases are provided.
+- `missing_slop_metric` when no metric converts output to a score.
+- `slop_threshold_unset` when no threshold is provided.
+- `slop_score_below_threshold` when the latest score is below threshold.
+
+Do not require `slop_quality_gate` for trivial docs, lint-only, build-validation, deterministic refactors, or code-only work when the applicability manifest proves no generated-output behavior changes.
+
 ### Gate 0 Verdict
 
 ```

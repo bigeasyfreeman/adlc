@@ -52,6 +52,18 @@ This skill runs before the coding agent starts. Its output is the coding agent's
         "evidence": ["string"]
       }
     ],
+    "slop_quality_gate": {
+      "applicability": "required | not_applicable",
+      "reason": "string",
+      "mode": "code | content | product_output | agent_output | mixed",
+      "threshold": 0.7,
+      "metrics": ["string"],
+      "eval_cases": ["string or structured case"],
+      "baseline_score": 0.82,
+      "regression_tolerance": 0.03,
+      "failure_action": "block | revise | human_approval | monitor",
+      "case_promotion_sources": ["human_edit", "council_rejection", "production_sample"]
+    },
     "evidence_responsibilities": [],
     "definition_of_done": [],
     "verification_spec": {
@@ -140,6 +152,7 @@ Hard rule:
 - Every behavioral test artifact, fixture, and command verifier relevant to the task must be inlined
 - Every implementation task must include its decision contract, tech debt boundaries, compatibility contract, evidence responsibilities, and Definition of Done. If the task is blocked by an unresolved Type 1 decision, do not assemble a coding prompt; return `stuck` with reason `unresolved_decision_blocks_implementation`.
 - Every code-changing implementation task must include its construct-map refs, paved-road refs or explicit `no_paved_road_found`, intent contract refs, and production invariant coverage. If these are missing for a medium+ blast-radius code path, return `stuck` with reason `missing_scalable_code_primitives`.
+- Every task that changes generated-output behavior must include its `slop_quality_gate`, including eval cases, metrics, threshold, failure action, and case-promotion sources. If missing for a generated-output surface, return `stuck` with reason `missing_slop_quality_gate`.
 
 What gets inlined:
 - Reference implementation code
@@ -153,6 +166,7 @@ What gets inlined:
 - Paved-road reference implementations, allowed departures, and `do_not_reimplement` rules
 - Intent constraints, explicit non-goals, load-bearing assumptions, and human-judgment checkpoints
 - Production invariant coverage for the task, including any gaps or review-required items
+- Slop quality gate cases, rubrics, metrics, threshold, baseline score, regression tolerance, and failure-promotion instructions when active
 - Compatibility constraints and performance budget when active
 - Graph research evidence relevant to compatibility, reuse, and blast radius
 - Module manifests, behavioral contracts, and decision-log warnings when the task touches those modules
@@ -278,28 +292,31 @@ These are the exact files this task touches.
 ### Production Invariants
 [Paste production_invariant_coverage entries, status, evidence, and required verifier or human-judgment checkpoint.]
 
-## 9. Tech Debt Boundaries
+## 9. Slop Quality Gate
+[Paste `slop_quality_gate` when active: applicability reason, mode, eval cases, metrics, threshold, baseline score, regression tolerance, failure action, and case-promotion sources. If not applicable, paste the reason only.]
+
+## 10. Tech Debt Boundaries
 [Paste prerequisite debt, deferred debt, and safe-deferral rationale. Do not ask the coding agent to implement unrelated catalog items.]
 
-## 10. Comprehension Context
+## 11. Comprehension Context
 [Paste relevant module manifest entries, behavioral contracts, decision-log warnings, graph research evidence, and unresolved context gaps.]
 
-## 11. Evidence and Definition of Done
+## 12. Evidence and Definition of Done
 [Paste evidence responsibilities and binary Definition of Done checks.]
 
-## 12. Performance Budget
+## 13. Performance Budget
 [Paste only the targets that are active for this task.]
 
-## 13. Schema
+## 14. Schema
 [Paste only the relevant schema sections.]
 
-## 14. What Not To Do
+## 15. What Not To Do
 [Paste the negative constraints from duplication and verifier quality.]
 
-## 15. Manual Test Plan
+## 16. Manual Test Plan
 [Paste if present.]
 
-## 16. Verification
+## 17. Verification
 Run the primary verifier first.
 If it fails for the wrong reason, adjust the verifier.
 If it fails for the right reason, make the smallest change that makes it pass.
@@ -316,6 +333,7 @@ From the research deliverable, pull only what the task needs:
 - construct-map entries for affected modules, interfaces, schemas, configs, state, tests, and reverse dependencies
 - paved-road candidates or the explicit `no_paved_road_found` gap
 - load-bearing invariant notes and validation surfaces
+- generated-output failure samples, accepted slop eval cases, quality thresholds, and feedback-loop case-promotion sources
 - integration path
 - duplication risks
 - scalability concerns
@@ -329,6 +347,7 @@ Pull in only the brief sections that the applicability manifest marks active:
 - compatibility constraints when applicable
 - graph research evidence for compatibility, reuse, and blast radius
 - construct map, paved-road evidence, intent contract, and production invariant coverage when the task changes code, schema, runtime behavior, persistence, API contracts, or deployment conventions
+- slop quality gate when the task changes generated-output behavior, prompt behavior, model selection, agent roles, content, product output, response templates, or output validators
 - context-layer artifacts and decision-log warnings when applicable
 - performance budget when applicable
 

@@ -53,6 +53,49 @@ assert_emit_preserves_scalable_primitives() {
   return "$status"
 }
 
+assert_emit_preserves_slop_quality_gate() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].slop_quality_gate) = {
+      "applicability": "required",
+      "reason": "Task changes generated agent output.",
+      "mode": "agent_output",
+      "threshold": 0.7,
+      "metrics": ["rubric_score", "schema_validity"],
+      "eval_cases": [
+        {
+          "id": "SLOP-001",
+          "source": "golden",
+          "input": "User asks for a deployment plan",
+          "expected_quality": "Specific, executable plan with verifier and rollback",
+          "metric": "rubric_score",
+          "threshold": 0.7
+        }
+      ],
+      "baseline_score": 0.82,
+      "regression_tolerance": 0.03,
+      "failure_action": "block",
+      "case_promotion_sources": ["human_edit", "council_rejection", "production_sample"]
+    }
+  ' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp"
+
+  local status=0
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --json |
+    jq -e '
+      .artifacts[0].slop_quality_gate.applicability == "required" and
+      .artifacts[0].slop_quality_gate.mode == "agent_output" and
+      .artifacts[0].slop_quality_gate.threshold == 0.7 and
+      .artifacts[0].slop_quality_gate.metrics[0] == "rubric_score" and
+      .artifacts[0].slop_quality_gate.eval_cases[0].source == "golden" and
+      .artifacts[0].slop_quality_gate.failure_action == "block" and
+      .artifacts[0].slop_quality_gate.case_promotion_sources[1] == "council_rejection"
+    ' >/dev/null || status=$?
+
+  rm -f "$tmp"
+  return "$status"
+}
+
 echo "ADLC Contract Checks"
 echo "Root: $ROOT"
 echo ""
@@ -77,6 +120,8 @@ assert "task schema requires enterprise execution contracts" "jq -e '. as \$s | 
 assert "task schema requires verification_spec" "jq -e '.definitions.task.required | index(\"verification_spec\")' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "verifier schema requires target files and expected failure mode" "jq -e '.definitions.verifier.required as \$r | (\$r | index(\"target_files\")) and (\$r | index(\"expected_failure_mode\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema preserves scalable AI code primitive refs" "jq -e '.definitions.task.properties.construct_map_refs.type == \"array\" and .definitions.task.properties.paved_road_refs.type == \"array\" and .definitions.task.properties.intent_contract_refs.type == \"array\" and (.definitions.task.properties.production_invariant_coverage.items.properties.status.enum | index(\"requires_human_judgment\")) and (.definitions.task.properties.production_invariant_coverage.items.properties.invariant.enum | index(\"idempotency\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "task schema supports slop quality gates" "jq -e '.definitions.task.properties.slop_quality_gate[\"\$ref\"] == \"#/definitions/slop_quality_gate\" and (.definitions.slop_quality_gate.properties.applicability.enum | index(\"required\")) and (.definitions.slop_quality_gate.properties.mode.enum | index(\"agent_output\")) and (.definitions.slop_quality_gate.properties.failure_action.enum | index(\"human_approval\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "required slop quality gates require threshold metrics and eval cases" "jq -e '.definitions.slop_quality_gate.allOf[] | select(.if.properties.applicability.const == \"required\") | (.then.required | index(\"threshold\")) and (.then.required | index(\"metrics\")) and (.then.required | index(\"eval_cases\")) and (.then.required | index(\"failure_action\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "enterprise readiness contract can carry scalable primitive rollups" "jq -e '.definitions.enterprise_readiness_contract.properties.construct_map_refs.type == \"array\" and .definitions.enterprise_readiness_contract.properties.paved_road_refs.type == \"array\" and .definitions.enterprise_readiness_contract.properties.production_invariant_coverage.type == \"array\"' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "implementation tasks cannot carry unresolved Type 1 decisions" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"implementation_task\") | (.then.properties.decision_contract.properties.status.enum | index(\"unresolved\") | not) and .then.properties.decision_contract.properties.blocks_implementation.const == false' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "scope-lock epics cannot carry file-change instructions" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"scope_lock_epic\") | .then.properties.files_to_modify.maxItems == 0 and .then.properties.files_to_create.maxItems == 0' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
@@ -94,6 +139,7 @@ assert "artifact contract evaluator passes" "'$ROOT/tests/artifact_contract/eval
 echo ""
 echo "--- Prompt Contracts ---"
 assert "scalable AI code primitives spec exists" "[ -f '$ROOT/docs/specs/scalable-ai-code-primitives.md' ] && rg -q 'Graph-Backed Construct Map|Agent Paved-Road Registry|Verifiability Gate|Production Invariant Coverage' '$ROOT/docs/specs/scalable-ai-code-primitives.md'"
+assert "slop eval loop spec exists" "[ -f '$ROOT/docs/specs/slop-eval-loop.md' ] && rg -q 'Benchmark Contract|Pre-Ship Regression|Delivery Guard|Post-Ship Sampling|Case Promotion' '$ROOT/docs/specs/slop-eval-loop.md'"
 assert "triage emits task classification" "rg -q 'task_classification' '$ROOT/agents/triage.md'"
 assert "PRD agent captures reuse and tech debt boundaries" "rg -q 'reuse|tech debt|existing system, component, or workflow|existing services, components, or patterns|blocking tech debt' '$ROOT/agents/PM-PRD-AGENT.md'"
 assert "PRD evaluator checks reuse and tech debt readiness" "rg -q 'missing reuse boundary|missing debt risk|Repo-Aware Reuse & Debt Framing|reuse/debt boundaries' '$ROOT/skills/prd-generation/SKILL.md'"
@@ -118,27 +164,34 @@ assert "planner keeps unsupported debt out of scope" "rg -q 'Unsupported debt cl
 assert "planner defines artifact taxonomy and automatic validation tasks" "rg -q 'scope_lock_epic|decision_gate|implementation_task|validation_task' '$ROOT/agents/planner.md' && rg -q 'Generate validation tasks automatically' '$ROOT/agents/planner.md'"
 assert "planner blocks unresolved Type 1 implementation" "rg -q 'unresolved Type 1.*decision_gate|decision_gate.*unresolved Type 1' '$ROOT/agents/planner.md'"
 assert "planner emits scalable AI code primitive evidence" "rg -q 'Scalable AI Code Primitives|construct_map|paved_road_refs|production_invariant_coverage|Verifiability gate' '$ROOT/agents/planner.md'"
+assert "planner emits slop quality gates for generated outputs" "rg -q 'Slop Quality Gate|slop_quality_gate|case_promotion_sources|generated-output surface' '$ROOT/agents/planner.md'"
 assert "code reviewer runs comprehension gate" "rg -q 'Comprehension Gate|comprehension_artifact|REVIEW REQUIRED|HOLD' '$ROOT/agents/code-reviewer.md'"
 assert "code reviewer checks scalable AI code primitives" "rg -q 'Scalable code primitives|construct-map refs|paved-road refs|production invariant coverage' '$ROOT/agents/code-reviewer.md'"
+assert "code reviewer checks slop quality gates" "rg -q 'Slop quality gate|missing_slop_quality_gate|slop score.*below threshold|missing_slop_case_promotion' '$ROOT/agents/code-reviewer.md'"
 assert "coder uses verification_spec" "rg -q 'verification_spec' '$ROOT/agents/coder.md'"
 assert "verification discipline is task-class-aware" "rg -q 'build_validation|lint_cleanup' '$ROOT/skills/tdd-enforcement/SKILL.md'"
 assert "codegen context consumes verification_spec" "rg -q 'verification_spec' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context inlines scalable AI code primitives" "rg -q 'missing_scalable_code_primitives|Scalable AI Code Primitives|construct_map_refs|paved_road_refs|production_invariant_coverage' '$ROOT/skills/codegen-context/SKILL.md'"
+assert "codegen context inlines slop quality gates" "rg -q 'missing_slop_quality_gate|Slop Quality Gate|slop_quality_gate|case-promotion sources' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "DoD uses core baseline and overlays" "rg -q 'core baseline|overlay' '$ROOT/skills/definition-of-done/SKILL.md'"
 assert "eval council checks applicability manifest" "rg -q 'applicability_manifest' '$ROOT/skills/eval-council/SKILL.md'"
 assert "eval council gates scalable AI code primitives" "rg -q 'Scalable AI Code Primitive Checks|unverifiable_delegation|paved_road_refs|production_invariant_coverage' '$ROOT/skills/eval-council/SKILL.md'"
+assert "eval council gates slop quality benchmarks" "rg -q 'Slop Quality Gate Checks|missing_slop_quality_gate|missing_slop_eval_cases|slop_regression|slop_score_below_threshold' '$ROOT/skills/eval-council/SKILL.md'"
 assert "fix loop uses primary verifier wording" "rg -q 'primary verifier' '$ROOT/skills/fix-loop/SKILL.md'"
 assert "shared emitter contract covers supported targets and local MCP providers" "rg -q 'GitHub|Linear|Notion|Work-item emitter|Document emitter|locally installed MCP provider|capability_bindings' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves reuse and tech debt context" "rg -q 'reference_impl|reuse|tech-debt|deferred-cleanup|do not reimplement' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves artifact taxonomy and enterprise readiness" "rg -q 'artifact_type|decision_contract|enterprise_readiness_contract|validation_task|unresolved_dependency_alias' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves scalable AI code primitives" "rg -q 'construct_map_refs|paved_road_refs|intent_contract_refs|production_invariant_coverage' '$ROOT/docs/specs/emitter-contract.md'"
+assert "shared emitter contract preserves slop quality gates" "rg -q 'slop_quality_gate|case-promotion sources|generated-output behavior' '$ROOT/docs/specs/emitter-contract.md'"
 assert "JIRA ticket creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "Confluence decomposition respects applicability manifest" "rg -q 'contract_version|applicability_manifest|active Build Brief sections' '$ROOT/skills/confluence-decomposition/SKILL.md'"
 assert "GitHub issue creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/github-issue-creation/SKILL.md'"
 assert "Linear ticket creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "Linear ticket creation preserves artifact taxonomy and enterprise readiness" "rg -q 'artifact_type|Decision Contract|Compatibility Contract|Evidence Responsibilities|Definition of Done|enterprise readiness contract' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "work item emitters preserve scalable AI code primitives" "rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
+assert "work item emitters preserve slop quality gates" "rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "emit-work-items preserves scalable AI code primitive refs" "assert_emit_preserves_scalable_primitives"
+assert "emit-work-items preserves slop quality gates" "assert_emit_preserves_slop_quality_gate"
 assert "Notion decomposition respects applicability manifest" "rg -q 'contract_version|applicability_manifest|active Build Brief sections' '$ROOT/skills/notion-decomposition/SKILL.md'"
 assert "JIRA ticket creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "GitHub issue creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/github-issue-creation/SKILL.md'"
@@ -236,6 +289,11 @@ assert "test-strength-auditor is a wrapper with only materiality judge handoff" 
 assert "test-strength skill marks material surviving mutants as weak" "rg -q 'material.*surviving mutant.*weak' '$ROOT/skills/test-strength/SKILL.md'"
 assert "DoD tags checks as automatable or judgement" "awk -F'|' '(\$2 ~ /^[[:space:]]*[0-9]+[[:space:]]*$/) && (\$4 ~ /automatable/ || \$4 ~ /judgement/) {count++} END {exit !(count>=22)}' '$ROOT/skills/definition-of-done/SKILL.md'"
 assert "stop-slop content mode routes through slop-judge with schema" "rg -q 'slop-judge|Slop Judge Input|Slop Judge Output' '$ROOT/skills/stop-slop/SKILL.md'"
+assert "stop-slop defines output eval loop" "rg -q 'Output Eval Loop|slop_quality_gate|Pre-ship regression|case_promotion_sources' '$ROOT/skills/stop-slop/SKILL.md'"
+assert "slop-judge returns numeric scores and candidate cases" "rg -q 'criterion_scores|regression_delta|new_eval_case_candidate|missing_benchmark' '$ROOT/skills/slop-judge/SKILL.md'"
+assert "feedback loop promotes slop failures into eval cases" "rg -q 'Eval Case Promotion|candidate eval cases|slop_removal|new_eval_case_candidate' '$ROOT/skills/feedback-loop/SKILL.md'"
+assert "manifest registers stop-slop slop quality outputs" "jq -e '.skills[] | select(.name==\"stop-slop\") | .activation.consumes_manifest == true and (.activation.produces | index(\"slop_quality_report\")) != null and (.activation.produces | index(\"slop_eval_case_candidates\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
+assert "manifest registers slop-judge score outputs" "jq -e '.skills[] | select(.name==\"slop-judge\") | .contract_version == \"2.0.0\" and (.activation.produces | index(\"slop_quality_score\")) != null and (.activation.produces | index(\"slop_eval_case_candidates\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "triage extracts signal features and low_confidence judge output" "rg -q 'Deterministic Feature Extraction|signal_features|low_confidence_judge' '$ROOT/agents/triage.md'"
 assert "triage schema requires signal_features" "jq -e '((.required | index(\"signal_features\")) != null) and ((.properties.signal_features.required | index(\"reproducer_present\")) != null)' '$ROOT/docs/schemas/triage-output.schema.json' >/dev/null"
 assert "applicability manifest spec documents section-policy override" "rg -q 'Section Policy Override|overridden_by: \"section_policy_judge\"' '$ROOT/docs/specs/applicability-manifest.md'"

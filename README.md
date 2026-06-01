@@ -158,7 +158,7 @@ Skill definitions are injected into agents at startup. Runtime install counts ar
 `security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`
 
 **Quality & Observability:**
-`stop-slop` (code + content dual-mode) · `observability-contract` (structured logging mandate) · `feedback-loop` (skill self-improvement)
+`stop-slop` (code/content/product output eval loop) · `slop-judge` (rubric score + threshold) · `observability-contract` (structured logging mandate) · `feedback-loop` (case promotion + skill self-improvement)
 
 **Lifecycle:**
 `fix-loop` (autonomous error repair) · `fix-bug` (fix orchestration) · `build-feature` (build orchestration) · `ship-content` (content orchestration) · `execute-trade` (trade orchestration)
@@ -250,6 +250,7 @@ adlc/
 - [`docs/adlc-v2-specification.md`](docs/adlc-v2-specification.md) — Full ADLC v2 spec (philosophy, pipeline, cross-cutting concerns)
 - [`docs/specs/graph-research-and-comprehension.md`](docs/specs/graph-research-and-comprehension.md) — Graphify, Beads, context-layer, and comprehension-gate contract
 - [`docs/specs/scalable-ai-code-primitives.md`](docs/specs/scalable-ai-code-primitives.md) — Graph-backed context, paved-road reuse, verifiability, and production invariant contract
+- [`docs/specs/slop-eval-loop.md`](docs/specs/slop-eval-loop.md) — Output-side slop benchmark, threshold, regression, and case-promotion contract
 - [`docs/adlc-v2-tickets.md`](docs/adlc-v2-tickets.md) — 58-ticket implementation roadmap
 
 ## Acknowledgments

@@ -35,6 +35,56 @@ when:
 
 ---
 
+## Output Eval Loop
+
+Stop Slop is an output-side quality gate, not a prompt-improvement checklist. A better prompt can still produce bad output; ADLC only trusts output after it has been scored against a benchmark.
+
+For any generated-output surface, the benchmark is:
+
+```json
+{
+  "slop_quality_gate": {
+    "applicability": "required | not_applicable",
+    "reason": "string",
+    "mode": "code | content | product_output | agent_output | mixed",
+    "threshold": 0.7,
+    "metrics": ["rubric_score | exact_match | schema_validity | semantic_similarity | test_strength"],
+    "eval_cases": [
+      {
+        "id": "SLOP-001",
+        "source": "golden | human_edit | council_rejection | runtime_failure | production_sample | incident | support_ticket | analytics_drop | other",
+        "input": "string",
+        "expected_quality": "string",
+        "golden_output": "optional string",
+        "rubric": "optional string",
+        "metric": "string",
+        "threshold": 0.7
+      }
+    ],
+    "baseline_score": 0.82,
+    "regression_tolerance": 0.03,
+    "failure_action": "block | revise | human_approval | monitor",
+    "case_promotion_sources": ["human_edit", "council_rejection", "production_sample"]
+  }
+}
+```
+
+Run the loop in three places:
+
+1. **Pre-ship regression:** prompt, model, content-template, agent-role, or product-output changes re-run saved eval cases and compare against the baseline.
+2. **Delivery guard:** output below threshold is blocked or revised before it reaches a user, ticket, issue, PR, document, or release.
+3. **Post-ship sampling:** live generated-output systems sample real executions and score them with the same benchmark.
+
+Default thresholds:
+
+- Code: hard failures block; warnings follow the code slop scoring below; verification quality delegates to `test-strength` (`coverage >= 0.8`, `mutation_kill_rate >= 0.6`, no material surviving mutants).
+- Content, product output, and agent output: `score >= 0.70` unless the Build Brief sets a stricter threshold.
+- Any score regression larger than `regression_tolerance` blocks unless `failure_action = human_approval` and the human approval is captured.
+
+Every failure should produce a candidate eval case before it becomes a new style rule. Candidate sources include human edits, council rejections, runtime failures, production samples, incidents, support tickets, and analytics drops tied to generated-output quality.
+
+See [docs/specs/slop-eval-loop.md](/Users/eric/adlc/docs/specs/slop-eval-loop.md).
+
 ## Mode 1: Code Slop
 
 Detects structural code problems that indicate incomplete, lazy, or AI-generated code. Runs on all `.py`, `.ts`, `.js`, `.jsx`, `.tsx` files.
@@ -169,10 +219,14 @@ Detects AI writing patterns in prose. Runs on all `.md`, `.txt` files and all ag
 
 ```json
 {
-  "mode": "general | outreach",
+  "mode": "general | outreach | product_output | agent_output",
   "regex_screen": "pass",
   "content": "string",
-  "audience": "internal | external"
+  "audience": "internal | external",
+  "rubric": ["specific criterion"],
+  "threshold": 0.7,
+  "baseline_score": 0.82,
+  "regression_tolerance": 0.03
 }
 ```
 
@@ -181,8 +235,26 @@ Detects AI writing patterns in prose. Runs on all `.md`, `.txt` files and all ag
 ```json
 {
   "verdict": "pass | revise",
+  "score": 0.0,
+  "threshold": 0.7,
+  "criterion_scores": [
+    {
+      "criterion": "specificity",
+      "score": 0.0,
+      "reason": "string"
+    }
+  ],
+  "regression_delta": 0.0,
   "rationale": "string",
-  "signals": ["generic_filler", "passive_evasion", "tautology"]
+  "signals": ["generic_filler", "passive_evasion", "tautology"],
+  "new_eval_case_candidate": {
+    "source": "council_rejection | human_edit | runtime_failure | production_sample | other",
+    "input": "optional string",
+    "bad_output": "string",
+    "expected_quality": "string",
+    "metric": "rubric_score",
+    "threshold": 0.7
+  }
 }
 ```
 

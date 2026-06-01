@@ -64,7 +64,7 @@ ADLC does not ship a JIRA client. This skill targets a locally installed MCP pro
 }
 ```
 
-Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
+Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `slop_quality_gate`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
 
 ## Mixed Acceptance Criteria Shapes
 
@@ -192,6 +192,18 @@ h2. Scalable AI Code Primitives
 * Paved-road refs: [approved reference paths or explicit no_paved_road_found]
 * Intent contract refs: [behavior/why/constraints/non-goals source]
 * Production invariant coverage: [identity/auth/tenancy/data/persistence/ordering/idempotency/retry/observability/etc. status + evidence]
+
+h2. Slop Quality Gate
+* Applicability: [required | not_applicable]
+* Reason: [why generated-output quality gate is active or not applicable]
+* Mode: [code | content | product_output | agent_output | mixed]
+* Metrics: [exact match, schema validity, semantic similarity, rubric score, test strength, or task-specific validator]
+* Threshold: [0 to 1]
+* Eval cases: [case IDs or inline cases]
+* Baseline score: [number or N/A]
+* Regression tolerance: [number or N/A]
+* Failure action: [block | revise | human_approval | monitor]
+* Case promotion sources: [human_edit, council_rejection, runtime_failure, production_sample, incident, support_ticket, analytics_drop, other]
 
 h2. Dependencies
 * Depends on: [task IDs or "none — parallelizable"]
