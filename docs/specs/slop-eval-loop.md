@@ -8,8 +8,11 @@ the output is good enough to ship. The missing primitive is a repeatable eval
 loop that scores output against a benchmark, blocks regressions, and turns every
 failure into a future test case.
 
-This contract applies to code, prose, product outputs, and agent outputs. The
-surface changes, but the loop is the same:
+This contract applies when a task creates or changes a generated-output
+surface: prompt behavior, model selection, agent roles, content templates,
+response shaping, product output, user-visible AI output, or output validators.
+Ordinary code-only, docs-only, lint-only, and build-validation tasks do not
+inherit this gate unless they also change one of those surfaces. The loop is:
 
 1. Define what good output looks like.
 2. Convert that standard into cases, metrics, and thresholds.
@@ -36,7 +39,16 @@ The Build Brief task field is `slop_quality_gate`.
   "reason": "Task changes generated user-visible agent output.",
   "mode": "agent_output",
   "threshold": 0.7,
-  "metrics": ["rubric_score", "schema_validity", "non_generic_specificity"],
+  "metrics": [
+    {
+      "metric_type": "rubric_score",
+      "validator_ref": "skills/slop-judge/SKILL.md"
+    },
+    {
+      "metric_type": "schema_validity",
+      "validator_ref": "docs/schemas/<output>.schema.json"
+    }
+  ],
   "eval_cases": [
     {
       "id": "SLOP-001",
@@ -54,8 +66,9 @@ The Build Brief task field is `slop_quality_gate`.
 }
 ```
 
-If the task does not create or alter generated output, prompt behavior, model
-selection, agent roles, content, or product responses, set:
+If upstream material already includes `slop_quality_gate` for a task that does
+not create or alter generated output, prompt behavior, model selection, agent
+roles, content, or product responses, preserve it only as:
 
 ```json
 {
@@ -75,10 +88,11 @@ the Build Brief names a human approval checkpoint.
 
 ### 2. Delivery Guard
 
-Before output reaches a user, customer, ticket, issue, PR, document, or release,
-the relevant gate runs:
+Before generated output reaches a user, customer, ticket, issue, PR, document,
+or release, the relevant active gate runs:
 
-- `stop-slop` for deterministic code and prose slop.
+- `bin/adlc slop-gate` for Build Brief slop-gate contract checks.
+- `stop-slop` for project-configured deterministic code or prose slop checks.
 - `slop-judge` for rubric-based judgment after deterministic checks clear.
 - `test-strength` for code verification strength.
 - Task-specific validators for product output shape, schemas, and invariants.

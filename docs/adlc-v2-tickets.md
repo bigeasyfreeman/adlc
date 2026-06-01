@@ -10,9 +10,9 @@
 
 ## Phase 1: Stop Slop Wiring (Quick Win)
 
-### ADLC-001: Create universal stop-slop skill with code + content modes
+### ADLC-001: Create applicability-driven stop-slop skill with code + content modes
 - **Repo:** `~/.claude/skills/stop-slop/`
-- **What:** Update the existing stop-slop SKILL.md to formalize two modes: code slop (placeholders, god functions, duplicates, hardcoded values) and content slop (8 rules, banned phrases, 5-dimension scoring with 35/50 threshold)
+- **What:** Update the existing stop-slop SKILL.md to formalize two modes behind applicability checks: code slop for shipped executable source, and content slop for generated-output surfaces with 5-dimension scoring and an explicit threshold.
 - **Acceptance criteria:**
   - [ ] SKILL.md defines code slop patterns with regex/AST detection rules
   - [ ] SKILL.md defines content slop: 8 rules, banned phrase list, 5-dimension scoring rubric
@@ -20,9 +20,9 @@
   - [ ] Skill has `when:` trigger conditions for auto-activation
 - **DoD:** Skill file exists with both modes fully specified. Passes self-consistency review.
 
-### ADLC-002: Wire content slop gate into Magnus content-forge
+### ADLC-002: Wire content slop gate into Magnus generated-output content-forge
 - **Repo:** `magnus`
-- **What:** Modify `skills/content-forge/SKILL.md` to invoke stop-slop content mode on all output before delivery. Add 5-dimension scoring with 35/50 threshold as a hard gate.
+- **What:** Modify `skills/content-forge/SKILL.md` to invoke stop-slop content mode only when the task declares `generated_output_surface.active=true`. Add 5-dimension scoring with an explicit threshold as a hard gate.
 - **Acceptance criteria:**
   - [ ] content-forge SKILL.md references stop-slop skill
   - [ ] Scoring rubric (5 dimensions) is inlined or referenced
@@ -30,9 +30,9 @@
   - [ ] Banned phrase list is present
 - **DoD:** content-forge invokes slop gate. Output below threshold cannot proceed.
 
-### ADLC-003: Wire content slop gate into Magnus content-adapt
+### ADLC-003: Wire content slop gate into Magnus generated-output content-adapt
 - **Repo:** `magnus`
-- **What:** Modify `skills/content-adapt/SKILL.md` to run stop-slop on all platform-adapted output.
+- **What:** Modify `skills/content-adapt/SKILL.md` to run stop-slop on generated platform-adapted output when the task declares `generated_output_surface.active=true`.
 - **Acceptance criteria:**
   - [ ] content-adapt SKILL.md references stop-slop skill
   - [ ] Each platform adaptation is individually scored

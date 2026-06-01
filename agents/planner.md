@@ -70,7 +70,7 @@ For every task that changes prompt behavior, model selection, agent roles, gener
 - `reason`: why this task has a generated-output surface
 - `mode`: `code`, `content`, `product_output`, `agent_output`, or `mixed`
 - `threshold`: numeric score from 0 to 1, default `0.70` only when explicitly adopting ADLC default
-- `metrics`: exact match, schema validity, semantic similarity, rubric score, test strength, or task-specific validator
+- `metrics`: objects with `metric_type` and `validator_ref` for exact match, schema validity, semantic similarity, rubric score, test strength, or a task-specific validator
 - `eval_cases`: real, golden, human-edit, council-rejection, runtime-failure, production-sample, incident, support-ticket, analytics-drop, or realistic edge cases
 - `baseline_score` and `regression_tolerance` when a previous benchmark exists
 - `failure_action`: `block`, `revise`, `human_approval`, or post-ship `monitor`
@@ -175,7 +175,6 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
     "compatibility_evidence": {},
     "intent_contract": {},
     "production_invariant_coverage": [],
-    "slop_quality_gate": {},
     "context_layer_requirements": [],
     "dark_code_hotspots": [],
     "open_questions": [],
@@ -184,6 +183,10 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
   "reason": "null or concrete escalation reason"
 }
 ```
+
+Include `slop_quality_gate` and `generated_output_surface` only for tasks with
+an active generated-output surface. Do not place empty objects in the brief to
+show that a gate was considered.
 
 ## Constraints
 

@@ -62,8 +62,13 @@ cp -r skills/codebase-research/ ~/my-project/.claude/skills/codebase-research/
 ```
 start → triage → research (Graphify/Beads-aware) → plan ↔ plan_review → scaffold → gen_tests →
   context_assembly → code (fan-out) ↔ code_review (comprehension gate) ↔ fixer →
-  security → qa → test_strength → slop_gate → pr_prep → engineer_review → done
+  [security if active] → qa → [test_strength if active] → [slop_gate if generated-output active] →
+  pr_prep → engineer_review → done
 ```
+
+Overlay gates are driven by the Build Brief `applicability_manifest` and task
+surface evidence. Inactive overlays are skipped or recorded as explicit no-ops;
+they are not filler sections every task must satisfy.
 
 ### Fix Loop (parallel)
 
@@ -158,7 +163,7 @@ Skill definitions are injected into agents at startup. Runtime install counts ar
 `security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`
 
 **Quality & Observability:**
-`stop-slop` (code/content/product output eval loop) · `slop-judge` (rubric score + threshold) · `observability-contract` (structured logging mandate) · `feedback-loop` (case promotion + skill self-improvement)
+`stop-slop` (generated-output contract + optional project eval loop) · `slop-judge` (rubric score + threshold) · `observability-contract` (structured logging mandate) · `feedback-loop` (case promotion + skill self-improvement)
 
 **Lifecycle:**
 `fix-loop` (autonomous error repair) · `fix-bug` (fix orchestration) · `build-feature` (build orchestration) · `ship-content` (content orchestration) · `execute-trade` (trade orchestration)

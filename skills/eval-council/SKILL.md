@@ -12,7 +12,7 @@ The Build Brief Agent produces a technical design. Seven downstream skills consu
 
 The Eval Council catches failures before they propagate. It is the last structured review before humans approve and machines execute. Core personas always run; overlay personas activate from the task applicability manifest when the change surface warrants them.
 
-**Opt-OUT, not opt-IN for active surfaces.** Every Build Brief and every skill output with an active surface gets evaluated by default. The burden of proof is on exclusion. "It looks fine" and "we're in a hurry" are not valid reasons to skip evaluation. Valid reasons: "This is a trivial config change with no behavior change" or "This output is identical to a previously approved output." Inactive overlays still require a concrete `not_applicable` reason.
+**Opt-OUT, not opt-IN for active surfaces.** Every Build Brief and every skill output with an active surface gets evaluated by default. The burden of proof is on exclusion. "It looks fine" and "we're in a hurry" are not valid reasons to skip evaluation. Valid reasons: "This is a trivial config change with no behavior change" or "This output is identical to a previously approved output." Inactive overlays inherit their skip reason from the `applicability_manifest`; personas should not restate duplicate `not_applicable` prose.
 
 ---
 
@@ -48,7 +48,7 @@ Core personas always run. Overlay personas activate from `change_surface` flags 
 | `operator` | Overlay | `runtime_path_change OR user_facing_operation` |
 | `security_auditor` | Overlay focus (expands Skeptic) | `new_attack_surface OR auth_change OR external_integration` |
 
-Suppressed overlays must carry a concrete `not_applicable` reason tied to manifest evidence, per the opt-OUT policy.
+Suppressed overlays use the concrete reason already recorded in the manifest section policy. Do not ask each persona to duplicate that reason.
 
 ### 1. The Architect
 

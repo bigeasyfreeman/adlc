@@ -5,6 +5,11 @@
 **Status:** Draft
 **Scope:** Universal — governs SWElfare, Ratatosk, Magnus, and all future Torbin Network agents
 
+> Alignment note: this draft predates the applicability-manifest refactor. Any
+> universal security, test-strength, observability, or slop-gate language should
+> now be interpreted through the live contract in `agents/triage.md`,
+> `agents/planner.md`, and `docs/schemas/*.json`.
+
 ---
 
 ## 0. Governing Philosophy
@@ -629,9 +634,9 @@ Banned phrases: "Here's the thing," "The uncomfortable truth is," "Let me be cle
 
 | Repo | What gets slop-gated |
 |------|---------------------|
-| SWElfare | PR descriptions, issue comments, documentation, error messages |
-| Ratatosk | Morning briefings, Telegram messages, trade summaries, performance reports |
-| Magnus | ALL content output (this is Magnus's primary product) |
+| SWElfare | Generated PR descriptions, issue comments, documentation, and error messages when `generated_output_surface.active=true` |
+| Ratatosk | Generated morning briefings, Telegram messages, trade summaries, and performance reports when `generated_output_surface.active=true` |
+| Magnus | Generated content output when `generated_output_surface.active=true` |
 
 #### 5.3 Council Review (Elevated/Critical Risk Tiers)
 
@@ -1056,7 +1061,7 @@ Magnus needs ADLC adapted to content operations.
 | Phase 6 Ship | Publish via Postiz CLI + audit logged + performance tracking initiated |
 | Fix Loop | Engagement anomaly → investigate (format? timing? topic?) → adjust strategy → re-execute |
 | Feedback Loop | Human edits to content → diff capture → voice profile refinement → content-forge skill update |
-| Stop Slop | ALL output — this is Magnus's primary quality gate. Full 8 rules + 5-dimension scoring + banned phrases |
+| Stop Slop | Generated content output when `generated_output_surface.active=true`; this is Magnus's primary quality gate, but it is still applicability-driven |
 | Observability | Content performance (engagement, reach, conversion), pipeline metrics (acceptance rate, edit distance), audit logging (all editorial decisions) |
 
 ---
@@ -1073,7 +1078,7 @@ Magnus needs ADLC adapted to content operations.
 | `codegen-context` | Phase 3 entry | 3 | Zero-read context assembly |
 | `architecture-pattern` | Phase 3 (when scaffolding needed) | 3 | Port/adapter/type/wiring generation |
 | `tdd-enforcement` | Phase 4 Step 2 | 4 | RED-GREEN-REFACTOR per criterion |
-| `stop-slop` | Phase 5 (all output) | 5 | Code slop + content slop detection |
+| `stop-slop` | Phase 5 (generated-output surfaces) | 5 | Code slop + content slop detection |
 | `security-review` | Phase 1 (STRIDE) + Phase 5 (OWASP) | 1, 5 | Threat modeling and vulnerability scanning |
 | `reuse-analysis` | Phase 1 (discovery) + Phase 5 (verification) | 1, 5 | Pattern continuation enforcement |
 | `observability-contract` | Phase 1 (specification) + Phase 5 (verification) | 1, 5 | Logging mandate enforcement |
@@ -1211,7 +1216,7 @@ adlc:
 
 ### 8.1 Priority Order
 
-1. **Stop Slop wiring** — Quick win. Wire existing content slop gate into Magnus (all output), Ratatosk (briefings/Telegram), SWElfare (PR descriptions).
+1. **Stop Slop wiring** — Quick win. Wire existing content slop gate into generated-output surfaces for Magnus, Ratatosk briefings/Telegram, and SWElfare PR descriptions.
 2. **Security (STRIDE + OWASP)** — Risk reduction. Add STRIDE to brief generation, OWASP scan to post-execution gate. Add Security Auditor persona to council.
 3. **LDD** — Add lint gate before TDD in SWElfare execution. Configure per-repo linters for Ratatosk/Magnus.
 4. **Observability contract** — Add logging mandate to brief and verify in post-execution gate.

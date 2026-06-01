@@ -101,6 +101,155 @@ assert_emit_omits_absent_slop_quality_gate() {
     jq -e 'all(.artifacts[]; has("slop_quality_gate") | not)' >/dev/null
 }
 
+assert_generated_output_missing_slop_gate_blocks_readiness() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].generated_output_surface) = {
+      "active": true,
+      "reason": "Task changes generated agent output.",
+      "modes": ["agent_output"]
+    }
+  ' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp"
+
+  local status=0
+  if "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --require-ready --json >/dev/null 2>&1; then
+    status=1
+  fi
+  rm -f "$tmp"
+  return "$status"
+}
+
+assert_generated_output_valid_slop_gate_passes_readiness() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].generated_output_surface) = {
+      "active": true,
+      "reason": "Task changes generated agent output.",
+      "modes": ["agent_output"]
+    } |
+    (.sections."8_task_tickets"[0].slop_quality_gate) = {
+      "applicability": "required",
+      "reason": "Task changes generated agent output.",
+      "mode": "agent_output",
+      "threshold": 0.7,
+      "metrics": [
+        {
+          "metric_type": "rubric_score",
+          "validator_ref": "skills/slop-judge/SKILL.md"
+        }
+      ],
+      "eval_cases": [
+        {
+          "id": "SLOP-001",
+          "source": "golden",
+          "input": "User asks for a deployment plan",
+          "expected_quality": "Specific, executable plan with verifier and rollback",
+          "metric": "rubric_score",
+          "threshold": 0.7
+        }
+      ],
+      "baseline_score": 0.82,
+      "regression_tolerance": 0.03,
+      "failure_action": "block",
+      "case_promotion_sources": ["human_edit", "council_rejection", "production_sample"]
+    }
+  ' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp"
+
+  local status=0
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --require-ready --json |
+    jq -e '.readiness_report.status == "ready" and .artifacts[0].slop_quality_gate.applicability == "required"' >/dev/null || status=$?
+  rm -f "$tmp"
+  return "$status"
+}
+
+assert_generated_output_string_metric_blocks_readiness() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].generated_output_surface) = {
+      "active": true,
+      "reason": "Task changes generated agent output.",
+      "modes": ["agent_output"]
+    } |
+    (.sections."8_task_tickets"[0].slop_quality_gate) = {
+      "applicability": "required",
+      "reason": "Task changes generated agent output.",
+      "mode": "agent_output",
+      "threshold": 0.7,
+      "metrics": ["rubric_score"],
+      "eval_cases": [
+        {
+          "id": "SLOP-001",
+          "source": "golden",
+          "input": "User asks for a deployment plan",
+          "expected_quality": "Specific, executable plan with verifier and rollback",
+          "metric": "rubric_score",
+          "threshold": 0.7
+        }
+      ],
+      "failure_action": "block"
+    }
+  ' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp"
+
+  local status=0
+  if "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --require-ready --json >/dev/null 2>&1; then
+    status=1
+  fi
+  rm -f "$tmp"
+  return "$status"
+}
+
+assert_code_only_without_slop_gate_passes_readiness() {
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$ROOT/docs/build-briefs/xia-adlc-remediation.json" --dry-run --require-ready --json |
+    jq -e '.readiness_report.status == "ready" and all(.artifacts[]; has("slop_quality_gate") | not)' >/dev/null
+}
+
+assert_compact_not_applicable_contracts_pass_readiness() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].anti_slop_rules) = {
+      "applicability": "not_applicable",
+      "reason": "Build-validation contract change with no generated output."
+    } |
+    (.sections."8_task_tickets"[0].tech_debt_boundaries) = {
+      "applicability": "not_applicable",
+      "reason": "No debt boundary for this validation-only task."
+    } |
+    (.sections."8_task_tickets"[0].compatibility_contract) = {
+      "applicability": "not_applicable",
+      "reason": "No compatibility surface changes."
+    }
+  ' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp"
+
+  local status=0
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --require-ready --json |
+    jq -e '.readiness_report.status == "ready"' >/dev/null || status=$?
+  rm -f "$tmp"
+  return "$status"
+}
+
+assert_slop_gate_cli_blocks_missing_generated_gate() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].generated_output_surface) = {
+      "active": true,
+      "reason": "Task changes generated agent output.",
+      "modes": ["agent_output"]
+    }
+  ' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp"
+
+  local status=0
+  if "$ROOT/bin/adlc" slop-gate --build-brief "$tmp" --json >/dev/null 2>&1; then
+    status=1
+  fi
+  rm -f "$tmp"
+  return "$status"
+}
+
 echo "ADLC Contract Checks"
 echo "Root: $ROOT"
 echo ""
@@ -126,6 +275,9 @@ assert "task schema requires verification_spec" "jq -e '.definitions.task.requir
 assert "verifier schema requires target files and expected failure mode" "jq -e '.definitions.verifier.required as \$r | (\$r | index(\"target_files\")) and (\$r | index(\"expected_failure_mode\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema preserves scalable AI code primitive refs" "jq -e '.definitions.task.properties.construct_map_refs.type == \"array\" and .definitions.task.properties.paved_road_refs.type == \"array\" and .definitions.task.properties.intent_contract_refs.type == \"array\" and (.definitions.task.properties.production_invariant_coverage.items.properties.status.enum | index(\"requires_human_judgment\")) and (.definitions.task.properties.production_invariant_coverage.items.properties.invariant.enum | index(\"idempotency\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports slop quality gates" "jq -e '.definitions.task.properties.slop_quality_gate[\"\$ref\"] == \"#/definitions/slop_quality_gate\" and (.definitions.slop_quality_gate.properties.applicability.enum | index(\"required\")) and (.definitions.slop_quality_gate.properties.mode.enum | index(\"agent_output\")) and (.definitions.slop_quality_gate.properties.failure_action.enum | index(\"human_approval\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "task schema supports explicit generated-output surfaces" "jq -e '.definitions.task.properties.generated_output_surface[\"\$ref\"] == \"#/definitions/generated_output_surface\" and (.definitions.generated_output_surface.required | index(\"active\")) and (.definitions.generated_output_surface.required | index(\"reason\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "slop quality metrics can reference validators" "jq -e '.definitions.slop_quality_gate.properties.metrics.items.oneOf[] | select(.type==\"object\") | (.required | index(\"metric_type\")) and (.required | index(\"validator_ref\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "task schema allows compact not-applicable safety contracts" "jq -e 'any(.definitions.task.properties.anti_slop_rules.oneOf[]; .\"\$ref\"==\"#/definitions/not_applicable_reason\") and any(.definitions.tech_debt_boundaries.oneOf[]; .\"\$ref\"==\"#/definitions/not_applicable_reason\") and any(.definitions.compatibility_contract.oneOf[]; .\"\$ref\"==\"#/definitions/not_applicable_reason\")' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "required slop quality gates require threshold metrics and eval cases" "jq -e '.definitions.slop_quality_gate.allOf[] | select(.if.properties.applicability.const == \"required\") | (.then.required | index(\"threshold\")) and (.then.required | index(\"metrics\")) and (.then.required | index(\"eval_cases\")) and (.then.required | index(\"failure_action\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "enterprise readiness contract can carry scalable primitive rollups" "jq -e '.definitions.enterprise_readiness_contract.properties.construct_map_refs.type == \"array\" and .definitions.enterprise_readiness_contract.properties.paved_road_refs.type == \"array\" and .definitions.enterprise_readiness_contract.properties.production_invariant_coverage.type == \"array\"' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "implementation tasks cannot carry unresolved Type 1 decisions" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"implementation_task\") | (.then.properties.decision_contract.properties.status.enum | index(\"unresolved\") | not) and .then.properties.decision_contract.properties.blocks_implementation.const == false' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
@@ -199,6 +351,12 @@ assert "work item emitters preserve slop quality gates" "rg -q 'Slop Quality Gat
 assert "emit-work-items preserves scalable AI code primitive refs" "assert_emit_preserves_scalable_primitives"
 assert "emit-work-items preserves slop quality gates" "assert_emit_preserves_slop_quality_gate"
 assert "emit-work-items omits absent slop quality gates" "assert_emit_omits_absent_slop_quality_gate"
+assert "generated-output work without slop gate blocks readiness" "assert_generated_output_missing_slop_gate_blocks_readiness"
+assert "generated-output work with valid slop gate passes readiness" "assert_generated_output_valid_slop_gate_passes_readiness"
+assert "generated-output string metric without validator blocks readiness" "assert_generated_output_string_metric_blocks_readiness"
+assert "code-only work without slop gate passes readiness" "assert_code_only_without_slop_gate_passes_readiness"
+assert "compact not-applicable safety contracts pass readiness" "assert_compact_not_applicable_contracts_pass_readiness"
+assert "slop-gate CLI blocks missing generated-output gate" "assert_slop_gate_cli_blocks_missing_generated_gate"
 assert "Notion decomposition respects applicability manifest" "rg -q 'contract_version|applicability_manifest|active Build Brief sections' '$ROOT/skills/notion-decomposition/SKILL.md'"
 assert "JIRA ticket creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "GitHub issue creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/github-issue-creation/SKILL.md'"
@@ -260,10 +418,10 @@ assert "eval-council declares verifier scope intersection check" "rg -q 'Verifie
 assert "plan-reviewer output references verifier scope intersection" "rg -q 'verifier_scope_intersection|verifier_no_coverage' '$ROOT/agents/plan-reviewer.md'"
 assert "test-strength skill exists with coverage and mutation thresholds" "[ -f '$ROOT/skills/test-strength/SKILL.md' ] && rg -q '0.8|0.6|mutmut|stryker|cargo-mutants|test_strength_report' '$ROOT/skills/test-strength/SKILL.md'"
 assert "test-strength agent exists and maps to test_strength" "[ -f '$ROOT/agents/test-strength-auditor.md' ] && jq -e '.agents[] | select(.name==\"test-strength-auditor\") | .dag_node == \"test_strength\"' '$ROOT/skills/manifest.json' >/dev/null"
-assert "WORKFLOW.dot includes test_strength node and weak edge" "rg -q 'test_strength \\[shape=box, label=\"Test Strength\\\\nCoverage \\+ Mutation Audit\", style=filled, fillcolor=\"#e6f3ff\"\\]' '$ROOT/WORKFLOW.dot' && rg -q 'qa -> test_strength.*label=\"pass\"' '$ROOT/WORKFLOW.dot' && rg -q 'test_strength -> fixer.*label=\"weak\"' '$ROOT/WORKFLOW.dot'"
-assert "WORKFLOW.dot routes test_strength pass to slop_gate" "rg -q 'test_strength -> slop_gate.*label=\"pass\"' '$ROOT/WORKFLOW.dot'"
+assert "WORKFLOW.dot includes conditional test_strength node and weak edge" "rg -q 'test_strength \\[shape=box, label=\"Test Strength\\\\nConditional Audit\", style=filled, fillcolor=\"#e6f3ff\"\\]' '$ROOT/WORKFLOW.dot' && rg -q 'qa -> test_strength.*test-strength active' '$ROOT/WORKFLOW.dot' && rg -q 'test_strength -> fixer.*label=\"weak\"' '$ROOT/WORKFLOW.dot'"
+assert "WORKFLOW.dot routes test_strength pass to slop_gate conditionally" "rg -q 'test_strength -> slop_gate.*slop active' '$ROOT/WORKFLOW.dot' && rg -q 'test_strength -> pr_prep.*slop inactive' '$ROOT/WORKFLOW.dot'"
 assert "WORKFLOW.md registers test_strength row and retry cap" "rg -q 'test_strength_retry: 2' '$ROOT/WORKFLOW.md' && rg -q 'agents/test-strength-auditor\\.md.*test-strength' '$ROOT/WORKFLOW.md'"
-assert "WORKFLOW.md binds slop_gate command" "rg -q '^slop_gate:' '$ROOT/WORKFLOW.md' && rg -q 'stop-slop all --commit HEAD' '$ROOT/WORKFLOW.md'"
+assert "WORKFLOW.md binds executable slop_gate command" "rg -q '^slop_gate:' '$ROOT/WORKFLOW.md' && rg -q 'bin/adlc slop-gate --build-brief' '$ROOT/WORKFLOW.md' && '$ROOT/bin/adlc' slop-gate --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --json >/dev/null"
 assert "manifest registers test-strength skill with consumes_manifest" "jq -e '.skills[] | select(.name==\"test-strength\") | .activation.consumes_manifest == true and (.activation.produces | index(\"test_strength_report\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "manifest registers triage low_confidence and planner escalate labels" "jq -e '.agents[] | select(.name==\"triage\") | (.labels | index(\"low_confidence\")) != null' '$ROOT/skills/manifest.json' >/dev/null && jq -e '.agents[] | select(.name==\"planner\") | (.labels | index(\"escalate\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "manifest registers graph research and comprehension skills" "jq -e '.skills[] | select(.name==\"graph-research\") | (.dag_nodes | index(\"research\")) != null and (.dag_nodes | index(\"code_review\")) != null' '$ROOT/skills/manifest.json' >/dev/null && jq -e '.skills[] | select(.name==\"comprehension-gate\") | (.dag_nodes | index(\"code_review\")) != null' '$ROOT/skills/manifest.json' >/dev/null"

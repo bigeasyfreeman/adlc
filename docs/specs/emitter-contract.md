@@ -254,7 +254,7 @@ The readiness checker validates:
    - `compatibility_contract`
    - `tech_debt_boundaries`
    - `failure_modes`
-   - `slop_quality_gate` when the task changes generated-output behavior, or an explicit `not_applicable` reason when the brief includes the field
+   - `slop_quality_gate` when `generated_output_surface.active=true`; if the brief includes `slop_quality_gate` for an inactive surface it must use `applicability=not_applicable` with a concrete reason
 6. **Phase-project map** — when a `--phase-project-map` is provided, any task with a `phase_label` that exists in the map must have a matching `target_project` in `work_item_metadata`.
 
 ### CLI Flags

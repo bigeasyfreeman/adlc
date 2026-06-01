@@ -101,9 +101,17 @@ Judge skills resolve their `fast_judge` and `deep_judge` slots through `skills/m
 | `pr_prep` | `agents/pr-preparer.md` | claude | claude-sonnet-4-6 | — |
 | `engineer_review` | *human gate* | — | — | — |
 
+`security`, `test_strength`, and `slop_gate` are conditional overlays. A runner
+enters them only when the applicability manifest or task-level surface evidence
+activates the corresponding surface. Inactive overlays are skipped rather than
+converted into boilerplate work.
+
 ### Tool Nodes (Deterministic — No LLM)
 
-Tool nodes run shell commands. They are cheap, fast, and reliable.
+Tool nodes run shell commands. They are cheap, fast, and reliable. Overlay nodes
+run only when the Build Brief `applicability_manifest` or task surface marks the
+surface active; otherwise the runner follows the skip/no-op edge shown in
+`WORKFLOW.dot`.
 
 ```yaml
 scaffold:
@@ -127,7 +135,7 @@ qa:
 
 slop_gate:
   command: |
-    stop-slop all --commit HEAD
+    bin/adlc slop-gate --build-brief ${BUILD_BRIEF:?} --json
 ```
 
 ### Fan-Out Configuration

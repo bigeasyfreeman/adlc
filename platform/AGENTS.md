@@ -7,7 +7,7 @@ This project uses the ADLC framework for AI-assisted development.
 The ADLC pipeline converts feature descriptions into production code:
 
 ```
-Triage → Graph Research → Plan ↔ Review → Code (parallel) → Comprehension Gate → QA → Security → PR → Engineer Review
+Triage → Graph Research → Plan ↔ Review → Code (parallel) → Comprehension Gate → QA → Conditional Overlays → PR → Engineer Review
 ```
 
 ## Working Agreements
@@ -23,7 +23,7 @@ Triage → Graph Research → Plan ↔ Review → Code (parallel) → Comprehens
 - Agents emit structured labels: `lgtm`, `revise`, `escalate`, `pass`, `fail`
 - Parallel tasks explicitly flagged — serial execution of independent tasks is a velocity failure
 - No TODO/FIXME/PLACEHOLDER in shipped code
-- Security review runs appsec-threat-model baseline on every change
+- Security review runs only when the applicability manifest marks a security-relevant surface active
 
 ## Build & Test
 

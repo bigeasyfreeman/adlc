@@ -708,8 +708,11 @@
       "contract_version": "1.0.0",
       "side_effect_profile": "mutating",
       "activation": {
-        "mode": "core",
+        "mode": "overlay",
         "consumes_manifest": true,
+        "surface": "test_strength",
+        "task_classes": ["feature", "bugfix", "refactor", "security"],
+        "trigger_fields": ["runtime_path_change", "service_boundary_change", "api_change", "data_format_change", "user_facing_operation"],
         "requires": ["test_plan", "changed_files", "mutation_config"],
         "produces": ["test_strength_report"]
       },
@@ -828,8 +831,10 @@
       "contract_version": "2.0.0",
       "side_effect_profile": "read_only",
       "activation": {
-        "mode": "core_plus_overlays",
+        "mode": "overlay",
         "consumes_manifest": true,
+        "surface": "generated_output",
+        "task_fields": ["generated_output_surface", "slop_quality_gate"],
         "produces": ["slop_quality_report", "slop_eval_case_candidates"]
       },
       "dag_nodes": ["slop_gate", "pr_prep"]

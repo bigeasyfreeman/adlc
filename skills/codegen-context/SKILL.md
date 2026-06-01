@@ -292,23 +292,23 @@ These are the exact files this task touches.
 ### Production Invariants
 [Paste production_invariant_coverage entries, status, evidence, and required verifier or human-judgment checkpoint.]
 
-## 9. Slop Quality Gate
-[Paste `slop_quality_gate` when active: applicability reason, mode, eval cases, metrics, threshold, baseline score, regression tolerance, failure action, and case-promotion sources. If not applicable, paste the reason only.]
-
-## 10. Tech Debt Boundaries
+## 9. Tech Debt Boundaries
 [Paste prerequisite debt, deferred debt, and safe-deferral rationale. Do not ask the coding agent to implement unrelated catalog items.]
 
-## 11. Comprehension Context
+## 10. Comprehension Context
 [Paste relevant module manifest entries, behavioral contracts, decision-log warnings, graph research evidence, and unresolved context gaps.]
 
-## 12. Evidence and Definition of Done
+## 11. Evidence and Definition of Done
 [Paste evidence responsibilities and binary Definition of Done checks.]
 
-## 13. Performance Budget
+## 12. Performance Budget
 [Paste only the targets that are active for this task.]
 
-## 14. Schema
+## 13. Schema
 [Paste only the relevant schema sections.]
+
+## 14. Slop Quality Gate (only when active)
+[Include this section only when the task changes generated-output behavior. Paste `slop_quality_gate`: applicability reason, mode, eval cases, metrics, threshold, baseline score, regression tolerance, failure action, and case-promotion sources. Omit the section entirely for code-only, docs-only, lint-only, and build-validation tasks with no generated-output surface.]
 
 ## 15. What Not To Do
 [Paste the negative constraints from duplication and verifier quality.]
