@@ -9,7 +9,7 @@ description: "Discovers existing functions/patterns/utilities that must be reuse
 
 Before building anything new, prove it doesn't already exist. This skill discovers reusable code, enforces pattern continuation, and prevents antipattern repetition.
 
-Use this with `paved-road-registry`: reuse-analysis finds concrete helpers, functions, and modules not to reimplement; paved-road-registry records the broader repo-local build contract for APIs, CLIs, schemas, storage, auth, observability, tests, and runtime conventions.
+Use this with `paved-road-registry`: reuse-analysis finds concrete helpers, functions, and modules not to reimplement; paved-road-registry records the broader repo-local build contract for APIs, CLIs, schemas, storage, auth, observability, tests, and runtime conventions. When a task needs an `implementation_interface_contract`, reuse-analysis supplies the `reuse` list and helps verify the interface does not reimplement an existing surface.
 
 ## When to Use
 
@@ -38,6 +38,13 @@ Match task description terms against:
 - Function names and class names
 - Docstrings and inline comments
 - Module-level documentation
+
+### Step 3.5: Implementation Interface Inputs
+For integration or reusable framework work, produce implementation-interface inputs:
+- existing surfaces to reuse
+- consumes/emits shapes visible in code, schemas, CLI payloads, workflow state, or provider contracts
+- minimum fields and invariants already protected by tests or schemas
+- validation gates that prove the reused surface still works
 
 ### Step 4: LLM-Filtered Relevance
 Rank discovered items by relevance to the current task. Filter out false positives.
@@ -103,6 +110,7 @@ Compare new functions against the reuse catalog:
 - [ ] Reuse analysis ran before design (Phase 1)
 - [ ] `compound_context.learning_refs` checked, cited, rejected as stale, or recorded as no-op
 - [ ] All reusable items listed with "DO NOT REIMPLEMENT" tags
+- [ ] Implementation Interface `reuse`, `consumes`, `emits`, and validation gates identified when the task changes an integration boundary
 - [ ] Antipatterns identified and documented
 - [ ] Implementation verified: no reimplementation detected (Phase 5)
 - [ ] Existing conventions followed (naming, error handling, config patterns)

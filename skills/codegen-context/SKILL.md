@@ -52,6 +52,26 @@ This skill runs before the coding agent starts. Its output is the coding agent's
         "evidence": ["string"]
       }
     ],
+    "implementation_interface_contract": {
+      "id": "string",
+      "reuse": ["existing module, schema, CLI, workflow, provider, or helper"],
+      "consumes": ["input, state, config, artifact, event, or dependency"],
+      "emits": ["output, state update, artifact, event, side effect, or evidence"],
+      "minimum_fields": [{"name": "string", "kind": "string", "constraint": "string"}],
+      "invariants": ["compatibility, idempotency, privacy, rollback, or data-integrity rule"],
+      "integration_points": ["path, command, schema, provider, or runtime boundary"],
+      "validation_gates": ["test, schema, command, smoke check, or review gate"]
+    },
+    "productionization_gate": {
+      "id": "string",
+      "claim": "string",
+      "coverage_state": "unsupported | evidence_only | monitor_only | not_yet_ga | governed | production_ready",
+      "operational_readiness": {},
+      "security_privacy": {},
+      "reliability_failure_modes": [],
+      "validation_evidence": [],
+      "no_overclaim": []
+    },
     "slop_quality_gate": {
       "applicability": "required | not_applicable",
       "reason": "string",
@@ -166,6 +186,8 @@ Hard rule:
 - Every behavioral test artifact, fixture, and command verifier relevant to the task must be inlined
 - Every implementation task must include its decision contract, tech debt boundaries, compatibility contract, evidence responsibilities, and Definition of Done. If the task is blocked by an unresolved Type 1 decision, do not assemble a coding prompt; return `stuck` with reason `unresolved_decision_blocks_implementation`.
 - Every code-changing implementation task must include its construct-map refs, paved-road refs or explicit `no_paved_road_found`, intent contract refs, and production invariant coverage. If these are missing for a medium+ blast-radius code path, return `stuck` with reason `missing_scalable_code_primitives`.
+- Every task that changes an integration boundary, schema, emitter payload, workflow state, CLI contract, provider edge, or reusable framework surface must include its `implementation_interface_contract`. If missing for an active surface, return `stuck` with reason `missing_implementation_interface_contract`.
+- Every task that makes or changes a production support claim must include its `productionization_gate`. If missing for an active claim, return `stuck` with reason `missing_productionization_gate`. If `coverage_state` is `production_ready` but validation evidence, no-overclaim boundaries, rollback/owner/runbook or observability posture, reliability failure modes, or security/privacy posture are missing, return `stuck` with reason `overclaimed_production_ready`.
 - Every task that changes generated-output behavior must include its `slop_quality_gate`, including eval cases, metrics, threshold, failure action, and case-promotion sources. If missing for a generated-output surface, return `stuck` with reason `missing_slop_quality_gate`.
 
 What gets inlined:
@@ -178,8 +200,10 @@ What gets inlined:
 - The existing pattern table from the Build Brief
 - Task-relevant construct relationships, validation surfaces, and blast-radius notes
 - Paved-road reference implementations, allowed departures, and `do_not_reimplement` rules
+- Implementation Interface contract: reuse, consumes, emits, minimum fields, invariants, integration points, validation gates, failure semantics, and privacy/redaction posture when active
 - Intent constraints, explicit non-goals, load-bearing assumptions, and human-judgment checkpoints
 - Production invariant coverage for the task, including any gaps or review-required items
+- Productionization Gate: Coverage State, claim, validation evidence, No-Overclaim boundaries, reliability failure modes, operational readiness, rollback/runbook/observability posture, and security/privacy posture when active
 - Slop quality gate cases, rubrics, metrics, threshold, baseline score, regression tolerance, and failure-promotion instructions when active
 - Relevant learning refs from `docs/solutions`: ID, path, title, short summary, verifier ref, source evidence, stale conditions, and direct-verification caveat
 - Compatibility constraints and performance budget when active
@@ -308,6 +332,12 @@ These are the exact files this task touches.
 ### Production Invariants
 [Paste production_invariant_coverage entries, status, evidence, and required verifier or human-judgment checkpoint.]
 
+### Implementation Interface
+[Include this section only when active. Paste `implementation_interface_contract`: reuse, consumes, emits, minimum fields, invariants, integration points, validation gates, failure semantics, privacy/redaction posture, and evidence refs.]
+
+### Productionization Gate
+[Include this section only when active. Paste `productionization_gate`: claim, Coverage State, validation evidence, No-Overclaim boundaries, reliability failure modes, owner, rollback path, runbook/alerting/dashboard/SLO refs where applicable, security/privacy posture, and known unsupported states. Do not let the coding agent expand production claims beyond this gate.]
+
 ## 9. Tech Debt Boundaries
 [Paste prerequisite debt, deferred debt, and safe-deferral rationale. Do not ask the coding agent to implement unrelated catalog items.]
 
@@ -351,7 +381,9 @@ Then run the secondary verifiers.
 From the research deliverable, pull only what the task needs:
 - construct-map entries for affected modules, interfaces, schemas, configs, state, tests, and reverse dependencies
 - paved-road candidates or the explicit `no_paved_road_found` gap
+- implementation-interface candidates, including reuse paths, consumes/emits shapes, integration points, and validation gates
 - load-bearing invariant notes and validation surfaces
+- blocked production claims, lower Coverage State rationale, and No-Overclaim boundaries
 - generated-output failure samples, accepted slop eval cases, quality thresholds, and feedback-loop case-promotion sources
 - integration path
 - duplication risks
@@ -366,6 +398,8 @@ Pull in only the brief sections that the applicability manifest marks active:
 - compatibility constraints when applicable
 - graph research evidence for compatibility, reuse, and blast radius
 - construct map, paved-road evidence, intent contract, and production invariant coverage when the task changes code, schema, runtime behavior, persistence, API contracts, or deployment conventions
+- implementation-interface contracts when the task changes integration boundaries, schema, emitters, workflow state, CLI contracts, provider edges, or reusable framework surfaces
+- productionization gates when the task makes or changes a production support claim
 - slop quality gate when the task changes generated-output behavior, prompt behavior, model selection, agent roles, content, product output, response templates, or output validators
 - context-layer artifacts and decision-log warnings when applicable
 - performance budget when applicable

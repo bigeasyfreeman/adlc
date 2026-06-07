@@ -34,6 +34,7 @@ This table is the authoritative mapping of `change_surface` flags and task class
 | Observability | `10, 11, 12, 13, 14` | `runtime_path_change OR user_facing_operation` |
 | Integration | `18, 19, 20` | `service_boundary_change OR external_integration OR api_change OR data_format_change` |
 | Content | `21, 22` | `task_classification == "docs"` or human-facing output is in scope |
+| Implementation Interface / Productionization | `23, 24, 25, 26` | `service_boundary_change OR external_integration OR api_change OR data_format_change OR runtime_path_change OR user_facing_operation` when an interface or production claim is active |
 
 Overlay checks that are not activated by this table must be reported as `not_applicable` with a concrete reason in the manifest's `section_policy`.
 
@@ -100,6 +101,15 @@ Extraction rules:
 | 21 | Stop-slop gate passed | `judgement` | overlay | Slop judge plus scoring output | Score < 35/50 |
 | 22 | Voice/brand compliance | `judgement` | overlay | Voice / brand review | Voice mismatch |
 
+## Implementation Interface / Productionization Overlay
+
+| # | Check | Tag | Scope | Verification | Blocks On |
+|---|-------|-----|-------|-------------|-----------|
+| 23 | Implementation Interface preserved | `judgement` | overlay | Council review plus schema/CLI evidence | Missing or changed `implementation_interface_contract`, reuse, consumes/emits, minimum fields, invariants, integration points, or validation gates |
+| 24 | Productionization Gate bounded | `automatable` | overlay | Build Brief schema plus `emit-work-items --require-ready` | Missing `productionization_gate` for active production claim |
+| 25 | Production-ready evidence present | `automatable` | overlay | Readiness report | `overclaimed_production_ready`, missing validation evidence, no-overclaim, reliability failure modes, owner, rollback, runbook/observability, or security/privacy posture |
+| 26 | No-Overclaim respected | `judgement` | overlay | Code review and PR closeout evidence | Shipped code, ticket text, or PR summary claims support beyond the Coverage State |
+
 ## Domain Adaptation
 
 **SWElfare:** Core baseline always applies. Security, observability, integration, and content overlays activate only when the applicability manifest says the surface exists.
@@ -143,7 +153,11 @@ Extraction rules:
     "scalability_documented": { "status": true },
     "degradation_defined": { "status": true },
     "slop_gate": { "status": true, "score": 42 },
-    "voice_compliance": { "status": true }
+    "voice_compliance": { "status": true },
+    "implementation_interface_preserved": { "status": true },
+    "productionization_gate_bounded": { "status": true },
+    "production_ready_evidence_present": { "status": true },
+    "no_overclaim_respected": { "status": true }
   },
   "all_passed": true,
   "timestamp": "2026-04-05T12:00:00Z"

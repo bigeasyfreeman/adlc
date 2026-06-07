@@ -1,0 +1,1517 @@
+{
+  "version": "1.0.0",
+  "adlc_mode": "decompose_only",
+  "brief_id": "ADLC-IMPLEMENTATION-INTERFACES-PRODUCTIONIZATION",
+  "prd_id": "ADLC-IMPLEMENTATION-INTERFACES-PRODUCTIONIZATION-PRD",
+  "applicability_manifest": {
+    "version": "1.0.0",
+    "task_classification": "infra",
+    "task_classification_confidence": 0.94,
+    "classification_evidence": [
+      "The prompt asks ADLC to evolve framework-level docs, schemas, workflow state, CLI payloads, skills, examples, and tests.",
+      "The requested change is a decomposition and production-readiness framework layer, not an application feature."
+    ],
+    "change_surface": {
+      "new_attack_surface": false,
+      "runtime_path_change": true,
+      "service_boundary_change": false,
+      "external_integration": false,
+      "persistent_storage": true,
+      "api_change": true,
+      "data_format_change": true,
+      "auth_change": false,
+      "perf_sensitive": false,
+      "user_facing_operation": false
+    },
+    "claim_provenance": {
+      "supported": [
+        {
+          "claim": "ADLC already has Build Brief schemas, workflow state, Graphify-backed research, planner/researcher/codegen prompts, readiness-gated work-item emission, and verifier-first validation.",
+          "source_ref": "README.md, WORKFLOW.md, docs/schemas/build-brief.schema.json, docs/schemas/workflow-state.schema.json, scripts/adlc.py",
+          "extracted_from": "Repo research and Graphify query"
+        },
+        {
+          "claim": "ADLC currently has production invariant, compatibility, slop quality, and unsupported-claim primitives, but it lacks first-class implementation-interface contracts and productionization gates.",
+          "source_ref": "agents/planner.md, skills/eval-council/SKILL.md, scripts/adlc.py, docs/schemas/build-brief.schema.json",
+          "extracted_from": "Prompt review and direct source inspection"
+        },
+        {
+          "claim": "The correct integration path is to extend the existing ADLC model rather than add a parallel productionization framework.",
+          "source_ref": "ADLC_IMPLEMENTATION_INTERFACES_PRODUCTIONIZATION_GOAL_PROMPT.md",
+          "extracted_from": "User-provided goal prompt"
+        }
+      ],
+      "unsupported": [],
+      "contradicted": []
+    },
+    "contamination": {
+      "flags": [
+        "scope_creep"
+      ],
+      "supported_claims": [
+        "Implementation-interface contracts should become the bridge between feature decomposition and coding tasks.",
+        "Productionization gates should prevent production-ready claims without evidence.",
+        "The integration should stay ADLC-native and schema-backed."
+      ],
+      "unsupported_claims": [],
+      "contradicted_claims": [],
+      "needs_clarification": [],
+      "suspect_phrases": [
+        "separate productionization framework",
+        "generic compliance checklist",
+        "production-ready by documentation only",
+        "always require runbooks for trivial docs or lint work"
+      ]
+    },
+    "section_policy": [
+      {
+        "section_name": "1_context",
+        "status": "active",
+        "reason": "The decomposition needs to preserve the product-planning gap and the ADLC-native integration constraint."
+      },
+      {
+        "section_name": "8_task_tickets",
+        "status": "active",
+        "reason": "The goal should run as independently verifiable implementation and validation tasks."
+      },
+      {
+        "section_name": "11_validation_plan",
+        "status": "active",
+        "reason": "Schema, CLI, prompt, emitter, and Graphify validation are required before claiming the framework layer works."
+      },
+      {
+        "section_name": "12_skill_trigger_configuration",
+        "status": "active",
+        "reason": "Researcher, planner, codegen context, review, and emitter skills must exchange the new contract fields."
+      },
+      {
+        "section_name": "14_graph_research_evidence",
+        "status": "active",
+        "reason": "Graphify is the required preflight for repo-level framework integration."
+      }
+    ],
+    "verification_spec": {
+      "primary_verifier": {
+        "type": "command",
+        "target": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization.json --dry-run --require-ready --json",
+        "expected_pre_change": "fail",
+        "expected_post_change": "pass",
+        "rationale": "The decomposition must be schema-valid and work-item ready before implementation begins.",
+        "target_files": [
+          "docs/build-briefs/implementation-interfaces-productionization.json"
+        ],
+        "expected_failure_mode": "implementation interface and productionization decomposition missing or readiness blocked"
+      },
+      "secondary_verifiers": [],
+      "must_fail_before_change": true,
+      "must_be_deterministic": true,
+      "scope_note": "This validates the decomposition artifact, not the future implementation."
+    }
+  },
+  "enterprise_readiness_contract": {
+    "production_grade_target": "Make implementation-interface contracts and productionization gates first-class ADLC layers across docs, schemas, workflow state, agent prompts, context assembly, work-item emission, readiness checks, examples, and tests.",
+    "backward_compatibility": "Existing Build Briefs, workflow states, CLI commands, smoke fixtures, and work-item emitters must keep validating when the new implementation-interface and productionization fields are absent.",
+    "forward_compatibility": "The new contract shapes must be optional, schema-backed, and preserved through normalized payloads so future deterministic validators or workflow nodes can consume them without changing task semantics.",
+    "failure_mode_coverage": [
+      "Parallel framework drift is covered by extending Build Brief, workflow state, planner, codegen, review, and emitters instead of adding a standalone productionization path.",
+      "Overclaim risk is covered by explicit coverage states, validation evidence, no-overclaim fields, and readiness checks that block unsupported production-ready claims.",
+      "Duplicate primitives are covered by reuse, paved-road, construct-map, and implementation-interface reuse requirements before new schemas or interfaces are introduced.",
+      "Context bloat is covered by task-scoped codegen context that inlines only the relevant implementation-interface and productionization sections.",
+      "Legacy breakage is covered by optional schema fields, not-applicable reasons, fixture validation, and emitter preservation tests."
+    ],
+    "definition_of_done": [
+      "Docs define implementation interfaces and productionization gates as ADLC-native lifecycle layers.",
+      "Build Brief and applicability schemas accept the new optional sections and task-level fields while legacy fixtures remain valid.",
+      "Workflow state tracks interface-contract and productionization readiness status without requiring a new default DAG node.",
+      "Researcher, planner, codegen context, reuse/paved-road, Eval Council, Definition of Done, code review, and emitters consume or preserve the new contracts.",
+      "Readiness checks prevent production_ready claims without evidence, owner/rollback/observability/runbook posture where applicable, and explicit no-overclaim states.",
+      "At least one example artifact demonstrates feature gap to implementation-interface contract to productionization gate to tickets and validation.",
+      "CLI, contract, schema, emitter, and Graphify validation pass end to end."
+    ],
+    "validation_tasks": [
+      "ADLC-IIP-VAL"
+    ],
+    "compliance_posture": "No external auth, secret, or production mutation is introduced. This change modifies framework docs, schemas, prompts, examples, tests, and local CLI validation. Security and privacy posture is represented as evidence in productionization gates, not expanded into unrelated compliance scope.",
+    "construct_map_refs": [
+      "README.md",
+      "WORKFLOW.md",
+      "WORKFLOW.dot",
+      "agents/researcher.md",
+      "agents/planner.md",
+      "skills/codegen-context/SKILL.md",
+      "skills/eval-council/SKILL.md",
+      "docs/schemas/build-brief.schema.json",
+      "docs/schemas/applicability-manifest.schema.json",
+      "docs/schemas/workflow-state.schema.json",
+      "scripts/adlc.py"
+    ],
+    "paved_road_refs": [
+      "docs/specs/scalable-ai-code-primitives.md",
+      "docs/specs/graph-research-and-comprehension.md",
+      "docs/specs/emitter-contract.md",
+      "docs/build-briefs/scalable-ai-code-primitives.md",
+      "docs/build-briefs/compound-engineering-workflow-integration.json",
+      "tests/test_adlc_contracts.sh",
+      "tests/test_adlc_cli.sh"
+    ],
+    "production_invariant_coverage": [
+      "data_integrity: new schema fields must be optional or explicitly not applicable so existing fixtures remain valid.",
+      "idempotency: work-item emission must preserve the new fields without changing idempotency keys or dependency resolution.",
+      "observability: readiness reports and validation tasks must expose blocked production claims and missing evidence.",
+      "sensitive_data: productionization security and privacy fields must describe redaction and evidence posture without storing secrets.",
+      "downgrade: rollback and downgrade expectations belong in productionization gates and compatibility contracts."
+    ]
+  },
+  "sections": {
+    "1_context": "ADLC can currently decompose PRD intent into Build Brief tasks with compatibility, verification, production invariant, slop, and readiness primitives. The missing precision layer is explicit implementation-interface contracts and productionization gates: what a feature consumes, emits, reuses, guarantees, validates, and may claim in production.",
+    "2_scope_and_constraints": "In scope: framework spec, README/workflow docs, Build Brief schema, applicability schema section policy, workflow-state status rollups, CLI normalization/readiness checks, researcher/planner/codegen/reuse/review prompt wiring, emitter preservation, example artifact, tests, and Graphify refresh. Out of scope: a separate productionization workflow, mandatory runbooks for trivial work, external provider mutation, or broad compliance expansion.",
+    "3_repo_findings": "Graphify is fresh to commit 95930e44. Current ADLC surfaces include Build Brief sections 1-15, task-level compatibility_contract, verification_spec, evidence_responsibilities, definition_of_done, construct_map_refs, paved_road_refs, intent_contract_refs, production_invariant_coverage, slop_quality_gate, workflow task_fingerprints, and emit-work-items readiness checks. These are the native surfaces to extend.",
+    "4_architecture": "Represent implementation interfaces and productionization gates inside the Build Brief as optional top-level sections and task-level contracts. Research produces candidates. Planner resolves them into task contracts. Codegen context inlines them. Eval Council and DoD validate them. Emitters preserve them. Readiness checks block overclaimed production_ready states. Workflow state records status summaries for resume and closeout.",
+    "5_security_review": [
+      {
+        "risk": "Productionization fields could become a generic compliance checklist.",
+        "mitigation": "Tie security and privacy fields to concrete claim, evidence, authority, redaction, and validation refs; suppress not-applicable surfaces."
+      },
+      {
+        "risk": "No-overclaim text could be lost when work is emitted into tickets.",
+        "mitigation": "Preserve productionization gates and no-overclaim states in normalized payloads and emitter templates."
+      },
+      {
+        "risk": "Existing Build Briefs could break if new fields become mandatory.",
+        "mitigation": "Make new sections optional and enforce only when production-bound tasks declare active productionization surfaces."
+      }
+    ],
+    "6_observability_slo": "The framework should expose blocked production claims, missing validation evidence, interface-contract status, and productionization readiness status in readiness reports, workflow state, work-item descriptions, and validation task evidence.",
+    "7_execution_plan": "Implement in eight slices: docs/specs, schema contracts, workflow state and CLI readiness, agent/skill prompt exchange, review and no-overclaim gates, examples and emitter preservation, deterministic tests, and final validation plus Graphify refresh.",
+    "8_task_tickets": [
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-IIP-001",
+        "title": "Define ADLC implementation-interface and productionization framework",
+        "objective": "Document implementation-interface contracts and productionization gates as ADLC-native layers between feature decomposition, coding tasks, and production claim validation.",
+        "task_classification": "docs",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Use Build Brief and task-level contracts as the source of truth; do not add a separate productionization framework."
+        },
+        "scope": [
+          "Create docs/specs/implementation-interfaces-and-productionization.md.",
+          "Update README Build Brief and pipeline language to mention implementation interfaces and productionization gates.",
+          "Update docs/specs/scalable-ai-code-primitives.md to position these layers relative to construct maps, intent contracts, paved roads, verifiability, and production invariants.",
+          "Update docs/specs/graph-research-and-comprehension.md so graph research can feed consumes, emits, integration points, validation surfaces, and blocked production claims."
+        ],
+        "out_of_scope": [
+          "No new workflow node in this task.",
+          "No schema implementation in this task.",
+          "No generic compliance checklist."
+        ],
+        "dependencies": [],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_IIP_001-SPEC",
+            "given": "a planner reads the framework spec",
+            "when": "it needs to distinguish feature intent from implementation contracts and production claims",
+            "then": "the spec defines Implementation Interface, Interface Contract, Productionization Gate, Coverage State, and No-Overclaim Rule with ADLC-native ownership",
+            "measurable_post_condition": "docs/specs/implementation-interfaces-and-productionization.md contains all five definitions"
+          },
+          {
+            "id": "AC-ADLC_IIP_001-NON_PARALLEL",
+            "given": "a maintainer reviews the docs",
+            "when": "they inspect workflow language",
+            "then": "the docs describe these layers as part of Build Brief planning and validation rather than a parallel productionization framework",
+            "measurable_post_condition": "README and specs reference Build Brief ownership"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not describe productionization as broad compliance readiness.",
+          "Do not duplicate existing scalable AI code primitive definitions.",
+          "Do not imply Graphify evidence alone proves Type 1 production claims."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "None.",
+          "deferred_debt": "A deterministic productionization validator may be deferred until the schema shape is stable.",
+          "deferral_safety": "Eval Council, readiness checks, and schema tests will enforce the first slice without adding a new DAG node."
+        },
+        "compatibility_contract": {
+          "backward": "Docs must not claim existing artifacts already carry these fields.",
+          "forward": "Definitions must leave room for future deterministic validators and workflow nodes.",
+          "migration_or_rollout": "Introduce terminology first, then schema and prompt enforcement in dependent tasks."
+        },
+        "implementation_notes": [
+          "Use the style and removal-criteria discipline from docs/specs/scalable-ai-code-primitives.md.",
+          "Use Graphify query evidence as navigation, then direct path references for claims."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "rg -n \"Implementation Interface|Productionization Gate|Coverage State|No-Overclaim\" docs/specs/implementation-interfaces-and-productionization.md README.md docs/specs/scalable-ai-code-primitives.md docs/specs/graph-research-and-comprehension.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Contract terms must be visible in the framework docs before schema work lands.",
+            "target_files": [
+              "docs/specs/implementation-interfaces-and-productionization.md",
+              "README.md",
+              "docs/specs/scalable-ai-code-primitives.md",
+              "docs/specs/graph-research-and-comprehension.md"
+            ],
+            "expected_failure_mode": "implementation-interface and productionization terms are absent from docs"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "A grep contract is sufficient for the documentation slice."
+        },
+        "evidence_responsibilities": [
+          "Cite the new spec path.",
+          "Capture grep output showing required terms in docs.",
+          "Record any deliberately deferred validator work."
+        ],
+        "definition_of_done": [
+          "Spec exists and defines the two layers.",
+          "README and related specs describe the integration without adding a parallel framework.",
+          "No production claim is made without noting schema and enforcement dependencies."
+        ],
+        "failure_modes": [
+          "Docs overclaim implementation support before schema and prompt tasks land.",
+          "Definitions duplicate existing compatibility or invariant terminology instead of layering on top.",
+          "The spec creates mandatory ceremony for trivial docs, lint, or build-validation tasks."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "README.md",
+          "docs/specs/scalable-ai-code-primitives.md",
+          "docs/specs/graph-research-and-comprehension.md"
+        ],
+        "files_to_create": [
+          "docs/specs/implementation-interfaces-and-productionization.md"
+        ],
+        "reference_impl": "docs/specs/scalable-ai-code-primitives.md",
+        "work_item_metadata": {
+          "area": "docs",
+          "phase_label": "phase:iip-1",
+          "labels": [
+            "adlc",
+            "implementation-interface",
+            "productionization"
+          ]
+        },
+        "construct_map_refs": [
+          "README.md",
+          "docs/specs/scalable-ai-code-primitives.md",
+          "docs/specs/graph-research-and-comprehension.md"
+        ],
+        "paved_road_refs": [
+          "docs/specs/scalable-ai-code-primitives.md"
+        ],
+        "intent_contract_refs": [
+          "ADLC_IMPLEMENTATION_INTERFACES_PRODUCTIONIZATION_GOAL_PROMPT.md"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "observability",
+            "status": "covered",
+            "evidence": [
+              "Documentation will define blocked claim and missing evidence reporting."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-IIP-002",
+        "title": "Extend Build Brief schemas with interface and productionization contracts",
+        "objective": "Add backward-compatible schema support for implementation-interface contracts, productionization gates, coverage states, and no-overclaim data.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Add optional Build Brief sections and task fields; do not require them for legacy briefs."
+        },
+        "scope": [
+          "Add optional Build Brief sections for implementation interfaces and productionization gates.",
+          "Add task-level implementation_interface_contract with reuse, consumes, emits, minimum_fields, invariants, integration_points, validation_gates, evidence_refs, and privacy posture.",
+          "Add task-level productionization_gate with claim, coverage_state, operational_readiness, security_privacy, reliability_failure_modes, validation_evidence, and no_overclaim.",
+          "Extend applicability-manifest section_policy enum for the new sections.",
+          "Keep existing fixtures schema-valid."
+        ],
+        "out_of_scope": [
+          "No readiness algorithm changes in this task.",
+          "No work-item emitter body templates in this task.",
+          "No breaking schema version bump unless tests prove it is required."
+        ],
+        "dependencies": [
+          "ADLC-IIP-001"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_IIP_002-BUILD_BRIEF",
+            "given": "a new Build Brief includes implementation-interface and productionization fields",
+            "when": "bin/adlc validate-artifact runs against docs/schemas/build-brief.schema.json",
+            "then": "the artifact validates with structured contract data preserved",
+            "measurable_post_condition": "schema definitions and tests cover the new fields"
+          },
+          {
+            "id": "AC-ADLC_IIP_002-LEGACY",
+            "given": "existing checked-in Build Brief fixtures omit the new fields",
+            "when": "schema validation runs",
+            "then": "legacy artifacts remain valid",
+            "measurable_post_condition": "existing CLI and contract tests still pass"
+          },
+          {
+            "id": "AC-ADLC_IIP_002-COVERAGE_STATE",
+            "given": "a productionization gate declares a coverage_state",
+            "when": "schema validation runs",
+            "then": "only unsupported, evidence_only, monitor_only, not_yet_ga, governed, or production_ready are accepted",
+            "measurable_post_condition": "negative tests reject invalid coverage states"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not make the new sections required for all tasks.",
+          "Do not use loose object fields where explicit definitions are needed for downstream preservation.",
+          "Do not add duplicate compatibility or verification fields when references to existing contracts are enough."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "The existing sections enum in applicability-manifest must be extended or the new Build Brief sections cannot be policy-controlled.",
+          "deferred_debt": "Dedicated standalone schemas for implementation interfaces can wait unless the Build Brief schema becomes too large.",
+          "deferral_safety": "Definitions inside build-brief.schema.json keep the first slice validated and local."
+        },
+        "compatibility_contract": {
+          "backward": "No existing Build Brief, smoke fixture, or xia remediation fixture should require new fields.",
+          "forward": "Field names must be stable enough for future deterministic productionization validators.",
+          "migration_or_rollout": "Introduce optional fields and tests in one PR; no migration is needed for existing artifacts."
+        },
+        "implementation_notes": [
+          "Follow existing optional task-field patterns such as construct_map_refs, paved_road_refs, production_invariant_coverage, slop_quality_gate, and not_applicable_reason.",
+          "Represent no-overclaim data structurally, not as prose-only ticket guidance."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "jq -e '.definitions.task.properties.implementation_interface_contract and .definitions.task.properties.productionization_gate and (.definitions.productionization_gate.properties.coverage_state.enum | index(\"production_ready\"))' docs/schemas/build-brief.schema.json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The Build Brief schema is the canonical persistence surface for task contracts.",
+            "target_files": [
+              "docs/schemas/build-brief.schema.json"
+            ],
+            "expected_failure_mode": "implementation_interface_contract or productionization_gate definitions are absent"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "jq -e '.properties.section_policy.items.properties.section_name.enum | index(\"16_implementation_interfaces\") and index(\"17_productionization_gates\")' docs/schemas/applicability-manifest.schema.json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Applicability policy must be able to activate or suppress the new sections.",
+              "target_files": [
+                "docs/schemas/applicability-manifest.schema.json"
+              ],
+              "expected_failure_mode": "new section policy enum entries are absent"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Schema-level assertions prove the fields exist without requiring downstream behavior yet."
+        },
+        "evidence_responsibilities": [
+          "Capture jq schema checks.",
+          "Capture validation of existing fixtures.",
+          "Document any fields intentionally modeled as arrays or not-applicable reasons."
+        ],
+        "definition_of_done": [
+          "Build Brief schema accepts the new contracts.",
+          "Applicability manifest can express section policy for new sections.",
+          "Legacy artifacts validate unchanged."
+        ],
+        "failure_modes": [
+          "Required fields break legacy Build Briefs.",
+          "Coverage states are stored as free text and cannot be gated later.",
+          "No-overclaim language is omitted from schema and lost before ticket emission."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "docs/schemas/build-brief.schema.json",
+          "docs/schemas/applicability-manifest.schema.json"
+        ],
+        "files_to_create": [],
+        "reference_impl": "docs/schemas/build-brief.schema.json",
+        "work_item_metadata": {
+          "area": "schema",
+          "phase_label": "phase:iip-2",
+          "labels": [
+            "adlc",
+            "schema"
+          ]
+        },
+        "construct_map_refs": [
+          "docs/schemas/build-brief.schema.json",
+          "docs/schemas/applicability-manifest.schema.json"
+        ],
+        "paved_road_refs": [
+          "docs/schemas/build-brief.schema.json#/definitions/slop_quality_gate",
+          "docs/schemas/build-brief.schema.json#/definitions/not_applicable_reason"
+        ],
+        "intent_contract_refs": [
+          "ADLC-IIP-001"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "data_integrity",
+            "status": "covered",
+            "evidence": [
+              "JSON schema validation preserves allowed contract shape."
+            ]
+          },
+          {
+            "invariant": "downgrade",
+            "status": "covered",
+            "evidence": [
+              "Optional fields preserve legacy artifact compatibility."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-IIP-003",
+        "title": "Preserve interface and productionization status through workflow state and CLI readiness",
+        "objective": "Make the CLI and workflow state carry interface-contract and productionization readiness data so the new layer affects execution, resume, and work-item readiness.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Add optional workflow-state rollups and normalized payload preservation; extend readiness only for active productionization gates."
+        },
+        "scope": [
+          "Add optional workflow-state status arrays or summaries for interface_contract_status and productionization_status.",
+          "Extend scripts/adlc.py normalized_work_item_payload to preserve implementation_interface_contract and productionization_gate fields.",
+          "Extend compute_readiness_report so production_ready gates require validation evidence and no unresolved no-overclaim blockers.",
+          "Ensure unsupported, evidence_only, monitor_only, and not_yet_ga coverage states are preserved but do not masquerade as production_ready.",
+          "Expose readiness issues with stable rule names for missing interface contract, missing productionization evidence, and overclaimed production readiness."
+        ],
+        "out_of_scope": [
+          "No provider-specific external mutation.",
+          "No new default DAG node.",
+          "No runtime adapter changes."
+        ],
+        "dependencies": [
+          "ADLC-IIP-002"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_IIP_003-PAYLOAD",
+            "given": "a Build Brief task includes implementation_interface_contract and productionization_gate",
+            "when": "bin/adlc emit-work-items runs in dry-run mode",
+            "then": "the normalized artifact preserves both fields",
+            "measurable_post_condition": "jq assertions pass against .artifacts[0]"
+          },
+          {
+            "id": "AC-ADLC_IIP_003-READY_BLOCK",
+            "given": "a task claims coverage_state production_ready without required validation evidence",
+            "when": "emit-work-items runs with --require-ready",
+            "then": "the command fails before mutation with a productionization readiness rule",
+            "measurable_post_condition": "CLI test covers the blocked case"
+          },
+          {
+            "id": "AC-ADLC_IIP_003-WORKFLOW_STATE",
+            "given": "workflow state includes interface and productionization statuses",
+            "when": "validate-artifact runs against workflow-state",
+            "then": "the state validates and resume output remains compatible",
+            "measurable_post_condition": "workflow-state schema and CLI tests pass"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not change work-item idempotency key format.",
+          "Do not block non-production-bound docs, lint, or build-validation work for missing productionization gates.",
+          "Do not collapse structured contracts into description-only strings."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Readiness rules need stable schema fields from ADLC-IIP-002.",
+          "deferred_debt": "A standalone bin/adlc productionization-gate command can wait until the readiness checks stabilize.",
+          "deferral_safety": "emit-work-items --require-ready is already the deterministic mutation gate."
+        },
+        "compatibility_contract": {
+          "backward": "Existing workflow states and emit-work-items payloads must remain valid without the new statuses.",
+          "forward": "Readiness rule names should be stable for future MCP tools and provider adapters.",
+          "migration_or_rollout": "Optional schema fields and conditional readiness checks require no state migration."
+        },
+        "implementation_notes": [
+          "Mirror slop_gate_issues_for_task style for productionization gate checks.",
+          "Keep readiness checks structural and deterministic; leave semantic judgement to Eval Council."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "rg -n \"implementation_interface_contract|productionization_gate|productionization_ready|overclaimed_production_ready|interface_contract_status|productionization_status\" scripts/adlc.py docs/schemas/workflow-state.schema.json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Runtime surfaces must preserve and report the new contract layer.",
+            "target_files": [
+              "scripts/adlc.py",
+              "docs/schemas/workflow-state.schema.json"
+            ],
+            "expected_failure_mode": "CLI or workflow state lacks implementation-interface and productionization support"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Contract grep plus CLI tests in ADLC-IIP-007 cover the runtime behavior."
+        },
+        "evidence_responsibilities": [
+          "Capture dry-run payload with fields preserved.",
+          "Capture blocked readiness output for an overclaimed production_ready gate.",
+          "Capture workflow-state validation output."
+        ],
+        "definition_of_done": [
+          "Workflow state schema accepts optional status rollups.",
+          "Normalized work-item payloads preserve new task contracts.",
+          "Readiness checks block unsupported production_ready claims."
+        ],
+        "failure_modes": [
+          "The CLI preserves fields but readiness does not enforce overclaims.",
+          "Readiness blocks all tasks instead of only active productionization surfaces.",
+          "Workflow-state additions break resume-workflow for legacy states."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "docs/schemas/workflow-state.schema.json",
+          "scripts/adlc.py"
+        ],
+        "files_to_create": [],
+        "reference_impl": "scripts/adlc.py:slop_gate_issues_for_task",
+        "work_item_metadata": {
+          "area": "cli",
+          "phase_label": "phase:iip-3",
+          "labels": [
+            "adlc",
+            "cli",
+            "readiness"
+          ]
+        },
+        "construct_map_refs": [
+          "scripts/adlc.py",
+          "docs/schemas/workflow-state.schema.json"
+        ],
+        "paved_road_refs": [
+          "scripts/adlc.py:compute_readiness_report",
+          "scripts/adlc.py:normalized_work_item_payload",
+          "docs/schemas/workflow-state.schema.json:task_fingerprints"
+        ],
+        "intent_contract_refs": [
+          "ADLC-IIP-002"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "idempotency",
+            "status": "covered",
+            "evidence": [
+              "Do not change idempotency key format or side effect resolution."
+            ]
+          },
+          {
+            "invariant": "observability",
+            "status": "covered",
+            "evidence": [
+              "Readiness reports expose blocked productionization rules."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-IIP-004",
+        "title": "Teach research planning and codegen to exchange implementation contracts",
+        "objective": "Update ADLC agents and skills so research discovers contract inputs, planning emits contract fields, and codegen context inlines them before coding.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Planner owns final contract emission; researcher and reuse skills provide evidence; codegen context consumes task-scoped contracts."
+        },
+        "scope": [
+          "Update agents/researcher.md to report implementation-interface candidates: reuse, consumes, emits, minimum fields, integration points, validation surfaces, and production claims blocked by missing evidence.",
+          "Update agents/planner.md to require implementation_interface_contract and productionization_gate when task surfaces justify them.",
+          "Update skills/codegen-context/SKILL.md to inline the contracts and return stuck for medium+ production-bound code work missing required contracts.",
+          "Update reuse-analysis, paved-road-registry, and graph-research language so reuse and construct evidence feed the Reuse and Integration Points sections.",
+          "Keep prompt rules applicability-aware so docs, lint, and build-validation work do not inherit productionization ceremony."
+        ],
+        "out_of_scope": [
+          "No schema field creation in this task.",
+          "No deterministic readiness algorithm changes.",
+          "No changes to runtime adapters."
+        ],
+        "dependencies": [
+          "ADLC-IIP-001",
+          "ADLC-IIP-002"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_IIP_004-RESEARCH",
+            "given": "researcher analyzes a production-bound feature",
+            "when": "it emits research deliverables",
+            "then": "it reports contract candidates and blocked production claims without turning gaps into tasks",
+            "measurable_post_condition": "researcher prompt includes implementation_interface_candidates and blocked_production_claims language"
+          },
+          {
+            "id": "AC-ADLC_IIP_004-PLANNER",
+            "given": "planner receives contract evidence",
+            "when": "it emits Build Brief tasks",
+            "then": "production-bound implementation tasks include implementation_interface_contract and productionization_gate or an explicit not-applicable reason",
+            "measurable_post_condition": "planner prompt names both missing-interface and blocked-production-claim questions"
+          },
+          {
+            "id": "AC-ADLC_IIP_004-CODEGEN",
+            "given": "context assembly prepares a production-bound coding prompt",
+            "when": "the required implementation interface is missing",
+            "then": "codegen context returns stuck with a typed missing contract reason",
+            "measurable_post_condition": "codegen-context prompt documents missing_implementation_interface_contract and missing_productionization_gate"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not ask coding agents to infer consumes or emits from broad repo search.",
+          "Do not let research propose implementation scope directly.",
+          "Do not paste entire graph reports or solution notes into codegen prompts."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Prompt language depends on ADLC-IIP-002 field names.",
+          "deferred_debt": "Full machine-generated codegen context rendering can wait; this task updates the contract language.",
+          "deferral_safety": "Existing codegen-context skill already defines the zero-read contract and stuck behavior."
+        },
+        "compatibility_contract": {
+          "backward": "Existing prompt inputs remain accepted when new fields are absent and not applicable.",
+          "forward": "The field names should match schema definitions so deterministic context assembly can be added later.",
+          "migration_or_rollout": "Update prompts after schema names are finalized; tests protect text wiring."
+        },
+        "implementation_notes": [
+          "Reuse existing Scalable AI Code Primitives and Graph-Backed Compatibility sections in planner.md.",
+          "Research output should report evidence and gaps, not solutions."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "rg -n \"implementation_interface_contract|implementation interface|productionization_gate|blocked production claim|missing_implementation_interface_contract|missing_productionization_gate\" agents/researcher.md agents/planner.md skills/codegen-context/SKILL.md skills/reuse-analysis/SKILL.md skills/paved-road-registry/SKILL.md skills/graph-research/SKILL.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Agents and skills must exchange the new contracts before coding.",
+            "target_files": [
+              "agents/researcher.md",
+              "agents/planner.md",
+              "skills/codegen-context/SKILL.md",
+              "skills/reuse-analysis/SKILL.md",
+              "skills/paved-road-registry/SKILL.md",
+              "skills/graph-research/SKILL.md"
+            ],
+            "expected_failure_mode": "prompt surfaces do not mention implementation-interface or productionization exchange"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Prompt text grep is the direct verifier for this contract slice."
+        },
+        "evidence_responsibilities": [
+          "Capture grep output for all updated prompt surfaces.",
+          "Document which agent owns each contract stage.",
+          "Record not-applicable behavior for low-risk tasks."
+        ],
+        "definition_of_done": [
+          "Researcher discovers contract evidence.",
+          "Planner emits or suppresses contracts intentionally.",
+          "Codegen context inlines contracts or returns typed stuck reasons."
+        ],
+        "failure_modes": [
+          "Planner emits vague task prose instead of structured contracts.",
+          "Codegen context lets production-bound work proceed without contracts.",
+          "Researcher turns every missing interface into scope without evidence."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "agents/researcher.md",
+          "agents/planner.md",
+          "skills/codegen-context/SKILL.md",
+          "skills/reuse-analysis/SKILL.md",
+          "skills/paved-road-registry/SKILL.md",
+          "skills/graph-research/SKILL.md"
+        ],
+        "files_to_create": [],
+        "reference_impl": "agents/planner.md:Scalable AI Code Primitives",
+        "work_item_metadata": {
+          "area": "agents",
+          "phase_label": "phase:iip-4",
+          "labels": [
+            "adlc",
+            "agents",
+            "codegen-context"
+          ]
+        },
+        "construct_map_refs": [
+          "agents/researcher.md",
+          "agents/planner.md",
+          "skills/codegen-context/SKILL.md"
+        ],
+        "paved_road_refs": [
+          "skills/codegen-context/SKILL.md:Zero-Read Principle",
+          "agents/planner.md:Task-writing rules"
+        ],
+        "intent_contract_refs": [
+          "ADLC-IIP-001",
+          "ADLC-IIP-002"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "other",
+            "status": "covered",
+            "evidence": [
+              "Prompt contract ownership keeps implementation agents from guessing."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-IIP-005",
+        "title": "Gate no-overclaim behavior in review and Definition of Done",
+        "objective": "Make ADLC review gates block vague production claims and missing implementation-interface evidence before code, tickets, or closeout can overclaim readiness.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Use Eval Council, code review, and DoD as the enforcement layer before considering a new DAG node."
+        },
+        "scope": [
+          "Update skills/eval-council/SKILL.md Gate 0 checks to flag missing implementation_interface_contract and missing productionization_gate for active surfaces.",
+          "Add no-overclaim checks that reject production_ready claims without validation evidence and explicit unsupported/no-effect cases.",
+          "Update skills/definition-of-done/SKILL.md with productionization checks activated by runtime, service-boundary, API, storage, or user-facing surfaces.",
+          "Update agents/code-reviewer.md to return revise for missing contracts, overclaimed production readiness, or productionization gates that contradict the implemented evidence.",
+          "Update agents/plan-reviewer.md if needed so council findings expose the new typed reasons."
+        ],
+        "out_of_scope": [
+          "No new LLM judge skill unless existing Eval Council language cannot express the check.",
+          "No deploy automation.",
+          "No mandatory productionization checks for tasks with no active production surface."
+        ],
+        "dependencies": [
+          "ADLC-IIP-002",
+          "ADLC-IIP-004"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_IIP_005-GATE0",
+            "given": "an active production-bound implementation task lacks implementation_interface_contract",
+            "when": "Eval Council Gate 0 reviews the Build Brief",
+            "then": "it returns revise with missing_implementation_interface_contract",
+            "measurable_post_condition": "eval-council prompt names the typed reason"
+          },
+          {
+            "id": "AC-ADLC_IIP_005-NO_OVERCLAIM",
+            "given": "a task claims production_ready without validation evidence or no-overclaim cases",
+            "when": "review gates evaluate the task",
+            "then": "the task is blocked or revised before work-item closeout",
+            "measurable_post_condition": "Eval Council, DoD, and code reviewer prompts mention overclaimed production_ready"
+          },
+          {
+            "id": "AC-ADLC_IIP_005-APPLICABILITY",
+            "given": "a docs-only task has no runtime or user-facing production surface",
+            "when": "DoD overlays are computed",
+            "then": "productionization checks can be marked not_applicable with a concrete reason",
+            "measurable_post_condition": "DoD docs preserve applicability-aware activation"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not make review gates rely on generic phrases like production quality.",
+          "Do not require production runbooks for tasks that do not touch runtime or operational surfaces.",
+          "Do not allow production_ready as a string claim without evidence."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Requires schema and prompt field names from earlier tasks.",
+          "deferred_debt": "Backtest fixture expansion can be limited to deterministic contract cases in the first slice.",
+          "deferral_safety": "Contract tests and CLI readiness cases cover the highest-risk overclaim path."
+        },
+        "compatibility_contract": {
+          "backward": "Existing council and DoD checks must still pass for Build Briefs without active productionization surfaces.",
+          "forward": "Typed reason names should be reusable by a future deterministic productionization validator.",
+          "migration_or_rollout": "Add review language and tests in the same slice to avoid docs-only enforcement."
+        },
+        "implementation_notes": [
+          "Follow existing Eval Council Gate 0 patterns for scalable code primitives and slop quality gates.",
+          "Keep no-overclaim checks tied to coverage_state and validation_evidence fields."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "rg -n \"missing_implementation_interface_contract|missing_productionization_gate|overclaimed_production_ready|No-Overclaim|production_ready\" skills/eval-council/SKILL.md skills/definition-of-done/SKILL.md agents/code-reviewer.md agents/plan-reviewer.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Review and DoD gates must block missing contracts and overclaimed readiness.",
+            "target_files": [
+              "skills/eval-council/SKILL.md",
+              "skills/definition-of-done/SKILL.md",
+              "agents/code-reviewer.md",
+              "agents/plan-reviewer.md"
+            ],
+            "expected_failure_mode": "review gates lack implementation-interface and productionization no-overclaim checks"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Prompt text plus later fixture tests validate the review contract."
+        },
+        "evidence_responsibilities": [
+          "Capture grep output for typed review reasons.",
+          "Capture fixture or CLI output showing production_ready overclaim blocked.",
+          "Document not-applicable behavior for inactive surfaces."
+        ],
+        "definition_of_done": [
+          "Eval Council can reject missing implementation-interface contracts.",
+          "DoD and code review can reject overclaimed production_ready states.",
+          "Checks remain applicability-aware."
+        ],
+        "failure_modes": [
+          "Review gates repeat schema presence checks but miss semantic overclaims.",
+          "Productionization checks activate for every task and create ceremony.",
+          "No-overclaim states are not preserved through emitted tickets."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "skills/eval-council/SKILL.md",
+          "skills/definition-of-done/SKILL.md",
+          "agents/code-reviewer.md",
+          "agents/plan-reviewer.md"
+        ],
+        "files_to_create": [],
+        "reference_impl": "skills/eval-council/SKILL.md:Scalable AI Code Primitive Checks",
+        "work_item_metadata": {
+          "area": "review",
+          "phase_label": "phase:iip-5",
+          "labels": [
+            "adlc",
+            "eval-council",
+            "no-overclaim"
+          ]
+        },
+        "construct_map_refs": [
+          "skills/eval-council/SKILL.md",
+          "skills/definition-of-done/SKILL.md",
+          "agents/code-reviewer.md"
+        ],
+        "paved_road_refs": [
+          "skills/eval-council/SKILL.md:Gate 0",
+          "skills/definition-of-done/SKILL.md:Applicability Model"
+        ],
+        "intent_contract_refs": [
+          "ADLC-IIP-004"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "other",
+            "status": "covered",
+            "evidence": [
+              "Review gates block unsupported production claims before closeout."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-IIP-006",
+        "title": "Expose contracts in examples and work-item emitters",
+        "objective": "Demonstrate and preserve the full path from feature gap to implementation-interface contract to productionization gate to tickets and validation evidence.",
+        "task_classification": "docs",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Use one schema-valid example Build Brief plus emitter contract/template updates; avoid external provider mutation."
+        },
+        "scope": [
+          "Create docs/build-briefs/implementation-interfaces-productionization-example.json with at least one production-bound feature gap decomposed into implementation_interface_contract, productionization_gate, implementation tasks, and validation task.",
+          "Update docs/specs/emitter-contract.md required preservation fields.",
+          "Update Linear, GitHub, and JIRA emitter skills so issue bodies include Implementation Interface Contract and Productionization Gate sections when present.",
+          "Ensure suppressed or not-applicable productionization gates do not become filler ticket content.",
+          "Keep example ready for emit-work-items --dry-run --require-ready."
+        ],
+        "out_of_scope": [
+          "No actual Linear, GitHub, or JIRA mutation.",
+          "No new provider SDK.",
+          "No Confluence or Notion changes unless tests show document emitters drop active Build Brief sections."
+        ],
+        "dependencies": [
+          "ADLC-IIP-002",
+          "ADLC-IIP-003",
+          "ADLC-IIP-004",
+          "ADLC-IIP-005"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_IIP_006-EXAMPLE",
+            "given": "a maintainer opens the example Build Brief",
+            "when": "they inspect a production-bound feature task",
+            "then": "they can trace feature intent to implementation-interface contract, productionization gate, task verifier, and validation evidence",
+            "measurable_post_condition": "example JSON includes both new contracts and validates"
+          },
+          {
+            "id": "AC-ADLC_IIP_006-EMITTERS",
+            "given": "a task includes the new contract fields",
+            "when": "work-item emitter docs render ticket bodies",
+            "then": "the fields remain visible and structured for downstream coding agents",
+            "measurable_post_condition": "emitter skills mention Implementation Interface Contract and Productionization Gate sections"
+          },
+          {
+            "id": "AC-ADLC_IIP_006-SUPPRESSION",
+            "given": "a task marks productionization not_applicable",
+            "when": "the emitter prepares ticket content",
+            "then": "it records the concrete reason or omits filler according to the existing suppressed-section rule",
+            "measurable_post_condition": "emitter contract preserves not-applicable handling"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not create a toy example that lacks real consumes, emits, validation, and no-overclaim semantics.",
+          "Do not make emitters invent productionization sections when fields are absent.",
+          "Do not collapse contract fields into unstructured prose."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Requires schema fields and CLI preservation from prior tasks.",
+          "deferred_debt": "Document emitter updates can follow if work-item emitters are covered first.",
+          "deferral_safety": "Work-item emitters are the critical path for downstream implementation agents."
+        },
+        "compatibility_contract": {
+          "backward": "Existing emitter descriptions remain valid for briefs that omit the new fields.",
+          "forward": "Example fields should be realistic enough to seed future backtests or smoke fixtures.",
+          "migration_or_rollout": "Add example and emitter docs after schema support so validation can run."
+        },
+        "implementation_notes": [
+          "Use docs/build-briefs/compound-engineering-workflow-integration.json as the decomposition style reference.",
+          "Use existing emitter sections for Scalable AI Code Primitives and Slop Quality Gate as placement references."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization-example.json --dry-run --require-ready --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The example must be schema-valid and emitter-ready.",
+            "target_files": [
+              "docs/build-briefs/implementation-interfaces-productionization-example.json"
+            ],
+            "expected_failure_mode": "example missing or readiness blocked"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "rg -n \"Implementation Interface Contract|Productionization Gate|implementation_interface_contract|productionization_gate\" docs/specs/emitter-contract.md skills/linear-ticket-creation/SKILL.md skills/github-issue-creation/SKILL.md skills/jira-ticket-creation/SKILL.md",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Emitter documentation must preserve the new fields.",
+              "target_files": [
+                "docs/specs/emitter-contract.md",
+                "skills/linear-ticket-creation/SKILL.md",
+                "skills/github-issue-creation/SKILL.md",
+                "skills/jira-ticket-creation/SKILL.md"
+              ],
+              "expected_failure_mode": "emitters do not mention the new contract sections"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Dry-run emitter validation proves example readiness without external mutation."
+        },
+        "evidence_responsibilities": [
+          "Capture example schema validation.",
+          "Capture dry-run emitter readiness output.",
+          "Capture emitter contract grep output."
+        ],
+        "definition_of_done": [
+          "Example artifact validates and is work-item ready.",
+          "Work-item emitter docs preserve new fields.",
+          "Suppressed productionization sections stay non-boilerplate."
+        ],
+        "failure_modes": [
+          "Example validates but does not demonstrate no-overclaim behavior.",
+          "Emitter docs mention the fields but normalized payload drops them.",
+          "Not-applicable gates create noisy filler in tickets."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "docs/specs/emitter-contract.md",
+          "skills/linear-ticket-creation/SKILL.md",
+          "skills/github-issue-creation/SKILL.md",
+          "skills/jira-ticket-creation/SKILL.md"
+        ],
+        "files_to_create": [
+          "docs/build-briefs/implementation-interfaces-productionization-example.json"
+        ],
+        "reference_impl": "docs/build-briefs/compound-engineering-workflow-integration.json",
+        "work_item_metadata": {
+          "area": "emitters",
+          "phase_label": "phase:iip-6",
+          "labels": [
+            "adlc",
+            "emitters",
+            "examples"
+          ]
+        },
+        "construct_map_refs": [
+          "docs/specs/emitter-contract.md",
+          "skills/linear-ticket-creation/SKILL.md",
+          "skills/github-issue-creation/SKILL.md",
+          "skills/jira-ticket-creation/SKILL.md"
+        ],
+        "paved_road_refs": [
+          "docs/specs/emitter-contract.md:Required Task Preservation",
+          "skills/linear-ticket-creation/SKILL.md:Description template"
+        ],
+        "intent_contract_refs": [
+          "ADLC-IIP-002",
+          "ADLC-IIP-003"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "data_integrity",
+            "status": "covered",
+            "evidence": [
+              "Emitter payloads and issue templates preserve structured contract fields."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-IIP-007",
+        "title": "Add deterministic schema CLI and contract tests",
+        "objective": "Protect the implementation-interface and productionization layer with schema, CLI, readiness, emitter, prompt, and fixture tests.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Add narrow deterministic tests to the existing contract and CLI suites."
+        },
+        "scope": [
+          "Update tests/test_adlc_contracts.sh with schema and prompt assertions.",
+          "Update tests/test_adlc_cli.sh with emit-work-items preservation and readiness-blocking cases.",
+          "Add or update fixture JSON to cover valid contracts, invalid coverage_state, overclaimed production_ready, and not-applicable productionization gates.",
+          "Ensure existing smoke fixtures and xia remediation fixtures remain valid.",
+          "Add contract tests for emitter preservation language."
+        ],
+        "out_of_scope": [
+          "No broad smoke suite expansion unless required by existing test conventions.",
+          "No external provider mutation.",
+          "No long-running semantic Graphify extraction."
+        ],
+        "dependencies": [
+          "ADLC-IIP-002",
+          "ADLC-IIP-003",
+          "ADLC-IIP-004",
+          "ADLC-IIP-005",
+          "ADLC-IIP-006"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_IIP_007-SCHEMA",
+            "given": "valid and invalid implementation-interface fixtures",
+            "when": "contract tests run",
+            "then": "valid fixtures pass and invalid coverage states fail",
+            "measurable_post_condition": "tests/test_adlc_contracts.sh covers both cases"
+          },
+          {
+            "id": "AC-ADLC_IIP_007-CLI",
+            "given": "a Build Brief contains contract fields",
+            "when": "emit-work-items dry-run runs",
+            "then": "normalized artifacts preserve the fields and readiness blocks overclaimed production_ready cases",
+            "measurable_post_condition": "tests/test_adlc_cli.sh covers preservation and blocking"
+          },
+          {
+            "id": "AC-ADLC_IIP_007-PROMPTS",
+            "given": "contract tests inspect prompt surfaces",
+            "when": "rg assertions run",
+            "then": "researcher, planner, codegen, review, DoD, and emitter prompts all contain the new contract language",
+            "measurable_post_condition": "contract tests fail if prompt wiring is removed"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not add tests that only assert file existence.",
+          "Do not skip negative coverage-state and overclaim cases.",
+          "Do not make tests depend on live external services."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Requires implementation of schema and CLI fields.",
+          "deferred_debt": "A full smoke fixture can follow after deterministic tests prove the contract.",
+          "deferral_safety": "Existing contract and CLI suites already protect schema and normalized payload behavior."
+        },
+        "compatibility_contract": {
+          "backward": "Existing tests for legacy artifacts must continue to pass.",
+          "forward": "Fixtures should be reusable by future deterministic productionization validators.",
+          "migration_or_rollout": "Add tests alongside implementation fields to prevent docs-only drift."
+        },
+        "implementation_notes": [
+          "Mirror assert_emit_preserves_scalable_primitives and slop gate readiness tests.",
+          "Use temporary jq-mutated fixtures in shell tests rather than committing many near-duplicate JSON files unless clarity requires it."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bash tests/test_adlc_contracts.sh",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Contract tests are the main regression guard for schema, prompt, and emitter wiring.",
+            "target_files": [
+              "tests/test_adlc_contracts.sh"
+            ],
+            "expected_failure_mode": "contract tests lack or fail implementation-interface and productionization assertions"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bash tests/test_adlc_cli.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "CLI tests must prove preservation and readiness behavior.",
+              "target_files": [
+                "tests/test_adlc_cli.sh"
+              ],
+              "expected_failure_mode": "CLI tests do not cover contract preservation or overclaim blocking"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Existing shell tests are the narrowest reliable validation layer."
+        },
+        "evidence_responsibilities": [
+          "Capture contract test output.",
+          "Capture CLI test output.",
+          "Capture negative fixture failure output or jq assertions."
+        ],
+        "definition_of_done": [
+          "Contract tests protect schemas and prompt wiring.",
+          "CLI tests protect payload preservation and readiness blocking.",
+          "Existing fixtures remain valid."
+        ],
+        "failure_modes": [
+          "Tests only check strings and miss broken normalized payload behavior.",
+          "Negative coverage-state cases are absent.",
+          "Tests make productionization mandatory for low-risk tasks."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "tests/test_adlc_contracts.sh",
+          "tests/test_adlc_cli.sh",
+          "tests/fixtures/adlc-artifact-contract-cases.json"
+        ],
+        "files_to_create": [],
+        "reference_impl": "tests/test_adlc_contracts.sh:assert_emit_preserves_scalable_primitives",
+        "work_item_metadata": {
+          "area": "tests",
+          "phase_label": "phase:iip-7",
+          "labels": [
+            "adlc",
+            "tests"
+          ]
+        },
+        "construct_map_refs": [
+          "tests/test_adlc_contracts.sh",
+          "tests/test_adlc_cli.sh"
+        ],
+        "paved_road_refs": [
+          "tests/test_adlc_contracts.sh",
+          "tests/test_adlc_cli.sh"
+        ],
+        "intent_contract_refs": [
+          "ADLC-IIP-002",
+          "ADLC-IIP-003",
+          "ADLC-IIP-005"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "data_integrity",
+            "status": "covered",
+            "evidence": [
+              "Schema and CLI tests protect structured contract preservation."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "validation_task",
+        "task_id": "ADLC-IIP-VAL",
+        "title": "Validate implementation-interface and productionization integration",
+        "objective": "Run the final validation suite, capture evidence, refresh Graphify, and report any production claims ADLC still cannot support.",
+        "task_classification": "build_validation",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Validation owns evidence capture after implementation tasks land."
+        },
+        "scope": [
+          "Run git diff --check.",
+          "Run ./tests/test_adlc_cli.sh.",
+          "Run ./tests/test_adlc_contracts.sh.",
+          "Validate the example Build Brief with bin/adlc validate-artifact.",
+          "Run emit-work-items dry-run with --require-ready against this decomposition and the new example.",
+          "Run graphify update . after code and doc changes.",
+          "Run a Graphify query confirming the new spec connects to planner, researcher, codegen, schemas, CLI, emitters, and tests."
+        ],
+        "out_of_scope": [
+          "No implementation edits in the validation task except narrow test fixture corrections if a verifier was specified incorrectly.",
+          "No external work-item provider mutation.",
+          "No release claim if any validation command fails."
+        ],
+        "dependencies": [
+          "ADLC-IIP-001",
+          "ADLC-IIP-002",
+          "ADLC-IIP-003",
+          "ADLC-IIP-004",
+          "ADLC-IIP-005",
+          "ADLC-IIP-006",
+          "ADLC-IIP-007"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_IIP_VAL-COMMANDS",
+            "given": "all implementation tasks have landed",
+            "when": "the validation commands run",
+            "then": "git diff, CLI tests, contract tests, schema validation, emitter readiness, and Graphify update complete successfully",
+            "measurable_post_condition": "final response lists commands and results"
+          },
+          {
+            "id": "AC-ADLC_IIP_VAL-CLAIMS",
+            "given": "ADLC now exposes implementation-interface and productionization layers",
+            "when": "the final response is prepared",
+            "then": "it identifies any remaining unsupported production claims or follow-up validators",
+            "measurable_post_condition": "final response includes limitations and follow-ups"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not claim productionization support if schema, prompt, CLI, emitter, or tests are incomplete.",
+          "Do not ignore a failed Graphify update.",
+          "Do not replace failed tests with final prose."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "All implementation tasks must be complete before validation.",
+          "deferred_debt": "A future explicit productionization-gate CLI command may remain a follow-up if readiness checks cover the first slice.",
+          "deferral_safety": "The first slice validates through schema, readiness, prompt wiring, emitter preservation, and Graphify evidence."
+        },
+        "compatibility_contract": {
+          "backward": "Final validation must show legacy fixtures and commands still pass.",
+          "forward": "Graphify output should include the new spec and contract nodes for future research.",
+          "migration_or_rollout": "Graphify refresh is the closeout step after all changes land."
+        },
+        "implementation_notes": [
+          "Use exact failing command output if any validation fails.",
+          "The final response must separate implemented support from follow-up production claims."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "git diff --check && ./tests/test_adlc_cli.sh && ./tests/test_adlc_contracts.sh",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The repo's narrow validation suite must pass after integration.",
+            "target_files": [
+              "tests/test_adlc_cli.sh",
+              "tests/test_adlc_contracts.sh"
+            ],
+            "expected_failure_mode": "schema, CLI, contract, or prompt integration tests fail"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization.json --dry-run --require-ready --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "The decomposition must remain ready after implementation.",
+              "target_files": [
+                "docs/build-briefs/implementation-interfaces-productionization.json"
+              ],
+              "expected_failure_mode": "decomposition readiness blocked"
+            },
+            {
+              "type": "command",
+              "target": "graphify update .",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Graphify must be refreshed after code and doc changes.",
+              "target_files": [
+                "graphify-out/GRAPH_REPORT.md"
+              ],
+              "expected_failure_mode": "graphify refresh fails or graph remains stale"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "This task validates the complete integration and closeout evidence."
+        },
+        "evidence_responsibilities": [
+          "Capture git diff --check output.",
+          "Capture CLI and contract test output.",
+          "Capture Build Brief validation and emit-work-items readiness output.",
+          "Capture Graphify refresh and query output.",
+          "List remaining limitations explicitly."
+        ],
+        "definition_of_done": [
+          "All validation commands pass or blockers are reported with exact command output.",
+          "Graphify is refreshed to the final commit.",
+          "Final response lists changed docs, schemas, prompts, tests, validation, and remaining gaps."
+        ],
+        "failure_modes": [
+          "Validation passes only for this decomposition but not the example artifact.",
+          "Graphify is stale after implementation changes.",
+          "Final response overclaims productionization coverage beyond implemented gates."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "graphify-out/GRAPH_REPORT.md"
+        ],
+        "files_to_create": [],
+        "reference_impl": "README.md:Verification",
+        "work_item_metadata": {
+          "area": "validation",
+          "phase_label": "phase:iip-val",
+          "labels": [
+            "adlc",
+            "validation"
+          ]
+        },
+        "construct_map_refs": [
+          "README.md:Verification",
+          "tests/test_adlc_cli.sh",
+          "tests/test_adlc_contracts.sh"
+        ],
+        "paved_road_refs": [
+          "README.md:Verification"
+        ],
+        "intent_contract_refs": [
+          "ADLC_IMPLEMENTATION_INTERFACES_PRODUCTIONIZATION_GOAL_PROMPT.md"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "observability",
+            "status": "covered",
+            "evidence": [
+              "Validation evidence and limitations are captured at closeout."
+            ]
+          }
+        ]
+      }
+    ],
+    "9_risks": [
+      "The integration could become docs-only if schema, CLI, and emitter preservation are not implemented.",
+      "The readiness gate could become too broad and block low-risk docs or lint tasks.",
+      "Productionization could drift into generic compliance posture instead of evidence-backed production claims.",
+      "A future deterministic productionization validator may still be needed after this first slice."
+    ],
+    "10_rollout": "Ship in one focused PR if validation remains narrow. Do not add a new workflow node in the first slice. After the schema and readiness checks stabilize, consider a follow-up deterministic productionization-gate CLI command or DAG node only if the existing emit-work-items readiness gate is insufficient.",
+    "11_validation_plan": [
+      "git diff --check",
+      "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/implementation-interfaces-productionization.json --json",
+      "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization.json --dry-run --require-ready --json",
+      "./tests/test_adlc_cli.sh",
+      "./tests/test_adlc_contracts.sh",
+      "graphify update .",
+      "graphify query \"How do implementation-interface contracts and productionization gates connect to planner, researcher, codegen context, schemas, CLI, emitters, and tests?\""
+    ],
+    "12_skill_trigger_configuration": [
+      {
+        "skill": "graph-research",
+        "stage": "research",
+        "change": "Produce consumes, emits, integration points, validation surfaces, and blocked production claim evidence."
+      },
+      {
+        "skill": "reuse-analysis",
+        "stage": "research and review",
+        "change": "Feed the implementation-interface Reuse section and prevent parallel schemas or duplicate primitives."
+      },
+      {
+        "skill": "paved-road-registry",
+        "stage": "research and plan",
+        "change": "Name repo-local patterns that implementation interfaces must extend or explicitly depart from."
+      },
+      {
+        "skill": "codegen-context",
+        "stage": "context_assembly",
+        "change": "Inline task-scoped implementation-interface and productionization contracts or return typed stuck reasons."
+      },
+      {
+        "skill": "eval-council",
+        "stage": "plan_review and code_review",
+        "change": "Gate missing contracts and overclaimed production_ready states."
+      },
+      {
+        "skill": "definition-of-done",
+        "stage": "qa and closeout",
+        "change": "Add applicability-aware productionization evidence checks."
+      }
+    ],
+    "13_comprehension_context": {
+      "required_artifacts": [
+        "docs/specs/implementation-interfaces-and-productionization.md",
+        "docs/build-briefs/implementation-interfaces-productionization-example.json"
+      ],
+      "context_layer_reason": "The change alters ADLC framework semantics across schema, CLI, agents, review, and emitters."
+    },
+    "14_graph_research_evidence": {
+      "graph_status": "fresh",
+      "graph_report": "graphify-out/GRAPH_REPORT.md",
+      "graph_commit": "95930e44",
+      "head_commit": "95930e44",
+      "queries_run": [
+        {
+          "query": "How should ADLC decompose implementation-interface contracts and productionization gates into current Build Brief schema, workflow state, planner, researcher, codegen, emitters, and tests?",
+          "result_summary": "Graphify linked the prompt to README Build Loop, Build Brief template, verification surfaces, required interface contract shape, and required productionization gate shape. Direct source research identified the detailed schema, CLI, prompt, and test insertion points.",
+          "source": "graphify query"
+        }
+      ],
+      "direct_verification": [
+        "README.md defines the current Build Loop and verification commands.",
+        "docs/schemas/build-brief.schema.json defines task contracts, production invariant coverage, slop quality gates, enterprise readiness, and verifier fields.",
+        "scripts/adlc.py defines normalized work-item payload preservation and readiness checks.",
+        "agents/planner.md and agents/researcher.md define current research and planning primitives.",
+        "skills/codegen-context/SKILL.md defines zero-read codegen context and typed stuck behavior."
+      ],
+      "accuracy_gaps": [
+        "Graphify output is mostly structural for this prompt; direct source verification is required for all implementation claims."
+      ]
+    },
+    "15_dark_code_risk": {
+      "overall": "low",
+      "hotspots": [
+        "scripts/adlc.py readiness checks and normalized payload generation are central runtime surfaces.",
+        "docs/schemas/build-brief.schema.json is the highest-blast-radius schema surface.",
+        "Emitter skill templates can silently drop new fields if not updated."
+      ],
+      "ownership_gaps": [],
+      "comprehension_artifacts_needed": [
+        "Framework spec and example Build Brief"
+      ]
+    }
+  }
+}

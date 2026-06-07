@@ -26,6 +26,8 @@ Use Graphify for:
 - reuse discovery and duplicate-pattern avoidance
 - blast-radius and dependency-path analysis
 - validation-surface discovery across tests, schemas, fixtures, and contract checks
+- implementation-interface discovery across reusable modules, schemas, CLIs, workflow state, emitters, provider edges, consumes/emits relationships, and integration points
+- blocked production-claim discovery where evidence, rollback, observability, security/privacy, reliability, or no-overclaim posture is missing
 - identifying dark-code hotspots where behavior emerges across modules
 
 Use Beads for:
@@ -75,6 +77,8 @@ graphify query "What constructs, config, schemas, persistence paths, and tests a
 graphify query "What existing implementation should be reused or extended for this request?"
 graphify query "What backward compatibility or forward compatibility paths could this change affect?"
 graphify query "What validation surfaces prove behavior for the constructs this change touches?"
+graphify query "What implementation interfaces should this change reuse, consume, emit, validate, or preserve?"
+graphify query "What production_ready claims would be overclaimed without validation evidence, rollback, observability, security/privacy, reliability, or no-overclaim data?"
 graphify query "What cross-module paths create dark-code risk for this request?"
 graphify path "<changed module>" "<dependent module>"
 graphify explain "<core concept or module>"
@@ -104,6 +108,15 @@ For every code-backed ADLC run, produce a construct map scoped to the requested 
 - **Accuracy gaps:** graph-only claims that were not directly verified.
 
 Do not present "the repo" as the construct. Name the actual code constructs and relationships an agent must preserve.
+
+## Implementation Interface And Productionization Rules
+
+For every integration, schema, emitter, workflow-state, CLI, provider, or reusable framework change, produce:
+
+- `implementation_interface_candidates`: reuse paths, consumes, emits, minimum fields, invariants, integration points, validation gates, failure semantics, and evidence refs
+- `blocked_production_claims`: unsupported, evidence-only, monitor-only, not-yet-GA, governed, or overclaimed production-ready statements with the missing proof named
+
+Graph-derived implementation-interface and productionization claims require direct verification before they become Build Brief task fields.
 
 ## Output
 
@@ -159,6 +172,12 @@ Do not present "the repo" as the construct. Name the actual code constructs and 
     "paved_road_refs": [],
     "accuracy_gaps": []
   },
+  "implementation_interface_evidence": {
+    "implementation_interface_candidates": [],
+    "integration_points": [],
+    "validation_gates": [],
+    "blocked_production_claims": []
+  },
   "task_memory_context": {
     "beads_status": "available | not_configured | unavailable",
     "ready_items": [],
@@ -181,6 +200,8 @@ Do not present "the repo" as the construct. Name the actual code constructs and 
 - Every compatibility claim must name a consumer, artifact, interface, or data path.
 - Every reuse recommendation must cite the existing implementation by path.
 - Every construct-map entry must name the construct kind and evidence.
+- Every implementation-interface candidate must name reuse, consumes, emits, integration points, and validation gates.
+- Every blocked production claim must name the missing validation evidence, rollback, observability, security/privacy, reliability, or no-overclaim posture.
 - Every graph-derived claim must say whether it was directly verified.
 - Beads findings must not replace code or graph evidence.
 - If the graph is unavailable, the output must say which research confidence was reduced.

@@ -1001,6 +1001,20 @@ def is_not_applicable_reason(value: Any) -> bool:
     return isinstance(value, dict) and value.get("applicability") == "not_applicable" and bool(value.get("reason"))
 
 
+def has_nonempty_value(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, dict)):
+        return bool(value)
+    return True
+
+
+def has_nonempty_list(value: Any) -> bool:
+    return isinstance(value, list) and len(value) > 0
+
+
 def task_has_generated_output_surface(task: Dict[str, Any]) -> bool:
     surface = task.get("generated_output_surface")
     if isinstance(surface, bool):
@@ -1066,6 +1080,105 @@ def slop_gate_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
                             "message": f"generated-output metric {index} must name metric_type and validator_ref",
                         }
                     )
+    return issues
+
+
+def productionization_gate_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not task_executable(task):
+        return []
+
+    task_id = task["task_id"]
+    gate = task.get("productionization_gate")
+    if gate is None or is_not_applicable_reason(gate):
+        return []
+    if not isinstance(gate, dict):
+        return [
+            {
+                "severity": "blocking",
+                "rule": "invalid_productionization_gate",
+                "task_id": task_id,
+                "message": "productionization_gate must be an object or not_applicable reason",
+            }
+        ]
+    if gate.get("coverage_state") != "production_ready":
+        return []
+
+    issues: List[Dict[str, Any]] = []
+    interface_contract = task.get("implementation_interface_contract")
+    if not isinstance(interface_contract, dict) or is_not_applicable_reason(interface_contract):
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_implementation_interface_contract",
+                "task_id": task_id,
+                "message": "production_ready claims require an implementation_interface_contract",
+            }
+        )
+
+    required_lists = {
+        "validation_evidence": "missing_productionization_validation_evidence",
+        "no_overclaim": "missing_productionization_no_overclaim",
+        "reliability_failure_modes": "missing_productionization_reliability_failure_modes",
+    }
+    for field_name, rule in required_lists.items():
+        if not has_nonempty_list(gate.get(field_name)):
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": rule,
+                    "task_id": task_id,
+                    "message": f"production_ready gate is missing {field_name}",
+                }
+            )
+
+    operational = gate.get("operational_readiness")
+    if not isinstance(operational, dict):
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_productionization_operational_readiness",
+                "task_id": task_id,
+                "message": "production_ready gate requires operational_readiness with owner, rollback path, and runbook or observability refs",
+            }
+        )
+    else:
+        missing_operational = []
+        for field_name in ("owner", "rollback_path"):
+            if not has_nonempty_value(operational.get(field_name)):
+                missing_operational.append(field_name)
+        if not any(has_nonempty_list(operational.get(field_name)) for field_name in ("runbook_refs", "alerting_refs", "dashboard_refs", "slo_refs")):
+            missing_operational.append("runbook_or_observability_refs")
+        if missing_operational:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "missing_productionization_operational_readiness",
+                    "task_id": task_id,
+                    "message": "production_ready gate operational_readiness is missing " + ", ".join(missing_operational),
+                }
+            )
+
+    security_privacy = gate.get("security_privacy")
+    if not isinstance(security_privacy, dict) or not has_nonempty_value(security_privacy.get("redaction_posture")):
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_productionization_security_privacy",
+                "task_id": task_id,
+                "message": "production_ready gate requires security_privacy.redaction_posture",
+            }
+        )
+
+    if issues:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "overclaimed_production_ready",
+                "task_id": task_id,
+                "message": "production_ready coverage_state is overclaimed until interface, evidence, rollback, reliability, security/privacy, and no-overclaim data are present",
+            }
+        )
+
     return issues
 
 
@@ -1252,6 +1365,7 @@ def compute_readiness_report(
                     })
 
             issues.extend(slop_gate_issues_for_task(task))
+            issues.extend(productionization_gate_issues_for_task(task))
 
     if phase_project_map:
         for task in tasks:
@@ -1354,6 +1468,10 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "definition_of_done": task.get("definition_of_done", []),
             "failure_modes": task.get("failure_modes", []),
         }
+        if task.get("implementation_interface_contract") is not None:
+            artifact["implementation_interface_contract"] = task["implementation_interface_contract"]
+        if task.get("productionization_gate") is not None:
+            artifact["productionization_gate"] = task["productionization_gate"]
         if task.get("slop_quality_gate") is not None:
             artifact["slop_quality_gate"] = task["slop_quality_gate"]
         artifacts.append(artifact)

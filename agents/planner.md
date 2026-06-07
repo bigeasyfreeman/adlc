@@ -57,10 +57,36 @@ Build Briefs must preserve the primitives that keep AI-generated code scalable:
 - **Graph-backed construct map:** cite relevant modules, services, packages, CLIs, schemas, config/env, public APIs, internal interfaces, persistence paths, reverse dependencies, and validation surfaces from Graphify plus direct verification.
 - **Intent contract:** capture behavior, why it matters, constraints, non-goals, tradeoffs, edge cases, load-bearing assumptions, and verifier before implementation.
 - **Agent paved-road registry:** name the repo-local pattern or reference implementation the task must follow. If no paved road exists, record `no_paved_road_found` and the closest convention.
+- **Implementation interface contract:** name what the task reuses, consumes, emits, requires as minimum fields, preserves as invariants, touches as integration points, and proves through validation gates.
 - **Verifiability gate:** classify whether the task is deterministic, bounded judgment, or unverifiable. Unverifiable work becomes a `decision_gate` or explicit human checkpoint instead of autonomous implementation.
 - **Production invariant coverage:** when the task touches identity, auth, tenancy, data integrity, persistence, ordering, retries, idempotency, sensitive data, migrations, downgrade, or observability, name the invariant and how the verifier or DoD protects it.
+- **Productionization gate:** when a task makes or changes a production support claim, include Coverage State, validation evidence, operational readiness, security/privacy posture, reliability failure modes, and No-Overclaim boundaries.
 
 Do not turn these primitives into generic production-readiness prose. Every claim needs a path, graph query, schema, test, fixture, command, or context artifact.
+
+## Implementation Interface And Productionization Gates
+
+For each active integration, emitter, schema, workflow-state, CLI, provider, or reusable framework surface, include `implementation_interface_contract` on the task:
+
+- `reuse`: existing modules, skills, schemas, scripts, commands, or workflows to extend
+- `consumes`: input data, state, config, artifacts, provider payloads, or graph evidence
+- `emits`: output data, state, normalized payloads, artifacts, evidence, or side effects
+- `minimum_fields`: required fields and semantic constraints
+- `invariants`: compatibility, idempotency, data integrity, privacy, rollback, or ownership rules
+- `integration_points`: exact paths, commands, schemas, providers, or runtime boundaries
+- `validation_gates`: tests, schemas, CLI commands, smoke/backtest targets, or human review gates
+
+For each production support claim, include `productionization_gate` with:
+
+- `claim`
+- `coverage_state`: `unsupported`, `evidence_only`, `monitor_only`, `not_yet_ga`, `governed`, or `production_ready`
+- `validation_evidence`
+- `operational_readiness` with owner, rollback path, and runbook/alerting/dashboard/SLO refs where applicable
+- `security_privacy` posture
+- `reliability_failure_modes`
+- `no_overclaim`
+
+Return `revise` or emit a blocking validation task when an active surface is missing the needed `implementation_interface_contract`. Return `revise` with `missing_productionization_gate` when a production claim lacks a gate. Never label a task `production_ready` unless the evidence supports it; otherwise use a lower coverage state and a concrete no-overclaim boundary.
 
 ## Slop Quality Gate
 
@@ -124,6 +150,8 @@ Task-writing rules:
 - State required invariants positively first. Use "must not" only for grounded failure modes, architecture boundaries, or real prior mistakes.
 - Every task must cite a concrete `reference_impl` or existing pattern to extend. If no reusable implementation exists, say so explicitly and name the closest convention to follow.
 - Every task that changes code must cite `paved_road_refs` or explicitly state `no_paved_road_found` with the closest convention and review rationale.
+- Every task that changes an integration boundary, schema, emitter payload, workflow state, CLI contract, provider edge, or reusable framework surface must include `implementation_interface_contract`.
+- Every task that makes a production support claim must include `productionization_gate`; use a lower Coverage State rather than overclaiming `production_ready`.
 - If a task introduces a new abstraction, justify why the existing pattern cannot absorb the change without creating worse coupling.
 - If tech debt must be paid down before feature work, split that work into an explicit prerequisite task rather than burying it in implementation notes.
 - `anti_slop_rules` must forbid reimplementing cited helpers, services, or patterns when they already exist.
@@ -180,6 +208,8 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
     "compatibility_evidence": {},
     "intent_contract": {},
     "production_invariant_coverage": [],
+    "implementation_interface_contracts": [],
+    "productionization_gates": [],
     "context_layer_requirements": [],
     "dark_code_hotspots": [],
     "open_questions": [],
@@ -192,6 +222,8 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
 Include `slop_quality_gate` and `generated_output_surface` only for tasks with
 an active generated-output surface. Do not place empty objects in the brief to
 show that a gate was considered.
+
+Include `implementation_interface_contract` only for active integration or reusable framework surfaces. Include `productionization_gate` only for tasks that make or change a production support claim. Do not add productionization as ceremony for deterministic docs, lint-only, or build-validation work with no production claim.
 
 ## Constraints
 

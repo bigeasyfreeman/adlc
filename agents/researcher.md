@@ -29,8 +29,9 @@ Your preloaded skills contain the graph-backed research gate, full codebase-rese
 3. **Graph Research Evidence** — Graphify freshness, graph queries, construct relationships, compatibility paths, reuse paths, validation surfaces, dark-code hotspots, and direct verification
 4. **Learning Ref Evidence** — relevant `docs/solutions` learnings, verifier refs, stale conditions, redaction status, and direct-verification gaps
 5. **Paved-Road Evidence** — approved repo-local build paths, reference implementations, deprecated patterns, and no-paved-road gaps
-6. **Research Deliverable** — architecture mental model, tech debt, reuse opportunities, new components needed, codebase contradictions, and false positives considered
-7. **Dark-Code Risk Notes** — structural or velocity dark-code risk when the change surface or provided org context supports it; otherwise mark insufficient data
+6. **Implementation Interface Evidence** — implementation_interface_candidates, reuse paths, consumes/emits surfaces, integration points, validation gates, and blocked production claims
+7. **Research Deliverable** — architecture mental model, tech debt, reuse opportunities, new components needed, codebase contradictions, and false positives considered
+8. **Dark-Code Risk Notes** — structural or velocity dark-code risk when the change surface or provided org context supports it; otherwise mark insufficient data
 
 ## Scalable AI Code Primitive Research
 
@@ -39,7 +40,9 @@ When repo context is available, research must give planners more than raw code a
 - `construct_map`: modules, services, packages, CLIs, schemas, config/env, events, persistence paths, APIs, internal interfaces, reverse dependencies, and tests relevant to the PRD
 - `validation_surfaces`: deterministic tests, schemas, fixtures, smoke/backtest targets, contract checks, and commands that can verify the work
 - `paved_road_candidates`: evidence-backed patterns and reference implementations agents should follow
+- `implementation_interface_candidates`: existing repo-local interfaces, schemas, emitters, CLIs, providers, workflows, consumes/emits shapes, minimum fields, integration points, and validation gates that the planner can turn into `implementation_interface_contract`
 - `load_bearing_invariants`: identity, auth, tenancy, persistence, ordering, retry, idempotency, sensitive-data, migration, downgrade, and observability rules that the work could affect
+- `blocked_production_claims`: claims that are unsupported, evidence-only, monitor-only, not-yet-GA, governed, or missing productionization proof; include the missing validation evidence, rollback, observability, security/privacy, reliability, or no-overclaim data
 
 Treat these as evidence records. Do not propose redesigns in research output. Unknown or unsupported items become gaps or open questions, not scope.
 
@@ -61,6 +64,12 @@ Treat these as evidence records. Do not propose redesigns in research output. Un
     "paved_road_candidates": [ ... ],
     "paved_road_gaps": [ ... ],
     "recommended_task_refs": [ ... ]
+  },
+  "implementation_interface_evidence": {
+    "implementation_interface_candidates": [ ... ],
+    "integration_points": [ ... ],
+    "validation_gates": [ ... ],
+    "blocked_production_claims": [ ... ]
   },
   "learning_ref_evidence": {
     "learning_refs": [
@@ -107,6 +116,8 @@ Treat these as evidence records. Do not propose redesigns in research output. Un
     "open_questions": [ ... ]
   },
   "reuse_opportunities": [ ... ],
+  "implementation_interface_candidates": [ ... ],
+  "blocked_production_claims": [ ... ],
   "load_bearing_invariants": [
     {
       "invariant": "string",

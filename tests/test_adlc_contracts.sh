@@ -99,6 +99,19 @@ JSON
   return "$status"
 }
 
+assert_workflow_state_accepts_interface_and_productionization_status() {
+  local tmp
+  tmp="$(mktemp)"
+  cat > "$tmp" <<'JSON'
+{"brief_id":"SMOKE","session_id":"adlc-test","phase":"pr_prep","status":"planned","step":"ready","started_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z","resume_count":0,"checkpoint":{"workspace":"/tmp","history":[]},"side_effects":[],"interface_contract_status":[{"contract_id":"iface:smoke","task_id":"SMOKE-001","status":"ready","evidence":["schema validated"],"updated_at":"2026-01-01T00:00:00Z"}],"productionization_status":[{"gate_id":"prod:smoke","task_id":"SMOKE-001","coverage_state":"production_ready","status":"ready","evidence":["readiness passed"],"updated_at":"2026-01-01T00:00:00Z"}]}
+JSON
+  local status=0
+  "$ROOT/bin/adlc" validate-artifact --schema workflow-state --input "$tmp" --json |
+    jq -e '.valid == true' >/dev/null || status=$?
+  rm -f "$tmp"
+  return "$status"
+}
+
 assert_emit_preserves_slop_quality_gate() {
   local tmp
   tmp="$(mktemp)"
@@ -139,6 +152,92 @@ assert_emit_preserves_slop_quality_gate() {
     ' >/dev/null || status=$?
 
   rm -f "$tmp"
+  return "$status"
+}
+
+assert_emit_preserves_implementation_and_productionization_contracts() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].implementation_interface_contract) = {
+      "id": "iface:xia-adlc-ready",
+      "capability": "ADLC readiness payload",
+      "reuse": ["scripts/adlc.py normalized_work_item_payload"],
+      "consumes": ["Build Brief task fields"],
+      "emits": ["normalized work-item artifact"],
+      "minimum_fields": [
+        {"name":"task_id","kind":"string","constraint":"stable non-empty task ID"}
+      ],
+      "invariants": ["optional fields are omitted when absent"],
+      "integration_points": ["bin/adlc emit-work-items"],
+      "validation_gates": ["tests/test_adlc_contracts.sh"],
+      "failure_semantics": ["schema or readiness failure blocks mutation"],
+      "privacy_redaction": "No secrets are emitted."
+    } |
+    (.sections."8_task_tickets"[0].productionization_gate) = {
+      "id": "prod:xia-adlc-ready",
+      "claim": "Normalized ADLC work-item payload is production ready for local dry-run emission.",
+      "coverage_state": "production_ready",
+      "operational_readiness": {
+        "owner": "ADLC",
+        "rollback_path": "Revert the schema and CLI patch.",
+        "runbook_refs": ["docs/specs/emitter-contract.md"]
+      },
+      "security_privacy": {
+        "redaction_posture": "Payload contains task metadata only and no secrets."
+      },
+      "reliability_failure_modes": ["Schema mismatch blocks before external mutation."],
+      "validation_evidence": ["tests/test_adlc_contracts.sh"],
+      "no_overclaim": ["This does not prove external provider mutation."]
+    }
+  ' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp"
+
+  local status=0
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --require-ready --json |
+    jq -e '
+      .readiness_report.status == "ready" and
+      .artifacts[0].implementation_interface_contract.id == "iface:xia-adlc-ready" and
+      .artifacts[0].implementation_interface_contract.consumes[0] == "Build Brief task fields" and
+      .artifacts[0].productionization_gate.coverage_state == "production_ready" and
+      .artifacts[0].productionization_gate.no_overclaim[0] == "This does not prove external provider mutation."
+    ' >/dev/null || status=$?
+
+  rm -f "$tmp"
+  return "$status"
+}
+
+assert_overclaimed_production_ready_blocks_readiness() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].productionization_gate) = {
+      "id": "prod:overclaim",
+      "claim": "This task is production ready.",
+      "coverage_state": "production_ready",
+      "operational_readiness": {
+        "owner": "ADLC",
+        "rollback_path": "Revert the patch.",
+        "runbook_refs": ["docs/specs/emitter-contract.md"]
+      },
+      "security_privacy": {
+        "redaction_posture": "No secrets."
+      },
+      "reliability_failure_modes": [],
+      "validation_evidence": [],
+      "no_overclaim": []
+    }
+  ' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp"
+
+  local status=0
+  if ! "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --json >"$tmp.result" 2>/dev/null; then
+    status=1
+  else
+    jq -e 'any(.readiness_report.issues[]; .rule == "overclaimed_production_ready")' "$tmp.result" >/dev/null || status=$?
+    if "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --require-ready --json >/dev/null 2>&1; then
+      status=1
+    fi
+  fi
+  rm -f "$tmp" "$tmp.result"
   return "$status"
 }
 
@@ -308,6 +407,7 @@ assert "workflow-state schema parses" "jq empty '$ROOT/docs/schemas/workflow-sta
 assert "skills manifest parses" "jq empty '$ROOT/skills/manifest.json' >/dev/null 2>&1"
 assert "applicability issue set parses" "jq empty '$ROOT/tests/fixtures/applicability-issue-set.json' >/dev/null 2>&1"
 assert "artifact contract case set parses" "jq empty '$ROOT/tests/fixtures/adlc-artifact-contract-cases.json' >/dev/null 2>&1"
+assert "implementation interface productionization example parses" "jq empty '$ROOT/docs/build-briefs/implementation-interfaces-productionization-example.json' >/dev/null 2>&1"
 
 echo ""
 echo "--- Build Brief Contract ---"
@@ -325,18 +425,24 @@ assert "task schema preserves scalable AI code primitive refs" "jq -e '.definiti
 assert "task schema supports stable identity and resume fingerprints" "jq -e '.definitions.task.properties.stable_task_identity[\"\$ref\"] == \"#/definitions/stable_task_identity\" and .definitions.task.properties.resume_fingerprint[\"\$ref\"] == \"#/definitions/resume_fingerprint\" and (.definitions.resume_fingerprint.properties.status.enum | index(\"skipped_already_satisfied\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports slop quality gates" "jq -e '.definitions.task.properties.slop_quality_gate[\"\$ref\"] == \"#/definitions/slop_quality_gate\" and (.definitions.slop_quality_gate.properties.applicability.enum | index(\"required\")) and (.definitions.slop_quality_gate.properties.mode.enum | index(\"agent_output\")) and (.definitions.slop_quality_gate.properties.failure_action.enum | index(\"human_approval\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports explicit generated-output surfaces" "jq -e '.definitions.task.properties.generated_output_surface[\"\$ref\"] == \"#/definitions/generated_output_surface\" and (.definitions.generated_output_surface.required | index(\"active\")) and (.definitions.generated_output_surface.required | index(\"reason\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "task schema supports implementation interface and productionization gates" "jq -e '.definitions.task.properties.implementation_interface_contract[\"\$ref\"] == \"#/definitions/implementation_interface_contract\" and .definitions.task.properties.productionization_gate[\"\$ref\"] == \"#/definitions/productionization_gate\" and (.properties.sections.properties | has(\"16_implementation_interfaces\")) and (.properties.sections.properties | has(\"17_productionization_gates\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "implementation interface schema captures interface contract shape" "jq -e '.definitions.implementation_interface_contract.oneOf[0].required as \$r | (\$r | index(\"reuse\")) and (\$r | index(\"consumes\")) and (\$r | index(\"emits\")) and (\$r | index(\"minimum_fields\")) and (\$r | index(\"invariants\")) and (\$r | index(\"integration_points\")) and (\$r | index(\"validation_gates\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "productionization gate schema supports coverage state and no-overclaim" "jq -e '(.definitions.productionization_gate.oneOf[0].properties.coverage_state.enum | index(\"production_ready\")) and (.definitions.productionization_gate.oneOf[0].properties.coverage_state.enum | index(\"monitor_only\")) and (.definitions.productionization_gate.oneOf[0].required | index(\"no_overclaim\")) and (.definitions.productionization_gate.oneOf[0].properties.operational_readiness.properties | has(\"rollback_path\")) and (.definitions.productionization_gate.oneOf[0].properties.security_privacy.properties | has(\"redaction_posture\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "slop quality metrics can reference validators" "jq -e '.definitions.slop_quality_gate.properties.metrics.items.oneOf[] | select(.type==\"object\") | (.required | index(\"metric_type\")) and (.required | index(\"validator_ref\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema allows compact not-applicable safety contracts" "jq -e 'any(.definitions.task.properties.anti_slop_rules.oneOf[]; .\"\$ref\"==\"#/definitions/not_applicable_reason\") and any(.definitions.tech_debt_boundaries.oneOf[]; .\"\$ref\"==\"#/definitions/not_applicable_reason\") and any(.definitions.compatibility_contract.oneOf[]; .\"\$ref\"==\"#/definitions/not_applicable_reason\")' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "required slop quality gates require threshold metrics and eval cases" "jq -e '.definitions.slop_quality_gate.allOf[] | select(.if.properties.applicability.const == \"required\") | (.then.required | index(\"threshold\")) and (.then.required | index(\"metrics\")) and (.then.required | index(\"eval_cases\")) and (.then.required | index(\"failure_action\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "enterprise readiness contract can carry scalable primitive rollups" "jq -e '.definitions.enterprise_readiness_contract.properties.construct_map_refs.type == \"array\" and .definitions.enterprise_readiness_contract.properties.paved_road_refs.type == \"array\" and .definitions.enterprise_readiness_contract.properties.production_invariant_coverage.type == \"array\"' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "enterprise readiness contract can carry interface and productionization refs" "jq -e '.definitions.enterprise_readiness_contract.properties.implementation_interface_refs.type == \"array\" and .definitions.enterprise_readiness_contract.properties.productionization_gate_refs.type == \"array\"' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "implementation tasks cannot carry unresolved Type 1 decisions" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"implementation_task\") | (.then.properties.decision_contract.properties.status.enum | index(\"unresolved\") | not) and .then.properties.decision_contract.properties.blocks_implementation.const == false' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "scope-lock epics cannot carry file-change instructions" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"scope_lock_epic\") | .then.properties.files_to_modify.maxItems == 0 and .then.properties.files_to_create.maxItems == 0' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "decision gates enforce Type 1 blocking semantics" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"decision_gate\") | .then.properties.bpe_classification.const == \"type_1\" and .then.properties.decision_contract.properties.type1_decision.const == true and .then.properties.decision_contract.properties.status.const == \"unresolved\" and .then.properties.decision_contract.properties.blocks_implementation.const == true' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "validation tasks map to build validation and do not block implementation" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"validation_task\") | .then.properties.task_classification.const == \"build_validation\" and .then.properties.decision_contract.properties.blocks_implementation.const == false' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema keeps failure_modes required" "jq -e '.definitions.task.required | index(\"failure_modes\")' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "change surface includes service_boundary_change" "jq -e '.properties.change_surface.required | index(\"service_boundary_change\")' '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null"
+assert "applicability manifest supports implementation and productionization sections" "jq -e '(.properties.section_policy.items.properties.section_name.enum | index(\"16_implementation_interfaces\")) and (.properties.section_policy.items.properties.section_name.enum | index(\"17_productionization_gates\"))' '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null"
 assert "workflow-state supports compound phases and task fingerprints" "jq -e '(.properties.phase.enum | index(\"compound_preflight\")) and (.properties.phase.enum | index(\"learning_capture\")) and .properties.task_fingerprints.items.properties.input_hash.type == \"string\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
 assert "workflow-state validates task fingerprints" "assert_workflow_state_accepts_task_fingerprints"
+assert "workflow-state validates interface and productionization statuses" "assert_workflow_state_accepts_interface_and_productionization_status"
 
 echo ""
 echo "--- Artifact Contract Cases ---"
@@ -365,6 +471,7 @@ assert "comprehension-gate skill defines blocking verdicts" "rg -q 'Comprehensio
 assert "researcher emits calibrated debt findings" "rg -q 'architecture mental model|false positives considered|debt_calibration|Unsupported or low-confidence debt claims' '$ROOT/agents/researcher.md'"
 assert "researcher emits graph and dark-code evidence" "rg -q 'graph_research_evidence|compatibility_evidence|dark_code_risk|Graphify before broad raw search|Beads only as task-memory' '$ROOT/agents/researcher.md'"
 assert "researcher emits construct maps and paved-road evidence" "rg -q 'construct_map|paved_road_evidence|load_bearing_invariants|no_paved_road_found' '$ROOT/agents/researcher.md'"
+assert "researcher emits implementation interface and blocked production claims" "rg -q 'implementation_interface_candidates|blocked_production_claims|Implementation Interface Evidence' '$ROOT/agents/researcher.md'"
 assert "researcher consumes compound learning refs" "rg -q 'compound_context|learning_refs|docs/solutions|no_op_reasons' '$ROOT/agents/researcher.md'"
 assert "planner references applicability manifest" "rg -q 'applicability_manifest' '$ROOT/agents/planner.md'"
 assert "planner supports ADLC PRD and decomposition modes" "rg -q 'prd_only.*decompose_only.*prd_and_decompose|decompose_only.*prd_and_decompose' '$ROOT/agents/planner.md'"
@@ -377,27 +484,32 @@ assert "planner consumes learning refs and preserves task identity" "rg -q 'lear
 assert "planner defines artifact taxonomy and automatic validation tasks" "rg -q 'scope_lock_epic|decision_gate|implementation_task|validation_task' '$ROOT/agents/planner.md' && rg -q 'Generate validation tasks automatically' '$ROOT/agents/planner.md'"
 assert "planner blocks unresolved Type 1 implementation" "rg -q 'unresolved Type 1.*decision_gate|decision_gate.*unresolved Type 1' '$ROOT/agents/planner.md'"
 assert "planner emits scalable AI code primitive evidence" "rg -q 'Scalable AI Code Primitives|construct_map|paved_road_refs|production_invariant_coverage|Verifiability gate' '$ROOT/agents/planner.md'"
+assert "planner emits implementation interface and productionization gates" "rg -q 'Implementation Interface And Productionization Gates|implementation_interface_contract|productionization_gate|missing_productionization_gate|production_ready' '$ROOT/agents/planner.md'"
 assert "planner emits slop quality gates for generated outputs" "rg -q 'Slop Quality Gate|slop_quality_gate|case_promotion_sources|generated-output surface' '$ROOT/agents/planner.md'"
 assert "planner omits slop quality gates when not applicable" "rg -q 'omit .*slop_quality_gate|Do not add the gate as ceremony' '$ROOT/agents/planner.md'"
 assert "code reviewer runs comprehension gate" "rg -q 'Comprehension Gate|comprehension_artifact|REVIEW REQUIRED|HOLD' '$ROOT/agents/code-reviewer.md'"
 assert "code reviewer checks scalable AI code primitives" "rg -q 'Scalable code primitives|construct-map refs|paved-road refs|production invariant coverage' '$ROOT/agents/code-reviewer.md'"
+assert "code reviewer checks implementation interface and productionization gates" "rg -q 'missing_implementation_interface_contract|missing_productionization_gate|overclaimed_production_ready|production_claim_overreach' '$ROOT/agents/code-reviewer.md'"
 assert "code reviewer checks slop quality gates" "rg -q 'Slop quality gate|missing_slop_quality_gate|slop score.*below threshold|missing_slop_case_promotion' '$ROOT/agents/code-reviewer.md'"
 assert "coder uses verification_spec" "rg -q 'verification_spec' '$ROOT/agents/coder.md'"
 assert "verification discipline is task-class-aware" "rg -q 'build_validation|lint_cleanup' '$ROOT/skills/tdd-enforcement/SKILL.md'"
 assert "codegen context consumes verification_spec" "rg -q 'verification_spec' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context inlines scalable AI code primitives" "rg -q 'missing_scalable_code_primitives|Scalable AI Code Primitives|construct_map_refs|paved_road_refs|production_invariant_coverage' '$ROOT/skills/codegen-context/SKILL.md'"
+assert "codegen context inlines implementation interface and productionization gates" "rg -q 'missing_implementation_interface_contract|missing_productionization_gate|overclaimed_production_ready|Implementation Interface|Productionization Gate' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context inlines slop quality gates" "rg -q 'missing_slop_quality_gate|Slop Quality Gate|slop_quality_gate|case-promotion sources' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context consumes compact learning refs" "rg -q 'compound_context|learning_refs|Full solution-note bodies|Prior Learnings' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "reuse analysis checks docs solutions learning refs" "rg -q 'docs/solutions|compound_context.learning_refs|Learning Store Prior Art|no_op_reasons' '$ROOT/skills/reuse-analysis/SKILL.md'"
 assert "DoD uses core baseline and overlays" "rg -q 'core baseline|overlay' '$ROOT/skills/definition-of-done/SKILL.md'"
 assert "eval council checks applicability manifest" "rg -q 'applicability_manifest' '$ROOT/skills/eval-council/SKILL.md'"
 assert "eval council gates scalable AI code primitives" "rg -q 'Scalable AI Code Primitive Checks|unverifiable_delegation|paved_road_refs|production_invariant_coverage' '$ROOT/skills/eval-council/SKILL.md'"
+assert "eval council gates implementation interface and productionization claims" "rg -q 'Implementation Interface And Productionization Gate Checks|missing_implementation_interface_contract|missing_productionization_gate|overclaimed_production_ready' '$ROOT/skills/eval-council/SKILL.md'"
 assert "eval council gates slop quality benchmarks" "rg -q 'Slop Quality Gate Checks|missing_slop_quality_gate|missing_slop_eval_cases|slop_regression|slop_score_below_threshold' '$ROOT/skills/eval-council/SKILL.md'"
 assert "fix loop uses primary verifier wording" "rg -q 'primary verifier' '$ROOT/skills/fix-loop/SKILL.md'"
 assert "shared emitter contract covers supported targets and local MCP providers" "rg -q 'GitHub|Linear|Notion|Work-item emitter|Document emitter|locally installed MCP provider|capability_bindings' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves reuse and tech debt context" "rg -q 'reference_impl|reuse|tech-debt|deferred-cleanup|do not reimplement' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves artifact taxonomy and enterprise readiness" "rg -q 'artifact_type|decision_contract|enterprise_readiness_contract|validation_task|unresolved_dependency_alias' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves scalable AI code primitives" "rg -q 'construct_map_refs|paved_road_refs|intent_contract_refs|production_invariant_coverage' '$ROOT/docs/specs/emitter-contract.md'"
+assert "shared emitter contract preserves implementation interface and productionization gates" "rg -q 'implementation_interface_contract|productionization_gate|Coverage State|No-Overclaim|overclaimed_production_ready' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves slop quality gates" "rg -q 'slop_quality_gate|case-promotion sources|generated-output behavior' '$ROOT/docs/specs/emitter-contract.md'"
 assert "JIRA ticket creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "Confluence decomposition respects applicability manifest" "rg -q 'contract_version|applicability_manifest|active Build Brief sections' '$ROOT/skills/confluence-decomposition/SKILL.md'"
@@ -405,15 +517,19 @@ assert "GitHub issue creation preserves verification contract" "rg -q 'contract_
 assert "Linear ticket creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "Linear ticket creation preserves artifact taxonomy and enterprise readiness" "rg -q 'artifact_type|Decision Contract|Compatibility Contract|Evidence Responsibilities|Definition of Done|enterprise readiness contract' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "work item emitters preserve scalable AI code primitives" "rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
+assert "work item emitters preserve implementation interface and productionization gates" "rg -q 'Implementation Interface Contract|Productionization Gate|Coverage State|No-Overclaim' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Implementation Interface Contract|Productionization Gate|Coverage State|No-Overclaim' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Implementation Interface Contract|Productionization Gate|Coverage State|No-Overclaim' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "work item emitters preserve slop quality gates" "rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "emit-work-items preserves scalable AI code primitive refs" "assert_emit_preserves_scalable_primitives"
 assert "emit-work-items preserves task fingerprints" "assert_emit_preserves_task_fingerprints"
+assert "emit-work-items preserves implementation interface and productionization contracts" "assert_emit_preserves_implementation_and_productionization_contracts"
 assert "emit-work-items preserves slop quality gates" "assert_emit_preserves_slop_quality_gate"
+assert "implementation interface productionization example is ready" "'$ROOT/bin/adlc' emit-work-items --target linear --build-brief '$ROOT/docs/build-briefs/implementation-interfaces-productionization-example.json' --dry-run --require-ready --json | jq -e '.readiness_report.status == \"ready\" and .artifacts[0].implementation_interface_contract.id == \"iface:adlc-iip-example\" and .artifacts[0].productionization_gate.coverage_state == \"production_ready\"' >/dev/null"
 assert "emit-work-items omits absent slop quality gates" "assert_emit_omits_absent_slop_quality_gate"
 assert "generated-output work without slop gate blocks readiness" "assert_generated_output_missing_slop_gate_blocks_readiness"
 assert "generated-output work with valid slop gate passes readiness" "assert_generated_output_valid_slop_gate_passes_readiness"
 assert "generated-output string metric without validator blocks readiness" "assert_generated_output_string_metric_blocks_readiness"
 assert "code-only work without slop gate passes readiness" "assert_code_only_without_slop_gate_passes_readiness"
+assert "overclaimed production_ready blocks readiness" "assert_overclaimed_production_ready_blocks_readiness"
 assert "compact not-applicable safety contracts pass readiness" "assert_compact_not_applicable_contracts_pass_readiness"
 assert "slop-gate CLI blocks missing generated-output gate" "assert_slop_gate_cli_blocks_missing_generated_gate"
 assert "Notion decomposition respects applicability manifest" "rg -q 'contract_version|applicability_manifest|active Build Brief sections' '$ROOT/skills/notion-decomposition/SKILL.md'"

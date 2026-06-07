@@ -5,7 +5,7 @@ Agentic Development Lifecycle.
 ADLC is a graph-driven framework for turning scoped work into reviewed code. The source tree contains agent configs, skill definitions, deterministic evaluators, and runtime adapter targets. `setup.sh` derives install counts from the repository so the shipped inventory stays truthful as the framework changes.
 
 ```
-Build Loop:  PRD → Compound Preflight → Graph Research → Brief → Council → Scaffold → LDD → TDD → Code → Comprehension Gate → PR → Learning Capture → You
+Build Loop:  PRD → Compound Preflight → Graph Research → Brief (Implementation Interface + Productionization Gate) → Council → Scaffold → LDD → TDD → Code → Comprehension Gate → PR → Learning Capture → You
 Fix Loop:    Capture → Confirm → Investigate → Fix → Prove → Council → PR
 Feedback:    Human edits → Diff capture → Pattern distill → Skill update
 ```
@@ -67,8 +67,10 @@ start → triage → compound_preflight (learning refs + resume context) → res
 ```
 
 Overlay gates are driven by the Build Brief `applicability_manifest` and task
-surface evidence. Inactive overlays are skipped or recorded as explicit no-ops;
-they are not filler sections every task must satisfy.
+surface evidence. Implementation Interface contracts and Productionization Gate
+claims are optional Build Brief layers; they activate when repo integration or
+production-ready claims are in scope. Inactive overlays are skipped or recorded
+as explicit no-ops; they are not filler sections every task must satisfy.
 `compound_preflight` also no-ops explicitly when `docs/solutions` or
 `graphify-out` is missing, so new repos do not pay setup tax before research.
 
@@ -198,9 +200,11 @@ The Build Brief Agent produces a brief with an `applicability_manifest`, a core 
 | 13 | Comprehension Context (module manifests, behavioral contracts, decision logs) | When modules, interfaces, state, ownership, or dark-code hotspots are active |
 | 14 | Graph Research Evidence (Graphify freshness, Beads task memory, direct verification) | Always when repo context is available |
 | 15 | Open Items | Always |
-| 16 | Revision History (council finding IDs → changes) | Always |
+| 16 | Implementation Interfaces (reuse, consumes, emits, invariants, integration points, validation gates) | When integration or reusable framework surfaces are active |
+| 17 | Productionization Gates (Coverage State, Validation Evidence, No-Overclaim, rollback/observability/security posture) | When a task makes or changes a production support claim |
+| 18 | Revision History (council finding IDs → changes) | Always |
 
-Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, failure modes, and enough acceptance criteria to define the verifier contract.
+Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, failure modes, and enough acceptance criteria to define the verifier contract. Tasks that touch integration boundaries should carry an `implementation_interface_contract`; tasks that claim `production_ready` must carry a `productionization_gate` with validation evidence and no-overclaim boundaries.
 
 ## Customization
 
@@ -259,6 +263,7 @@ adlc/
 - [`docs/adlc-v2-specification.md`](docs/adlc-v2-specification.md) — Full ADLC v2 spec (philosophy, pipeline, cross-cutting concerns)
 - [`docs/specs/graph-research-and-comprehension.md`](docs/specs/graph-research-and-comprehension.md) — Graphify, Beads, context-layer, and comprehension-gate contract
 - [`docs/specs/scalable-ai-code-primitives.md`](docs/specs/scalable-ai-code-primitives.md) — Graph-backed context, paved-road reuse, verifiability, and production invariant contract
+- [`docs/specs/implementation-interfaces-and-productionization.md`](docs/specs/implementation-interfaces-and-productionization.md) — Implementation Interface, Productionization Gate, Coverage State, and No-Overclaim contract
 - [`docs/specs/slop-eval-loop.md`](docs/specs/slop-eval-loop.md) — Output-side slop benchmark, threshold, regression, and case-promotion contract
 - [`docs/specs/compound-engineering-learning-store.md`](docs/specs/compound-engineering-learning-store.md) — `docs/solutions` learning-entry schema, capture, refresh, and preflight contract
 - [`docs/adlc-v2-tickets.md`](docs/adlc-v2-tickets.md) — 58-ticket implementation roadmap

@@ -19,7 +19,8 @@ You review code produced by coding agents. Catch correctness and comprehension i
 **Quality** — Follows conventions. No anti-slop. No unnecessary complexity.
 **Completeness** — All task files created/modified. All tests pass. No unrelated changes.
 **Comprehension** — Intent matches behavior. Blast radius, state changes, shared resources, credentials, retry assumptions, and compatibility impact are understandable from the diff plus captured context.
-**Scalable code primitives** — Medium+ blast-radius changes cite construct-map refs, follow paved-road refs or justify `no_paved_road_found`, preserve intent, and cover relevant production invariants.
+**Scalable code primitives** — Medium+ blast-radius changes cite construct-map refs, follow paved-road refs or justify `no_paved_road_found`, preserve intent, preserve Implementation Interface semantics, and cover relevant production invariants.
+**Productionization gate** — Production support claims stay inside the task's Coverage State, validation evidence, rollback/observability posture, security/privacy posture, reliability failure modes, and No-Overclaim boundaries.
 **Slop quality gate** — Generated-output changes carry benchmark cases, metrics, threshold, regression tolerance when available, and failure promotion evidence.
 
 ## Comprehension Gate
@@ -29,6 +30,11 @@ Run `comprehension-gate` after the normal review checklist.
 - If the change touches shared state, service boundaries, auth, tokens, sessions, persistent storage, data formats, public APIs, or runtime paths, produce a full comprehension artifact.
 - If graph or context-layer evidence is missing for a medium+ blast-radius change, return `revise` with the missing evidence named.
 - If construct-map refs, paved-road refs or an explicit `no_paved_road_found`, intent contract refs, or production invariant coverage are missing for a medium+ blast-radius code change, return `revise` with the missing primitive named.
+- If an active integration, schema, emitter payload, workflow-state, CLI, provider, or reusable framework surface lacks `implementation_interface_contract`, return `revise` with reason `missing_implementation_interface_contract`.
+- If the diff changes what a task consumes, emits, validates, or guarantees outside the `implementation_interface_contract`, return `revise` with the changed field named.
+- If a task makes a production support claim without `productionization_gate`, return `revise` with reason `missing_productionization_gate`.
+- If `productionization_gate.coverage_state = production_ready` but validation evidence, No-Overclaim boundaries, reliability failure modes, owner, rollback path, runbook/observability posture, or security/privacy posture are missing, return `revise` with reason `overclaimed_production_ready`.
+- If PR text, emitted work items, docs, or code comments claim support beyond the gate's Coverage State, return `revise` with reason `production_claim_overreach`.
 - If a change departs from a cited paved road without evidence that the existing pattern cannot absorb the work safely, return `revise`.
 - If a change touches prompt behavior, model selection, agent roles, generated content, response templates, product output, user-visible AI output, or output validators and lacks `slop_quality_gate`, return `revise` with reason `missing_slop_quality_gate`.
 - If `slop_quality_gate.applicability = required` but eval cases, metrics, threshold, or failure action are missing, return `revise` with the missing field named.

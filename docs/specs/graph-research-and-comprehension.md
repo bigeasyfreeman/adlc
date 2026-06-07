@@ -4,7 +4,7 @@
 
 This contract defines how ADLC uses graph-backed research, task memory, and comprehension artifacts without turning the lifecycle into prompt ceremony.
 
-Graphify is the codebase and corpus map. Beads is the dependency-aware work graph. Context-layer artifacts are the durable human-readable comprehension record. The comprehension gate blocks changes whose system implications are not understood. Scalable AI code primitives extend this contract with construct maps, paved-road references, verifiability evidence, and production invariant coverage.
+Graphify is the codebase and corpus map. Beads is the dependency-aware work graph. Context-layer artifacts are the durable human-readable comprehension record. The comprehension gate blocks changes whose system implications are not understood. Scalable AI code primitives extend this contract with construct maps, paved-road references, implementation-interface candidates, verifiability evidence, production invariant coverage, and productionization gates.
 
 ## Tool Roles
 
@@ -21,11 +21,11 @@ Graphify is the codebase and corpus map. Beads is the dependency-aware work grap
 
 | ADLC Stage | Required Behavior |
 |------------|-------------------|
-| `research` | Read or build Graphify before broad search. Record graph freshness, graph queries, construct maps, direct verification, compatibility evidence, validation surfaces, paved-road candidates, Beads task-memory context, and dark-code hotspots. |
-| `plan` | Convert graph, construct-map, paved-road, and compatibility evidence into Build Brief constraints. Add context-layer artifact requirements for modules, interfaces, state, ownership, production invariants, and dark-code hotspots. |
-| `context_assembly` | Inline only task-relevant graph evidence, construct relationships, paved-road refs, compatibility constraints, production invariants, and context artifacts into each coding prompt. |
-| `code_review` | Run comprehension-gate after correctness review. Return `revise` for `HOLD`, unanswered `REVIEW REQUIRED`, missing paved-road evidence, unverifiable delegation, unsupported production-quality claims, or missing medium+ blast-radius context. |
-| `pr_prep` | Include graph freshness, construct-map refs, paved-road refs, context artifact paths, comprehension verdict, unresolved dark-code risk, and Beads follow-up IDs if present. |
+| `research` | Read or build Graphify before broad search. Record graph freshness, graph queries, construct maps, direct verification, compatibility evidence, validation surfaces, paved-road candidates, implementation-interface candidates, blocked production claims, Beads task-memory context, and dark-code hotspots. |
+| `plan` | Convert graph, construct-map, paved-road, implementation-interface, and compatibility evidence into Build Brief constraints. Add context-layer artifact requirements for modules, interfaces, state, ownership, production invariants, productionization gates, and dark-code hotspots. |
+| `context_assembly` | Inline only task-relevant graph evidence, construct relationships, paved-road refs, implementation-interface contracts, compatibility constraints, productionization gates, production invariants, and context artifacts into each coding prompt. |
+| `code_review` | Run comprehension-gate after correctness review. Return `revise` for `HOLD`, unanswered `REVIEW REQUIRED`, missing paved-road evidence, missing implementation-interface semantics, unverifiable delegation, overclaimed production-ready states, unsupported production-quality claims, or missing medium+ blast-radius context. |
+| `pr_prep` | Include graph freshness, construct-map refs, paved-road refs, implementation-interface contracts, productionization gates, context artifact paths, comprehension verdict, unresolved dark-code risk, and Beads follow-up IDs if present. |
 
 ## Graph Research Evidence
 
@@ -45,6 +45,8 @@ Every repo-backed ADLC run should produce:
     "validation_surfaces": [],
     "blast_radius": []
   },
+  "implementation_interface_candidates": [],
+  "blocked_production_claims": [],
   "paved_road_refs": [],
   "accuracy_gaps": []
 }
@@ -79,6 +81,18 @@ Each compatibility finding must name:
 - the verifier or context artifact that protects the contract
 
 Backward compatibility protects current users and artifacts. Forward compatibility protects named future phases only. Do not create speculative abstraction for unnamed future work.
+
+## Implementation Interface And Productionization Evidence
+
+Graph-backed research should identify implementation-interface candidates before planning creates tasks:
+
+- existing modules, schemas, CLIs, emitters, providers, or workflows that should be reused
+- what those surfaces consume and emit today
+- minimum fields or semantic constraints that downstream tasks must preserve
+- integration points and validation gates
+- blocked production claims where no evidence, rollback path, observability, security/privacy posture, or no-overclaim boundary exists
+
+Graph evidence remains a starting point. Critical interface and productionization claims must be directly verified before the planner turns them into `implementation_interface_contract` or `productionization_gate` fields.
 
 ## Context-Layer Artifact Requirements
 

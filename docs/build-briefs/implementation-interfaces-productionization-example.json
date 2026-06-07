@@ -1,0 +1,476 @@
+{
+  "version": "1.0.0",
+  "adlc_mode": "decompose_only",
+  "brief_id": "ADLC-IIP-EXAMPLE",
+  "prd_id": "PRD-ADLC-IIP-EXAMPLE",
+  "applicability_manifest": {
+    "version": "1.0.0",
+    "task_classification": "infra",
+    "task_classification_confidence": 0.92,
+    "classification_evidence": [
+      "Example changes ADLC framework contracts and local CLI validation."
+    ],
+    "change_surface": {
+      "new_attack_surface": false,
+      "runtime_path_change": false,
+      "service_boundary_change": true,
+      "external_integration": false,
+      "persistent_storage": false,
+      "api_change": false,
+      "data_format_change": true,
+      "auth_change": false,
+      "perf_sensitive": false,
+      "user_facing_operation": false
+    },
+    "claim_provenance": {
+      "supported": [
+        {
+          "claim": "Implementation-interface contracts and productionization gates are optional Build Brief fields.",
+          "source_ref": "docs/schemas/build-brief.schema.json",
+          "extracted_from": "schema"
+        }
+      ],
+      "unsupported": [],
+      "contradicted": []
+    },
+    "contamination": {
+      "flags": [],
+      "supported_claims": [
+        "New fields are optional and backward compatible."
+      ],
+      "unsupported_claims": [],
+      "contradicted_claims": [],
+      "needs_clarification": [],
+      "suspect_phrases": []
+    },
+    "section_policy": [
+      {
+        "section_name": "16_implementation_interfaces",
+        "status": "active",
+        "reason": "The example demonstrates an active implementation-interface contract."
+      },
+      {
+        "section_name": "17_productionization_gates",
+        "status": "active",
+        "reason": "The example demonstrates an active productionization gate."
+      }
+    ],
+    "verification_spec": {
+      "primary_verifier": {
+        "type": "command",
+        "target": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization-example.json --dry-run --require-ready --json",
+        "expected_pre_change": "fail",
+        "expected_post_change": "pass",
+        "target_files": [
+          "docs/build-briefs/implementation-interfaces-productionization-example.json",
+          "scripts/adlc.py",
+          "docs/schemas/build-brief.schema.json"
+        ],
+        "expected_failure_mode": "schema or readiness check rejects missing interface or productionization evidence"
+      },
+      "must_fail_before_change": true,
+      "must_be_deterministic": true,
+      "scope_note": "The local CLI validates schema support, payload preservation, and production_ready readiness evidence."
+    }
+  },
+  "enterprise_readiness_contract": {
+    "production_grade_target": "Demonstrate ADLC-native implementation-interface and productionization gate contracts.",
+    "backward_compatibility": "Existing Build Briefs remain valid when the optional fields are absent.",
+    "forward_compatibility": "New work-item emitters can preserve the contracts without changing target-specific clients.",
+    "failure_mode_coverage": [
+      "Readiness blocks production_ready claims without evidence."
+    ],
+    "definition_of_done": [
+      "Schema validation passes.",
+      "emit-work-items --require-ready passes."
+    ],
+    "validation_tasks": [
+      "ADLC-IIP-EX-VAL"
+    ],
+    "compliance_posture": "No secrets, external auth, or production mutation is introduced.",
+    "implementation_interface_refs": [
+      "iface:adlc-iip-example"
+    ],
+    "productionization_gate_refs": [
+      "prod:adlc-iip-example"
+    ]
+  },
+  "sections": {
+    "1_context": "This example shows how ADLC decomposes compound engineering work into an implementation-interface contract and a productionization gate without adding a parallel workflow.",
+    "2_scope_and_constraints": "In scope: schema-valid example artifact and local CLI readiness. Out of scope: external provider mutation or broad compliance readiness.",
+    "3_repo_findings": "ADLC already has Build Brief schemas, workflow state, normalized work-item payloads, readiness checks, and emitter contracts that can be extended.",
+    "4_architecture": "The implementation task carries the interface and productionization fields. The validation task proves schema validation and readiness.",
+    "5_security_review": null,
+    "6_observability_slo": "The productionization gate captures owner, rollback, runbook, and dashboard refs as evidence, but this example does not add runtime observability.",
+    "7_execution_plan": "Validate the artifact, emit work items in dry-run mode, and require readiness.",
+    "8_task_tickets": [
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-IIP-EX-IMPL",
+        "title": "Preserve implementation-interface and productionization fields",
+        "objective": "Preserve task-level implementation-interface and productionization gate fields through normalized ADLC work-item emission.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "ADLC",
+          "deadline": "not_applicable",
+          "blocks_implementation": false,
+          "resolution": "Optional fields extend the current Build Brief contract."
+        },
+        "scope": [
+          "Preserve optional task-level contracts in local emitter payloads."
+        ],
+        "out_of_scope": [
+          "External tracker mutation"
+        ],
+        "dependencies": [],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC-IIP-EX-PRESERVE",
+            "given": "a task includes implementation_interface_contract and productionization_gate",
+            "when": "emit-work-items normalizes the Build Brief",
+            "then": "the artifact preserves both contracts",
+            "measurable_post_condition": "jq can read both fields from the emitted artifact"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not add a separate productionization workflow.",
+          "Do not claim external provider readiness from local dry-run evidence."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "none",
+          "deferral_safety": "The example is schema-only and does not mutate external systems."
+        },
+        "compatibility_contract": {
+          "backward": "Existing tasks without the optional fields emit unchanged.",
+          "forward": "Future emitters can preserve the fields without schema redesign.",
+          "migration_or_rollout": "No migration required; optional schema fields only."
+        },
+        "implementation_notes": [
+          "Use the existing normalized_work_item_payload path."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization-example.json --dry-run --require-ready --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "target_files": [
+              "scripts/adlc.py",
+              "docs/build-briefs/implementation-interfaces-productionization-example.json"
+            ],
+            "expected_failure_mode": "normalized payload drops interface or productionization fields"
+          },
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Dry-run emission exercises the local payload and readiness path."
+        },
+        "evidence_responsibilities": [
+          "Capture emit-work-items --require-ready output."
+        ],
+        "definition_of_done": [
+          "The emitted implementation task includes both contracts."
+        ],
+        "failure_modes": [
+          "Optional fields are dropped by normalization.",
+          "production_ready is claimed without evidence."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "ADLC",
+        "files_to_modify": [
+          "scripts/adlc.py"
+        ],
+        "files_to_create": [
+          "docs/build-briefs/implementation-interfaces-productionization-example.json"
+        ],
+        "reference_impl": "scripts/adlc.py:normalized_work_item_payload",
+        "construct_map_refs": [
+          "graph:construct:adlc-cli"
+        ],
+        "paved_road_refs": [
+          "skill:paved-road-registry#adlc-cli"
+        ],
+        "intent_contract_refs": [
+          "brief:intent:implementation-interface-productionization"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "data_integrity",
+            "status": "covered",
+            "evidence": [
+              "docs/schemas/build-brief.schema.json"
+            ]
+          },
+          {
+            "invariant": "idempotency",
+            "status": "covered",
+            "evidence": [
+              "docs/specs/idempotency-keys.md"
+            ]
+          }
+        ],
+        "implementation_interface_contract": {
+          "id": "iface:adlc-iip-example",
+          "capability": "ADLC work-item contract preservation",
+          "task_refs": [
+            "ADLC-IIP-EX-IMPL"
+          ],
+          "reuse": [
+            "scripts/adlc.py normalized_work_item_payload",
+            "docs/specs/emitter-contract.md"
+          ],
+          "consumes": [
+            "Build Brief task fields",
+            "task-level implementation_interface_contract",
+            "task-level productionization_gate"
+          ],
+          "emits": [
+            "normalized work-item artifact"
+          ],
+          "minimum_fields": [
+            {
+              "name": "task_id",
+              "kind": "string",
+              "constraint": "stable non-empty task identifier"
+            },
+            {
+              "name": "coverage_state",
+              "kind": "enum",
+              "constraint": "one of unsupported, evidence_only, monitor_only, not_yet_ga, governed, production_ready"
+            }
+          ],
+          "invariants": [
+            "Optional fields remain optional for older briefs.",
+            "Production-ready claims must not bypass readiness."
+          ],
+          "integration_points": [
+            "bin/adlc emit-work-items",
+            "docs/schemas/build-brief.schema.json",
+            "docs/specs/emitter-contract.md"
+          ],
+          "validation_gates": [
+            "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/implementation-interfaces-productionization-example.json --json",
+            "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization-example.json --dry-run --require-ready --json"
+          ],
+          "failure_semantics": [
+            "Invalid schema fails before emission.",
+            "Unsupported production_ready claims fail readiness before mutation."
+          ],
+          "privacy_redaction": "No secrets or external credentials are emitted.",
+          "evidence_refs": [
+            "tests/test_adlc_contracts.sh"
+          ]
+        },
+        "productionization_gate": {
+          "id": "prod:adlc-iip-example",
+          "task_refs": [
+            "ADLC-IIP-EX-IMPL"
+          ],
+          "claim": "ADLC can preserve implementation-interface and productionization contracts through local dry-run work-item emission.",
+          "coverage_state": "production_ready",
+          "operational_readiness": {
+            "owner": "ADLC",
+            "deployment_path": "Schema and CLI patch in this repository.",
+            "rollback_path": "Revert the schema and CLI patch.",
+            "runbook_refs": [
+              "docs/specs/emitter-contract.md"
+            ],
+            "dashboard_refs": [
+              "readiness_report JSON output"
+            ],
+            "support_boundary": "Local ADLC framework behavior only."
+          },
+          "security_privacy": {
+            "redaction_posture": "The local payload contains task metadata and no secrets.",
+            "audit_evidence": [
+              "git diff --check",
+              "tests/test_adlc_contracts.sh"
+            ]
+          },
+          "reliability_failure_modes": [
+            "Schema mismatch blocks before emission.",
+            "Readiness mismatch blocks before external mutation."
+          ],
+          "validation_evidence": [
+            "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/implementation-interfaces-productionization-example.json --json",
+            "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization-example.json --dry-run --require-ready --json"
+          ],
+          "no_overclaim": [
+            "This does not prove external Linear, GitHub, or Jira provider mutation.",
+            "This does not certify broad compliance readiness."
+          ],
+          "known_unsupported_states": [
+            "External tracker API transport is out of scope."
+          ]
+        }
+      },
+      {
+        "artifact_type": "validation_task",
+        "task_id": "ADLC-IIP-EX-VAL",
+        "title": "Validate implementation-interface productionization example",
+        "objective": "Run schema validation and readiness checks for the example Build Brief.",
+        "task_classification": "build_validation",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "ADLC",
+          "deadline": "not_applicable",
+          "blocks_implementation": false,
+          "resolution": "Validation task owns local evidence capture."
+        },
+        "scope": [
+          "Run local schema and readiness commands."
+        ],
+        "out_of_scope": [
+          "External provider mutation"
+        ],
+        "dependencies": [
+          "ADLC-IIP-EX-IMPL"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC-IIP-EX-READY",
+            "given": "the example Build Brief",
+            "when": "validate-artifact and emit-work-items --require-ready run",
+            "then": "both commands pass",
+            "measurable_post_condition": "CLI exits 0 and readiness_report.status is ready"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not treat dry-run evidence as external provider mutation proof."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "none",
+          "deferral_safety": "Validation is local and deterministic."
+        },
+        "compatibility_contract": {
+          "backward": "Older briefs without optional fields keep passing.",
+          "forward": "Future examples can add target-specific evidence without changing the contract.",
+          "migration_or_rollout": "No migration required."
+        },
+        "implementation_notes": [
+          "Capture command output as validation evidence."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization-example.json --dry-run --require-ready --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "target_files": [
+              "docs/build-briefs/implementation-interfaces-productionization-example.json"
+            ],
+            "expected_failure_mode": "readiness_report.status is blocked"
+          },
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "The validation task proves the checked-in example is runnable."
+        },
+        "evidence_responsibilities": [
+          "Capture validate-artifact output.",
+          "Capture emit-work-items readiness output."
+        ],
+        "definition_of_done": [
+          "validate-artifact returns valid true.",
+          "readiness_report.status is ready."
+        ],
+        "failure_modes": [
+          "Example schema drifts from the contract.",
+          "Readiness blocks a valid production_ready example."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "ADLC",
+        "files_to_modify": [],
+        "files_to_create": [
+          "docs/build-briefs/implementation-interfaces-productionization-example.json"
+        ],
+        "reference_impl": "docs/build-briefs/xia-adlc-remediation.json",
+        "implementation_interface_contract": {
+          "applicability": "not_applicable",
+          "reason": "Validation task does not change an integration boundary."
+        },
+        "productionization_gate": {
+          "applicability": "not_applicable",
+          "reason": "Validation task does not make a production support claim."
+        }
+      }
+    ],
+    "9_risks": [
+      "Overclaiming dry-run evidence as external provider readiness."
+    ],
+    "10_rollout": "No rollout. The artifact is a checked-in example for local validation.",
+    "11_validation_plan": [
+      "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/implementation-interfaces-productionization-example.json --json",
+      "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization-example.json --dry-run --require-ready --json"
+    ],
+    "12_skill_trigger_configuration": null,
+    "13_comprehension_context": null,
+    "14_graph_research_evidence": {
+      "graph_status": "fresh",
+      "queries_run": [
+        "Where should implementation-interface and productionization support be added in ADLC?"
+      ]
+    },
+    "15_dark_code_risk": null,
+    "16_implementation_interfaces": [
+      {
+        "id": "iface:adlc-iip-example",
+        "capability": "ADLC work-item contract preservation",
+        "reuse": [
+          "scripts/adlc.py normalized_work_item_payload"
+        ],
+        "consumes": [
+          "Build Brief task fields"
+        ],
+        "emits": [
+          "normalized work-item artifact"
+        ],
+        "minimum_fields": [
+          {
+            "name": "task_id",
+            "kind": "string",
+            "constraint": "stable non-empty task identifier"
+          }
+        ],
+        "invariants": [
+          "Optional fields remain optional."
+        ],
+        "integration_points": [
+          "bin/adlc emit-work-items"
+        ],
+        "validation_gates": [
+          "tests/test_adlc_contracts.sh"
+        ]
+      }
+    ],
+    "17_productionization_gates": [
+      {
+        "id": "prod:adlc-iip-example",
+        "claim": "Local dry-run emission preserves the contracts.",
+        "coverage_state": "production_ready",
+        "operational_readiness": {
+          "owner": "ADLC",
+          "rollback_path": "Revert the patch.",
+          "runbook_refs": [
+            "docs/specs/emitter-contract.md"
+          ]
+        },
+        "security_privacy": {
+          "redaction_posture": "No secrets emitted."
+        },
+        "reliability_failure_modes": [
+          "Schema mismatch blocks emission."
+        ],
+        "validation_evidence": [
+          "tests/test_adlc_contracts.sh"
+        ],
+        "no_overclaim": [
+          "External provider mutation is out of scope."
+        ]
+      }
+    ]
+  }
+}
