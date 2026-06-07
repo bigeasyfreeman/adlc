@@ -414,7 +414,7 @@
           "note": "Factory uses documented inheritance fallback for both judge slots until distinct runtime tiers are verified."
         }
       },
-      "skills": [],
+      "skills": ["learning-capture"],
       "labels": ["done"]
     }
   ],
@@ -823,6 +823,32 @@
       "path": "skills/feedback-loop/SKILL.md",
       "contract_version": "2.0.0",
       "side_effect_profile": "mutating",
+      "dag_nodes": []
+    },
+    {
+      "name": "learning-capture",
+      "path": "skills/learning-capture/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "activation": {
+        "mode": "conditional_closeout",
+        "consumes_manifest": true,
+        "trigger_nodes": ["pr_prep", "learning_capture"],
+        "produces": ["learning_candidates", "learning_entry"]
+      },
+      "dag_nodes": ["pr_prep", "learning_capture"]
+    },
+    {
+      "name": "learning-refresh",
+      "path": "skills/learning-refresh/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "mutating",
+      "activation": {
+        "mode": "scoped_maintenance",
+        "consumes_manifest": true,
+        "trigger_fields": ["stale_conditions", "module", "adlc_domain"],
+        "produces": ["learning_refresh_report"]
+      },
       "dag_nodes": []
     },
     {

@@ -16,6 +16,9 @@ digraph ADLC {
     // ─── Triage (lightweight LLM pass) ───
     triage [shape=diamond, label="Triage\nClassify & Route"]
 
+    // ─── Compound Context (deterministic learning preflight) ───
+    compound_preflight [shape=box, label="Compound Preflight\nLearning + Resume Context", style="dashed,filled", fillcolor="#f0f0f0"]
+
     // ─── Research (agentic) ───
     research [shape=box, label="Research\nCodebase Analysis", style=filled, fillcolor="#e6f3ff"]
 
@@ -51,6 +54,9 @@ digraph ADLC {
     // ─── PR Assembly (agentic) ───
     pr_prep [shape=box, label="PR Prep\nAssemble Package", style=filled, fillcolor="#e6f3ff"]
 
+    // ─── Learning Capture (conditional closeout) ───
+    learning_capture [shape=box, label="Learning Capture\nVerified Reuse Notes", style="dashed,filled", fillcolor="#f0f0f0"]
+
     // ─── Human Gate ───
     engineer_review [shape=hexagon, label="Engineer\nReview", style=filled, fillcolor="#e6ffe6"]
 
@@ -63,10 +69,13 @@ digraph ADLC {
     start -> triage
 
     // Triage routing
-    triage -> research     [label="proceed"]
-    triage -> research     [label="low_confidence", style=dashed, color="#cc6600"]
+    triage -> compound_preflight [label="proceed"]
+    triage -> compound_preflight [label="low_confidence", style=dashed, color="#cc6600"]
     triage -> escalate     [label="unclear"]
     triage -> escalate     [label="escalate", color="red"]
+
+    // Compound preflight → Research
+    compound_preflight -> research [label="proceed"]
 
     // Research → Plan
     research -> plan
@@ -114,8 +123,11 @@ digraph ADLC {
     slop_gate -> pr_prep         [label="pass"]
     slop_gate -> fixer           [label="fail", style=dashed, color="#cc6600"]
 
-    // PR → Human Gate
-    pr_prep -> engineer_review
+    // PR → Learning Capture → Human Gate
+    pr_prep -> learning_capture
+    learning_capture -> engineer_review [label="pass"]
+    learning_capture -> engineer_review [label="skipped", style=dashed, color="#666666"]
+    learning_capture -> fixer           [label="fail", style=dashed, color="#cc6600"]
 
     // Human gate routing
     engineer_review -> done      [label="approve", color="green"]

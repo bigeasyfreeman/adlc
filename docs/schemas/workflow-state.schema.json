@@ -28,6 +28,7 @@
       "enum": [
         "start",
         "triage",
+        "compound_preflight",
         "research",
         "plan",
         "plan_review",
@@ -41,6 +42,7 @@
         "test_strength",
         "slop_gate",
         "pr_prep",
+        "learning_capture",
         "engineer_review",
         "fixer",
         "done",
@@ -143,6 +145,78 @@
     "resume_count": {
       "type": "integer",
       "minimum": 0
+    },
+    "task_fingerprints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task_id",
+          "input_hash",
+          "status",
+          "primary_verifier"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "input_hash": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "completed",
+              "failed",
+              "skipped_already_satisfied"
+            ]
+          },
+          "primary_verifier": {
+            "type": "string",
+            "minLength": 1
+          },
+          "pre_change_status": {
+            "type": "string",
+            "enum": [
+              "failed_expected",
+              "missing",
+              "wrong_failure",
+              "not_applicable"
+            ]
+          },
+          "post_change_status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "not_run"
+            ]
+          },
+          "changed_files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
     },
     "stop_reason": {
       "type": "string"

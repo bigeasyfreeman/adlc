@@ -246,6 +246,12 @@
           "type": "string",
           "pattern": "^[A-Z0-9_-]+$"
         },
+        "stable_task_identity": {
+          "$ref": "#/definitions/stable_task_identity"
+        },
+        "resume_fingerprint": {
+          "$ref": "#/definitions/resume_fingerprint"
+        },
         "title": {
           "type": "string",
           "minLength": 1
@@ -1175,6 +1181,104 @@
         "expected_failure_mode": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "stable_task_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_key",
+        "stability_rule"
+      ],
+      "properties": {
+        "identity_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "stability_rule": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supersedes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "resume_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_hash",
+        "status",
+        "primary_verifier"
+      ],
+      "properties": {
+        "input_hash": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "in_progress",
+            "completed",
+            "failed",
+            "skipped_already_satisfied"
+          ]
+        },
+        "primary_verifier": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pre_change_status": {
+          "type": "string",
+          "enum": [
+            "failed_expected",
+            "missing",
+            "wrong_failure",
+            "not_applicable"
+          ]
+        },
+        "post_change_status": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "not_run"
+          ]
+        },
+        "changed_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     }

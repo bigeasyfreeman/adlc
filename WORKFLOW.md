@@ -64,11 +64,12 @@ labels:
   - pass                  # Deterministic gate passed
   - fail                  # Deterministic gate failed
   - weak                  # Test-strength audit failed thresholds
-  - proceed               # Triage approved
+  - proceed               # Triage approved or deterministic preflight complete
   - unclear               # Triage cannot classify
   - fixed                 # Fixer resolved the issue
   - stuck                 # Fixer cannot resolve
   - approve               # Engineer approved
+  - skipped               # Conditional deterministic node had no work
 ---
 
 # ADLC Pipeline Configuration
@@ -85,6 +86,7 @@ Judge skills resolve their `fast_judge` and `deep_judge` slots through `skills/m
 | DAG Node | Agent | Backend | Model | Skills Injected |
 |----------|-------|---------|-------|-----------------|
 | `triage` | `agents/triage.md` | claude | claude-sonnet-4-6 | — |
+| `compound_preflight` | *tool node* | — | — | compound context preflight |
 | `research` | `agents/researcher.md` | claude | claude-opus-4-6 | graph-research, codebase-research, paved-road-registry, dark-code-audit, grafana-observability |
 | `plan` | `agents/planner.md` | claude | claude-opus-4-6 | graph-research, codegen-context, architecture-pattern, reuse-analysis, paved-road-registry, context-layers |
 | `plan_review` | `agents/plan-reviewer.md` | claude | claude-opus-4-6 | eval-council |
@@ -98,7 +100,8 @@ Judge skills resolve their `fast_judge` and `deep_judge` slots through `skills/m
 | `test_strength` | `agents/test-strength-auditor.md` | claude | claude-sonnet-4-6 | test-strength |
 | `slop_gate` | *tool node* | — | — | stop-slop |
 | `fixer` | `agents/fixer.md` | claude | claude-sonnet-4-6 | systematic-debugging |
-| `pr_prep` | `agents/pr-preparer.md` | claude | claude-sonnet-4-6 | — |
+| `pr_prep` | `agents/pr-preparer.md` | claude | claude-sonnet-4-6 | learning-capture |
+| `learning_capture` | *tool node* | — | — | learning-capture |
 | `engineer_review` | *human gate* | — | — | — |
 
 `security`, `test_strength`, and `slop_gate` are conditional overlays. A runner
@@ -114,6 +117,16 @@ surface active; otherwise the runner follows the skip/no-op edge shown in
 `WORKFLOW.dot`.
 
 ```yaml
+compound_preflight:
+  command: |
+    if [ -n "${BUILD_BRIEF:-}" ]; then
+      bin/adlc compound-context --workspace "${WORKSPACE:-.}" --build-brief "$BUILD_BRIEF" --json
+    else
+      bin/adlc compound-context --workspace "${WORKSPACE:-.}" --json
+    fi
+    # Emits compact learning_refs, verifier_refs, task_refs, and explicit no-op reasons.
+    # Missing docs/solutions or graphify-out is reported as a no-op, not a failure.
+
 scaffold:
   command: |
     # Read architecture-pattern skill output, generate contracts and implementation guides
@@ -136,6 +149,12 @@ qa:
 slop_gate:
   command: |
     bin/adlc slop-gate --build-brief ${BUILD_BRIEF:?} --json
+
+learning_capture:
+  command: |
+    # Run only when pr_prep emits verified reusable learning candidates.
+    # Write or update one docs/solutions entry, then validate with scripts/validate_learning_entry.py.
+    # If no verified reusable learning exists, emit skipped and proceed.
 ```
 
 ### Fan-Out Configuration

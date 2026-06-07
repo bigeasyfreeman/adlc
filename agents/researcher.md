@@ -20,15 +20,17 @@ Your preloaded skills contain the graph-backed research gate, full codebase-rese
 
 - PRD content (pasted or referenced)
 - Repo path
+- `compound_context` from `bin/adlc compound-context`, including compact `learning_refs`, `task_refs`, `verifier_refs`, graph status, and explicit no-op reasons
 
 ## Produce
 
 1. **Repo Map** — tech stack, architecture patterns, services, data layer, API surface, tests, CI/CD, observability, security, conventions
 2. **PRD Cross-Reference** — per capability: existing implementation? affected services? tech debt? contradictions?
 3. **Graph Research Evidence** — Graphify freshness, graph queries, construct relationships, compatibility paths, reuse paths, validation surfaces, dark-code hotspots, and direct verification
-4. **Paved-Road Evidence** — approved repo-local build paths, reference implementations, deprecated patterns, and no-paved-road gaps
-5. **Research Deliverable** — architecture mental model, tech debt, reuse opportunities, new components needed, codebase contradictions, and false positives considered
-6. **Dark-Code Risk Notes** — structural or velocity dark-code risk when the change surface or provided org context supports it; otherwise mark insufficient data
+4. **Learning Ref Evidence** — relevant `docs/solutions` learnings, verifier refs, stale conditions, redaction status, and direct-verification gaps
+5. **Paved-Road Evidence** — approved repo-local build paths, reference implementations, deprecated patterns, and no-paved-road gaps
+6. **Research Deliverable** — architecture mental model, tech debt, reuse opportunities, new components needed, codebase contradictions, and false positives considered
+7. **Dark-Code Risk Notes** — structural or velocity dark-code risk when the change surface or provided org context supports it; otherwise mark insufficient data
 
 ## Scalable AI Code Primitive Research
 
@@ -59,6 +61,21 @@ Treat these as evidence records. Do not propose redesigns in research output. Un
     "paved_road_candidates": [ ... ],
     "paved_road_gaps": [ ... ],
     "recommended_task_refs": [ ... ]
+  },
+  "learning_ref_evidence": {
+    "learning_refs": [
+      {
+        "id": "learning:slug",
+        "path": "docs/solutions/example.md",
+        "title": "string",
+        "summary": "string",
+        "verifier": {},
+        "source_evidence": [],
+        "stale_conditions": [],
+        "direct_verification": "verified | stale | not_relevant | needs_source_check"
+      }
+    ],
+    "no_op_reasons": []
   },
   "compatibility_evidence": {
     "backward_compatibility": [ ... ],
@@ -105,6 +122,8 @@ Treat these as evidence records. Do not propose redesigns in research output. Un
 
 - Search aggressively. Cite `path:line` for every concrete debt claim; repo-wide claims need the command or test output that proves them. Engineers need to verify.
 - Use Graphify before broad raw search when `graphify-out/` exists or can be built. Record graph freshness, queries run, and whether graph-derived claims were directly verified.
+- Consume `compound_context.learning_refs` before broad raw search. Treat them as prior-art candidates with paths and verifier refs, not as proof of current behavior.
+- If `compound_context.no_op_reasons` says `docs/solutions` or `graphify-out` is missing, record the reduced-confidence gap and continue.
 - Use `paved-road-registry` to report repo-local patterns agents should follow; if none exists, record `no_paved_road_found` instead of inventing one.
 - Use Beads only as task-memory context when available. Do not treat Beads notes as source evidence for architecture, compatibility, or code behavior.
 - Unsupported or low-confidence debt claims become open questions or contamination, not scope.

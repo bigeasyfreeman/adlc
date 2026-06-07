@@ -7,7 +7,7 @@ This project uses the ADLC framework for AI-assisted development.
 The ADLC pipeline converts feature descriptions into production code:
 
 ```
-Triage → Graph Research → Plan ↔ Review → Code (parallel) → Comprehension Gate → QA → Conditional Overlays → PR → Engineer Review
+Triage → Compound Preflight → Graph Research → Plan ↔ Review → Code (parallel) → Comprehension Gate → QA → Conditional Overlays → PR → Learning Capture → Engineer Review
 ```
 
 ## Working Agreements
@@ -15,6 +15,7 @@ Triage → Graph Research → Plan ↔ Review → Code (parallel) → Comprehens
 - Every acceptance criterion uses Given/When/Then format
 - Every coding task must be self-contained (zero-read principle: all context inlined)
 - Graphify-backed research is the default repo map when `graphify-out/` exists; Beads is optional task memory, not architecture evidence
+- `docs/solutions/` is the optional compound learning store; consume compact learning refs before research and capture only verified reusable learnings after PR prep
 - Code-changing tasks should carry construct-map refs, paved-road refs or `no_paved_road_found`, intent refs, and production invariant coverage when the blast radius is medium or higher
 - Generated-output tasks should carry `slop_quality_gate`: eval cases, metrics, threshold, regression tolerance when available, failure action, and case-promotion sources
 - Medium+ blast-radius changes need comprehension context: graph evidence, module manifest, behavioral contracts, or decision-log references
@@ -35,7 +36,7 @@ Triage → Graph Research → Plan ↔ Review → Code (parallel) → Comprehens
 ## Skills Available
 
 Injectable skills in the skills directory cover:
-- **Engineering**: graph-research, codebase-research, paved-road-registry, dark-code-audit, context-layers, comprehension-gate, eval-council, codegen-context, tdd-enforcement, systematic-debugging, architecture-pattern, qa-test-data, ci-cd-pipeline
+- **Engineering**: graph-research, codebase-research, paved-road-registry, dark-code-audit, context-layers, comprehension-gate, eval-council, codegen-context, tdd-enforcement, systematic-debugging, architecture-pattern, qa-test-data, ci-cd-pipeline, learning-capture, learning-refresh
 - **Quality**: stop-slop, slop-judge, feedback-loop, test-strength
 - **Security**: appsec-threat-model, llm-security, agentic-security, api-security, infra-security
 - **Product**: prd-generation, ux-flow-builder, figma-integration, gong-customer-evidence
