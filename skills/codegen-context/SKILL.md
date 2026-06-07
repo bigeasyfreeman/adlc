@@ -89,6 +89,20 @@ This skill runs before the coding agent starts. Its output is the coding agent's
     "parallel": true,
     "manual_test_plan": [{"step": "string", "action": "string", "expected": "string"}]
   },
+  "compound_context": {
+    "learning_refs": [
+      {
+        "id": "learning:slug",
+        "path": "docs/solutions/example.md",
+        "title": "string",
+        "summary": "short distilled learning",
+        "source_evidence": [],
+        "verifier": {},
+        "stale_conditions": []
+      }
+    ],
+    "no_op_reasons": []
+  },
   "build_brief": {
     "applicability_manifest": {},
     "existing_patterns": [{"pattern": "string", "file_path": "string", "reuse_instructions": "string"}],
@@ -167,6 +181,7 @@ What gets inlined:
 - Intent constraints, explicit non-goals, load-bearing assumptions, and human-judgment checkpoints
 - Production invariant coverage for the task, including any gaps or review-required items
 - Slop quality gate cases, rubrics, metrics, threshold, baseline score, regression tolerance, and failure-promotion instructions when active
+- Relevant learning refs from `docs/solutions`: ID, path, title, short summary, verifier ref, source evidence, stale conditions, and direct-verification caveat
 - Compatibility constraints and performance budget when active
 - Graph research evidence relevant to compatibility, reuse, and blast radius
 - Module manifests, behavioral contracts, and decision-log warnings when the task touches those modules
@@ -175,6 +190,7 @@ What does not get inlined:
 - Unrelated files
 - Entire dependency manifests
 - Full migration history
+- Full solution-note bodies from `docs/solutions`; pass paths and compact summaries instead
 
 ---
 
@@ -310,13 +326,16 @@ These are the exact files this task touches.
 ## 14. Slop Quality Gate (only when active)
 [Include this section only when the task changes generated-output behavior. Paste `slop_quality_gate`: applicability reason, mode, eval cases, metrics, threshold, baseline score, regression tolerance, failure action, and case-promotion sources. Omit the section entirely for code-only, docs-only, lint-only, and build-validation tasks with no generated-output surface.]
 
-## 15. What Not To Do
+## 15. Prior Learnings
+[Include only relevant `learning_refs`: ID, path, title, distilled summary, source evidence, verifier, stale conditions, and whether current source verification has confirmed applicability. Omit this section when no relevant refs exist.]
+
+## 16. What Not To Do
 [Paste the negative constraints from duplication and verifier quality.]
 
-## 16. Manual Test Plan
+## 17. Manual Test Plan
 [Paste if present.]
 
-## 17. Verification
+## 18. Verification
 Run the primary verifier first.
 If it fails for the wrong reason, adjust the verifier.
 If it fails for the right reason, make the smallest change that makes it pass.

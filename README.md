@@ -5,7 +5,7 @@ Agentic Development Lifecycle.
 ADLC is a graph-driven framework for turning scoped work into reviewed code. The source tree contains agent configs, skill definitions, deterministic evaluators, and runtime adapter targets. `setup.sh` derives install counts from the repository so the shipped inventory stays truthful as the framework changes.
 
 ```
-Build Loop:  PRD → Graph Research → Brief → Council → Scaffold → LDD → TDD → Code → Comprehension Gate → PR → You
+Build Loop:  PRD → Compound Preflight → Graph Research → Brief → Council → Scaffold → LDD → TDD → Code → Comprehension Gate → PR → Learning Capture → You
 Fix Loop:    Capture → Confirm → Investigate → Fix → Prove → Council → PR
 Feedback:    Human edits → Diff capture → Pattern distill → Skill update
 ```
@@ -60,15 +60,17 @@ cp -r skills/codebase-research/ ~/my-project/.claude/skills/codebase-research/
 ### Build Loop
 
 ```
-start → triage → research (Graphify/Beads-aware) → plan ↔ plan_review → scaffold → gen_tests →
+start → triage → compound_preflight (learning refs + resume context) → research (Graphify/Beads-aware) → plan ↔ plan_review → scaffold → gen_tests →
   context_assembly → code (fan-out) ↔ code_review (comprehension gate) ↔ fixer →
   [security if active] → qa → [test_strength if active] → [slop_gate if generated-output active] →
-  pr_prep → engineer_review → done
+  pr_prep → [learning_capture if verified reusable learning exists] → engineer_review → done
 ```
 
 Overlay gates are driven by the Build Brief `applicability_manifest` and task
 surface evidence. Inactive overlays are skipped or recorded as explicit no-ops;
 they are not filler sections every task must satisfy.
+`compound_preflight` also no-ops explicitly when `docs/solutions` or
+`graphify-out` is missing, so new repos do not pay setup tax before research.
 
 ### Fix Loop (parallel)
 
@@ -122,6 +124,7 @@ bin/adlc validate-artifact --schema build-brief --input .adlc/build_brief.json -
 bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc resume-workflow --workspace . --json
+bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
 bin/adlc emit-work-items --target linear --build-brief .adlc/build_brief.json --dry-run --json
 bin/adlc mcp-tools --json
 bin/adlc mcp-serve
@@ -138,7 +141,7 @@ Public-repo hygiene is intentional:
 | Agent | Job | Model | Skills |
 |-------|-----|-------|--------|
 | **triage** | Classify, route, or escalate | Sonnet | none |
-| **researcher** | Graph-backed codebase analysis, PRD cross-reference, dark-code risk notes | Opus | graph-research, codebase-research, paved-road-registry, dark-code-audit, grafana |
+| **researcher** | Graph-backed codebase analysis, learning refs, PRD cross-reference, dark-code risk notes | Opus | graph-research, codebase-research, paved-road-registry, dark-code-audit, grafana |
 | **planner** | PRD + research into an applicability-aware Build Brief | Opus | graph-research, codegen-context, architecture, reuse-analysis, paved-road-registry, context-layers |
 | **plan-reviewer** | 6-persona Eval Council with Gate 0 pre-checks | Opus | eval-council |
 | **test-author** | Authors failing verifier tests from Brief | Sonnet | spec-to-tests, tdd-enforcement, qa-test-data |
@@ -146,7 +149,7 @@ Public-repo hygiene is intentional:
 | **code-reviewer** | Quality, correctness, and comprehension review | Opus | eval-council, graph-research, paved-road-registry, comprehension-gate |
 | **fixer** | 4-phase root cause, then fix | Sonnet | systematic-debugging, fix-loop |
 | **security-reviewer** | STRIDE + 5 OWASP domains + OWASP Top 10 | Opus | security-review + 5 domain skills |
-| **pr-preparer** | Final PR package with DoD checklist | Sonnet | none |
+| **pr-preparer** | Final PR package with DoD checklist and learning candidates | Sonnet | learning-capture |
 | **PRD Agent** | Non-installable reference doc for structured discovery and repo-aware reuse/debt framing | Opus | prd-generation |
 | **Build Brief Agent** | Non-installable reference doc for applicability-aware brief generation | Opus | codegen-context, architecture, reuse-analysis |
 
@@ -157,7 +160,7 @@ Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 Skill definitions are injected into agents at startup. Runtime install counts are derived by `setup.sh` rather than hardcoded in docs.
 
 **Core Engineering:**
-`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `definition-of-done` (22-check DoD) · `spec-to-tests` (failing-test authoring from Brief)
+`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (22-check DoD) · `spec-to-tests` (failing-test authoring from Brief)
 
 **Security:**
 `security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`
@@ -231,8 +234,9 @@ adlc/
 ├── platform/               # CLAUDE.md, AGENTS.md, agents-antigravity.md
 ├── examples/               # Example PRD
 ├── docs/                   # build-briefs/, schemas/, specs/, tests/, adlc-v2-spec, tickets
+├── docs/solutions/         # Schema-validated compound engineering learning store
 ├── tests/                  # contract checks, backtests, smoke harness
-└── scripts/                # md2pdf.py
+└── scripts/                # CLI and validation utilities
 ```
 
 ## Principles
@@ -256,6 +260,7 @@ adlc/
 - [`docs/specs/graph-research-and-comprehension.md`](docs/specs/graph-research-and-comprehension.md) — Graphify, Beads, context-layer, and comprehension-gate contract
 - [`docs/specs/scalable-ai-code-primitives.md`](docs/specs/scalable-ai-code-primitives.md) — Graph-backed context, paved-road reuse, verifiability, and production invariant contract
 - [`docs/specs/slop-eval-loop.md`](docs/specs/slop-eval-loop.md) — Output-side slop benchmark, threshold, regression, and case-promotion contract
+- [`docs/specs/compound-engineering-learning-store.md`](docs/specs/compound-engineering-learning-store.md) — `docs/solutions` learning-entry schema, capture, refresh, and preflight contract
 - [`docs/adlc-v2-tickets.md`](docs/adlc-v2-tickets.md) — 58-ticket implementation roadmap
 
 ## Acknowledgments

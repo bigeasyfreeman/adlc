@@ -42,6 +42,7 @@ SUPPORTED_RUNTIMES = ("claude", "codex", "cursor", "antigravity", "factory")
 WORK_ITEM_TARGETS = ("github", "jira", "linear")
 DEFAULT_PHASE_TOOLS = {
     "triage": "",
+    "compound_preflight": "Read,Bash,Glob,Grep",
     "research": "Read,Bash,Glob,Grep",
     "plan": "Read",
     "plan_review": "Read",
@@ -52,6 +53,7 @@ DEFAULT_PHASE_TOOLS = {
     "test_strength": "Read,Bash",
     "fixer": "Read,Write,Edit,Bash,Glob,Grep",
     "pr_prep": "Read,Write,Bash",
+    "learning_capture": "Read,Write,Bash,Glob,Grep",
 }
 
 
@@ -124,7 +126,7 @@ def workflow_nodes_and_edges() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any
         node_match = node_re.match(line)
         if node_match:
             node_id, attrs_raw = node_match.groups()
-            if node_id.startswith("l_"):
+            if node_id in {"graph", "node", "edge"} or node_id.startswith("l_"):
                 continue
             if node_id not in node_attrs:
                 node_order.append(node_id)
@@ -586,6 +588,7 @@ def command_resume_workflow(args: argparse.Namespace) -> int:
             "status": state["status"],
             "node": node_by_id.get(state["phase"]),
             "runnable": state["status"] == "planned" and state["phase"] not in {"done", "escalate"},
+            "task_resume_status": task_fingerprint_summary(state),
         }
         state.setdefault("checkpoint", {})["next_action"] = next_action
         save_workflow_state(state_path, state)
@@ -680,6 +683,284 @@ def command_validate_artifact(args: argparse.Namespace) -> int:
 
 def stable_hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+
+
+def task_fingerprint_summary(state: Dict[str, Any]) -> Dict[str, Any]:
+    fingerprints = state.get("task_fingerprints", [])
+    if not isinstance(fingerprints, list):
+        fingerprints = []
+    counts: Dict[str, int] = {}
+    incomplete: List[Dict[str, Any]] = []
+    for item in fingerprints:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "unknown")
+        counts[status] = counts.get(status, 0) + 1
+        if status not in {"completed", "skipped_already_satisfied"}:
+            incomplete.append(
+                {
+                    "task_id": item.get("task_id"),
+                    "status": status,
+                    "primary_verifier": item.get("primary_verifier"),
+                    "input_hash": item.get("input_hash"),
+                }
+            )
+    return {
+        "total": sum(counts.values()),
+        "counts": counts,
+        "incomplete": incomplete,
+    }
+
+
+def parse_frontmatter_scalar(value: str) -> Any:
+    value = value.strip()
+    if not value:
+        return ""
+    if value[0:1] in {"'", '"'} and value[-1:] == value[0]:
+        return value[1:-1]
+    if value in {"[]", "{}"}:
+        return [] if value == "[]" else {}
+    if value.startswith("[") and value.endswith("]"):
+        try:
+            return json.loads(value.replace("'", '"'))
+        except json.JSONDecodeError:
+            return [part.strip().strip("'\"") for part in value[1:-1].split(",") if part.strip()]
+    return value
+
+
+def parse_markdown_frontmatter(raw: str) -> Tuple[Dict[str, Any], str]:
+    if not raw.startswith("---\n"):
+        return {}, raw
+    end = raw.find("\n---\n", 4)
+    if end == -1:
+        return {}, raw
+    parsed: Dict[str, Any] = {}
+    lines = raw[4:end].splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        index += 1
+        if not line.strip() or line.lstrip().startswith("#") or ":" not in line:
+            continue
+        key, raw_value = line.split(":", 1)
+        key = key.strip()
+        raw_value = raw_value.strip()
+        if raw_value:
+            parsed[key] = parse_frontmatter_scalar(raw_value)
+            continue
+        items: List[Any] = []
+        mapping: Dict[str, Any] = {}
+        while index < len(lines) and lines[index].startswith("  "):
+            child = lines[index].strip()
+            index += 1
+            if child.startswith("- "):
+                items.append(parse_frontmatter_scalar(child[2:]))
+            elif ":" in child:
+                child_key, child_value = child.split(":", 1)
+                mapping[child_key.strip()] = parse_frontmatter_scalar(child_value)
+        parsed[key] = items if items else mapping
+    return parsed, raw[end + 5 :]
+
+
+def markdown_summary(body: str, max_chars: int = 280) -> str:
+    lines: List[str] = []
+    for raw_line in body.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("- "):
+            line = line[2:].strip()
+        lines.append(line)
+        if sum(len(item) for item in lines) >= max_chars:
+            break
+    summary = " ".join(lines)
+    return summary[:max_chars].rstrip()
+
+
+def graph_report_payload(workspace: Path) -> Dict[str, Any]:
+    report_path = workspace / "graphify-out" / "GRAPH_REPORT.md"
+    payload: Dict[str, Any] = {
+        "present": report_path.is_file(),
+        "report": rel_path(report_path) if report_path.is_file() else None,
+        "built_from_commit": None,
+    }
+    if not report_path.is_file():
+        return payload
+    for line in report_path.read_text(encoding="utf-8").splitlines():
+        match = re.search(r"Built from commit:\s*`?([0-9a-fA-F]+)`?", line)
+        if match:
+            payload["built_from_commit"] = match.group(1)
+            break
+    return payload
+
+
+def learning_entry_refs(
+    workspace: Path,
+    terms: Iterable[str],
+    max_refs: int,
+) -> Tuple[List[Dict[str, Any]], List[str], Dict[str, Any]]:
+    solutions_dir = workspace / "docs" / "solutions"
+    no_op_reasons: List[str] = []
+    store_payload = {
+        "path": rel_path(solutions_dir),
+        "present": solutions_dir.is_dir(),
+        "entries": 0,
+        "valid_refs": 0,
+    }
+    if not solutions_dir.is_dir():
+        no_op_reasons.append("docs/solutions not found")
+        return [], no_op_reasons, store_payload
+
+    entries = [
+        path
+        for path in sorted(solutions_dir.glob("*.md"))
+        if path.name not in {"README.md", "_template.md"} and path.is_file()
+    ]
+    store_payload["entries"] = len(entries)
+    if not entries:
+        no_op_reasons.append("docs/solutions contains no learning entries")
+        return [], no_op_reasons, store_payload
+
+    normalized_terms = {term.lower() for term in terms if term and len(term) >= 3}
+    refs = []
+    for path in entries:
+        raw = path.read_text(encoding="utf-8")
+        frontmatter, body = parse_markdown_frontmatter(raw)
+        title = str(frontmatter.get("title") or path.stem)
+        tags = frontmatter.get("tags") if isinstance(frontmatter.get("tags"), list) else []
+        module = str(frontmatter.get("module") or "")
+        haystack = " ".join([title, module, " ".join(str(tag) for tag in tags), body[:600]]).lower()
+        score = sum(1 for term in normalized_terms if term in haystack)
+        redaction = frontmatter.get("redaction_review")
+        refs.append(
+            {
+                "id": f"learning:{path.stem}",
+                "path": rel_path(path),
+                "title": title,
+                "track": frontmatter.get("track"),
+                "adlc_domain": frontmatter.get("adlc_domain"),
+                "problem_type": frontmatter.get("problem_type"),
+                "module": module,
+                "severity": frontmatter.get("severity"),
+                "tags": tags,
+                "related_tasks": frontmatter.get("related_tasks", []),
+                "source_evidence": frontmatter.get("source_evidence", []),
+                "verifier": frontmatter.get("verifier"),
+                "stale_conditions": frontmatter.get("stale_conditions", []),
+                "redaction_status": redaction.get("status") if isinstance(redaction, dict) else None,
+                "summary": markdown_summary(body),
+                "relevance_score": score,
+            }
+        )
+
+    refs.sort(key=lambda item: (-int(item.get("relevance_score", 0)), item["path"]))
+    refs = refs[:max_refs]
+    store_payload["valid_refs"] = len(refs)
+    return refs, no_op_reasons, store_payload
+
+
+def brief_context_refs(brief_path: Path | None) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[str]]:
+    if brief_path is None:
+        return [], [], []
+    brief = read_json(brief_path)
+    tasks = brief.get("sections", {}).get("8_task_tickets", [])
+    task_refs = []
+    verifier_refs = []
+    terms = [str(brief.get("brief_id", "")), str(brief.get("prd_id", ""))]
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        task_id = task.get("task_id")
+        title = task.get("title")
+        objective = task.get("objective")
+        terms.extend(str(value) for value in (task_id, title, objective) if value)
+        verifier = task.get("verification_spec", {}).get("primary_verifier", {})
+        task_refs.append(
+            {
+                "task_id": task_id,
+                "title": title,
+                "artifact_type": task.get("artifact_type"),
+                "task_classification": task.get("task_classification"),
+                "stable_task_identity": task.get("stable_task_identity"),
+                "resume_fingerprint": task.get("resume_fingerprint"),
+            }
+        )
+        if verifier:
+            verifier_refs.append(
+                {
+                    "task_id": task_id,
+                    "type": verifier.get("type"),
+                    "target": verifier.get("target"),
+                    "target_files": verifier.get("target_files", []),
+                    "expected_failure_mode": verifier.get("expected_failure_mode"),
+                }
+            )
+    return task_refs, verifier_refs, terms
+
+
+def compound_context_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    workspace = resolve_workspace(args.workspace)
+    brief_path = Path(args.build_brief) if args.build_brief else None
+    if brief_path and not brief_path.is_absolute():
+        brief_path = (Path.cwd() / brief_path).resolve()
+    if brief_path and not brief_path.is_file():
+        raise ValueError(f"build brief not found: {brief_path}")
+
+    input_terms: List[str] = []
+    input_payload: Dict[str, Any] = {"provided": bool(args.input), "path": None, "text_hash": None}
+    if args.input:
+        candidate = Path(args.input)
+        if not candidate.is_absolute():
+            candidate = (Path.cwd() / candidate).resolve()
+        if candidate.is_file():
+            text = candidate.read_text(encoding="utf-8")
+            input_payload["path"] = rel_path(candidate)
+        else:
+            text = args.input
+        input_payload["text_hash"] = stable_hash(text)
+        input_terms.extend(re.findall(r"[A-Za-z0-9_/-]{3,}", text[:4000]))
+
+    task_refs, verifier_refs, brief_terms = brief_context_refs(brief_path)
+    input_terms.extend(brief_terms)
+    max_refs = max(1, int(args.max_refs or 8))
+    learning_refs, no_op_reasons, store_payload = learning_entry_refs(workspace, input_terms, max_refs)
+    graph_payload = graph_report_payload(workspace)
+    if not graph_payload["present"]:
+        no_op_reasons.append("graphify-out/GRAPH_REPORT.md not found")
+
+    return {
+        "contract_version": "1.0.0",
+        "workspace": str(workspace),
+        "input": input_payload,
+        "graph": graph_payload,
+        "learning_store": store_payload,
+        "learning_refs": learning_refs,
+        "task_refs": task_refs,
+        "verifier_refs": verifier_refs,
+        "no_op_reasons": no_op_reasons,
+        "summary": {
+            "learning_refs": len(learning_refs),
+            "task_refs": len(task_refs),
+            "verifier_refs": len(verifier_refs),
+            "no_ops": len(no_op_reasons),
+        },
+    }
+
+
+def command_compound_context(args: argparse.Namespace) -> int:
+    try:
+        payload = compound_context_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(
+            f"compound context: {payload['summary']['learning_refs']} learning refs, "
+            f"{payload['summary']['task_refs']} task refs, {payload['summary']['no_ops']} no-ops"
+        )
+    return 0
 
 
 def load_phase_project_map(value: str | None) -> Dict[str, str] | None:
@@ -1042,6 +1323,8 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "title": task.get("title", task_id),
             "url": f"dry-run://{target}/{brief_id}/{task_id}",
             "artifact_type": task["artifact_type"],
+            "stable_task_identity": task.get("stable_task_identity"),
+            "resume_fingerprint": task.get("resume_fingerprint"),
             "task_classification": task.get("task_classification"),
             "executable": task_executable(task),
             "blocks_implementation": task_blocks_implementation(task),
@@ -1437,6 +1720,20 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "adlc_compound_context",
+            "description": "Compute compact compound engineering context from docs/solutions, Graphify status, and optional Build Brief tasks.",
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "input": {"type": "string", "minLength": 1},
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "max_refs": {"type": "integer", "minimum": 1, "default": 8},
+                },
+            },
+        },
+        {
             "name": "adlc_slop_gate",
             "description": "Validate generated-output slop quality gate contracts for a Build Brief.",
             "inputSchema": {
@@ -1515,10 +1812,20 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             "status": state["status"],
             "node": node_by_id.get(state["phase"]),
             "runnable": state["status"] == "planned" and state["phase"] not in {"done", "escalate"},
+            "task_resume_status": task_fingerprint_summary(state),
         }
         state.setdefault("checkpoint", {})["next_action"] = next_action
         save_workflow_state(state_path, state)
         return tool_result({"state_path": rel_path(state_path), "state": state, "next_action": next_action})
+    if name == "adlc_compound_context":
+        args = argparse.Namespace(
+            workspace=arguments.get("workspace"),
+            input=arguments.get("input"),
+            build_brief=arguments.get("build_brief"),
+            max_refs=arguments.get("max_refs", 8),
+            json=True,
+        )
+        return tool_result(compound_context_payload(args))
     if name == "adlc_emit_work_items":
         args = argparse.Namespace(
             target=arguments.get("target"),
@@ -1679,6 +1986,14 @@ def build_parser() -> argparse.ArgumentParser:
     resume.add_argument("--state", help=f"Workflow state path. Defaults to {DEFAULT_STATE_PATH} under workspace.")
     resume.add_argument("--json", action="store_true", help="Emit JSON.")
     resume.set_defaults(func=command_resume_workflow)
+
+    compound = subparsers.add_parser("compound-context", help="Compute compact compound engineering context before research.")
+    compound.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    compound.add_argument("--input", help="Input file path or text used to rank learning refs.")
+    compound.add_argument("--build-brief", help="Build Brief JSON path used to emit task and verifier refs.")
+    compound.add_argument("--max-refs", type=int, default=8, help="Maximum learning refs to return.")
+    compound.add_argument("--json", action="store_true", help="Emit JSON.")
+    compound.set_defaults(func=command_compound_context)
 
     emit = subparsers.add_parser("emit-work-items", help="Prepare or mutate normalized ADLC work items.")
     emit.add_argument("--target", required=True, choices=WORK_ITEM_TARGETS, help="Work-item target.")

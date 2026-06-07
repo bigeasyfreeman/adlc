@@ -7,7 +7,7 @@ This project uses the ADLC framework for AI-assisted development.
 The ADLC pipeline converts PRDs into production code through a DAG of specialized agents:
 
 ```
-Triage → Graph Research → Plan ↔ Review → Code (parallel) → Comprehension Gate → QA → Security → PR → Engineer Review
+Triage → Compound Preflight → Graph Research → Plan ↔ Review → Code (parallel) → Comprehension Gate → QA → Security → PR → Learning Capture → Engineer Review
 ```
 
 ## Agents
@@ -41,6 +41,7 @@ Invoke agents by name or let Claude select the right one based on your task:
 - Every acceptance criterion uses Given/When/Then format
 - Every task must be self-contained (zero-read principle)
 - Use Graphify before broad source search when `graphify-out/` exists; use Beads only for task memory and blockers
+- Use `docs/solutions/` as an optional compound learning store: consume compact learning refs before research, and capture only verified reusable learnings after PR prep
 - Medium+ blast-radius changes require comprehension evidence before shipping
 - Type 1 decisions (irreversible) always escalate to human
 - Label-based routing: agents emit `lgtm`/`revise`/`escalate`

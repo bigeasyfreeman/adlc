@@ -53,6 +53,52 @@ assert_emit_preserves_scalable_primitives() {
   return "$status"
 }
 
+assert_emit_preserves_task_fingerprints() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].stable_task_identity) = {
+      "identity_key": "SMOKE_BUGFIX_AVERAGE:v1",
+      "derived_from": ["task_id", "verification_spec.primary_verifier.target"],
+      "stability_rule": "Keep task_id stable after first emission."
+    } |
+    (.sections."8_task_tickets"[0].resume_fingerprint) = {
+      "input_hash": "hash-smoke",
+      "status": "pending",
+      "primary_verifier": "pytest tests/test_average.py",
+      "pre_change_status": "failed_expected",
+      "post_change_status": "not_run",
+      "changed_files": [],
+      "commit": null,
+      "evidence": ["pre-change verifier expected to fail"]
+    }
+  ' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp"
+
+  local status=0
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --json |
+    jq -e '
+      .artifacts[0].stable_task_identity.identity_key == "SMOKE_BUGFIX_AVERAGE:v1" and
+      .artifacts[0].resume_fingerprint.input_hash == "hash-smoke" and
+      .artifacts[0].resume_fingerprint.status == "pending"
+    ' >/dev/null || status=$?
+
+  rm -f "$tmp"
+  return "$status"
+}
+
+assert_workflow_state_accepts_task_fingerprints() {
+  local tmp
+  tmp="$(mktemp)"
+  cat > "$tmp" <<'JSON'
+{"brief_id":"SMOKE","session_id":"adlc-test","phase":"compound_preflight","status":"planned","step":"ready","started_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z","resume_count":0,"checkpoint":{"workspace":"/tmp","history":[]},"side_effects":[],"task_fingerprints":[{"task_id":"SMOKE-001","input_hash":"abc123","status":"skipped_already_satisfied","primary_verifier":"pytest tests/test_smoke.py","pre_change_status":"not_applicable","post_change_status":"passed","changed_files":[],"commit":null,"evidence":["existing verifier passed"]}]}
+JSON
+  local status=0
+  "$ROOT/bin/adlc" validate-artifact --schema workflow-state --input "$tmp" --json |
+    jq -e '.valid == true' >/dev/null || status=$?
+  rm -f "$tmp"
+  return "$status"
+}
+
 assert_emit_preserves_slop_quality_gate() {
   local tmp
   tmp="$(mktemp)"
@@ -257,6 +303,8 @@ echo ""
 echo "--- JSON ---"
 assert "applicability-manifest schema parses" "jq empty '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null 2>&1"
 assert "build-brief schema parses" "jq empty '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null 2>&1"
+assert "learning-entry schema parses" "jq empty '$ROOT/docs/schemas/learning-entry.schema.json' >/dev/null 2>&1"
+assert "workflow-state schema parses" "jq empty '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null 2>&1"
 assert "skills manifest parses" "jq empty '$ROOT/skills/manifest.json' >/dev/null 2>&1"
 assert "applicability issue set parses" "jq empty '$ROOT/tests/fixtures/applicability-issue-set.json' >/dev/null 2>&1"
 assert "artifact contract case set parses" "jq empty '$ROOT/tests/fixtures/adlc-artifact-contract-cases.json' >/dev/null 2>&1"
@@ -274,6 +322,7 @@ assert "task schema requires enterprise execution contracts" "jq -e '. as \$s | 
 assert "task schema requires verification_spec" "jq -e '.definitions.task.required | index(\"verification_spec\")' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "verifier schema requires target files and expected failure mode" "jq -e '.definitions.verifier.required as \$r | (\$r | index(\"target_files\")) and (\$r | index(\"expected_failure_mode\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema preserves scalable AI code primitive refs" "jq -e '.definitions.task.properties.construct_map_refs.type == \"array\" and .definitions.task.properties.paved_road_refs.type == \"array\" and .definitions.task.properties.intent_contract_refs.type == \"array\" and (.definitions.task.properties.production_invariant_coverage.items.properties.status.enum | index(\"requires_human_judgment\")) and (.definitions.task.properties.production_invariant_coverage.items.properties.invariant.enum | index(\"idempotency\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "task schema supports stable identity and resume fingerprints" "jq -e '.definitions.task.properties.stable_task_identity[\"\$ref\"] == \"#/definitions/stable_task_identity\" and .definitions.task.properties.resume_fingerprint[\"\$ref\"] == \"#/definitions/resume_fingerprint\" and (.definitions.resume_fingerprint.properties.status.enum | index(\"skipped_already_satisfied\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports slop quality gates" "jq -e '.definitions.task.properties.slop_quality_gate[\"\$ref\"] == \"#/definitions/slop_quality_gate\" and (.definitions.slop_quality_gate.properties.applicability.enum | index(\"required\")) and (.definitions.slop_quality_gate.properties.mode.enum | index(\"agent_output\")) and (.definitions.slop_quality_gate.properties.failure_action.enum | index(\"human_approval\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports explicit generated-output surfaces" "jq -e '.definitions.task.properties.generated_output_surface[\"\$ref\"] == \"#/definitions/generated_output_surface\" and (.definitions.generated_output_surface.required | index(\"active\")) and (.definitions.generated_output_surface.required | index(\"reason\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "slop quality metrics can reference validators" "jq -e '.definitions.slop_quality_gate.properties.metrics.items.oneOf[] | select(.type==\"object\") | (.required | index(\"metric_type\")) and (.required | index(\"validator_ref\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
@@ -286,6 +335,8 @@ assert "decision gates enforce Type 1 blocking semantics" "jq -e '.definitions.t
 assert "validation tasks map to build validation and do not block implementation" "jq -e '.definitions.task.allOf[] | select(.if.properties.artifact_type.const==\"validation_task\") | .then.properties.task_classification.const == \"build_validation\" and .then.properties.decision_contract.properties.blocks_implementation.const == false' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema keeps failure_modes required" "jq -e '.definitions.task.required | index(\"failure_modes\")' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "change surface includes service_boundary_change" "jq -e '.properties.change_surface.required | index(\"service_boundary_change\")' '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null"
+assert "workflow-state supports compound phases and task fingerprints" "jq -e '(.properties.phase.enum | index(\"compound_preflight\")) and (.properties.phase.enum | index(\"learning_capture\")) and .properties.task_fingerprints.items.properties.input_hash.type == \"string\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
+assert "workflow-state validates task fingerprints" "assert_workflow_state_accepts_task_fingerprints"
 
 echo ""
 echo "--- Artifact Contract Cases ---"
@@ -297,6 +348,9 @@ echo ""
 echo "--- Prompt Contracts ---"
 assert "scalable AI code primitives spec exists" "[ -f '$ROOT/docs/specs/scalable-ai-code-primitives.md' ] && rg -q 'Graph-Backed Construct Map|Agent Paved-Road Registry|Verifiability Gate|Production Invariant Coverage' '$ROOT/docs/specs/scalable-ai-code-primitives.md'"
 assert "slop eval loop spec exists" "[ -f '$ROOT/docs/specs/slop-eval-loop.md' ] && rg -q 'Benchmark Contract|Pre-Ship Regression|Delivery Guard|Post-Ship Sampling|Case Promotion' '$ROOT/docs/specs/slop-eval-loop.md'"
+assert "compound learning store spec and template exist" "[ -f '$ROOT/docs/specs/compound-engineering-learning-store.md' ] && [ -f '$ROOT/docs/solutions/README.md' ] && [ -f '$ROOT/docs/solutions/_template.md' ] && rg -q 'docs/solutions|learning_refs|learning_capture|learning_refresh|redaction' '$ROOT/docs/specs/compound-engineering-learning-store.md'"
+assert "learning-entry validator exists and accepts valid fixtures" "[ -x '$ROOT/scripts/validate_learning_entry.py' ] && '$ROOT/scripts/validate_learning_entry.py' '$ROOT/tests/fixtures/learning-entry-bug.md' >/dev/null && '$ROOT/scripts/validate_learning_entry.py' '$ROOT/tests/fixtures/learning-entry-knowledge.md' >/dev/null"
+assert "learning-entry validator rejects malformed fixtures" "if '$ROOT/scripts/validate_learning_entry.py' '$ROOT/tests/fixtures/learning-entry-invalid.md' >/dev/null 2>&1; then false; else true; fi"
 assert "triage emits task classification" "rg -q 'task_classification' '$ROOT/agents/triage.md'"
 assert "PRD agent captures reuse and tech debt boundaries" "rg -q 'reuse|tech debt|existing system, component, or workflow|existing services, components, or patterns|blocking tech debt' '$ROOT/agents/PM-PRD-AGENT.md'"
 assert "PRD evaluator checks reuse and tech debt readiness" "rg -q 'missing reuse boundary|missing debt risk|Repo-Aware Reuse & Debt Framing|reuse/debt boundaries' '$ROOT/skills/prd-generation/SKILL.md'"
@@ -311,6 +365,7 @@ assert "comprehension-gate skill defines blocking verdicts" "rg -q 'Comprehensio
 assert "researcher emits calibrated debt findings" "rg -q 'architecture mental model|false positives considered|debt_calibration|Unsupported or low-confidence debt claims' '$ROOT/agents/researcher.md'"
 assert "researcher emits graph and dark-code evidence" "rg -q 'graph_research_evidence|compatibility_evidence|dark_code_risk|Graphify before broad raw search|Beads only as task-memory' '$ROOT/agents/researcher.md'"
 assert "researcher emits construct maps and paved-road evidence" "rg -q 'construct_map|paved_road_evidence|load_bearing_invariants|no_paved_road_found' '$ROOT/agents/researcher.md'"
+assert "researcher consumes compound learning refs" "rg -q 'compound_context|learning_refs|docs/solutions|no_op_reasons' '$ROOT/agents/researcher.md'"
 assert "planner references applicability manifest" "rg -q 'applicability_manifest' '$ROOT/agents/planner.md'"
 assert "planner supports ADLC PRD and decomposition modes" "rg -q 'prd_only.*decompose_only.*prd_and_decompose|decompose_only.*prd_and_decompose' '$ROOT/agents/planner.md'"
 assert "planner requires graph-backed compatibility and context layers" "rg -q 'Graph-Backed Compatibility And Comprehension|context-layer artifact|MODULE_MANIFEST|Graphify identifies a dark-code hotspot' '$ROOT/agents/planner.md'"
@@ -318,6 +373,7 @@ assert "planner enforces behavior-first task wording" "rg -q 'concrete user or s
 assert "planner treats reuse and tech debt as planning inputs" "rg -q 'reuse_opportunities|tech_debt|Reuse And Tech-Debt Discipline' '$ROOT/agents/planner.md'"
 assert "planner requires reference implementations and debt prerequisite handling" "rg -q 'reference_impl|prerequisite task|reimplementing cited helpers|existing pattern cannot absorb the change' '$ROOT/agents/planner.md'"
 assert "planner keeps unsupported debt out of scope" "rg -q 'Unsupported debt claims|must not become tasks|Do not recommend rewrites|path:line' '$ROOT/agents/planner.md'"
+assert "planner consumes learning refs and preserves task identity" "rg -q 'learning_refs|docs/solutions|stable_task_identity|resume_fingerprint|Do not renumber tasks' '$ROOT/agents/planner.md'"
 assert "planner defines artifact taxonomy and automatic validation tasks" "rg -q 'scope_lock_epic|decision_gate|implementation_task|validation_task' '$ROOT/agents/planner.md' && rg -q 'Generate validation tasks automatically' '$ROOT/agents/planner.md'"
 assert "planner blocks unresolved Type 1 implementation" "rg -q 'unresolved Type 1.*decision_gate|decision_gate.*unresolved Type 1' '$ROOT/agents/planner.md'"
 assert "planner emits scalable AI code primitive evidence" "rg -q 'Scalable AI Code Primitives|construct_map|paved_road_refs|production_invariant_coverage|Verifiability gate' '$ROOT/agents/planner.md'"
@@ -331,6 +387,8 @@ assert "verification discipline is task-class-aware" "rg -q 'build_validation|li
 assert "codegen context consumes verification_spec" "rg -q 'verification_spec' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context inlines scalable AI code primitives" "rg -q 'missing_scalable_code_primitives|Scalable AI Code Primitives|construct_map_refs|paved_road_refs|production_invariant_coverage' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context inlines slop quality gates" "rg -q 'missing_slop_quality_gate|Slop Quality Gate|slop_quality_gate|case-promotion sources' '$ROOT/skills/codegen-context/SKILL.md'"
+assert "codegen context consumes compact learning refs" "rg -q 'compound_context|learning_refs|Full solution-note bodies|Prior Learnings' '$ROOT/skills/codegen-context/SKILL.md'"
+assert "reuse analysis checks docs solutions learning refs" "rg -q 'docs/solutions|compound_context.learning_refs|Learning Store Prior Art|no_op_reasons' '$ROOT/skills/reuse-analysis/SKILL.md'"
 assert "DoD uses core baseline and overlays" "rg -q 'core baseline|overlay' '$ROOT/skills/definition-of-done/SKILL.md'"
 assert "eval council checks applicability manifest" "rg -q 'applicability_manifest' '$ROOT/skills/eval-council/SKILL.md'"
 assert "eval council gates scalable AI code primitives" "rg -q 'Scalable AI Code Primitive Checks|unverifiable_delegation|paved_road_refs|production_invariant_coverage' '$ROOT/skills/eval-council/SKILL.md'"
@@ -349,6 +407,7 @@ assert "Linear ticket creation preserves artifact taxonomy and enterprise readin
 assert "work item emitters preserve scalable AI code primitives" "rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "work item emitters preserve slop quality gates" "rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "emit-work-items preserves scalable AI code primitive refs" "assert_emit_preserves_scalable_primitives"
+assert "emit-work-items preserves task fingerprints" "assert_emit_preserves_task_fingerprints"
 assert "emit-work-items preserves slop quality gates" "assert_emit_preserves_slop_quality_gate"
 assert "emit-work-items omits absent slop quality gates" "assert_emit_omits_absent_slop_quality_gate"
 assert "generated-output work without slop gate blocks readiness" "assert_generated_output_missing_slop_gate_blocks_readiness"
@@ -379,6 +438,9 @@ assert "build-feature activates paved-road registry" "jq -e '.skills[] | select(
 assert "github issue creation is registered for pr_prep" "jq -e '.skills[] | select(.name==\"github-issue-creation\") | .side_effect_profile == \"mutating\" and (.dag_nodes | index(\"pr_prep\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "linear ticket creation is registered for pr_prep" "jq -e '.skills[] | select(.name==\"linear-ticket-creation\") | .side_effect_profile == \"mutating\" and (.dag_nodes | index(\"pr_prep\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "notion decomposition is registered for pr_prep" "jq -e '.skills[] | select(.name==\"notion-decomposition\") | .side_effect_profile == \"mutating\" and (.dag_nodes | index(\"pr_prep\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
+assert "learning capture is registered for closeout" "jq -e '.skills[] | select(.name==\"learning-capture\") | .side_effect_profile == \"mutating\" and .activation.mode == \"conditional_closeout\" and (.dag_nodes | index(\"learning_capture\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
+assert "learning refresh is scoped maintenance only" "jq -e '.skills[] | select(.name==\"learning-refresh\") | .side_effect_profile == \"mutating\" and .activation.mode == \"scoped_maintenance\" and (.dag_nodes | length) == 0' '$ROOT/skills/manifest.json' >/dev/null"
+assert "pr-preparer is wired to learning capture" "jq -e '.agents[] | select(.name==\"pr-preparer\") | (.skills | index(\"learning-capture\")) != null' '$ROOT/skills/manifest.json' >/dev/null && rg -q 'learning_candidates|redaction_status|stale_conditions' '$ROOT/agents/pr-preparer.md'"
 
 echo ""
 echo "--- gen_tests Authoring ---"
@@ -559,6 +621,11 @@ assert "agent-native interface documents quick hook contract" "rg -q 'Quick Hook
 assert "agent-native interface documents workflow runner and emitter hooks" "rg -q 'adlc run|run-phase|resume-workflow|emit-work-items|allow_mutation|provider_command' '$ROOT/docs/specs/agent-native-interface.md'"
 assert "workflow-state schema supports DAG node phases" "jq -e '.properties.phase.enum | index(\"start\") and index(\"triage\") and index(\"research\") and index(\"engineer_review\") and index(\"done\")' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
 assert "README lists stateful ADLC CLI commands" "rg -q 'run --brief-id|run-phase triage|resume-workflow|emit-work-items' '$ROOT/README.md'"
+assert "README lists compound workflow commands" "rg -q 'Compound Preflight|learning_capture|compound-context|docs/solutions' '$ROOT/README.md'"
+assert "WORKFLOW.dot routes compound preflight before research" "rg -q 'triage -> compound_preflight.*label=\"proceed\"' '$ROOT/WORKFLOW.dot' && rg -q 'compound_preflight -> research.*label=\"proceed\"' '$ROOT/WORKFLOW.dot'"
+assert "WORKFLOW.dot routes learning capture before engineer review" "rg -q 'pr_prep -> learning_capture' '$ROOT/WORKFLOW.dot' && rg -q 'learning_capture -> engineer_review.*label=\"pass\"' '$ROOT/WORKFLOW.dot'"
+assert "WORKFLOW.md binds compound context and learning capture" "rg -q 'bin/adlc compound-context|docs/solutions|scripts/validate_learning_entry.py' '$ROOT/WORKFLOW.md'"
+assert "agent-native interface documents compound context" "rg -q 'compound-context|docs/solutions|task-level fingerprints|compound_context' '$ROOT/docs/specs/agent-native-interface.md'"
 
 echo ""
 echo "--- Work-Item Reconciliation ---"

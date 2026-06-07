@@ -24,14 +24,22 @@ Parse the codebase to find existing functions, classes, and utilities. Prioritiz
 - `utils/`, `helpers/`, `common/`, `shared/` modules
 - Functions with docstrings matching task keywords
 - Recently modified functions (likely well-maintained)
+- `compound_context.learning_refs` from `docs/solutions/`, using only compact summaries, source refs, verifier refs, and stale conditions
 
-### Step 2: Keyword Matching
+### Step 2: Learning Store Prior Art
+Read `compound_context.learning_refs` before broad matching. Each ref is a prior-art candidate:
+- cite `path`, `title`, `summary`, `source_evidence`, and `verifier`
+- reject stale or unrelated refs explicitly
+- never paste full solution notes into downstream prompts
+- never treat a learning ref as proof of current code behavior without direct verification
+
+### Step 3: Keyword Matching
 Match task description terms against:
 - Function names and class names
 - Docstrings and inline comments
 - Module-level documentation
 
-### Step 3: LLM-Filtered Relevance
+### Step 4: LLM-Filtered Relevance
 Rank discovered items by relevance to the current task. Filter out false positives.
 
 ### Output: Reusable Items
@@ -62,6 +70,8 @@ Known bad patterns in the codebase that must NOT be repeated:
 3. Post-execution slop findings (recurring violations)
 4. Human edit patterns (things humans keep removing)
 
+The concrete learning store is `docs/solutions/`. If it is missing or empty, record the `compound_context.no_op_reasons` and proceed with code and Graphify research.
+
 ## Verification (Phase 5)
 
 ### Reimplementation Detection
@@ -91,6 +101,7 @@ Compare new functions against the reuse catalog:
 ## Verification Checklist
 
 - [ ] Reuse analysis ran before design (Phase 1)
+- [ ] `compound_context.learning_refs` checked, cited, rejected as stale, or recorded as no-op
 - [ ] All reusable items listed with "DO NOT REIMPLEMENT" tags
 - [ ] Antipatterns identified and documented
 - [ ] Implementation verified: no reimplementation detected (Phase 5)

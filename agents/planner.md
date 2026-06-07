@@ -30,6 +30,7 @@ Your preloaded skills contain codegen-context assembly and architecture-pattern 
 - Triage output, including task classification, change surface, and contamination flags
 - Triage output confidence, confidence band, and any human override signal
 - Requested `adlc_mode`: `prd_only`, `decompose_only`, or `prd_and_decompose`
+- `compound_context` with `learning_refs`, `task_refs`, `verifier_refs`, and no-op reasons from deterministic compound preflight
 
 ## Extract First, Ask Second
 
@@ -47,6 +48,7 @@ Treat `reuse_opportunities` and `tech_debt` as first-class planning inputs, not 
 - Treat debt as actionable only when it is evidence-backed with `path:line`, PRD quote, test/tool output, or repo-wide command evidence and tied to the current scope.
 - Unsupported debt claims, low-confidence guesses, and generic audit categories become open questions or contamination notes; they must not become tasks.
 - Do not recommend rewrites or broad cleanup projects. Use the smallest scoped prerequisite task, bounded deferral, or explicit "not relevant to this slice" decision.
+- Treat relevant `learning_refs` from `docs/solutions` as prior-art inputs. Cite the learning path and verifier reference when useful, but require current direct verification before turning a learning into a behavior claim.
 
 ## Scalable AI Code Primitives
 
@@ -114,6 +116,8 @@ Task-writing rules:
 - A `decision_gate` exists only when a Type 1 decision is unresolved after prompting. It blocks dependent implementation until the named owner resolves the decision.
 - An `implementation_task` cannot depend on an unresolved Type 1 decision. If the decision is unresolved, emit the blocking `decision_gate` and keep implementation blocked.
 - Generate validation tasks automatically for each decomposition series. Validation tasks own verifier execution, evidence capture, compatibility checks, and final Definition of Done proof.
+- Preserve stable task identity after first emission. Do not renumber tasks or semantically reuse a deleted `task_id`; splits keep the original ID on the original concept and allocate new IDs for new work.
+- When task-level resume matters, include optional `stable_task_identity` and `resume_fingerprint` fields tied to the primary verifier, input hash, pre-change status, post-change status, changed files, commit, and evidence.
 - Lead each task description with the concrete user or system behavior that changes. Architecture labels can follow, but they are not the opening sentence.
 - For `feature` work, make the verifier a failing test, fixture, or check for the intended behavior. Do not frame the task as "prove the old code lacks the feature" unless that absence is itself the defect.
 - Keep unsupported comparison or guardrail sentences out of the task body. If they matter, capture them in contamination notes or prior-attempt context with evidence.
@@ -169,6 +173,7 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
     "spec": {},
     "plan": {},
     "tasks": [],
+    "learning_refs": [],
     "graph_research_evidence": {},
     "construct_map": {},
     "paved_road_evidence": {},
