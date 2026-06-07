@@ -13,18 +13,20 @@ The scope is code and environment consistency, not broad organization design. AD
 | Graph-backed construct map | Names the modules, interfaces, schemas, configs, persistence paths, tests, and dependency relationships relevant to the work | Replacing direct source verification |
 | Intent contract | Captures behavior, why it matters, constraints, tradeoffs, non-goals, edge cases, and load-bearing assumptions before codegen | Step-by-step implementation control |
 | Agent paved-road registry | Records approved repo-local patterns, reference implementations, and conventions agents should reuse | Freezing architecture or blocking justified new abstractions |
+| Implementation Interface | Names what a task reuses, consumes, emits, guarantees, and validates at a repo boundary or reusable framework surface | Creating a parallel framework when an existing contract can be extended |
 | Verifiability gate | Defines what proves the agent output is correct and when human judgment is required | Treating every task as automatable |
 | Production invariant coverage | Captures identity, auth, tenancy, data integrity, ordering, retries, persistence, observability, and failsafe behavior where relevant | Generic production-readiness prose |
+| Productionization Gate | Binds a production claim to coverage state, validation evidence, rollback/observability posture, security/privacy posture, reliability failure modes, and no-overclaim boundaries | Broad compliance readiness or ceremonial release governance |
 
 ## Lifecycle Binding
 
 | ADLC Stage | Required Behavior |
 |---|---|
-| `research` | Produce construct-map evidence, paved-road candidates, validation surfaces, and invariant gaps from Graphify plus direct source verification. |
-| `plan` | Convert evidence into Build Brief constraints, task-level paved-road refs, verifiers, production invariant coverage, and compatibility/failsafe obligations. |
-| `context_assembly` | Inline only task-relevant construct paths, paved-road references, intent constraints, verifiers, and invariants into coding prompts. |
-| `code_review` | Block medium+ blast-radius changes when paved-road decisions, verifiability, or production invariants are missing or unsupported. |
-| `pr_prep` | Preserve construct-map refs, paved-road refs, intent refs, invariant coverage, compatibility evidence, and unresolved gaps in emitted work items. |
+| `research` | Produce construct-map evidence, paved-road candidates, implementation-interface candidates, blocked production claims, validation surfaces, and invariant gaps from Graphify plus direct source verification. |
+| `plan` | Convert evidence into Build Brief constraints, task-level paved-road refs, `implementation_interface_contract`, verifiers, production invariant coverage, `productionization_gate`, and compatibility/failsafe obligations. |
+| `context_assembly` | Inline only task-relevant construct paths, paved-road references, implementation-interface contract, intent constraints, productionization gate, verifiers, and invariants into coding prompts. |
+| `code_review` | Block medium+ blast-radius changes when paved-road decisions, implementation-interface semantics, verifiability, production invariants, or productionization evidence are missing or unsupported. |
+| `pr_prep` | Preserve construct-map refs, paved-road refs, intent refs, implementation-interface contracts, invariant coverage, productionization gates, compatibility evidence, and unresolved gaps in emitted work items. |
 
 ## Graph-Backed Construct Map
 
@@ -77,6 +79,19 @@ Agents should prefer paved roads. Leaving a paved road requires:
 - a verifier or context artifact that protects the new contract
 - a follow-up path for adding the new pattern to the registry if it becomes reusable
 
+## Implementation Interface
+
+Implementation interfaces make compound engineering code-ready. For each active integration or reusable framework surface, the Build Brief should name:
+
+- the existing helper, module, schema, CLI, workflow, provider edge, or reference implementation to extend
+- what the task consumes and emits
+- minimum fields and semantic constraints
+- invariants and failure semantics
+- integration points and validation gates
+- privacy or redaction posture when data or evidence leaves the local task boundary
+
+Use `implementation_interface_contract` instead of adding broad architecture prose. If no interface is active, omit the field or mark it `not_applicable` with a concrete reason.
+
 ## Verifiability Gate
 
 Before autonomous implementation, ADLC should classify verification:
@@ -104,6 +119,22 @@ Production-quality claims must name concrete invariants instead of generic quali
 - observability required to know whether the behavior works
 
 If an invariant is relevant but not covered, the planner must either add prerequisite work, create a validation task, or record a blocker.
+
+## Productionization Gate
+
+Productionization gates prevent ADLC from overclaiming readiness. A task may preserve a `productionization_gate` with Coverage State and No-Overclaim boundaries even when it is not production ready.
+
+`coverage_state: production_ready` is special. It requires:
+
+- an `implementation_interface_contract`
+- validation evidence
+- no-overclaim statements
+- reliability failure modes
+- owner and rollback path
+- runbook, alerting, dashboard, or SLO refs where applicable
+- security/privacy posture such as redaction or audit evidence
+
+Anything less must use a lower Coverage State such as `unsupported`, `evidence_only`, `monitor_only`, `not_yet_ga`, or `governed`.
 
 ## Non-Goals
 

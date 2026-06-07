@@ -245,6 +245,26 @@ For every implementation task that changes code, schemas, runtime behavior, pers
 
 Do not require these fields for trivial docs, lint-only, or build-validation tasks when the applicability manifest proves no code path or build pattern changes.
 
+### Implementation Interface And Productionization Gate Checks
+
+For every task that changes an integration boundary, schema, emitter payload, workflow state, CLI contract, provider edge, or reusable framework surface:
+
+- `implementation_interface_contract` must be present unless the task has a concrete `not_applicable` reason.
+- Required contracts must name `reuse`, `consumes`, `emits`, `minimum_fields`, `invariants`, `integration_points`, and `validation_gates`.
+- If a task claims production support or production readiness, `productionization_gate` must be present.
+- `productionization_gate.coverage_state` must be one of `unsupported`, `evidence_only`, `monitor_only`, `not_yet_ga`, `governed`, or `production_ready`.
+- `production_ready` requires validation evidence, No-Overclaim boundaries, reliability failure modes, owner, rollback path, runbook/alerting/dashboard/SLO posture where applicable, and security/privacy posture.
+
+Missing or weak gates return:
+
+- `missing_implementation_interface_contract` when an active integration surface lacks the contract.
+- `missing_productionization_gate` when a production support claim lacks the gate.
+- `missing_productionization_validation_evidence` when production-ready evidence is absent.
+- `missing_productionization_no_overclaim` when no-overclaim boundaries are absent.
+- `overclaimed_production_ready` when `coverage_state=production_ready` is claimed before the interface, evidence, rollback/observability, reliability, security/privacy, and no-overclaim data support it.
+
+Do not require productionization gates for trivial docs, lint-only, build-validation, deterministic refactors, or code-only work when no production support claim changes.
+
 ### Slop Quality Gate Checks
 
 For every task that changes prompt behavior, model selection, agent roles, generated content, response templates, product output, user-visible AI output, or output validators:

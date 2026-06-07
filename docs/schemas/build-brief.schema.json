@@ -164,6 +164,32 @@
               "type": "null"
             }
           ]
+        },
+        "16_implementation_interfaces": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/implementation_interface_contract"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "17_productionization_gates": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/productionization_gate"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -570,6 +596,12 @@
             }
           }
         },
+        "implementation_interface_contract": {
+          "$ref": "#/definitions/implementation_interface_contract"
+        },
+        "productionization_gate": {
+          "$ref": "#/definitions/productionization_gate"
+        },
         "slop_quality_gate": {
           "$ref": "#/definitions/slop_quality_gate"
         },
@@ -750,6 +782,20 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "implementation_interface_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "productionization_gate_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -900,6 +946,310 @@
           "minLength": 1
         }
       }
+    },
+    "implementation_interface_contract": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "reuse",
+            "consumes",
+            "emits",
+            "minimum_fields",
+            "invariants",
+            "integration_points",
+            "validation_gates"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "capability": {
+              "type": "string",
+              "minLength": 1
+            },
+            "task_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "reuse": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "consumes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "emits": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "minimum_fields": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "kind",
+                      "constraint"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "kind": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "constraint": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "integration_points": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "validation_gates": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "failure_semantics": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "idempotency": {
+              "type": "string",
+              "minLength": 1
+            },
+            "privacy_redaction": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "$ref": "#/definitions/not_applicable_reason"
+        }
+      ]
+    },
+    "productionization_gate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "claim",
+            "coverage_state",
+            "validation_evidence",
+            "no_overclaim"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "task_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "claim": {
+              "type": "string",
+              "minLength": 1
+            },
+            "coverage_state": {
+              "type": "string",
+              "enum": [
+                "unsupported",
+                "evidence_only",
+                "monitor_only",
+                "not_yet_ga",
+                "governed",
+                "production_ready"
+              ]
+            },
+            "operational_readiness": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "deployment_path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "rollback_path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "runbook_refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "alerting_refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "dashboard_refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "slo_refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "support_boundary": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "security_privacy": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "threat_model_delta": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "secrets_handling": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "data_retention": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "redaction_posture": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "policy_authority": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "approval_authority": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "audit_evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "reliability_failure_modes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "validation_evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "no_overclaim": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "known_unsupported_states": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "$ref": "#/definitions/not_applicable_reason"
+        }
+      ]
     },
     "generated_output_surface": {
       "type": "object",

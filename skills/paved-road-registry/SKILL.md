@@ -35,6 +35,7 @@ Use this skill to keep monoliths and large codebases consistent as agent through
 4. Verify candidates against source files, schemas, tests, docs, or command output.
 5. Record whether each candidate is `approved`, `preferred`, `deprecated`, or `no_paved_road_found`.
 6. Record when a new abstraction is justified and what would make it a future paved road.
+7. When an active surface needs `implementation_interface_contract`, map the paved road into the contract's reuse, integration points, invariants, and validation gates.
 
 ## Registry Record
 
@@ -83,6 +84,7 @@ Use this skill to keep monoliths and large codebases consistent as agent through
     {
       "task_id": "string",
       "paved_road_refs": [],
+      "implementation_interface_contract": {},
       "departure_requires_review": true
     }
   ]
@@ -102,6 +104,7 @@ Use this skill to keep monoliths and large codebases consistent as agent through
 - Every paved-road candidate cites at least one evidence source.
 - Every `no_paved_road_found` result explains the search path and closest convention.
 - Every recommended departure names the invariant or verifier that protects the new path.
+- Every implementation-interface recommendation names the existing paved-road surface, the integration point it protects, and the validation gate that proves it.
 - Deprecated patterns must include the replacement path or state that replacement is unknown.
 
 ## Removal Criteria

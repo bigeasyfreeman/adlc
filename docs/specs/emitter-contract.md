@@ -132,6 +132,8 @@ Every work-item emitter must carry these fields forward from the Build Brief tas
 - `tech_debt_boundaries`
 - `compatibility_contract`
 - `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, and `production_invariant_coverage` when present
+- `implementation_interface_contract` when present, including reuse, consumes, emits, minimum fields, invariants, integration points, validation gates, failure semantics, and privacy/redaction posture
+- `productionization_gate` when present, including claim, Coverage State, validation evidence, No-Overclaim boundaries, reliability failure modes, operational readiness, rollback/runbook/observability posture, and security/privacy posture
 - `slop_quality_gate` when present, including applicability reason, eval cases, metrics, threshold, failure action, and case-promotion sources
 - `evidence_responsibilities`
 - `definition_of_done`
@@ -202,6 +204,7 @@ Platform-specific config may extend the shared contract, but it must not redefin
 4.6. Preserve artifact taxonomy. `scope_lock_epic` artifacts are parent/context artifacts only, `decision_gate` artifacts block implementation, `implementation_task` artifacts are executable coding work, and `validation_task` artifacts own evidence capture and final readiness proof.
 4.7. Reject unresolved dependency aliases before mutation. Every dependency must resolve to a Build Brief artifact ID or an already-emitted target artifact ID recorded in terminal workflow state for the same Build Brief, target, work-item emitter tool, and `upsert_artifact` operation.
 4.8. Ensure decomposition-mode payloads include automatic validation tasks in the enterprise readiness contract, and emit those validation tasks as first-class work items when the target supports work-item artifacts.
+4.9. Preserve implementation-interface contracts and productionization gates without broadening their claims. Emitters must not translate `evidence_only`, `monitor_only`, `not_yet_ga`, or `governed` into production-ready ticket language.
 5. Compute per-artifact idempotency keys before any external mutation.
 6. Emit permission logging entries before and after every mutating external action.
 7. Return created artifact metadata and dedupe status in a structured response.
@@ -254,8 +257,11 @@ The readiness checker validates:
    - `compatibility_contract`
    - `tech_debt_boundaries`
    - `failure_modes`
+   - `implementation_interface_contract` for active integration or reusable framework surfaces
+   - `productionization_gate` for active production support claims
    - `slop_quality_gate` when `generated_output_surface.active=true`; if the brief includes `slop_quality_gate` for an inactive surface it must use `applicability=not_applicable` with a concrete reason
-6. **Phase-project map** — when a `--phase-project-map` is provided, any task with a `phase_label` that exists in the map must have a matching `target_project` in `work_item_metadata`.
+6. **Production-ready claim checks** — `productionization_gate.coverage_state=production_ready` requires an `implementation_interface_contract`, validation evidence, No-Overclaim boundaries, reliability failure modes, owner, rollback path, runbook/alerting/dashboard/SLO posture where applicable, and security/privacy redaction posture. Missing proof returns `overclaimed_production_ready`.
+7. **Phase-project map** — when a `--phase-project-map` is provided, any task with a `phase_label` that exists in the map must have a matching `target_project` in `work_item_metadata`.
 
 ### CLI Flags
 
@@ -278,6 +284,9 @@ Emitters must stop with one of:
 - `dependency_unavailable`
 - `unresolved_dependency_alias`
 - `unresolved_decision_blocks_implementation`
+- `missing_implementation_interface_contract`
+- `missing_productionization_gate`
+- `overclaimed_production_ready`
 - `external_mutation_partial`
 - `readiness_check_blocked`
 

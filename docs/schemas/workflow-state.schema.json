@@ -218,6 +218,101 @@
         }
       }
     },
+    "interface_contract_status": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "contract_id",
+          "status"
+        ],
+        "properties": {
+          "contract_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "missing",
+              "draft",
+              "ready",
+              "blocked",
+              "not_applicable"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "productionization_status": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gate_id",
+          "coverage_state",
+          "status"
+        ],
+        "properties": {
+          "gate_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "coverage_state": {
+            "type": "string",
+            "enum": [
+              "unsupported",
+              "evidence_only",
+              "monitor_only",
+              "not_yet_ga",
+              "governed",
+              "production_ready"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "ready",
+              "monitor",
+              "not_applicable"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
     "stop_reason": {
       "type": "string"
     }

@@ -212,7 +212,9 @@
               "12_skill_trigger_configuration",
               "13_comprehension_context",
               "14_graph_research_evidence",
-              "15_dark_code_risk"
+              "15_dark_code_risk",
+              "16_implementation_interfaces",
+              "17_productionization_gates"
             ]
           },
           "status": {

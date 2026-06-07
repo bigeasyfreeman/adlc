@@ -64,7 +64,7 @@ ADLC does not ship a Linear client. This skill targets a locally installed MCP p
 }
 ```
 
-Every emitted issue must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `dependencies`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `slop_quality_gate`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted issue. The top-level `enterprise_readiness_contract` must remain visible from the project/parent artifact and referenced by validation issues.
+Every emitted issue must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `dependencies`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `implementation_interface_contract`, `productionization_gate`, `slop_quality_gate`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted issue. The top-level `enterprise_readiness_contract` must remain visible from the project/parent artifact and referenced by validation issues.
 
 ## Output Contract
 
@@ -175,6 +175,24 @@ Artifact rules:
 - Paved-road refs: [approved reference paths or explicit no_paved_road_found]
 - Intent contract refs: [behavior/why/constraints/non-goals source]
 - Production invariant coverage: [identity/auth/tenancy/data/persistence/ordering/idempotency/retry/observability/etc. status + evidence]
+
+## Implementation Interface Contract
+- Reuse:
+- Consumes:
+- Emits:
+- Minimum fields:
+- Invariants:
+- Integration points:
+- Validation gates:
+
+## Productionization Gate
+- Claim:
+- Coverage State: [unsupported | evidence_only | monitor_only | not_yet_ga | governed | production_ready]
+- Validation evidence:
+- No-Overclaim:
+- Reliability failure modes:
+- Operational readiness: [owner, rollback path, runbook/alerting/dashboard/SLO refs]
+- Security/privacy posture:
 
 ## Slop Quality Gate
 - Applicability: [required | not_applicable]

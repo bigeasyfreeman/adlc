@@ -86,6 +86,9 @@ Do not treat `must_fail_before_change` as violated merely because the current wo
 - **blocked**: Critical issues needing human judgment. Escalate.
 - **stuck**: Required judge unavailable for the active runtime. Escalate with a concrete machine-readable reason.
 - Gate 0 must report schema validation, specificity, verifier scope intersection, and verifier semantic coverage explicitly. If `verification_spec.target_files` is set and does not intersect task file scope, return `revise` with `reason: "verifier_no_coverage"`. If specificity falls below `0.6`, return `revise` with `reason: "low_specificity"`.
+- Gate 0 must return `revise` with `reason: "missing_implementation_interface_contract"` when an active integration, schema, emitter payload, workflow-state, CLI, provider, or reusable framework surface lacks `implementation_interface_contract`.
+- Gate 0 must return `revise` with `reason: "missing_productionization_gate"` when a production support claim lacks `productionization_gate`.
+- Gate 0 must return `revise` with `reason: "overclaimed_production_ready"` when `coverage_state=production_ready` lacks validation evidence, No-Overclaim boundaries, reliability failure modes, owner/rollback/runbook or observability posture, or security/privacy posture.
 - Each `findings` entry must be a string. Do not emit finding objects.
 - In this smoke review, if `post_change_status.exit_code == 0`, `test_strength_report.verdict == "pass"`, and Gate 0 checks pass, default to `lgtm` unless the provided JSON payload itself contains a concrete blocker.
 

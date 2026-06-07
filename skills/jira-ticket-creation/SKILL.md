@@ -64,7 +64,7 @@ ADLC does not ship a JIRA client. This skill targets a locally installed MCP pro
 }
 ```
 
-Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `slop_quality_gate`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
+Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `implementation_interface_contract`, `productionization_gate`, `slop_quality_gate`, `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
 
 ## Mixed Acceptance Criteria Shapes
 
@@ -192,6 +192,24 @@ h2. Scalable AI Code Primitives
 * Paved-road refs: [approved reference paths or explicit no_paved_road_found]
 * Intent contract refs: [behavior/why/constraints/non-goals source]
 * Production invariant coverage: [identity/auth/tenancy/data/persistence/ordering/idempotency/retry/observability/etc. status + evidence]
+
+h2. Implementation Interface Contract
+* Reuse: [existing module, schema, CLI, workflow, provider, or helper]
+* Consumes: [input, state, config, artifact, event, or dependency]
+* Emits: [output, state update, artifact, event, side effect, or evidence]
+* Minimum fields: [required fields and semantic constraints]
+* Invariants: [compatibility, idempotency, privacy, rollback, or data-integrity rules]
+* Integration points: [path, command, schema, provider, or runtime boundary]
+* Validation gates: [test, schema, command, smoke check, or review gate]
+
+h2. Productionization Gate
+* Claim: [production support claim]
+* Coverage State: [unsupported | evidence_only | monitor_only | not_yet_ga | governed | production_ready]
+* Validation evidence: [tests, schemas, commands, smoke checks, dashboards, approvals]
+* No-Overclaim: [what this ticket does not prove or support]
+* Reliability failure modes: [known failure modes and mitigations]
+* Operational readiness: [owner, rollback path, runbook/alerting/dashboard/SLO refs]
+* Security/privacy posture: [redaction, secrets, retention, audit evidence]
 
 h2. Slop Quality Gate
 * Applicability: [required | not_applicable]
