@@ -1,0 +1,1334 @@
+{
+  "version": "1.0.0",
+  "adlc_mode": "decompose_only",
+  "brief_id": "ADLC-COMPOUND-ENGINEERING",
+  "prd_id": "ADLC-COMPOUND-ENGINEERING-PRD",
+  "applicability_manifest": {
+    "version": "1.0.0",
+    "task_classification": "infra",
+    "task_classification_confidence": 0.91,
+    "classification_evidence": [
+      "The requested change affects ADLC workflow primitives, skills, schemas, and scripts rather than a product runtime path.",
+      "Compound engineering performance depends on deterministic reuse of prior implementation learnings and bounded resume state."
+    ],
+    "change_surface": {
+      "new_attack_surface": false,
+      "runtime_path_change": false,
+      "service_boundary_change": false,
+      "external_integration": false,
+      "persistent_storage": true,
+      "api_change": true,
+      "data_format_change": true,
+      "auth_change": false,
+      "perf_sensitive": true,
+      "user_facing_operation": false
+    },
+    "claim_provenance": {
+      "supported": [
+        {
+          "claim": "ADLC already has graph-backed research, Build Brief decomposition, readiness-gated work item emission, and bounded verifier-first execution.",
+          "source_ref": "docs/research/compound-engineering-plugin-adlc-review.md",
+          "extracted_from": "ADLC repo review and Graphify query output"
+        },
+        {
+          "claim": "The useful CE concepts for ADLC are a concrete learning store, learning capture, learning refresh, task identity, resume fingerprints, worktree isolation, and script-first preprocessing.",
+          "source_ref": "docs/research/compound-engineering-plugin-adlc-review.md",
+          "extracted_from": "EveryInc/compound-engineering-plugin research at 966e32f5b5efec4830b347fff420482e05c90d4e"
+        },
+        {
+          "claim": "The whole CE plugin should not be imported because ADLC already owns decomposition, review, validation, and graph comprehension surfaces.",
+          "source_ref": "docs/research/compound-engineering-plugin-adlc-review.md",
+          "extracted_from": "ADLC-to-CE mapping review"
+        }
+      ],
+      "unsupported": [],
+      "contradicted": []
+    },
+    "contamination": {
+      "flags": [
+        "scope_creep"
+      ],
+      "supported_claims": [
+        "Implement only bounded ADLC primitives that improve compound execution performance.",
+        "Keep optional session-history search out of the required planning path."
+      ],
+      "unsupported_claims": [],
+      "contradicted_claims": [],
+      "needs_clarification": [],
+      "suspect_phrases": [
+        "import the plugin wholesale",
+        "auto-run learning refresh on every task",
+        "make Proof or CE sessions a core ADLC dependency"
+      ]
+    },
+    "section_policy": [
+      {
+        "section_name": "1_context",
+        "status": "active",
+        "reason": "The decomposition depends on repo-grounded CE research and ADLC primitive mapping.",
+        "evidence": [
+          "docs/research/compound-engineering-plugin-adlc-review.md"
+        ]
+      },
+      {
+        "section_name": "8_task_tickets",
+        "status": "active",
+        "reason": "The user asked ADLC to decompose implementation work into shippable tasks.",
+        "trigger_fields": [
+          "adlc_mode=decompose_only"
+        ]
+      },
+      {
+        "section_name": "11_validation_plan",
+        "status": "active",
+        "reason": "The implementation touches schema and emitter behavior, so executable validation is required."
+      },
+      {
+        "section_name": "12_skill_trigger_configuration",
+        "status": "active",
+        "reason": "The proposed capability adds narrowly scoped ADLC skills for capture and refresh."
+      }
+    ],
+    "verification_spec": {
+      "primary_verifier": {
+        "type": "command",
+        "target": "bin/adlc emit-work-items --target github --build-brief docs/build-briefs/compound-engineering-adlc-implementation.json --dry-run --require-ready --json",
+        "expected_pre_change": "fail",
+        "expected_post_change": "pass",
+        "rationale": "The decomposition is only useful if ADLC can emit ready, normalized implementation work items.",
+        "target_files": [
+          "docs/build-briefs/compound-engineering-adlc-implementation.json"
+        ],
+        "expected_failure_mode": "missing or blocked compound engineering decomposition"
+      },
+      "secondary_verifiers": [
+        {
+          "type": "command",
+          "target": "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/compound-engineering-adlc-implementation.json --json",
+          "expected_pre_change": "fail",
+          "expected_post_change": "pass",
+          "rationale": "The decomposition must satisfy the ADLC Build Brief schema."
+        }
+      ],
+      "must_fail_before_change": true,
+      "must_be_deterministic": true,
+      "scope_note": "Validate the plan artifact before any implementation task starts."
+    }
+  },
+  "enterprise_readiness_contract": {
+    "production_grade_target": "Add compound-engineering capability to ADLC through small, reusable primitives: durable learnings, deterministic refresh, stable task identity, resumable execution fingerprints, isolated worktrees, and script-first context preprocessing.",
+    "backward_compatibility": "Existing Build Briefs, ADLC CLI commands, Graphify research workflow, and work-item emitter behavior must continue to work without the new fields or skills.",
+    "forward_compatibility": "New learning and fingerprint metadata must be optional and structured so future providers can consume it without changing the core Build Brief contract again.",
+    "failure_mode_coverage": [
+      "Stale or duplicate learnings are covered by explicit refresh decisions and consolidation rules.",
+      "Task identity drift is covered by stable IDs and fingerprint checks tied to verifier state.",
+      "Worktree collisions are covered by an isolation contract that records branch, base, dirty-state, and cleanup behavior.",
+      "Context bloat is covered by script-first preprocessing that passes paths and summaries instead of raw file dumps."
+    ],
+    "definition_of_done": [
+      "ADLC can capture implementation learnings into a repo-local docs/solutions store without manual format drift.",
+      "ADLC can refresh learnings with Keep, Update, Consolidate, Replace, and Delete outcomes.",
+      "Work items emitted from Build Briefs carry stable identity and optional resume fingerprint metadata.",
+      "Compound implementation work documents worktree isolation and resume requirements before coding starts.",
+      "All changed contracts are covered by schema validation, CLI tests, and contract tests."
+    ],
+    "validation_tasks": [
+      "CE-ADLC-VAL"
+    ],
+    "compliance_posture": "No regulated user data, secrets, auth, or external service mutation is introduced. The persistent store is repo-local documentation plus optional metadata in existing ADLC artifacts.",
+    "construct_map_refs": [
+      "docs/specs/scalable-ai-code-primitives.md",
+      "docs/specs/session-persistence.md",
+      "docs/specs/graph-research-and-comprehension.md"
+    ],
+    "paved_road_refs": [
+      "skills/reuse-analysis/SKILL.md",
+      "skills/feedback-loop/SKILL.md",
+      "skills/codegen-context/SKILL.md",
+      "scripts/adlc.py"
+    ],
+    "production_invariant_coverage": [
+      "idempotency: reuse existing ADLC idempotency keys for emitted work items and add optional stable task identity fields.",
+      "persistence: store learnings as versioned repo documentation rather than opaque agent memory.",
+      "observability: refresh decisions and resume fingerprints must be visible in Build Brief evidence and workflow state.",
+      "sensitive_data: learning capture must reject secrets and environment-specific credentials."
+    ]
+  },
+  "sections": {
+    "1_context": "ADLC should support compound engineering as a first-class execution pattern, but the EveryInc CE plugin should be treated as research input rather than a dependency. The goal is faster repeated implementation through durable learnings, stable task identity, and bounded resume behavior while preserving ADLC's existing Graphify, Build Brief, Eval Council, and emitter primitives.",
+    "2_scope_and_constraints": "In scope: docs/solutions learning store, learning capture skill, learning refresh skill, optional task identity and resume fingerprint metadata, worktree isolation contract, and script-first preflight. Out of scope: importing the CE plugin, adding a marketplace installer, making Proof mandatory, adding a parallel CE planner/reviewer stack, or requiring session-history search for normal ADLC planning.",
+    "3_repo_findings": "ADLC already has repo graph research, Build Brief schemas, reuse analysis, feedback loop, codegen context, workflow state, and readiness-gated work-item emission. The missing pieces are concrete durable learnings, deterministic learning refresh, task-level resume identity, and a compound worktree/session contract.",
+    "4_architecture": "Add the capability as small ADLC-native extensions. The learning store is markdown under docs/solutions plus templates and validation guidance. Skills perform capture and refresh around that store. The Build Brief schema and emitter preserve optional stable identity and resume metadata. Worktree isolation is a documented execution contract. Script-first preflight creates compact context artifacts for agents and Graphify instead of passing large raw content.",
+    "5_security_review": [
+      {
+        "risk": "Learning capture can persist secrets or environment-specific credentials.",
+        "mitigation": "Require secret scanning guidance, explicit redaction, and no captured tokens, keys, private URLs, or user-specific paths unless they are already documented repo fixtures."
+      },
+      {
+        "risk": "Refresh automation can delete useful knowledge.",
+        "mitigation": "Require explicit Keep, Update, Consolidate, Replace, or Delete decisions with evidence links; do not auto-delete without recorded rationale."
+      }
+    ],
+    "6_observability_slo": "Every capture and refresh run should leave a reviewable artifact path, outcome, source evidence, and verifier command. Resume fingerprints should expose task id, verifier status, branch/base, and relevant input hashes.",
+    "7_execution_plan": "Ship this in six bounded implementation tasks plus one validation task. Start with a learning-store spec, then add capture and refresh skills, then add optional stable identity and resume metadata, then harden worktree/session execution, then add script-first preflight. Validate with ADLC schema checks, emitter dry-runs, CLI tests, and Graphify review.",
+    "8_task_tickets": [
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "CE-ADLC-001",
+        "title": "Define ADLC learning store",
+        "objective": "Create the repo-local learning store contract that turns repeated implementation discoveries into reusable ADLC knowledge.",
+        "task_classification": "docs",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "The research already supports a bounded docs/solutions store; no Type 1 decision is required."
+        },
+        "scope": [
+          "Create docs/specs/compound-engineering-learning-store.md.",
+          "Create docs/solutions/README.md and a reusable solution template.",
+          "Define required fields for problem, context, decision, implementation pattern, verifier evidence, stale conditions, and consolidation links.",
+          "Document what must not be captured, including secrets, raw private paths, and unsupported claims."
+        ],
+        "out_of_scope": [
+          "No database, vector store, or external memory service.",
+          "No automatic background indexing.",
+          "No import of EveryInc CE plugin files."
+        ],
+        "dependencies": [],
+        "acceptance_criteria": [
+          {
+            "id": "AC-CE_ADLC_001-STORE",
+            "given": "a future ADLC implementation finds a reusable technique",
+            "when": "the contributor consults the learning-store spec",
+            "then": "the contributor can create a solution note with required evidence, verifier, and stale-condition fields",
+            "measurable_post_condition": "docs/specs/compound-engineering-learning-store.md and docs/solutions/_template.md exist and name all required fields"
+          },
+          {
+            "id": "AC-CE_ADLC_001-SCOPE",
+            "given": "the CE plugin contains broader session and installer features",
+            "when": "the ADLC spec is reviewed",
+            "then": "it explicitly excludes wholesale plugin import and external persistent services",
+            "measurable_post_condition": "the spec has an out-of-scope section covering plugin import, marketplace install, and external stores"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not create generic knowledge-base prose without required fields.",
+          "Do not make session-history search a prerequisite for using ADLC.",
+          "Do not duplicate existing reuse-analysis or feedback-loop skill responsibilities."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "ADLC has skills and feedback loops but no concrete durable learning artifact format.",
+          "deferred_debt": "Automated indexing and richer search ranking can wait until a real learning corpus exists.",
+          "deferral_safety": "A markdown store with explicit required fields is reviewable, versioned, and enough for first-slice reuse."
+        },
+        "compatibility_contract": {
+          "backward": "Existing ADLC workflows continue without docs/solutions entries.",
+          "forward": "The template must allow later CLI validation or Graphify indexing without changing captured content semantics.",
+          "migration_or_rollout": "No migration; introduce the store with documentation and an empty template."
+        },
+        "implementation_notes": [
+          "Use the research artifact as the source of truth for what CE concepts are worth adopting.",
+          "Prefer a small schema-like markdown template over a new JSON schema in this slice.",
+          "Cross-link existing skills/reuse-analysis and skills/feedback-loop instead of replacing them."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "test -f docs/specs/compound-engineering-learning-store.md && test -f docs/solutions/README.md && test -f docs/solutions/_template.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The first slice is concrete learning-store artifacts.",
+            "target_files": [
+              "docs/specs/compound-engineering-learning-store.md",
+              "docs/solutions/README.md",
+              "docs/solutions/_template.md"
+            ],
+            "expected_failure_mode": "learning store contract missing"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "rg -n \"stale|consolidate|verifier|secrets|out of scope\" docs/specs/compound-engineering-learning-store.md docs/solutions/_template.md",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "The store must include safety and refresh fields.",
+              "target_files": [
+                "docs/specs/compound-engineering-learning-store.md",
+                "docs/solutions/_template.md"
+              ],
+              "expected_failure_mode": "learning store safety or refresh fields missing"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "This task is documentation-only and should not add executable dependencies."
+        },
+        "evidence_responsibilities": [
+          "Link the EveryInc CE research artifact.",
+          "Show the learning-store files and their required fields.",
+          "Show the out-of-scope guardrails."
+        ],
+        "definition_of_done": [
+          "Learning-store spec and template exist.",
+          "The spec says when to capture, when not to capture, and how to mark stale learnings.",
+          "The spec references existing ADLC reuse and feedback primitives instead of duplicating them."
+        ],
+        "failure_modes": [
+          "MEDIUM: A vague learning store becomes unreviewable notes; mitigation: required fields and verifier evidence.",
+          "MEDIUM: The store becomes a second planning system; mitigation: keep it as evidence consumed by Build Briefs and skills."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [],
+        "files_to_create": [
+          "docs/specs/compound-engineering-learning-store.md",
+          "docs/solutions/README.md",
+          "docs/solutions/_template.md"
+        ],
+        "reference_impl": "skills/reuse-analysis/SKILL.md",
+        "work_item_metadata": {
+          "area": "knowledge",
+          "area_label": "area:knowledge",
+          "phase_label": "phase:compound-learning",
+          "target_project": "ADLC Compound Engineering",
+          "labels": [
+            "adlc",
+            "compound-engineering",
+            "docs"
+          ],
+          "external_refs": [
+            "EveryInc/compound-engineering-plugin@966e32f5"
+          ]
+        },
+        "construct_map_refs": [
+          "docs/specs/graph-research-and-comprehension.md"
+        ],
+        "paved_road_refs": [
+          "skills/reuse-analysis/SKILL.md",
+          "skills/feedback-loop/SKILL.md"
+        ],
+        "intent_contract_refs": [
+          "docs/research/compound-engineering-plugin-adlc-review.md"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "persistence",
+            "status": "covered",
+            "evidence": [
+              "Learning entries live in versioned repo docs."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "CE-ADLC-002",
+        "title": "Add learning capture skill",
+        "objective": "Add a narrow ADLC skill that captures proven implementation lessons into the learning store after validation.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Capture is approved as a manual, verifier-gated skill rather than an automatic memory writer."
+        },
+        "scope": [
+          "Create skills/learning-capture/SKILL.md.",
+          "Update skills/manifest.json if the manifest lists repository skills explicitly.",
+          "Require source evidence, verifier evidence, reuse conditions, and stale conditions before writing a solution note.",
+          "Require redaction review before persisting any command output or path-sensitive details."
+        ],
+        "out_of_scope": [
+          "No automatic capture on every agent run.",
+          "No external memory API.",
+          "No unreviewed edits to existing solution notes."
+        ],
+        "dependencies": [
+          "CE-ADLC-001"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-CE_ADLC_002-SKILL",
+            "given": "a validated implementation produces a reusable pattern",
+            "when": "the learning-capture skill is invoked",
+            "then": "the skill guides the agent to write a solution note using the approved template",
+            "measurable_post_condition": "skills/learning-capture/SKILL.md names required evidence, verifier, stale-condition, and redaction steps"
+          },
+          {
+            "id": "AC-CE_ADLC_002-GUARD",
+            "given": "the reusable pattern is not yet validated",
+            "when": "capture is attempted",
+            "then": "the skill refuses durable capture and asks for verifier evidence first",
+            "measurable_post_condition": "the skill contains a validation-before-capture rule"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not let the skill summarize without citing source files or verifier commands.",
+          "Do not store secrets, token values, or private environment paths.",
+          "Do not create overlapping skills for reuse analysis."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Learning capture currently depends on ad hoc post-run summaries.",
+          "deferred_debt": "CLI validation for solution notes can be added after the markdown contract proves useful.",
+          "deferral_safety": "A skill-level gate still prevents unsupported durable knowledge from entering the repo."
+        },
+        "compatibility_contract": {
+          "backward": "Existing skills and workflows continue unchanged if learning capture is never invoked.",
+          "forward": "Captured notes must keep stable headings so later refresh and indexing tools can parse them.",
+          "migration_or_rollout": "No migration; add the skill and start with future notes only."
+        },
+        "implementation_notes": [
+          "Model the skill structure after existing ADLC skills.",
+          "Keep the trigger explicit; do not auto-invoke from every code review.",
+          "Make source evidence and verifier evidence mandatory."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "test -f skills/learning-capture/SKILL.md && rg -n \"verifier|redact|stale|source evidence|solution\" skills/learning-capture/SKILL.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The capture skill must exist and include the required guardrails.",
+            "target_files": [
+              "skills/learning-capture/SKILL.md"
+            ],
+            "expected_failure_mode": "learning capture skill missing or underspecified"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "test ! -f skills/manifest.json || rg -n \"learning-capture\" skills/manifest.json skills/learning-capture/SKILL.md",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "If this repo manifests skills explicitly, the new skill must be discoverable.",
+              "target_files": [
+                "skills/manifest.json",
+                "skills/learning-capture/SKILL.md"
+              ],
+              "expected_failure_mode": "learning capture skill not discoverable"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "The skill adds process capability; it should not mutate unrelated ADLC skills."
+        },
+        "evidence_responsibilities": [
+          "Show the skill instructions and trigger conditions.",
+          "Show that capture requires verifier evidence.",
+          "Show that redaction and unsupported-claim rules are present."
+        ],
+        "definition_of_done": [
+          "The learning-capture skill exists.",
+          "The skill writes only template-shaped solution notes.",
+          "The skill refuses capture without source and verifier evidence."
+        ],
+        "failure_modes": [
+          "HIGH: Captured false knowledge slows later compound work; mitigation: validation-before-capture.",
+          "HIGH: Captured secrets leak into repo docs; mitigation: redaction checklist and explicit forbidden content."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "skills/manifest.json"
+        ],
+        "files_to_create": [
+          "skills/learning-capture/SKILL.md"
+        ],
+        "reference_impl": "skills/feedback-loop/SKILL.md",
+        "work_item_metadata": {
+          "area": "skills",
+          "area_label": "area:skills",
+          "phase_label": "phase:compound-learning",
+          "target_project": "ADLC Compound Engineering",
+          "labels": [
+            "adlc",
+            "compound-engineering",
+            "skill"
+          ],
+          "external_refs": [
+            "docs/skills/ce-work.md"
+          ]
+        },
+        "construct_map_refs": [
+          "skills/feedback-loop/SKILL.md"
+        ],
+        "paved_road_refs": [
+          "docs/solutions/_template.md"
+        ],
+        "intent_contract_refs": [
+          "docs/research/compound-engineering-plugin-adlc-review.md"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "sensitive_data",
+            "status": "covered",
+            "evidence": [
+              "Capture skill requires redaction before persistent writes."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "CE-ADLC-003",
+        "title": "Add learning refresh workflow",
+        "objective": "Add a deterministic refresh workflow that keeps durable ADLC learnings current without broad automatic rewrites.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Refresh is approved as an explicit skill or script-assisted workflow with recorded outcomes."
+        },
+        "scope": [
+          "Create skills/learning-refresh/SKILL.md.",
+          "Define Keep, Update, Consolidate, Replace, and Delete outcomes.",
+          "Require evidence for every refresh decision.",
+          "Add a lightweight deterministic scanner only if needed to list candidate solution notes."
+        ],
+        "out_of_scope": [
+          "No automatic deletion of solution notes.",
+          "No agent-written refresh without a diff and rationale.",
+          "No broad refresh of every repo doc."
+        ],
+        "dependencies": [
+          "CE-ADLC-001",
+          "CE-ADLC-002"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-CE_ADLC_003-OUTCOMES",
+            "given": "a solution note may be stale or duplicated",
+            "when": "learning refresh runs",
+            "then": "the workflow records one of Keep, Update, Consolidate, Replace, or Delete with evidence",
+            "measurable_post_condition": "skills/learning-refresh/SKILL.md names all five outcomes and their required evidence"
+          },
+          {
+            "id": "AC-CE_ADLC_003-SAFETY",
+            "given": "a refresh would delete or replace a learning",
+            "when": "the workflow reaches that outcome",
+            "then": "it requires explicit rationale and source links",
+            "measurable_post_condition": "the skill has delete and replace safeguards"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not refresh unrelated documentation.",
+          "Do not delete learnings based only on age.",
+          "Do not hide consolidation decisions in commit messages only."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "ADLC has feedback loops but not a durable refresh protocol for implementation learnings.",
+          "deferred_debt": "A richer refresh report format can wait until there are multiple solution notes.",
+          "deferral_safety": "The five-outcome workflow prevents silent drift and silent deletion."
+        },
+        "compatibility_contract": {
+          "backward": "Existing docs remain valid until they opt into solution-note format.",
+          "forward": "Outcome labels must remain stable for future scripts and Graphify indexing.",
+          "migration_or_rollout": "Introduce refresh workflow without modifying existing docs outside docs/solutions."
+        },
+        "implementation_notes": [
+          "Borrow CE's refresh taxonomy, not its whole session stack.",
+          "Prefer deterministic candidate listing over large agent prompts.",
+          "Use Graphify as enrichment when graph context is already fresh."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "test -f skills/learning-refresh/SKILL.md && rg -n \"Keep|Update|Consolidate|Replace|Delete|evidence\" skills/learning-refresh/SKILL.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The refresh workflow must expose the CE outcome taxonomy and evidence requirements.",
+            "target_files": [
+              "skills/learning-refresh/SKILL.md"
+            ],
+            "expected_failure_mode": "learning refresh workflow missing or unsafe"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "rg -n \"learning-refresh|solution notes\" docs/specs/compound-engineering-learning-store.md skills/learning-refresh/SKILL.md",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "The store and refresh skill must agree on terminology.",
+              "target_files": [
+                "docs/specs/compound-engineering-learning-store.md",
+                "skills/learning-refresh/SKILL.md"
+              ],
+              "expected_failure_mode": "learning store and refresh terminology diverge"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Refresh must be explicit and evidence-backed."
+        },
+        "evidence_responsibilities": [
+          "Show the five outcome definitions.",
+          "Show delete and replace safeguards.",
+          "Show that refresh is explicit, not automatic."
+        ],
+        "definition_of_done": [
+          "The learning-refresh skill exists.",
+          "Refresh outcomes are stable and evidence-backed.",
+          "The workflow can be followed without adding an external service."
+        ],
+        "failure_modes": [
+          "MEDIUM: Refresh causes broad churn; mitigation: docs/solutions scope and outcome evidence.",
+          "HIGH: Useful learnings are deleted; mitigation: explicit Delete rationale and source links."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "docs/specs/compound-engineering-learning-store.md"
+        ],
+        "files_to_create": [
+          "skills/learning-refresh/SKILL.md"
+        ],
+        "reference_impl": "skills/feedback-loop/SKILL.md",
+        "work_item_metadata": {
+          "area": "skills",
+          "area_label": "area:skills",
+          "phase_label": "phase:compound-learning",
+          "target_project": "ADLC Compound Engineering",
+          "labels": [
+            "adlc",
+            "compound-engineering",
+            "skill"
+          ],
+          "external_refs": [
+            "docs/skills/ce-compound-refresh.md"
+          ]
+        },
+        "construct_map_refs": [
+          "docs/specs/session-persistence.md"
+        ],
+        "paved_road_refs": [
+          "skills/feedback-loop/SKILL.md"
+        ],
+        "intent_contract_refs": [
+          "docs/research/compound-engineering-plugin-adlc-review.md"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "data_integrity",
+            "status": "covered",
+            "evidence": [
+              "Refresh decisions require evidence and stable outcome labels."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "CE-ADLC-004",
+        "title": "Preserve stable task identity and resume fingerprints",
+        "objective": "Extend ADLC task contracts so compound implementation work can resume by stable task identity and verifier state rather than fragile conversation context.",
+        "task_classification": "feature",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Stable task identity and resume fingerprints are optional metadata extensions, so they do not break existing Build Briefs."
+        },
+        "scope": [
+          "Add backwards-compatible optional task metadata for stable task identity and resume fingerprints.",
+          "Preserve the metadata in emit-work-items normalized artifacts.",
+          "Tie resume fingerprints to target files, verifier command, expected failure mode, and dependency status.",
+          "Add CLI and contract tests that prove existing briefs still validate."
+        ],
+        "out_of_scope": [
+          "No new workflow database.",
+          "No replacement for existing idempotency keys.",
+          "No requirement that every legacy task provide fingerprints."
+        ],
+        "dependencies": [
+          "CE-ADLC-001"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-CE_ADLC_004-SCHEMA",
+            "given": "a Build Brief task includes stable identity metadata",
+            "when": "ADLC validates the artifact",
+            "then": "the schema accepts the optional metadata while legacy tasks still validate",
+            "measurable_post_condition": "tests cover both populated and absent metadata"
+          },
+          {
+            "id": "AC-CE_ADLC_004-EMITTER",
+            "given": "emit-work-items normalizes tasks",
+            "when": "a task has resume fingerprint metadata",
+            "then": "the emitted artifact preserves it alongside verifier and dependency data",
+            "measurable_post_condition": "tests/test_adlc_cli.sh or tests/test_adlc_contracts.sh asserts preserved metadata"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not rename task_id or idempotency_key semantics.",
+          "Do not require fingerprints for old Build Briefs.",
+          "Do not store raw prompt history as the fingerprint."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Current ADLC idempotency is external-emission oriented; it does not describe task-level resume conditions.",
+          "deferred_debt": "Automated fingerprint recomputation can wait; first slice preserves provided metadata and documents the fields.",
+          "deferral_safety": "Optional metadata plus tests improves resumability without changing existing execution semantics."
+        },
+        "compatibility_contract": {
+          "backward": "All existing Build Brief fixtures and xia-adlc-remediation.json continue to validate.",
+          "forward": "Metadata names must be stable enough for future workflow-state persistence and provider adapters.",
+          "migration_or_rollout": "Add optional fields, update docs, and keep legacy artifacts untouched unless tests need focused fixtures."
+        },
+        "implementation_notes": [
+          "Implement this as optional fields on the existing task object.",
+          "Emit the fields if present and omit them if absent.",
+          "Use target_files and expected_failure_mode from verification_spec as part of documented fingerprint composition."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bash tests/test_adlc_contracts.sh",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Schema and emitter contract changes must be covered by existing contract tests.",
+            "target_files": [
+              "docs/schemas/build-brief.schema.json",
+              "scripts/adlc.py",
+              "tests/test_adlc_contracts.sh"
+            ],
+            "expected_failure_mode": "stable identity metadata not accepted or not preserved"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bash tests/test_adlc_cli.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "CLI normalization must preserve optional resume metadata.",
+              "target_files": [
+                "scripts/adlc.py",
+                "tests/test_adlc_cli.sh"
+              ],
+              "expected_failure_mode": "CLI emitter drops optional resume metadata"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Keep schema changes backwards-compatible and emitter-only for this slice."
+        },
+        "evidence_responsibilities": [
+          "Show schema optional fields.",
+          "Show emitter preservation output.",
+          "Show legacy fixture validation still passes."
+        ],
+        "definition_of_done": [
+          "Optional stable identity and resume fingerprint metadata are documented and schema-valid.",
+          "emit-work-items preserves the metadata.",
+          "Existing fixtures remain valid."
+        ],
+        "failure_modes": [
+          "HIGH: Metadata breaks legacy briefs; mitigation: optional fields and regression tests.",
+          "MEDIUM: Fingerprints become conversation hashes; mitigation: define verifier and file based components only."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "docs/schemas/build-brief.schema.json",
+          "scripts/adlc.py",
+          "tests/test_adlc_cli.sh",
+          "tests/test_adlc_contracts.sh",
+          "docs/specs/emitter-contract.md"
+        ],
+        "files_to_create": [],
+        "reference_impl": "scripts/adlc.py",
+        "work_item_metadata": {
+          "area": "workflow",
+          "area_label": "area:workflow",
+          "phase_label": "phase:compound-resume",
+          "target_project": "ADLC Compound Engineering",
+          "labels": [
+            "adlc",
+            "compound-engineering",
+            "schema",
+            "emitter"
+          ],
+          "external_refs": [
+            "docs/skills/ce-work.md",
+            "docs/skills/ce-sessions.md"
+          ]
+        },
+        "construct_map_refs": [
+          "docs/specs/idempotency-keys.md",
+          "docs/specs/session-persistence.md"
+        ],
+        "paved_road_refs": [
+          "scripts/adlc.py",
+          "docs/schemas/build-brief.schema.json"
+        ],
+        "intent_contract_refs": [
+          "docs/research/compound-engineering-plugin-adlc-review.md"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "idempotency",
+            "status": "covered",
+            "evidence": [
+              "Stable task identity complements existing idempotency keys rather than replacing them."
+            ]
+          },
+          {
+            "invariant": "retries",
+            "status": "covered",
+            "evidence": [
+              "Resume fingerprints tie retries to verifier and dependency state."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "CE-ADLC-005",
+        "title": "Harden compound worktree and session contract",
+        "objective": "Define the ADLC execution contract for isolated compound work so parallel agents and resumptions do not collide.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Worktree isolation is a process contract first; automation can follow after the contract is validated."
+        },
+        "scope": [
+          "Create or update ADLC workflow docs with worktree isolation requirements.",
+          "Specify branch naming, base commit recording, dirty-worktree handling, dependency order, and cleanup.",
+          "Require resume context to include task id, branch, base, modified paths, verifier status, and open blockers.",
+          "Document when multiple worktrees are allowed and when a serial implementation lane is required."
+        ],
+        "out_of_scope": [
+          "No mandatory new git wrapper command in the first slice.",
+          "No automatic merge conflict resolver.",
+          "No unmanaged parallel writes to the same files."
+        ],
+        "dependencies": [
+          "CE-ADLC-004"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-CE_ADLC_005-ISOLATION",
+            "given": "two implementation tasks can run in parallel",
+            "when": "the worktree contract is followed",
+            "then": "each task records branch, base, dirty-state, modified paths, verifier state, and cleanup expectations",
+            "measurable_post_condition": "WORKFLOW.md or docs/specs/session-persistence.md documents these required fields"
+          },
+          {
+            "id": "AC-CE_ADLC_005-SERIAL",
+            "given": "tasks modify overlapping files or have verifier dependencies",
+            "when": "ADLC decomposes work",
+            "then": "the contract explains when to keep the work serial",
+            "measurable_post_condition": "the docs name overlap and dependency conditions that block parallel worktrees"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not promise safe parallelism without file-overlap checks.",
+          "Do not create a new branch-management abstraction before documenting the contract.",
+          "Do not discard dirty user changes."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "ADLC has workflow state but lacks explicit compound worktree isolation rules.",
+          "deferred_debt": "Automated worktree creation can wait until manual contract usage is proven.",
+          "deferral_safety": "Documentation plus resume metadata prevents unsafe ad hoc parallelism."
+        },
+        "compatibility_contract": {
+          "backward": "Single-worktree ADLC runs remain valid.",
+          "forward": "The contract should be implementable later as a CLI command without changing task metadata.",
+          "migration_or_rollout": "Document the contract and add tests only if docs include executable examples."
+        },
+        "implementation_notes": [
+          "Use existing session persistence docs as the natural home for resume context.",
+          "Keep rules concrete and enforceable.",
+          "Explicitly preserve user changes and dirty-worktree constraints."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "rg -n \"worktree|branch|base commit|dirty|resume|modified paths|cleanup\" WORKFLOW.md docs/specs/session-persistence.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The worktree/session contract must be visible in ADLC workflow documentation.",
+            "target_files": [
+              "WORKFLOW.md",
+              "docs/specs/session-persistence.md"
+            ],
+            "expected_failure_mode": "compound worktree isolation contract missing"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "rg -n \"overlap|parallel|serial|dependency\" WORKFLOW.md docs/specs/session-persistence.md",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "The contract must distinguish parallel-safe and serial work.",
+              "target_files": [
+                "WORKFLOW.md",
+                "docs/specs/session-persistence.md"
+              ],
+              "expected_failure_mode": "parallel versus serial worktree rules missing"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "This is a contract hardening task, not a git automation task."
+        },
+        "evidence_responsibilities": [
+          "Show branch/base/dirty-state requirements.",
+          "Show parallel versus serial rules.",
+          "Show that dirty user changes are protected."
+        ],
+        "definition_of_done": [
+          "ADLC docs describe compound worktree isolation.",
+          "Resume context requirements are explicit.",
+          "Parallelism guardrails are documented."
+        ],
+        "failure_modes": [
+          "HIGH: Parallel tasks overwrite each other; mitigation: file-overlap and dependency rules.",
+          "HIGH: User work is lost; mitigation: dirty-worktree checks and no destructive commands."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "WORKFLOW.md",
+          "docs/specs/session-persistence.md"
+        ],
+        "files_to_create": [],
+        "reference_impl": "docs/specs/session-persistence.md",
+        "work_item_metadata": {
+          "area": "workflow",
+          "area_label": "area:workflow",
+          "phase_label": "phase:compound-resume",
+          "target_project": "ADLC Compound Engineering",
+          "labels": [
+            "adlc",
+            "compound-engineering",
+            "worktree"
+          ],
+          "external_refs": [
+            "docs/skills/ce-worktree.md"
+          ]
+        },
+        "construct_map_refs": [
+          "docs/specs/session-persistence.md"
+        ],
+        "paved_road_refs": [
+          "WORKFLOW.md"
+        ],
+        "intent_contract_refs": [
+          "docs/research/compound-engineering-plugin-adlc-review.md"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "ordering",
+            "status": "covered",
+            "evidence": [
+              "Parallel work is allowed only when dependencies and file overlap permit it."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "CE-ADLC-006",
+        "title": "Add script-first compound context preflight",
+        "objective": "Reduce compound-engineering context cost by generating deterministic compact context artifacts before agent work.",
+        "task_classification": "feature",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Script-first preflight is approved as deterministic local preprocessing that feeds ADLC and agents with paths and summaries."
+        },
+        "scope": [
+          "Add a deterministic script or ADLC CLI subcommand that summarizes solution notes, Build Brief task metadata, verifier targets, and graph evidence paths.",
+          "Pass paths and compact summaries to agents instead of raw large content.",
+          "Document how Graphify output is used as enrichment when present.",
+          "Add tests for deterministic output and missing-optional-input behavior."
+        ],
+        "out_of_scope": [
+          "No LLM ranking inside the script.",
+          "No requirement that graphify-out be committed.",
+          "No broad filesystem crawl outside the repo root."
+        ],
+        "dependencies": [
+          "CE-ADLC-001",
+          "CE-ADLC-004"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-CE_ADLC_006-PREFLIGHT",
+            "given": "a Build Brief and optional solution notes exist",
+            "when": "compound context preflight runs",
+            "then": "it emits deterministic JSON or markdown with task ids, relevant paths, verifier commands, and learning references",
+            "measurable_post_condition": "a test asserts stable output for a fixture"
+          },
+          {
+            "id": "AC-CE_ADLC_006-MISSING",
+            "given": "docs/solutions or graphify-out are absent",
+            "when": "preflight runs",
+            "then": "it reports absent optional inputs and still returns usable task context",
+            "measurable_post_condition": "a test covers missing optional input behavior"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not dump full source files into preflight output.",
+          "Do not call an LLM from deterministic preprocessing.",
+          "Do not fail just because graphify-out is absent."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "ADLC agents can consume large context manually; no compact compound preflight exists.",
+          "deferred_debt": "Ranking relevance with embeddings or LLMs can wait; deterministic path summaries are enough for first slice.",
+          "deferral_safety": "Stable preflight output reduces token use and is easy to test."
+        },
+        "compatibility_contract": {
+          "backward": "Existing ADLC CLI commands and Build Briefs continue to run if preflight is unused.",
+          "forward": "Output should be machine-readable enough for future agents and provider adapters.",
+          "migration_or_rollout": "Add as an optional script or subcommand with tests and docs."
+        },
+        "implementation_notes": [
+          "Prefer stdlib-only parsing and existing ADLC helpers.",
+          "Use structured JSON for machine consumption and optional markdown for humans.",
+          "Treat Graphify report paths as optional enrichment."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bash tests/test_adlc_cli.sh",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The preflight script or CLI command must be covered by ADLC CLI tests.",
+            "target_files": [
+              "scripts/adlc.py",
+              "tests/test_adlc_cli.sh"
+            ],
+            "expected_failure_mode": "compound context preflight missing or non-deterministic"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "python3 -m py_compile scripts/adlc.py",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Any CLI changes must remain syntactically valid.",
+              "target_files": [
+                "scripts/adlc.py"
+              ],
+              "expected_failure_mode": "ADLC CLI syntax error"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Preflight must be local, deterministic, and optional."
+        },
+        "evidence_responsibilities": [
+          "Show deterministic fixture output.",
+          "Show behavior when optional graph and learning inputs are missing.",
+          "Show that the output passes paths and summaries, not raw bulk content."
+        ],
+        "definition_of_done": [
+          "Compound context preflight exists as a script or ADLC command.",
+          "Preflight output is deterministic and compact.",
+          "Tests cover normal and missing-optional-input paths."
+        ],
+        "failure_modes": [
+          "MEDIUM: Preflight becomes another large prompt dump; mitigation: path and summary limits.",
+          "MEDIUM: Preflight depends on generated graph artifacts; mitigation: optional Graphify enrichment."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc.py",
+          "tests/test_adlc_cli.sh",
+          "docs/specs/agent-native-interface.md"
+        ],
+        "files_to_create": [],
+        "reference_impl": "scripts/adlc.py",
+        "work_item_metadata": {
+          "area": "cli",
+          "area_label": "area:cli",
+          "phase_label": "phase:compound-preflight",
+          "target_project": "ADLC Compound Engineering",
+          "labels": [
+            "adlc",
+            "compound-engineering",
+            "performance"
+          ],
+          "external_refs": [
+            "solutions/script-first-skill-architecture.md",
+            "solutions/pass-paths-not-content-to-subagents.md"
+          ]
+        },
+        "construct_map_refs": [
+          "docs/specs/agent-native-interface.md",
+          "docs/specs/graph-research-and-comprehension.md"
+        ],
+        "paved_road_refs": [
+          "scripts/adlc.py",
+          "tests/test_adlc_cli.sh"
+        ],
+        "intent_contract_refs": [
+          "docs/research/compound-engineering-plugin-adlc-review.md"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "dependency_failure",
+            "status": "covered",
+            "evidence": [
+              "Graphify and learning inputs are optional; missing inputs are reported without blocking task context."
+            ]
+          },
+          {
+            "invariant": "observability",
+            "status": "covered",
+            "evidence": [
+              "Preflight output names source paths and verifier commands."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "validation_task",
+        "task_id": "CE-ADLC-VAL",
+        "title": "Validate ADLC compound engineering slice",
+        "objective": "Validate the compound-engineering implementation end to end before publishing.",
+        "task_classification": "build_validation",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Validation task only; no Type 1 decision."
+        },
+        "scope": [
+          "Run Build Brief schema validation.",
+          "Run ADLC emitter dry-run with --require-ready.",
+          "Run CLI and contract tests.",
+          "Run Graphify review after implementation and inspect the updated graph report."
+        ],
+        "out_of_scope": [
+          "No remote provider mutation unless a maintainer explicitly supplies a provider command.",
+          "No PR merge without passing validation or documented blocker."
+        ],
+        "dependencies": [
+          "CE-ADLC-002",
+          "CE-ADLC-003",
+          "CE-ADLC-004",
+          "CE-ADLC-005",
+          "CE-ADLC-006"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-CE_ADLC_VAL-READY",
+            "given": "the implementation tasks are complete",
+            "when": "ADLC validates and emits the compound Build Brief",
+            "then": "the Build Brief is schema-valid and readiness status is ready",
+            "measurable_post_condition": "validate-artifact and emit-work-items --require-ready both pass"
+          },
+          {
+            "id": "AC-CE_ADLC_VAL-TESTS",
+            "given": "schema, CLI, and workflow docs changed",
+            "when": "the validation suite runs",
+            "then": "ADLC CLI and contract tests pass",
+            "measurable_post_condition": "bash tests/test_adlc_cli.sh and bash tests/test_adlc_contracts.sh pass"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not claim compound engineering support from docs-only changes if schema or emitter behavior is incomplete.",
+          "Do not skip Graphify review after code changes.",
+          "Do not publish graphify-out unless the repository policy changes."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "The decomposition is intentionally first-slice; richer automation is deferred.",
+          "deferred_debt": "Provider mutation for GitHub issues and automated worktree creation remain follow-up work.",
+          "deferral_safety": "The emitted work items are ready and can be executed manually or by a future provider without ambiguity."
+        },
+        "compatibility_contract": {
+          "backward": "Existing ADLC tests and fixtures continue to pass.",
+          "forward": "Validation evidence should be sufficient for a follow-up PR to implement GitHub issue mutation if desired.",
+          "migration_or_rollout": "Ship behind optional docs, skills, and metadata; no default behavior changes without tests."
+        },
+        "implementation_notes": [
+          "Use ADLC itself to validate and emit the task decomposition.",
+          "Run Graphify after implementation, not as a substitute for tests.",
+          "Stage only intentional repo artifacts; leave generated graphify-out untracked unless maintainers request it."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc emit-work-items --target github --build-brief docs/build-briefs/compound-engineering-adlc-implementation.json --dry-run --require-ready --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The final plan must be executable as ready GitHub-targeted work items.",
+            "target_files": [
+              "docs/build-briefs/compound-engineering-adlc-implementation.json"
+            ],
+            "expected_failure_mode": "work-item readiness blocked"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/compound-engineering-adlc-implementation.json --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "The Build Brief must remain schema-valid.",
+              "target_files": [
+                "docs/build-briefs/compound-engineering-adlc-implementation.json"
+              ],
+              "expected_failure_mode": "compound engineering Build Brief schema validation fails"
+            },
+            {
+              "type": "command",
+              "target": "bash tests/test_adlc_cli.sh && bash tests/test_adlc_contracts.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "The implementation must preserve ADLC CLI and schema contracts.",
+              "target_files": [
+                "tests/test_adlc_cli.sh",
+                "tests/test_adlc_contracts.sh"
+              ],
+              "expected_failure_mode": "ADLC CLI or contract tests fail"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validation is required before remote publish."
+        },
+        "evidence_responsibilities": [
+          "Capture validate-artifact output.",
+          "Capture emit-work-items readiness output.",
+          "Capture CLI and contract test output.",
+          "Capture Graphify review summary after implementation."
+        ],
+        "definition_of_done": [
+          "Build Brief validates.",
+          "GitHub-targeted work-item dry-run is ready.",
+          "ADLC CLI and contract tests pass.",
+          "Graphify review is current after implementation."
+        ],
+        "failure_modes": [
+          "HIGH: The plan emits blocked work items; mitigation: --require-ready gate.",
+          "HIGH: Schema or emitter changes regress existing ADLC usage; mitigation: full CLI and contract tests."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [],
+        "files_to_create": [],
+        "reference_impl": "bin/adlc",
+        "work_item_metadata": {
+          "area": "validation",
+          "area_label": "area:validation",
+          "phase_label": "phase:validation",
+          "target_project": "ADLC Compound Engineering",
+          "labels": [
+            "adlc",
+            "compound-engineering",
+            "validation"
+          ],
+          "external_refs": [
+            "ADLC-COMPOUND-ENGINEERING"
+          ]
+        },
+        "construct_map_refs": [
+          "docs/specs/emitter-contract.md"
+        ],
+        "paved_road_refs": [
+          "bin/adlc",
+          "tests/test_adlc_cli.sh",
+          "tests/test_adlc_contracts.sh"
+        ],
+        "intent_contract_refs": [
+          "docs/research/compound-engineering-plugin-adlc-review.md"
+        ],
+        "production_invariant_coverage": [
+          {
+            "invariant": "observability",
+            "status": "covered",
+            "evidence": [
+              "Validation task requires command evidence before publish."
+            ]
+          }
+        ]
+      }
+    ],
+    "9_risks": [
+      "Scope creep: importing CE wholesale would duplicate ADLC planning, review, and validation surfaces.",
+      "Knowledge rot: durable learnings can become stale unless refresh outcomes are explicit.",
+      "Context bloat: compound preflight must pass compact paths and summaries, not raw content dumps.",
+      "Parallel execution risk: worktree isolation must handle dirty state, file overlap, dependencies, and cleanup."
+    ],
+    "10_rollout": "Ship as an ADLC-native first slice. Start with docs and skills, then optional schema and emitter metadata, then workflow docs and script-first preflight. Keep all behavior opt-in until tests prove it.",
+    "11_validation_plan": [
+      "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/compound-engineering-adlc-implementation.json --json",
+      "bin/adlc emit-work-items --target github --build-brief docs/build-briefs/compound-engineering-adlc-implementation.json --dry-run --require-ready --json",
+      "bash tests/test_adlc_cli.sh",
+      "bash tests/test_adlc_contracts.sh",
+      "graphify update .",
+      "graphify query \"What changed in ADLC compound engineering support and what risks remain?\" --budget 2500"
+    ],
+    "12_skill_trigger_configuration": [
+      {
+        "skill": "graphify",
+        "trigger": "Before implementation and after code changes, refresh or query graph context for ADLC workflow, schema, emitter, and skill relationships.",
+        "required": true
+      },
+      {
+        "skill": "learning-capture",
+        "trigger": "After a validated implementation produces a reusable solution pattern.",
+        "required": false
+      },
+      {
+        "skill": "learning-refresh",
+        "trigger": "When existing solution notes may be stale, duplicated, or superseded by new implementation evidence.",
+        "required": false
+      }
+    ],
+    "13_comprehension_context": {
+      "core_files": [
+        "docs/research/compound-engineering-plugin-adlc-review.md",
+        "docs/schemas/build-brief.schema.json",
+        "scripts/adlc.py",
+        "skills/reuse-analysis/SKILL.md",
+        "skills/feedback-loop/SKILL.md",
+        "docs/specs/session-persistence.md",
+        "docs/specs/emitter-contract.md"
+      ],
+      "do_not_duplicate": [
+        "Build Brief planning",
+        "Eval Council review",
+        "Graphify comprehension",
+        "existing feedback loop skill"
+      ]
+    },
+    "14_graph_research_evidence": {
+      "adlc_head_at_research": "7e6b9a4d97c4a6edeaa5f05ffaf11863ce6becd9",
+      "external_repo": "EveryInc/compound-engineering-plugin",
+      "external_commit": "966e32f5b5efec4830b347fff420482e05c90d4e",
+      "local_external_clone": "/tmp/adlc-compound-research/compound-engineering-plugin",
+      "adlc_graph": "graphify update . run during research",
+      "external_graph": "graphify update . run in cloned external repo"
+    },
+    "15_dark_code_risk": {
+      "status": "bounded",
+      "notes": [
+        "Graphify research found existing ADLC primitives that reduce the need for new architecture.",
+        "Implementation tasks must reuse existing schema, emitter, skill, and workflow files before adding new surfaces.",
+        "Generated graphify-out artifacts should remain untracked unless the project decides to version them."
+      ]
+    }
+  }
+}
