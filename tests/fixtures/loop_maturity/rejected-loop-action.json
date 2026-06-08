@@ -1,0 +1,18 @@
+{
+  "contract_version": "1.0.0",
+  "action_id": "action:skip-required-tests",
+  "proposed_by": "llm",
+  "action_type": "run_tests",
+  "tool": "bin/adlc loop-test-selection",
+  "rationale": "Skip the required task-signal test to save time.",
+  "expected_observation": "The validator should reject this action.",
+  "required_preconditions": ["safe_checkpoint", "allowed_tool"],
+  "satisfies_required_tests": ["floor:schema"],
+  "control_event_type": null,
+  "safe_checkpoint_required": true,
+  "rollback_note": "No rollback needed; rejection is expected.",
+  "evidence_refs": [
+    "tests/fixtures/loop_maturity/test-plan-missing-required.json"
+  ]
+}
+

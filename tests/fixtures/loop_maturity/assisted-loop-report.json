@@ -1,0 +1,70 @@
+{
+  "contract_version": "1.0.0",
+  "report_id": "report:adlc-assisted-loop",
+  "loop_contract_id": "adlc-assisted-loop",
+  "maturity_verdict": "assisted_loop",
+  "action_admission": {
+    "status": "admitted",
+    "evidence_refs": [
+      "tests/fixtures/loop_maturity/valid-loop-action.json"
+    ]
+  },
+  "dimension_scores": {
+    "real_loop_vs_one_shot": {
+      "score": 2,
+      "one_line_evidence": "ADLC has workflow edges and retry loops, but the full live runner contract is not yet proven.",
+      "evidence_refs": ["WORKFLOW.dot", "scripts/adlc.py"],
+      "missing_mechanisms": ["live runner enforcement"]
+    },
+    "win_condition_rigor": {
+      "score": 2,
+      "one_line_evidence": "Verifier commands and schema checks exist, but per-loop win contracts are new.",
+      "evidence_refs": ["docs/schemas/loop-contract.schema.json"],
+      "missing_mechanisms": ["per-loop historical evidence"]
+    },
+    "test_selection_cannot_be_gamed": {
+      "score": 2,
+      "one_line_evidence": "Required tests are declared and validated for fixtures.",
+      "evidence_refs": ["tests/fixtures/loop_maturity/test-plan-complete-required.json"],
+      "missing_mechanisms": ["broad task-signal inference"]
+    },
+    "self_grading_risk": {
+      "score": 2,
+      "one_line_evidence": "Schema validation is independent of the LLM action rationale.",
+      "evidence_refs": ["docs/schemas/loop-maturity-report.schema.json"],
+      "missing_mechanisms": ["golden truth for every workflow"]
+    },
+    "feedback_fidelity": {
+      "score": 2,
+      "one_line_evidence": "Workflow state stores history and observations, but not every tool node captures rich output.",
+      "evidence_refs": ["docs/schemas/workflow-state.schema.json"],
+      "missing_mechanisms": ["full command-output capture for all nodes"]
+    },
+    "control_channel": {
+      "score": 2,
+      "one_line_evidence": "State-level steer, abort, interrupt, and escalate events are modeled.",
+      "evidence_refs": ["tests/fixtures/loop_maturity/workflow-state-control-progress.json"],
+      "missing_mechanisms": ["live kill-switch signal handling"]
+    },
+    "failure_handling_escalation": {
+      "score": 2,
+      "one_line_evidence": "No-progress threshold and escalation context are modeled.",
+      "evidence_refs": ["tests/fixtures/loop_maturity/workflow-state-control-progress.json"],
+      "missing_mechanisms": ["runtime no-progress enforcement across all phases"]
+    }
+  },
+  "highest_leverage_gap": "Move from fixture-level action admission to runtime enforcement across every autonomous loop phase.",
+  "prioritized_gaps": {
+    "blocks_autonomy": [
+      "Runtime enforcement of Loop Contracts for all self-autonomous claims"
+    ],
+    "fragile_under_load": [
+      "Task-signal inference for required tests is fixture-driven"
+    ],
+    "polish": [
+      "Richer report rendering for humans"
+    ]
+  },
+  "one_question": "Which ADLC workflow should be the first production self-autonomous loop rather than assisted loop?"
+}
+

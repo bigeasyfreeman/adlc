@@ -1,0 +1,1897 @@
+{
+  "version": "1.0.0",
+  "adlc_mode": "decompose_only",
+  "brief_id": "ADLC-LOOP-SYSTEM-MATURITY-AUDIT",
+  "prd_id": "ADLC-LOOP-SYSTEM-MATURITY-AUDIT-PRD",
+  "applicability_manifest": {
+    "version": "1.0.0",
+    "task_classification": "infra",
+    "task_classification_confidence": 0.95,
+    "classification_evidence": [
+      "The change audits and hardens ADLC framework behavior across workflow, schemas, CLI, agents, skills, and validation.",
+      "The user-provided loop-system maturity prompt is a governance and execution-contract layer, not an application feature."
+    ],
+    "change_surface": {
+      "new_attack_surface": false,
+      "runtime_path_change": true,
+      "service_boundary_change": false,
+      "external_integration": false,
+      "persistent_storage": true,
+      "api_change": true,
+      "data_format_change": true,
+      "auth_change": false,
+      "perf_sensitive": true,
+      "user_facing_operation": false
+    },
+    "claim_provenance": {
+      "supported": [
+        {
+          "claim": "ADLC already has a directed workflow graph, label-based routing, retry caps, workflow state, verifier-first test generation, deterministic schema validation, test-strength audit, and compound preflight.",
+          "source_ref": "README.md, WORKFLOW.md, WORKFLOW.dot, scripts/adlc.py, agents/test-author.md, agents/test-strength-auditor.md, skills/test-strength/SKILL.md",
+          "extracted_from": "Repo research and Graphify query for loop runner, win condition, test selection, feedback, control, and escalation surfaces"
+        },
+        {
+          "claim": "The strongest integration path is to convert the loop audit prompt into a machine-readable ADLC Loop Contract plus an LLM-driven action loop constrained by deterministic validators, gates, and maturity scoring.",
+          "source_ref": "User-provided Loop-System Maturity Audit prompt and Loop Brief",
+          "extracted_from": "Prompt review against existing ADLC workflow and schema surfaces"
+        },
+        {
+          "claim": "Compound engineering in ADLC is already positioned as a learning and resume layer, so loop maturity evidence should feed compact learning refs and closeout capture.",
+          "source_ref": "docs/build-briefs/compound-engineering-workflow-integration.json, docs/specs/compound-engineering-learning-store.md, README.md",
+          "extracted_from": "Existing compound-engineering integration artifacts"
+        }
+      ],
+      "unsupported": [],
+      "contradicted": []
+    },
+    "contamination": {
+      "flags": [
+        "scope_creep"
+      ],
+      "supported_claims": [
+        "ADLC should use the loop audit as a framework maturity gate for LLM-driven autonomous workflows.",
+        "The audit must score mechanisms that are present in code, schemas, workflow state, or versioned skill contracts.",
+        "The integration should improve scale by making loops reusable, measurable, and learnable through compound engineering artifacts."
+      ],
+      "unsupported_claims": [],
+      "contradicted_claims": [],
+      "needs_clarification": [
+        "Should Loop Contracts be mandatory for all Build Briefs, or only for workflows that claim autonomous loop behavior?"
+      ],
+      "suspect_phrases": [
+        "paste the prompt into every agent",
+        "self-autonomous because the agent says it is done",
+        "let agents choose which required tests to skip",
+        "manual audit only",
+        "production-ready loop without interrupt or no-progress controls"
+      ]
+    },
+    "section_policy": [
+      {
+        "section_name": "1_context",
+        "status": "active",
+        "reason": "The prompt must be positioned as an ADLC framework capability, not a one-off manual evaluator."
+      },
+      {
+        "section_name": "3_repo_findings",
+        "status": "active",
+        "reason": "The current maturity score depends on concrete repo mechanisms and gaps."
+      },
+      {
+        "section_name": "8_task_tickets",
+        "status": "active",
+        "reason": "The integration should be decomposed into independently verifiable implementation slices."
+      },
+      {
+        "section_name": "11_validation_plan",
+        "status": "active",
+        "reason": "Workflow, schema, CLI, and test-selection changes require executable validation."
+      },
+      {
+        "section_name": "12_skill_trigger_configuration",
+        "status": "active",
+        "reason": "Planner, test-author, fixer, eval-council, and compound-learning surfaces need explicit loop-contract triggers."
+      },
+      {
+        "section_name": "16_implementation_interfaces",
+        "status": "active",
+        "reason": "The Loop Contract is an implementation interface consumed by runner, planner, evaluator, and emitters."
+      },
+      {
+        "section_name": "17_productionization_gates",
+        "status": "active",
+        "reason": "Self-autonomous loop claims need no-overclaim productionization gates."
+      }
+    ],
+    "verification_spec": {
+      "primary_verifier": {
+        "type": "command",
+        "target": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/loop-system-maturity-audit.json --dry-run --require-ready --json",
+        "expected_pre_change": "fail",
+        "expected_post_change": "pass",
+        "rationale": "The decomposition must be schema-valid and work-item ready before implementation begins.",
+        "target_files": [
+          "docs/build-briefs/loop-system-maturity-audit.json"
+        ],
+        "expected_failure_mode": "loop-system maturity integration decomposition missing or readiness blocked"
+      },
+      "secondary_verifiers": [
+        {
+          "type": "command",
+          "target": "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/loop-system-maturity-audit.json --json",
+          "expected_pre_change": "fail",
+          "expected_post_change": "pass",
+          "rationale": "The audit decomposition must validate against the ADLC Build Brief schema.",
+          "target_files": [
+            "docs/build-briefs/loop-system-maturity-audit.json"
+          ],
+          "expected_failure_mode": "loop-system maturity Build Brief schema validation fails"
+        }
+      ],
+      "must_fail_before_change": true,
+      "must_be_deterministic": true,
+      "scope_note": "This validates the decomposition artifact, not the future implementation."
+    }
+  },
+  "enterprise_readiness_contract": {
+    "production_grade_target": "Make loop-system maturity a first-class ADLC contract: every workflow that claims autonomous looping must let an LLM choose actions from end-user input and real observations while declaring its job, tools, real feedback, stop/escalate rules, mandatory tests, safe bail state, progress signals, control channel, and deterministic maturity evidence.",
+    "backward_compatibility": "Existing Build Briefs, workflow states, agent prompts, and emitters must continue to validate when no Loop Contract is present. The maturity evaluator must be opt-in or conditionally required only when a workflow claims autonomous loop behavior.",
+    "forward_compatibility": "Loop Contract and maturity report fields must be structured and versioned so future Graphify, compound-context, remote work-item emitters, and runtime runners can consume the same evidence without prompt parsing.",
+    "failure_mode_coverage": [
+      "One-shot prompting in disguise is covered by requiring act-observe-decide-repeat evidence with at least one recoverable route.",
+      "Gameable test selection is covered by mandatory floors, task-signal computed required tests, additive-only discretionary tests, and self-describing coverage tags.",
+      "Circular self-grading is covered by independent verifier and golden-truth fields plus warnings when an agent-authored test is the only proof.",
+      "Blind execution is covered by real command output, stderr, test reports, and artifact diffs recorded into workflow history.",
+      "Runaway loops are covered by retry ceilings, no-progress counters, safe checkpoints, and explicit escalation context.",
+      "Manual prompt drift is covered by schema-backed Loop Brief and maturity report artifacts instead of unstructured chat."
+    ],
+    "definition_of_done": [
+      "ADLC has a checked-in Loop-System Maturity spec that preserves the seven-dimension audit and six-blank Loop Brief.",
+      "ADLC has schemas and fixtures for Loop Contracts, constrained LLM action envelopes, mechanical test-selection floors, and loop-maturity audit reports.",
+      "ADLC can run an LLM-driven action loop where deterministic validators approve, reject, or escalate proposed actions and a maturity evaluator scores workflows from declared contract plus repo evidence.",
+      "ADLC workflow state records progress, no-progress, control events, safe checkpoints, and escalation context where loops run.",
+      "Test authoring and test-strength surfaces enforce mandatory floor plus computed required tests, with agent discretion additive only.",
+      "Planner, codegen context, Eval Council, fixer, and compound-learning surfaces consume loop maturity evidence without adding prompt bloat.",
+      "CLI, schema, contract, smoke, Graphify, and emitter validations pass end to end."
+    ],
+    "validation_tasks": [
+      "ADLC-LSMA-VAL"
+    ],
+    "compliance_posture": "No external service, secret, auth, or production mutation is introduced. The change adds local schemas, docs, skills, workflow-state metadata, fixtures, and deterministic CLI validation. Any future autonomous-run claim must explicitly document authority and safe-stop boundaries.",
+    "construct_map_refs": [
+      "README.md",
+      "WORKFLOW.md",
+      "WORKFLOW.dot",
+      "docs/schemas/build-brief.schema.json",
+      "docs/schemas/workflow-state.schema.json",
+      "scripts/adlc.py",
+      "agents/test-author.md",
+      "agents/test-strength-auditor.md",
+      "skills/spec-to-tests/SKILL.md",
+      "skills/test-strength/SKILL.md",
+      "skills/systematic-debugging/SKILL.md",
+      "skills/eval-council/SKILL.md"
+    ],
+    "paved_road_refs": [
+      "docs/build-briefs/compound-engineering-workflow-integration.json",
+      "docs/build-briefs/implementation-interfaces-productionization.json",
+      "docs/specs/compound-engineering-learning-store.md",
+      "docs/specs/implementation-interfaces-and-productionization.md",
+      "docs/specs/dag-binding.md",
+      "tests/test_adlc_cli.sh",
+      "tests/test_adlc_contracts.sh",
+      "tests/smoke/run_smoke.sh"
+    ],
+    "production_invariant_coverage": [
+      "idempotency: Loop Contracts and maturity reports must be reproducible from the same workflow state and brief inputs.",
+      "persistence: loop evidence is stored in repo-local artifacts and workflow state, not only in chat transcripts.",
+      "observability: maturity reports expose scores, evidence refs, missing mechanisms, no-progress state, control events, and escalation context.",
+      "sensitive_data: loop feedback capture must avoid secrets and redact command output where configured.",
+      "downgrade: workflows without autonomous-loop claims continue on existing ADLC paths with explicit not-applicable maturity status."
+    ],
+    "implementation_interface_refs": [
+      "I-ADLC-LOOP-CONTRACT"
+    ],
+    "productionization_gate_refs": [
+      "G-ADLC-SELF-AUTONOMY-NO-OVERCLAIM"
+    ]
+  },
+  "sections": {
+    "1_context": "The user-provided Loop-System Maturity Audit is the right next ADLC scaling layer because it asks whether the framework can write loops and evaluate loops, rather than relying on one-shot prompts. ADLC already has a directed build loop, compound preflight, verifier-first tests, test-strength audit, retry caps, resume state, and human gates. The target is not to make the loop non-LLM; the target is LLM-driven action based on end-user input, constrained by Loop Contracts, real observations, deterministic validators, and maturity evidence that proves which workflows are assisted loops versus self-autonomous loops.",
+    "2_scope_and_constraints": "In scope: a Loop-System Maturity spec, Loop Brief and maturity report schemas, constrained LLM action envelope, deterministic evaluator, non-gameable test-selection contract, workflow-state control/progress fields, agent/skill wiring, compound-learning capture, examples, and validation. Out of scope: importing another planner, requiring the audit for trivial docs or lint work, replacing ADLC's Build Brief schema, making every task self-autonomous by default, or trusting model self-assessment as proof.",
+    "3_repo_findings": "Scorecard from current repo evidence: real loop vs one-shot = 2 because README/WORKFLOW/DOT define act-observe routing, retry loops, labels, and recovery edges, but the core CLI still dry-runs tool/fanout/conditional nodes and does not enforce a full autonomous runner contract for every path. Win condition rigor = 2 because Build Brief schemas, verifier specs, test generation, readiness reports, and test-strength thresholds exist, but there is no single per-loop win-condition artifact. Test selection that cannot be gamed = 1 because spec-to-tests and test-strength require generated tests and changed-file measurement, but mandatory floors, computed required tests, additive-only discretion, and coverage tags are not yet a unified mechanical contract. Self-grading risk = 2 because separate test-author and test-strength auditor surfaces reduce circularity, but agent-authored tests can still be the primary proof unless independent/golden truth is declared. Feedback fidelity = 2 because CLI state records stdout/stderr, labels, history, side effects, and test artifacts, but not every tool node feeds real output into the next decision path. Control channel = 1 because resume-workflow and human gates exist, but there is no explicit interrupt, steer, abort, safe-checkpoint, or rollback/idempotency control-event schema. Failure handling and escalation = 2 because labels, retry caps, fixer, systematic-debugging, weak-test routes, and escalation exist, but progress/no-progress detection is not explicit. Maturity verdict: Assisted loop. Highest-leverage gap: a machine-readable Loop Contract plus constrained LLM action envelope and deterministic evaluator that includes non-gameable test selection, progress, control, and escalation evidence.",
+    "4_architecture": "Add loop maturity as a contract layer over the existing ADLC workflow. The LLM proposes the next action from end-user input, Loop Contract, workflow state, real observations, and compact compound context. Deterministic validators then check whether the proposed action is allowed, whether required tests and gates must run first, whether progress exists, and whether the loop must continue, steer, abort, repair, or escalate. The Loop Contract names the job, win condition, allowed tools, feedback per action, mandatory test floor, computed required tests, additive discretionary tests, stop/escalate rules, progress signal, control events, and safe bail state. The evaluator reads the contract, workflow graph/config, workflow-state evidence, Build Brief verifier specs, and generated test plan to emit a scorecard. Planner and codegen consume only compact maturity evidence. Compound preflight and learning capture index reusable loop evidence so future workflows inherit proven loop patterns instead of re-litigating them.",
+    "5_security_review": [
+      {
+        "risk": "Autonomous loop claims can expand agent authority without a reviewed control channel.",
+        "mitigation": "Require allowed_tools, authority boundaries, safe checkpoints, abort/steer separation, and escalation triggers before a workflow may claim self-autonomous status."
+      },
+      {
+        "risk": "Feedback artifacts may capture secrets from command output.",
+        "mitigation": "Add redaction posture fields to Loop Contracts and maturity reports; keep raw command output in bounded artifacts and avoid learning capture of secrets."
+      },
+      {
+        "risk": "Agent-authored tests can validate agent-written code circularly.",
+        "mitigation": "Flag circular proof in the maturity evaluator and require independent or golden truth for robust scores on self-grading risk."
+      }
+    ],
+    "6_observability_slo": "Every loop maturity run should leave a machine-readable report with dimension scores, evidence refs, missing fields, required test floor status, computed test-selection status, progress/no-progress state, control events, safe checkpoint, escalation context, and no-overclaim verdict. Missing optional contracts should be explicit not-applicable, not silent pass.",
+    "7_execution_plan": "Implement in seven slices: write the Loop-System Maturity spec, add schemas and fixtures, enforce non-gameable test selection, extend workflow state for progress and control, add the constrained LLM action and maturity evaluator CLI, wire agents/skills/compound learning, then validate end to end. The first implementation slice should be the contract and action/evaluator skeleton because it turns the prompt from advice into an executable framework gate.",
+    "8_task_tickets": [
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LSMA-001",
+        "title": "Define Loop-System Maturity as an ADLC spec",
+        "objective": "Turn the user-provided audit prompt and Loop Brief into an ADLC-native spec with maturity verdicts, seven scoring dimensions, six loop-brief blanks, and no-overclaim rules.",
+        "task_classification": "docs",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Represent the prompt as a reusable ADLC Loop Contract and maturity audit spec rather than a manual one-off prompt."
+        },
+        "scope": [
+          "Create docs/specs/loop-system-maturity-audit.md.",
+          "Preserve the seven audit dimensions, 0-3 score scale, maturity verdicts, single highest-leverage gap, prioritized gap tiers, and one-question closeout.",
+          "Document the six Loop Brief blanks as the implementation contract for autonomous workflows.",
+          "Define when a Loop Contract is required: any workflow, skill, or runner path that claims self-autonomous loop behavior.",
+          "Document that assisted-loop status is acceptable for normal ADLC work and that self-autonomous claims require stronger proof."
+        ],
+        "out_of_scope": [
+          "No CLI implementation in this task.",
+          "No schema changes in this task.",
+          "No requirement that every docs-only or lint task carry loop maturity metadata."
+        ],
+        "dependencies": [],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LSMA_001-SPEC",
+            "given": "an ADLC maintainer reads the loop maturity spec",
+            "when": "they need to classify a framework loop",
+            "then": "the spec defines all seven dimensions, 0-3 scoring, three maturity verdicts, and no-overclaim criteria",
+            "measurable_post_condition": "docs/specs/loop-system-maturity-audit.md contains Real loop, Win condition, Test selection, Self-grading risk, Feedback fidelity, Control channel, and Failure handling sections"
+          },
+          {
+            "id": "AC-ADLC_LSMA_001-BRIEF",
+            "given": "a future autonomous loop is proposed",
+            "when": "the proposer fills out the ADLC Loop Brief",
+            "then": "the six blanks capture job/win condition, allowed tools, feedback, stop/escalate rules, tests, and safe bail state",
+            "measurable_post_condition": "the spec includes a Loop Brief template with the six required blanks"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not water the prompt down into generic agent guidance.",
+          "Do not claim ADLC is self-autonomous from intent alone.",
+          "Do not add a second planner or separate decomposition framework."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "The loop audit prompt currently exists only as user-provided prose and is not versioned in ADLC.",
+          "deferred_debt": "Automated scoring and workflow-state fields are deferred to later LSMA tasks.",
+          "deferral_safety": "A spec-first slice locks terminology and prevents schema churn from guessing at field names."
+        },
+        "compatibility_contract": {
+          "backward": "Existing ADLC docs and Build Briefs remain valid without a Loop Contract.",
+          "forward": "The spec names stable fields for the schemas and evaluator to implement.",
+          "migration_or_rollout": "Add the spec as advisory until schema and CLI tasks make it executable."
+        },
+        "implementation_notes": [
+          "Use the user's prompt as the source text, but adapt it into ADLC terminology and no-overclaim rules.",
+          "State the current repo maturity verdict as Assisted loop with explicit known gaps.",
+          "Cross-link compound engineering, implementation interfaces, test strength, and workflow state docs."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "test -f docs/specs/loop-system-maturity-audit.md && rg -n \"Real loop|Win condition|Test selection|Self-grading risk|Feedback fidelity|Control channel|Failure handling\" docs/specs/loop-system-maturity-audit.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The spec must exist and preserve the full scoring rubric.",
+            "target_files": [
+              "docs/specs/loop-system-maturity-audit.md"
+            ],
+            "expected_failure_mode": "loop-system maturity spec missing or incomplete"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Docs-only proof for the initial terminology and prompt integration slice."
+        },
+        "evidence_responsibilities": [
+          "Show the spec file and grep output for all seven dimensions.",
+          "Cite the current ADLC evidence that led to the Assisted loop verdict."
+        ],
+        "definition_of_done": [
+          "Loop-System Maturity spec is checked in.",
+          "Loop Brief template is present.",
+          "No-overclaim criteria are explicit."
+        ],
+        "failure_modes": [
+          "Spec omits one of the seven dimensions.",
+          "Spec treats the audit as optional chat rather than an ADLC contract.",
+          "Spec claims self-autonomous status without evaluator evidence."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "README.md",
+          "docs/specs/scalable-ai-code-primitives.md",
+          "docs/specs/compound-engineering-learning-store.md"
+        ],
+        "files_to_create": [
+          "docs/specs/loop-system-maturity-audit.md"
+        ],
+        "reference_impl": "skills/eval-council/SKILL.md",
+        "work_item_metadata": {
+          "area": "loop-maturity",
+          "phase_label": "phase:spec",
+          "labels": [
+            "loop-maturity",
+            "compound-engineering",
+            "docs"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LSMA-SPEC",
+          "capability": "Loop-system maturity spec",
+          "reuse": [
+            "skills/eval-council/SKILL.md",
+            "docs/specs/implementation-interfaces-and-productionization.md"
+          ],
+          "consumes": [
+            "User-provided Loop-System Maturity Audit prompt",
+            "User-provided Loop Brief"
+          ],
+          "emits": [
+            "docs/specs/loop-system-maturity-audit.md"
+          ],
+          "minimum_fields": [
+            "seven_dimensions",
+            "score_scale",
+            "maturity_verdicts",
+            "loop_brief_blanks",
+            "no_overclaim_rules"
+          ],
+          "invariants": [
+            "Credit only present mechanisms, not stated intentions.",
+            "Do not require loop maturity metadata for non-autonomous work."
+          ],
+          "integration_points": [
+            "README.md",
+            "docs/specs/scalable-ai-code-primitives.md",
+            "docs/specs/compound-engineering-learning-store.md"
+          ],
+          "validation_gates": [
+            "grep for all seven dimensions",
+            "review spec against user prompt"
+          ],
+          "evidence_refs": [
+            "README.md",
+            "WORKFLOW.md",
+            "scripts/adlc.py"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LSMA-SPEC-NO-OVERCLAIM",
+          "claim": "The spec defines, but does not yet enforce, loop-system maturity.",
+          "coverage_state": "evidence_only",
+          "validation_evidence": [
+            "docs/specs/loop-system-maturity-audit.md"
+          ],
+          "no_overclaim": [
+            "Do not claim self-autonomous loop support from this docs-only task.",
+            "Do not claim evaluator enforcement until ADLC-LSMA-005 is complete."
+          ]
+        }
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LSMA-002",
+        "title": "Add Loop Contract, action envelope, and maturity report schemas",
+        "objective": "Create machine-readable artifacts for Loop Brief inputs, constrained LLM action proposals, and maturity audit outputs so ADLC can stay LLM-driven while enforcing deterministic constraints.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Use versioned JSON Schema artifacts under docs/schemas and fixture examples under tests/fixtures/loop_maturity."
+        },
+        "scope": [
+          "Create docs/schemas/loop-contract.schema.json for the six Loop Brief blanks plus progress, control, independent_truth, and redaction posture.",
+          "Create docs/schemas/loop-action.schema.json for LLM-proposed next actions with action type, tool, rationale, expected observation, required preconditions, and safe rollback note.",
+          "Create docs/schemas/loop-maturity-report.schema.json for seven-dimension scores, evidence refs, missing mechanisms, maturity verdict, highest-leverage gap, gap tiers, and one_question.",
+          "Add valid fixtures for an assisted ADLC loop and a self-autonomous fixture.",
+          "Add invalid fixtures for missing test floor, missing feedback, circular self-grading, and missing control channel.",
+          "Add schema aliases in scripts/adlc.py."
+        ],
+        "out_of_scope": [
+          "No evaluator scoring logic in this task.",
+          "No workflow-state extension in this task.",
+          "No automatic migration of old Build Briefs."
+        ],
+        "dependencies": [
+          "ADLC-LSMA-001"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LSMA_002-CONTRACT",
+            "given": "a Loop Contract fixture declares a job, tools, feedback, stop rules, tests, and safe bail state",
+            "when": "ADLC validates it against loop-contract.schema.json",
+            "then": "the valid contract and action-envelope fixtures pass while malformed fixtures fail with field-specific errors",
+            "measurable_post_condition": "schema validation tests cover valid and invalid Loop Contract fixtures"
+          },
+          {
+            "id": "AC-ADLC_LSMA_002-REPORT",
+            "given": "a maturity audit report contains seven scores and evidence refs",
+            "when": "ADLC validates it against loop-maturity-report.schema.json",
+            "then": "the report is accepted only when scores, verdict, gaps, and one_question are present",
+            "measurable_post_condition": "schema validation tests cover assisted-loop and missing-dimension report fixtures"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not encode the prompt or LLM action choice as free-form markdown only.",
+          "Do not allow missing test floor or feedback fields in Loop Contract fixtures.",
+          "Do not allow maturity reports with unsupported self-autonomous verdicts."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "ADLC has Build Brief and workflow-state schemas, but no schema for loop maturity evidence.",
+          "deferred_debt": "Optional Build Brief embedding of loop_contract refs can wait until evaluator integration proves the artifact shape.",
+          "deferral_safety": "Schema aliases and standalone fixtures allow validation without disturbing existing Build Briefs."
+        },
+        "compatibility_contract": {
+          "backward": "Existing schemas stay valid; new loop schemas are opt-in aliases.",
+          "forward": "Future runners and emitters can reference loop_contract_path, loop_action_path, or report_path without parsing prose.",
+          "migration_or_rollout": "Introduce schemas with fixtures first, then wire them into CLI and agents."
+        },
+        "implementation_notes": [
+          "Keep schemas strict with additionalProperties=false.",
+          "Represent test selection with mandatory_floor, required_from_task_signals, and additive_agent_tests.",
+          "Represent control channel with steer, abort, interrupt_checkpoint, and safe_state fields.",
+          "Represent LLM decisions as proposed actions that deterministic validators can approve, reject, or route to escalation."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc validate-artifact --schema loop-maturity-report --input tests/fixtures/loop_maturity/assisted-loop-report.json --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "ADLC must validate maturity reports as structured artifacts.",
+            "target_files": [
+              "docs/schemas/loop-maturity-report.schema.json",
+              "docs/schemas/loop-action.schema.json",
+              "tests/fixtures/loop_maturity/assisted-loop-report.json",
+              "scripts/adlc.py"
+            ],
+            "expected_failure_mode": "loop maturity report schema or alias missing"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc validate-artifact --schema loop-contract --input tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "ADLC must validate loop contracts as structured artifacts.",
+              "target_files": [
+                "docs/schemas/loop-contract.schema.json",
+                "tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json",
+                "scripts/adlc.py"
+              ],
+              "expected_failure_mode": "loop contract schema or alias missing"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Schema and fixture validation only."
+        },
+        "evidence_responsibilities": [
+          "Show schema-validation pass for valid fixtures.",
+          "Show one invalid fixture fails for missing mandatory test floor."
+        ],
+        "definition_of_done": [
+          "Loop Contract schema exists.",
+          "Loop action envelope schema exists.",
+          "Loop maturity report schema exists.",
+          "Fixtures cover valid and invalid cases.",
+          "Schema aliases are wired into ADLC CLI validation."
+        ],
+        "failure_modes": [
+          "Schemas allow arbitrary prompt blobs instead of structured fields.",
+          "Schemas allow unconstrained LLM tool choice.",
+          "Schemas cannot represent additive-only test discretion.",
+          "Schemas lack evidence refs for each score."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc.py",
+          "tests/test_adlc_contracts.sh"
+        ],
+        "files_to_create": [
+          "docs/schemas/loop-contract.schema.json",
+          "docs/schemas/loop-maturity-report.schema.json",
+          "docs/schemas/loop-action.schema.json",
+          "tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json",
+          "tests/fixtures/loop_maturity/assisted-loop-report.json",
+          "tests/fixtures/loop_maturity/invalid-missing-test-floor.json",
+          "tests/fixtures/loop_maturity/valid-loop-action.json"
+        ],
+        "reference_impl": "docs/schemas/build-brief.schema.json",
+        "work_item_metadata": {
+          "area": "loop-maturity",
+          "phase_label": "phase:schema",
+          "labels": [
+            "loop-maturity",
+            "schema",
+            "contracts"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LOOP-CONTRACT",
+          "capability": "Machine-readable loop contract, action envelope, and maturity report",
+          "task_refs": [
+            "ADLC-LSMA-002",
+            "ADLC-LSMA-003",
+            "ADLC-LSMA-005"
+          ],
+          "reuse": [
+            "docs/schemas/build-brief.schema.json",
+            "docs/schemas/workflow-state.schema.json",
+            "scripts/adlc.py validate-artifact"
+          ],
+          "consumes": [
+            "Loop Brief six blanks",
+            "workflow graph and state evidence",
+            "Build Brief verifier specs",
+            "test plan and test-strength artifacts",
+            "LLM-proposed next action"
+          ],
+          "emits": [
+            "loop contract artifacts",
+            "loop action artifacts",
+            "loop maturity report artifacts",
+            "scorecard and no-overclaim verdict"
+          ],
+          "minimum_fields": [
+            {
+              "name": "job_win_condition",
+              "kind": "object",
+              "constraint": "must name deterministic proof of done"
+            },
+            {
+              "name": "allowed_tools",
+              "kind": "array",
+              "constraint": "must enumerate permitted actions"
+            },
+            {
+              "name": "feedback_channels",
+              "kind": "array",
+              "constraint": "must describe real result after each action"
+            },
+            {
+              "name": "test_selection",
+              "kind": "object",
+              "constraint": "must include mandatory floor and additive-only discretion"
+            },
+            {
+              "name": "safe_bail_state",
+              "kind": "object",
+              "constraint": "must define known-good state on stop or failure"
+            },
+            {
+              "name": "llm_action_envelope",
+              "kind": "object",
+              "constraint": "must constrain proposed action type, tool, rationale, expected observation, and safety preconditions"
+            }
+          ],
+          "invariants": [
+            "A maturity report cannot score a dimension without evidence refs or missing-mechanism rationale.",
+            "An LLM-proposed action cannot execute until deterministic validation confirms it is allowed by the contract.",
+            "Self-autonomous verdict requires no 0-1 score on win condition, test selection, or failure handling."
+          ],
+          "integration_points": [
+            "scripts/adlc.py",
+            "docs/schemas",
+            "tests/fixtures/loop_maturity",
+            "emit-work-items normalized payload"
+          ],
+          "validation_gates": [
+            "jsonschema validation",
+            "invalid fixture failure",
+            "readiness report preservation"
+          ],
+          "failure_semantics": [
+            "Invalid loop contracts block autonomous-loop claims but should not block unrelated assisted workflows."
+          ],
+          "idempotency": "Schema validation is deterministic for the same artifact inputs.",
+          "privacy_redaction": "Contracts and reports carry redaction posture without embedding raw secrets.",
+          "evidence_refs": [
+            "docs/schemas/build-brief.schema.json",
+            "docs/schemas/workflow-state.schema.json"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LSMA-SCHEMA-NO-OVERCLAIM",
+          "claim": "ADLC has structured loop maturity artifacts and an LLM action envelope, but not yet evaluator or runner enforcement.",
+          "coverage_state": "evidence_only",
+          "validation_evidence": [
+            "docs/schemas/loop-contract.schema.json",
+            "docs/schemas/loop-maturity-report.schema.json",
+            "docs/schemas/loop-action.schema.json"
+          ],
+          "no_overclaim": [
+            "Do not claim workflows are self-autonomous until evaluator and workflow-state controls are implemented.",
+            "Do not treat valid schema shape as proof that runtime behavior exists."
+          ]
+        }
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LSMA-003",
+        "title": "Make test selection non-gameable",
+        "objective": "Enforce the audit prompt's test-selection standard: mandatory floor, required tests computed from task signals, and agent discretion that can add tests but cannot skip required tests.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Extend existing spec-to-tests and test-strength contracts instead of adding a separate test planner."
+        },
+        "scope": [
+          "Extend Loop Contract test_selection with mandatory_floor, required_from_task_signals, additive_agent_tests, and coverage_tags.",
+          "Teach spec-to-tests and test-author to emit self-describing coverage tags for generated tests.",
+          "Add deterministic validation that required tests cannot be omitted from .adlc/test_plan.json.",
+          "Add fixtures that prove an agent cannot pass cheaply by skipping the test that catches its own bug.",
+          "Keep test-strength as the measurement layer for coverage and mutation after required tests run."
+        ],
+        "out_of_scope": [
+          "No broad rewrite of the test-author agent.",
+          "No new mutation framework beyond the existing test-strength path.",
+          "No language-specific coverage expansion outside current fixtures."
+        ],
+        "dependencies": [
+          "ADLC-LSMA-002"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LSMA_003-FLOOR",
+            "given": "a Loop Contract declares a mandatory test floor and required tests from task signals",
+            "when": "a generated test plan omits one required test",
+            "then": "ADLC validation fails before code execution can claim maturity",
+            "measurable_post_condition": "a fixture with missing required test fails deterministic test-selection validation"
+          },
+          {
+            "id": "AC-ADLC_LSMA_003-TAGS",
+            "given": "test-author creates generated tests",
+            "when": "it writes .adlc/test_plan.json",
+            "then": "each generated test records coverage tags and acceptance criterion mapping",
+            "measurable_post_condition": "test_plan schema or validator requires coverage tags for loop-contract enforced tasks"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not let an agent replace mandatory tests with narrative justification.",
+          "Do not let agent-added tests subtract required tests.",
+          "Do not score test selection above 1 when required tests are mechanically skippable."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "ADLC has verifier-first generated tests and test-strength audit, but no unified required-test-selection contract.",
+          "deferred_debt": "Advanced semantic mapping from arbitrary diffs to required tests can be incremental after the deterministic field shape exists.",
+          "deferral_safety": "A mandatory floor plus declared task-signal rules catches the highest-risk gameability without overbuilding."
+        },
+        "compatibility_contract": {
+          "backward": "Existing .adlc/test_plan.json artifacts remain valid unless a Loop Contract explicitly requires enhanced test-selection enforcement.",
+          "forward": "Coverage tags and required-test fields support future Graphify and compound-learning analysis.",
+          "migration_or_rollout": "Start enforcement for loop-contract fixtures and new autonomous-loop claims only."
+        },
+        "implementation_notes": [
+          "Prefer a small deterministic validator over asking test-author to self-certify.",
+          "Use task_classification, verification_spec.target_files, acceptance_criteria, production_invariant_coverage, and implementation_interface_contract as task signals.",
+          "Feed failures back as concrete missing required-test IDs."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc loop-test-selection --loop-contract tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --test-plan tests/fixtures/loop_maturity/test-plan-missing-required.json --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "ADLC must mechanically reject omitted required tests.",
+            "target_files": [
+              "scripts/adlc.py",
+              "docs/schemas/loop-contract.schema.json",
+              "skills/spec-to-tests/SKILL.md",
+              "agents/test-author.md",
+              "tests/fixtures/loop_maturity/test-plan-missing-required.json"
+            ],
+            "expected_failure_mode": "loop test-selection validator missing"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "rg -n \"mandatory_floor|required_from_task_signals|additive_agent_tests|coverage_tags\" docs/schemas/loop-contract.schema.json skills/spec-to-tests/SKILL.md agents/test-author.md",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Schema and agent contract docs must expose non-gameable test-selection fields.",
+              "target_files": [
+                "docs/schemas/loop-contract.schema.json",
+                "skills/spec-to-tests/SKILL.md",
+                "agents/test-author.md"
+              ],
+              "expected_failure_mode": "non-gameable test-selection fields missing"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Mechanical test-selection enforcement for Loop Contract tasks."
+        },
+        "evidence_responsibilities": [
+          "Show failing validation for a missing required-test fixture.",
+          "Show passing validation for a complete required-test fixture.",
+          "Show generated test coverage tags in the fixture or smoke output."
+        ],
+        "definition_of_done": [
+          "Loop Contract test_selection fields exist.",
+          "Test plan validation can reject missing required tests.",
+          "Test-author and spec-to-tests docs describe additive-only discretion.",
+          "Fixtures prove the cheap-pass skip is caught."
+        ],
+        "failure_modes": [
+          "Validator only checks that some tests exist.",
+          "Agent can mark a required test skipped without deterministic reason.",
+          "Coverage tags are prose-only and not machine-readable."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc.py",
+          "skills/spec-to-tests/SKILL.md",
+          "agents/test-author.md",
+          "tests/test_adlc_cli.sh",
+          "tests/test_adlc_contracts.sh"
+        ],
+        "files_to_create": [
+          "tests/fixtures/loop_maturity/test-plan-complete-required.json",
+          "tests/fixtures/loop_maturity/test-plan-missing-required.json"
+        ],
+        "reference_impl": "skills/test-strength/SKILL.md",
+        "work_item_metadata": {
+          "area": "loop-maturity",
+          "phase_label": "phase:test-selection",
+          "labels": [
+            "loop-maturity",
+            "test-selection",
+            "validation"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-TEST-SELECTION-CONTRACT",
+          "capability": "Non-gameable test selection for autonomous loop claims",
+          "task_refs": [
+            "ADLC-LSMA-003"
+          ],
+          "reuse": [
+            "skills/spec-to-tests/SKILL.md",
+            "agents/test-author.md",
+            "skills/test-strength/SKILL.md"
+          ],
+          "consumes": [
+            "Loop Contract test_selection",
+            ".adlc/test_plan.json",
+            "Build Brief acceptance criteria",
+            "verification_spec target files"
+          ],
+          "emits": [
+            "test-selection validation result",
+            "coverage-tagged generated tests"
+          ],
+          "minimum_fields": [
+            "mandatory_floor",
+            "required_from_task_signals",
+            "additive_agent_tests",
+            "coverage_tags"
+          ],
+          "invariants": [
+            "Required tests cannot be skipped by model narrative.",
+            "Agent discretion is additive only."
+          ],
+          "integration_points": [
+            "scripts/adlc.py",
+            "agents/test-author.md",
+            "skills/spec-to-tests/SKILL.md",
+            "tests/fixtures/loop_maturity"
+          ],
+          "validation_gates": [
+            "missing required test fixture fails",
+            "complete fixture passes"
+          ],
+          "failure_semantics": [
+            "Missing required tests block self-autonomous verdict and route to repair."
+          ],
+          "evidence_refs": [
+            ".adlc/test_plan.json",
+            ".adlc/test_strength_report.json"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-TEST-SELECTION-GOVERNED",
+          "claim": "ADLC can mechanically prevent required-test skipping for loop-contract enforced tasks.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "loop-test-selection CLI fixture tests"
+          ],
+          "no_overclaim": [
+            "Do not claim universal non-gameable testing for tasks without Loop Contract enforcement.",
+            "Do not claim mutation strength from test-selection validation alone."
+          ]
+        }
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LSMA-004",
+        "title": "Add progress and control-channel workflow state",
+        "objective": "Extend ADLC workflow state so loops can detect no progress, distinguish steer from abort, stop at safe checkpoints, and escalate with useful context.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Extend the existing workflow-state schema and resume-workflow behavior rather than introducing a separate runtime database."
+        },
+        "scope": [
+          "Extend docs/schemas/workflow-state.schema.json with loop_progress, no_progress_count, control_events, safe_checkpoint, and escalation_context.",
+          "Update scripts/adlc.py to preserve and summarize progress/control fields in run-phase and resume-workflow payloads.",
+          "Add a deterministic state fixture that validates steer, abort, interrupt_checkpoint, and no-progress escalation data.",
+          "Document safe checkpoint semantics in WORKFLOW.md.",
+          "Ensure side-effect logging remains idempotent and is not used as a substitute for safe checkpoints."
+        ],
+        "out_of_scope": [
+          "No live process signal handling in this task.",
+          "No rollback implementation for external providers.",
+          "No background daemon."
+        ],
+        "dependencies": [
+          "ADLC-LSMA-002"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LSMA_004-CONTROL",
+            "given": "a workflow state records a steer event and an abort request",
+            "when": "ADLC validates and resumes the state",
+            "then": "resume output distinguishes steer context from abort stop behavior",
+            "measurable_post_condition": "tests cover control_events with steer and abort event types"
+          },
+          {
+            "id": "AC-ADLC_LSMA_004-PROGRESS",
+            "given": "a loop repeats without changed verifier, diff, or task fingerprint progress",
+            "when": "no_progress_count exceeds the configured threshold",
+            "then": "ADLC marks escalation_context with no_progress_after_N and a compact evidence summary",
+            "measurable_post_condition": "tests cover no-progress escalation summary in resume-workflow JSON"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not treat resume_count as a progress signal.",
+          "Do not conflate steer and abort.",
+          "Do not allow interrupts to land in the middle of a non-idempotent side effect without safe checkpoint metadata."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "ADLC has resume state and side effects, but lacks explicit progress and control-channel fields.",
+          "deferred_debt": "OS-level signal handling and external provider rollback remain outside this metadata slice.",
+          "deferral_safety": "State-level fields let CLI, agents, and future runners reason about control safely before live interruption is implemented."
+        },
+        "compatibility_contract": {
+          "backward": "Existing workflow state fixtures remain valid because new fields are optional.",
+          "forward": "Future runners can consume the same control_events and safe_checkpoint fields for live steering.",
+          "migration_or_rollout": "Add optional fields and tests first, then expose runner behavior through CLI."
+        },
+        "implementation_notes": [
+          "Progress signals should compare verifier status, task fingerprints, changed files, and repeated failure class.",
+          "Escalation context should include current phase, last labels, last stderr tail, retry counts, no-progress reason, and requested human decision.",
+          "Safe checkpoint should name what can be retried idempotently."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc validate-artifact --schema workflow-state --input tests/fixtures/loop_maturity/workflow-state-control-progress.json --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Workflow state must validate explicit progress and control-channel evidence.",
+            "target_files": [
+              "docs/schemas/workflow-state.schema.json",
+              "tests/fixtures/loop_maturity/workflow-state-control-progress.json"
+            ],
+            "expected_failure_mode": "workflow state control/progress fields missing"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "tests/test_adlc_cli.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "CLI resume behavior must preserve and summarize progress/control state.",
+              "target_files": [
+                "scripts/adlc.py",
+                "tests/test_adlc_cli.sh"
+              ],
+              "expected_failure_mode": "resume-workflow lacks progress/control summary"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Workflow-state and CLI-resume metadata enforcement."
+        },
+        "evidence_responsibilities": [
+          "Show workflow-state schema validation for the control/progress fixture.",
+          "Show resume-workflow JSON includes next_action plus progress/control summary.",
+          "Show legacy workflow-state fixture still validates."
+        ],
+        "definition_of_done": [
+          "workflow-state schema supports progress and control fields.",
+          "resume-workflow surfaces those fields.",
+          "No-progress escalation context is fixture-tested.",
+          "WORKFLOW.md documents safe checkpoints."
+        ],
+        "failure_modes": [
+          "State records control events but runner ignores abort semantics.",
+          "No-progress detection counts errors but not repeated lack of progress.",
+          "Escalation lacks context needed for a human to act."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "docs/schemas/workflow-state.schema.json",
+          "scripts/adlc.py",
+          "WORKFLOW.md",
+          "tests/test_adlc_cli.sh"
+        ],
+        "files_to_create": [
+          "tests/fixtures/loop_maturity/workflow-state-control-progress.json"
+        ],
+        "reference_impl": "scripts/adlc.py",
+        "work_item_metadata": {
+          "area": "loop-maturity",
+          "phase_label": "phase:workflow-state",
+          "labels": [
+            "loop-maturity",
+            "workflow-state",
+            "control-channel"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LOOP-CONTROL-STATE",
+          "capability": "Loop progress and control state",
+          "task_refs": [
+            "ADLC-LSMA-004",
+            "ADLC-LSMA-005"
+          ],
+          "reuse": [
+            "docs/schemas/workflow-state.schema.json",
+            "scripts/adlc.py resume-workflow",
+            "side_effects idempotency log"
+          ],
+          "consumes": [
+            "phase history",
+            "task fingerprints",
+            "control events",
+            "safe checkpoint metadata"
+          ],
+          "emits": [
+            "progress summary",
+            "no-progress escalation context",
+            "safe resume next action"
+          ],
+          "minimum_fields": [
+            "loop_progress",
+            "no_progress_count",
+            "control_events",
+            "safe_checkpoint",
+            "escalation_context"
+          ],
+          "invariants": [
+            "Steer means inject context and continue; abort means stop safely.",
+            "No-progress escalation is based on lack of changed evidence, not just command failure."
+          ],
+          "integration_points": [
+            "workflow-state.schema.json",
+            "command_resume_workflow",
+            "run_phase_payload"
+          ],
+          "validation_gates": [
+            "workflow-state fixture validation",
+            "resume-workflow JSON test"
+          ],
+          "idempotency": "Control events are append-only and safe checkpoints name idempotent boundaries.",
+          "privacy_redaction": "Escalation context stores stderr tails and artifact refs, not unbounded raw logs.",
+          "evidence_refs": [
+            "scripts/adlc.py",
+            "docs/schemas/workflow-state.schema.json"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LOOP-CONTROL-GOVERNED",
+          "claim": "ADLC workflow state can preserve loop progress and control-channel evidence.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "workflow-state schema validation",
+            "resume-workflow CLI tests"
+          ],
+          "no_overclaim": [
+            "Do not claim live kill-switch support until a runner implements signal handling.",
+            "Do not claim rollback for external mutations unless provider-specific rollback exists."
+          ],
+          "reliability_failure_modes": [
+            "Interrupt lands during a non-idempotent side effect.",
+            "No-progress signal misses a loop that repeats the same failed verifier.",
+            "Escalation omits the context required for human recovery."
+          ]
+        }
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LSMA-005",
+        "title": "Add constrained LLM action and loop-maturity evaluator CLI",
+        "objective": "Implement CLI support for LLM-proposed loop actions plus deterministic admission, evidence scoring, and no-overclaim checks from Loop Contract, workflow graph/config, workflow-state evidence, verifier specs, and test-selection artifacts.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Let the LLM propose next actions in a structured envelope, then use deterministic validators in scripts/adlc.py to admit, reject, repair-route, or escalate those actions."
+        },
+        "scope": [
+          "Add bin/adlc loop-action-validate command with --loop-contract, --action, --state, --build-brief, and --json options.",
+          "Add bin/adlc loop-maturity-audit command with --loop-contract, --workflow, --state, --build-brief, --test-plan, --output, and --json options.",
+          "Validate LLM-proposed actions against allowed tools, required preconditions, control state, mandatory test floors, and safe checkpoint rules before execution.",
+          "Score the seven dimensions using deterministic checks first and explicit missing-mechanism findings when evidence is absent.",
+          "Emit docs/schemas/loop-maturity-report.schema.json output with scorecard, verdict, highest-leverage gap, prioritized gaps, and one_question.",
+          "Reject self-autonomous verdict when dimensions 2, 3, or 7 score 0-1.",
+          "Add fixtures for one-shot, assisted, and self-autonomous examples.",
+          "Add work-item payload preservation for loop maturity report refs when present."
+        ],
+        "out_of_scope": [
+          "No LLM grader for hard gates in this task.",
+          "No live runner orchestration beyond validating proposed action envelopes.",
+          "No remote provider mutation."
+        ],
+        "dependencies": [
+          "ADLC-LSMA-002",
+          "ADLC-LSMA-003",
+          "ADLC-LSMA-004"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LSMA_005-ACTION",
+            "given": "an end-user input and loop state lead an LLM to propose a next action",
+            "when": "bin/adlc loop-action-validate evaluates the proposed action envelope",
+            "then": "the action is admitted only if it is allowed by the Loop Contract, safe checkpoint state, and required gate preconditions",
+            "measurable_post_condition": "CLI tests cover admitted, rejected, and escalate-routed action fixtures"
+          },
+          {
+            "id": "AC-ADLC_LSMA_005-SCORE",
+            "given": "a Loop Contract and workflow evidence describe the current ADLC assisted loop",
+            "when": "bin/adlc loop-maturity-audit runs",
+            "then": "it emits a schema-valid report with Assisted loop verdict and dimension scores matching deterministic evidence",
+            "measurable_post_condition": "CLI test validates Assisted loop report output against loop-maturity-report.schema.json"
+          },
+          {
+            "id": "AC-ADLC_LSMA_005-NO_OVERCLAIM",
+            "given": "a fixture omits mandatory test selection or failure-handling evidence",
+            "when": "the evaluator runs",
+            "then": "it refuses Self-autonomous verdict and reports the missing mechanism",
+            "measurable_post_condition": "CLI test proves dimensions 2, 3, or 7 at score 0-1 block self-autonomous verdict"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not score from agent intentions or prose claims without evidence refs.",
+          "Do not use an LLM to decide deterministic maturity gates.",
+          "Do not execute an LLM-proposed action that fails contract admission.",
+          "Do not hide missing fields as score 2."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "The prompt can be applied manually but cannot be run or checked by ADLC, and LLM action choice is not yet represented as a validated artifact.",
+          "deferred_debt": "Live execution orchestration can be layered later after action admission and deterministic scoring are stable.",
+          "deferral_safety": "A constrained action envelope preserves LLM-driven flexibility while deterministic validators catch unsafe actions and overclaims cheaply enough to run in CI."
+        },
+        "compatibility_contract": {
+          "backward": "New CLI command does not affect existing commands unless explicitly invoked.",
+          "forward": "Action and report output can be consumed by emitters, Graphify, compound-context, and future runner gates.",
+          "migration_or_rollout": "Start with fixtures and explicit command use; later make it conditional for autonomous-loop claims."
+        },
+        "implementation_notes": [
+          "Use existing JSON schema validation helper for input and output artifacts.",
+          "Treat the LLM as the policy/action proposer and deterministic code as the admission controller and evidence grader.",
+          "Prefer transparent scoring rules with evidence_refs and missing_mechanisms.",
+          "The evaluator should identify the single highest-leverage gap deterministically from blocking dimensions and missing mechanisms."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc loop-action-validate --loop-contract tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --action tests/fixtures/loop_maturity/valid-loop-action.json --state tests/fixtures/loop_maturity/workflow-state-control-progress.json --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "ADLC must validate LLM-proposed actions before execution.",
+            "target_files": [
+              "scripts/adlc.py",
+              "docs/schemas/loop-action.schema.json",
+              "tests/test_adlc_cli.sh",
+              "tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json"
+            ],
+            "expected_failure_mode": "loop-action-validate command missing"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "tests/test_adlc_cli.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "CLI tests must cover report validation and no-overclaim behavior.",
+              "target_files": [
+                "tests/test_adlc_cli.sh",
+                "scripts/adlc.py"
+              ],
+              "expected_failure_mode": "loop maturity CLI tests missing"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "CLI action admission plus evaluator and fixture-backed report generation."
+        },
+        "evidence_responsibilities": [
+          "Show CLI JSON output for admitted and rejected LLM action fixtures.",
+          "Show CLI JSON output for assisted-loop maturity fixture.",
+          "Show self-autonomous overclaim fixture is blocked.",
+          "Show generated report validates against schema."
+        ],
+        "definition_of_done": [
+          "loop-action-validate command exists.",
+          "loop-maturity-audit command exists.",
+          "Scores seven dimensions deterministically.",
+          "Emits schema-valid report.",
+          "No-overclaim verdict rule is tested."
+        ],
+        "failure_modes": [
+          "Action validator trusts LLM rationale instead of contract fields.",
+          "Evaluator silently trusts report input instead of recomputing scores.",
+          "Evaluator cannot distinguish one-shot from assisted loop.",
+          "Evaluator hides missing evidence behind high scores."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc.py",
+          "tests/test_adlc_cli.sh",
+          "docs/specs/agent-native-interface.md"
+        ],
+        "files_to_create": [
+          "tests/fixtures/loop_maturity/one-shot-contract.json",
+          "tests/fixtures/loop_maturity/self-autonomous-contract.json",
+          "tests/fixtures/loop_maturity/rejected-loop-action.json"
+        ],
+        "reference_impl": "scripts/adlc.py",
+        "work_item_metadata": {
+          "area": "loop-maturity",
+          "phase_label": "phase:evaluator",
+          "labels": [
+            "loop-maturity",
+            "cli",
+            "llm-action",
+            "deterministic-evaluator"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LOOP-MATURITY-EVALUATOR",
+          "capability": "Constrained LLM action admission and deterministic loop maturity scoring",
+          "task_refs": [
+            "ADLC-LSMA-005"
+          ],
+          "reuse": [
+            "scripts/adlc.py schema validation",
+            "workflow_maps",
+            "compute_readiness_report"
+          ],
+          "consumes": [
+            "loop contract",
+            "workflow graph",
+            "workflow state",
+            "test plan",
+            "LLM action envelope",
+            "Build Brief verifier specs"
+          ],
+          "emits": [
+            "loop action validation result",
+            "loop maturity report",
+            "maturity verdict",
+            "highest leverage gap"
+          ],
+          "minimum_fields": [
+            "action_admission",
+            "dimension_scores",
+            "evidence_refs",
+            "missing_mechanisms",
+            "maturity_verdict",
+            "one_question"
+          ],
+          "invariants": [
+            "LLM action choice is flexible, but execution requires deterministic admission.",
+            "Scores derive from concrete evidence and missing fields.",
+            "Self-autonomous verdict is blocked by low win-condition, test-selection, or failure-handling score."
+          ],
+          "integration_points": [
+            "bin/adlc",
+            "mcp-serve tool list",
+            "emit-work-items payload preservation"
+          ],
+          "validation_gates": [
+            "CLI fixture tests",
+            "schema-valid output",
+            "no-overclaim fixture"
+          ],
+          "evidence_refs": [
+            "WORKFLOW.dot",
+            "docs/schemas/loop-contract.schema.json",
+            "docs/schemas/loop-maturity-report.schema.json"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LOOP-MATURITY-EVALUATOR-GOVERNED",
+          "claim": "ADLC can validate LLM-proposed loop actions and deterministically score loop-system maturity for declared Loop Contracts.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "loop-action-validate CLI tests",
+            "loop-maturity-audit CLI tests",
+            "schema-valid report fixture",
+            "self-autonomous no-overclaim fixture"
+          ],
+          "no_overclaim": [
+            "Do not claim live autonomous execution from evaluator scoring alone.",
+            "Do not claim semantic intent correctness without downstream verifier evidence."
+          ],
+          "reliability_failure_modes": [
+            "LLM rationale bypasses allowed-tool or required-gate checks.",
+            "Input report is trusted instead of recomputed.",
+            "Missing evidence is scored as present.",
+            "A fixture gets self-autonomous verdict despite dimension 3 score 0-1."
+          ]
+        }
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LSMA-006",
+        "title": "Wire loop maturity into ADLC agents and compound learning",
+        "objective": "Integrate Loop Contract, LLM action envelope, and maturity report evidence into planner, codegen context, Eval Council, fixer, and compound engineering learning flows without adding prompt bloat.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Consume compact loop maturity refs through existing ADLC agents and compound-context instead of a separate loop-review agent."
+        },
+        "scope": [
+          "Update planner guidance so autonomous-loop claims require Loop Contract refs and maturity target.",
+          "Update codegen-context to include compact loop_contract, loop_action, and loop_maturity_report refs when present.",
+          "Update eval-council and definition-of-done surfaces to block unsupported self-autonomous claims.",
+          "Update fixer and systematic-debugging guidance to write progress/no-progress evidence during repair loops.",
+          "Update compound-context and learning-capture docs so verified loop patterns can become compact learning refs.",
+          "Update emit-work-items payload preservation if loop_contract_path, loop_action_path, or loop_maturity_report_path is added to task metadata."
+        ],
+        "out_of_scope": [
+          "No new agent role.",
+          "No full raw maturity report pasted into every prompt.",
+          "No automatic learning capture for unverified loop claims."
+        ],
+        "dependencies": [
+          "ADLC-LSMA-005"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LSMA_006-WIRING",
+            "given": "a Build Brief task declares an autonomous-loop claim",
+            "when": "planner and Eval Council process the task",
+            "then": "they require Loop Contract and maturity evidence or downgrade the claim to assisted-loop status",
+            "measurable_post_condition": "agent/skill docs contain loop maturity trigger and no-overclaim language"
+          },
+          {
+            "id": "AC-ADLC_LSMA_006-COMPOUND",
+            "given": "a loop maturity report identifies a reusable verified loop pattern",
+            "when": "compound learning capture runs",
+            "then": "the captured learning references compact report paths, verifier evidence, and stale conditions",
+            "measurable_post_condition": "compound learning docs mention loop_maturity_report refs and redaction/stale conditions"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not create another manual audit prompt agent.",
+          "Do not paste full reports into prompts when compact refs are sufficient.",
+          "Do not allow compound learning capture from unverified or overclaimed maturity reports."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "ADLC agents know about verification and compound context, but not loop-maturity contracts.",
+          "deferred_debt": "Full emitter formatting for every remote provider can follow once normalized payload preservation is proven.",
+          "deferral_safety": "Compact refs preserve scaling benefits and avoid prompt bloat."
+        },
+        "compatibility_contract": {
+          "backward": "Agents continue normal behavior when loop maturity refs are absent.",
+          "forward": "Future autonomous runner tasks can rely on the same prompt contracts and compact refs.",
+          "migration_or_rollout": "Wire guidance and normalized payload preservation after evaluator output stabilizes."
+        },
+        "implementation_notes": [
+          "Loop maturity should act as a conditional overlay like security, test_strength, and slop_gate.",
+          "Planner should ask one question only when missing info would materially change maturity score or required implementation.",
+          "Compound learning should store report refs and distilled pattern, not raw command output."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "rg -n \"loop_contract|loop_action|loop_maturity_report|self-autonomous|assisted loop|no-overclaim\" agents/planner.md skills/codegen-context/SKILL.md skills/eval-council/SKILL.md skills/systematic-debugging/SKILL.md docs/specs/compound-engineering-learning-store.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Core ADLC agents and compound learning docs must consume loop maturity evidence.",
+            "target_files": [
+              "agents/planner.md",
+              "skills/codegen-context/SKILL.md",
+              "skills/eval-council/SKILL.md",
+              "skills/systematic-debugging/SKILL.md",
+              "docs/specs/compound-engineering-learning-store.md"
+            ],
+            "expected_failure_mode": "loop maturity not wired into agents or compound learning"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc emit-work-items --target github --build-brief tests/fixtures/loop_maturity/loop-contract-work-item-brief.json --dry-run --require-ready --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Work-item emission must preserve loop maturity refs.",
+              "target_files": [
+                "scripts/adlc.py",
+                "tests/fixtures/loop_maturity/loop-contract-work-item-brief.json"
+              ],
+              "expected_failure_mode": "loop maturity refs not preserved in normalized payload"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Agent/skill prompt wiring and normalized payload preservation."
+        },
+        "evidence_responsibilities": [
+          "Show grep evidence for loop maturity triggers across planner, codegen context, Eval Council, debugging, and compound learning.",
+          "Show dry-run emitter payload preserves loop_contract or loop_maturity_report refs when present.",
+          "Show no behavior change for a Build Brief without loop maturity refs."
+        ],
+        "definition_of_done": [
+          "Planner and Eval Council gate autonomous-loop claims.",
+          "Codegen context passes compact maturity refs.",
+          "Compound learning can capture verified loop patterns.",
+          "Emitter payload preserves loop maturity refs."
+        ],
+        "failure_modes": [
+          "Agents treat maturity as a prose checklist.",
+          "Compound capture stores unverified loop claims.",
+          "Context bloat from pasting full reports."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "agents/planner.md",
+          "skills/codegen-context/SKILL.md",
+          "skills/eval-council/SKILL.md",
+          "skills/systematic-debugging/SKILL.md",
+          "docs/specs/compound-engineering-learning-store.md",
+          "scripts/adlc.py",
+          "tests/test_adlc_cli.sh"
+        ],
+        "files_to_create": [
+          "tests/fixtures/loop_maturity/loop-contract-work-item-brief.json"
+        ],
+        "reference_impl": "docs/build-briefs/compound-engineering-workflow-integration.json",
+        "work_item_metadata": {
+          "area": "loop-maturity",
+          "phase_label": "phase:agent-wiring",
+          "labels": [
+            "loop-maturity",
+            "compound-engineering",
+            "agent-wiring"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LOOP-MATURITY-WIRING",
+          "capability": "Loop maturity context exchange through ADLC agents and compound learning",
+          "task_refs": [
+            "ADLC-LSMA-006"
+          ],
+          "reuse": [
+            "compound-context",
+            "codegen-context",
+            "eval-council",
+            "learning-capture"
+          ],
+          "consumes": [
+            "loop contract refs",
+            "loop action refs",
+            "loop maturity report refs",
+            "compound learning refs"
+          ],
+          "emits": [
+            "compact loop maturity context",
+            "blocked self-autonomous claims",
+            "verified loop learning candidates"
+          ],
+          "minimum_fields": [
+            "loop_contract_path",
+            "loop_action_path",
+            "loop_maturity_report_path",
+            "maturity_verdict",
+            "highest_leverage_gap"
+          ],
+          "invariants": [
+            "Prompts receive compact refs, not unbounded reports.",
+            "Unverified self-autonomous claims are downgraded or blocked."
+          ],
+          "integration_points": [
+            "agents/planner.md",
+            "skills/codegen-context/SKILL.md",
+            "skills/eval-council/SKILL.md",
+            "docs/specs/compound-engineering-learning-store.md"
+          ],
+          "validation_gates": [
+            "grep contract coverage",
+            "work-item payload preservation test"
+          ],
+          "privacy_redaction": "Compound learning captures distilled loop patterns and report refs, not raw logs or secrets.",
+          "evidence_refs": [
+            "docs/build-briefs/compound-engineering-workflow-integration.json"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LOOP-MATURITY-WIRING-GOVERNED",
+          "claim": "Loop maturity evidence is consumed by ADLC planning, context, review, and compound learning surfaces.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "agent/skill grep checks",
+            "normalized payload preservation test"
+          ],
+          "no_overclaim": [
+            "Do not claim every workflow is self-autonomous; only report the maturity verdict that evaluator emitted.",
+            "Do not capture learning from reports that lack verifier evidence."
+          ],
+          "reliability_failure_modes": [
+            "Prompt bloat erases compound efficiency gain.",
+            "Loop evidence is dropped when emitted to work items.",
+            "Agent treats absent loop refs as present."
+          ]
+        }
+      },
+      {
+        "artifact_type": "validation_task",
+        "task_id": "ADLC-LSMA-VAL",
+        "title": "Validate loop-system maturity integration end to end",
+        "objective": "Prove the Loop-System Maturity integration is schema-valid, emitter-ready, CLI-tested, smoke-tested, and graph-reviewed before shipping.",
+        "task_classification": "build_validation",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Validation task executes after implementation slices and does not introduce new product decisions."
+        },
+        "scope": [
+          "Run Build Brief validation for docs/build-briefs/loop-system-maturity-audit.json.",
+          "Run emit-work-items dry-run with --require-ready.",
+          "Run tests/test_adlc_contracts.sh and tests/test_adlc_cli.sh.",
+          "Run loop-maturity-audit on one-shot, assisted, and self-autonomous fixtures.",
+          "Run smoke harness for the relevant staged workflow if runtime adapters are available.",
+          "Run Graphify refresh/query to review loop maturity integration surfaces.",
+          "Document final maturity verdict and any remaining gaps."
+        ],
+        "out_of_scope": [
+          "No remote publish in this validation task unless explicitly requested after tests pass.",
+          "No bypass of readiness checks.",
+          "No claiming production-ready self-autonomy for workflows that only score assisted-loop."
+        ],
+        "dependencies": [
+          "ADLC-LSMA-001",
+          "ADLC-LSMA-002",
+          "ADLC-LSMA-003",
+          "ADLC-LSMA-004",
+          "ADLC-LSMA-005",
+          "ADLC-LSMA-006"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LSMA_VAL-CLI",
+            "given": "all LSMA implementation tasks are complete",
+            "when": "ADLC validates schemas, CLI commands, and emitter payloads",
+            "then": "all deterministic checks pass without readiness bypass",
+            "measurable_post_condition": "validate-artifact, emit-work-items --require-ready, test_adlc_contracts, and test_adlc_cli all pass"
+          },
+          {
+            "id": "AC-ADLC_LSMA_VAL-GRAPH",
+            "given": "loop maturity integration touches workflow, schemas, agents, and skills",
+            "when": "Graphify is refreshed and queried",
+            "then": "the report identifies the new loop contract and evaluator surfaces without orphaned prompt-only artifacts",
+            "measurable_post_condition": "Graphify query output references loop contract schema, evaluator CLI, workflow-state progress/control fields, and agent wiring"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not mark validation complete from git diff alone.",
+          "Do not skip Graphify review when graphify-out is available.",
+          "Do not publish until readiness and tests pass or blockers are explicitly reported."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Validation must cover schema, CLI, emitter, test-selection, workflow state, agent wiring, and graph comprehension because the integration spans all of them.",
+          "deferred_debt": "Live remote runner kill-switch behavior can be tracked as future work if state-level control evidence is implemented but live signal handling is not.",
+          "deferral_safety": "No-overclaim gates prevent claiming production-ready self-autonomy until live controls exist."
+        },
+        "compatibility_contract": {
+          "backward": "Baseline tests prove existing ADLC flows still work without Loop Contracts.",
+          "forward": "Fixture-backed reports and schema aliases give future runners stable integration points.",
+          "migration_or_rollout": "Ship behind explicit Loop Contract usage; later make conditional enforcement part of autonomous-loop claims."
+        },
+        "implementation_notes": [
+          "Treat Graphify as post-change architecture review, not a substitute for tests.",
+          "Keep a concise closeout with exact command outcomes and remaining maturity score.",
+          "If runtime smoke adapters are unavailable, report the environment blocker and keep deterministic CLI validation as the required minimum."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/loop-system-maturity-audit.json --dry-run --require-ready --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The decomposition must stay ready and emitter-compatible after implementation.",
+            "target_files": [
+              "docs/build-briefs/loop-system-maturity-audit.json"
+            ],
+            "expected_failure_mode": "loop maturity decomposition readiness blocked"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/loop-system-maturity-audit.json --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "The Build Brief must remain schema-valid.",
+              "target_files": [
+                "docs/build-briefs/loop-system-maturity-audit.json"
+              ],
+              "expected_failure_mode": "loop maturity Build Brief schema validation fails"
+            },
+            {
+              "type": "command",
+              "target": "tests/test_adlc_contracts.sh && tests/test_adlc_cli.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Baseline contract and CLI behavior must remain green.",
+              "target_files": [
+                "tests/test_adlc_contracts.sh",
+                "tests/test_adlc_cli.sh",
+                "scripts/adlc.py"
+              ],
+              "expected_failure_mode": "contract or CLI tests fail"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "End-to-end validation for the loop-system maturity integration."
+        },
+        "evidence_responsibilities": [
+          "Record exact validation commands and pass/fail results.",
+          "Record Graphify refresh/query evidence.",
+          "Record final scorecard and maturity verdict after implementation."
+        ],
+        "definition_of_done": [
+          "Build Brief validation passes.",
+          "Emitter readiness passes.",
+          "CLI and contract tests pass.",
+          "Loop-maturity evaluator fixtures pass.",
+          "Graphify review is current.",
+          "Remaining gaps are explicitly tiered."
+        ],
+        "failure_modes": [
+          "Validation bypasses readiness.",
+          "Graphify report is stale.",
+          "Self-autonomous claim survives despite low test-selection or failure-handling score."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "docs/build-briefs/loop-system-maturity-audit.json",
+          "scripts/adlc.py",
+          "docs/schemas/workflow-state.schema.json",
+          "tests/test_adlc_cli.sh",
+          "tests/test_adlc_contracts.sh"
+        ],
+        "files_to_create": [],
+        "reference_impl": "docs/build-briefs/implementation-interfaces-productionization.json",
+        "work_item_metadata": {
+          "area": "loop-maturity",
+          "phase_label": "phase:validation",
+          "labels": [
+            "loop-maturity",
+            "validation",
+            "graphify"
+          ]
+        },
+        "implementation_interface_contract": {
+          "applicability": "not_applicable",
+          "reason": "This is a validation closeout task and does not define a new implementation interface."
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LSMA-VALIDATION-NO-OVERCLAIM",
+          "claim": "The LSMA integration has been validated end to end for local ADLC artifacts and commands.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "validate-artifact",
+            "emit-work-items --require-ready",
+            "test_adlc_contracts",
+            "test_adlc_cli",
+            "Graphify query"
+          ],
+          "no_overclaim": [
+            "Do not claim live remote runner safe-interrupt behavior unless implemented and tested.",
+            "Do not claim every ADLC workflow is self-autonomous; publish the evaluator verdict per workflow."
+          ],
+          "reliability_failure_modes": [
+            "Readiness passes but CLI evaluator is untested.",
+            "Graphify misses a disconnected prompt-only artifact.",
+            "Smoke harness unavailable and not reported."
+          ]
+        }
+      }
+    ],
+    "9_risks": [
+      "The largest risk is overcomplication: loop maturity must stay a conditional contract for autonomous claims, not a mandatory tax on every task.",
+      "The second largest risk is gameable test selection; if required tests can be skipped by narrative, the framework cannot reach self-autonomous status.",
+      "Control-channel scope can sprawl into live process supervision; this slice should first add state and evaluator semantics, then defer live signal handling if needed.",
+      "Compound learning can poison future runs if it captures unverified loop claims; learning capture must require maturity report evidence and stale conditions.",
+      "Prompt bloat can erase efficiency gains if full audit reports are pasted into agents instead of compact refs."
+    ],
+    "10_rollout": "Land the decomposition as a Build Brief first. Implementation should be staged behind optional Loop Contract usage and fixture-backed CLI commands. After local validation passes, make loop maturity a required gate only for workflows or tasks that claim self-autonomous loop behavior. Keep assisted-loop workflows valid and explicitly labeled.",
+    "11_validation_plan": [
+      "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/loop-system-maturity-audit.json --json",
+      "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/loop-system-maturity-audit.json --dry-run --require-ready --json",
+      "bin/adlc validate-artifact --schema loop-contract --input tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --json",
+      "bin/adlc validate-artifact --schema loop-maturity-report --input tests/fixtures/loop_maturity/assisted-loop-report.json --json",
+      "bin/adlc loop-test-selection --loop-contract tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --test-plan tests/fixtures/loop_maturity/test-plan-complete-required.json --json",
+      "bin/adlc loop-action-validate --loop-contract tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --action tests/fixtures/loop_maturity/valid-loop-action.json --state tests/fixtures/loop_maturity/workflow-state-control-progress.json --json",
+      "bin/adlc loop-maturity-audit --loop-contract tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --workflow WORKFLOW.dot --state tests/fixtures/loop_maturity/workflow-state-control-progress.json --test-plan tests/fixtures/loop_maturity/test-plan-complete-required.json --json",
+      "tests/test_adlc_contracts.sh",
+      "tests/test_adlc_cli.sh",
+      "tests/smoke/run_smoke.sh",
+      "graphify update .",
+      "graphify query \"How does ADLC integrate loop-system maturity contracts, test selection, workflow control, and compound learning?\" --budget 3000"
+    ],
+    "12_skill_trigger_configuration": [
+      {
+        "skill": "loop-system-maturity-audit",
+        "trigger": "Run when a workflow, Build Brief, agent, or runner path claims self-autonomous loop behavior or when a maintainer explicitly asks to audit loop maturity.",
+        "inputs": [
+          "Loop Contract",
+          "workflow graph/config",
+          "workflow state",
+          "Build Brief verifier specs",
+          "test plan",
+          "test-strength report",
+          "real command output refs"
+        ],
+        "outputs": [
+          "loop maturity report",
+          "maturity verdict",
+          "highest leverage gap",
+          "prioritized gaps",
+          "one question"
+        ],
+        "routing": "Self-autonomous overclaim routes to plan_review or fixer depending on whether the gap is contract/spec or implementation/runtime evidence."
+      },
+      {
+        "skill": "spec-to-tests",
+        "trigger": "When a Loop Contract is present, enforce mandatory_floor and required_from_task_signals before allowing agent-added tests.",
+        "outputs": [
+          ".adlc/test_plan.json with required test coverage tags",
+          "missing required-test failures"
+        ]
+      },
+      {
+        "skill": "compound-context",
+        "trigger": "Before research, include compact loop maturity refs from docs/solutions and prior reports when relevant.",
+        "outputs": [
+          "learning_refs with loop_maturity_report paths",
+          "stale or no-op reasons"
+        ]
+      }
+    ],
+    "13_comprehension_context": {
+      "current_scorecard": {
+        "real_loop_vs_one_shot": 2,
+        "win_condition_rigor": 2,
+        "test_selection_cannot_be_gamed": 1,
+        "self_grading_risk": 2,
+        "feedback_fidelity": 2,
+        "control_channel": 1,
+        "failure_handling_escalation": 2
+      },
+      "maturity_verdict": "Assisted loop",
+      "single_highest_leverage_gap": "Machine-readable Loop Contract plus constrained LLM action envelope and deterministic evaluator, with non-gameable test selection as the hardest required sub-gap.",
+      "one_question": "Should ADLC require Loop Contracts for all Build Briefs, or only for workflows and tasks that explicitly claim self-autonomous loop behavior?"
+    },
+    "14_graph_research_evidence": {
+      "graphify_query": "Where does ADLC currently define loop runner behavior, win conditions, test selection, feedback channels, control interrupts, failure handling, and escalation paths?",
+      "direct_evidence_refs": [
+        "README.md",
+        "WORKFLOW.md",
+        "WORKFLOW.dot",
+        "scripts/adlc.py",
+        "docs/schemas/workflow-state.schema.json",
+        "agents/test-author.md",
+        "agents/test-strength-auditor.md",
+        "skills/spec-to-tests/SKILL.md",
+        "skills/test-strength/SKILL.md",
+        "skills/fix-loop/SKILL.md",
+        "skills/systematic-debugging/SKILL.md",
+        "skills/eval-council/SKILL.md"
+      ],
+      "finding_summary": "ADLC has enough bounded loop machinery to score as Assisted loop, but lacks a single enforceable Loop Contract and action envelope that prove LLM actions are constrained by required tests, progress, control events, and escalation context."
+    },
+    "15_dark_code_risk": {
+      "risk_level": "medium",
+      "hotspots": [
+        "Prompt-only loop audit artifact that agents can ignore",
+        "Required test selection encoded as narrative instead of deterministic validation",
+        "Workflow state that supports resume but not safe interrupt or no-progress escalation",
+        "Compound learning capture of unverified maturity claims"
+      ],
+      "mitigation": "Use schema-backed contracts, constrained LLM action envelopes, deterministic evaluator commands, fixture tests, and compact compound refs."
+    },
+    "16_implementation_interfaces": [
+      {
+        "id": "I-ADLC-LOOP-CONTRACT",
+        "capability": "Framework-wide contract for LLM-driven workflows that claim autonomous loop behavior",
+        "task_refs": [
+          "ADLC-LSMA-002",
+          "ADLC-LSMA-003",
+          "ADLC-LSMA-004",
+          "ADLC-LSMA-005",
+          "ADLC-LSMA-006"
+        ],
+        "reuse": [
+          "Build Brief verification_spec",
+          "workflow-state checkpoint and side_effects",
+          "spec-to-tests",
+          "test-strength",
+          "compound-context",
+          "emit-work-items"
+        ],
+        "consumes": [
+          "Loop Brief six blanks",
+          "workflow graph/config",
+          "workflow state",
+          "Build Brief task signals",
+          "test plan",
+          "test-strength report",
+          "LLM-proposed loop action"
+        ],
+        "emits": [
+          "loop contract",
+          "loop action validation result",
+          "loop maturity report",
+          "test-selection validation",
+          "compact compound learning refs"
+        ],
+        "minimum_fields": [
+          "job_win_condition",
+          "allowed_tools",
+          "feedback_channels",
+          "stop_escalate_rules",
+          "test_selection",
+          "safe_bail_state",
+          "progress_signal",
+          "control_channel",
+          "independent_truth",
+          "llm_action_envelope"
+        ],
+        "invariants": [
+          "The LLM chooses actions from user intent and observations, but cannot execute outside the allowed contract.",
+          "The thing that takes the shot must not be the only thing that grades correctness.",
+          "Required tests are mechanical and additive-only agent discretion cannot remove them.",
+          "No-progress is a first-class signal, not just command failure.",
+          "Steer and abort are distinct control events."
+        ],
+        "integration_points": [
+          "docs/schemas/loop-contract.schema.json",
+          "docs/schemas/loop-maturity-report.schema.json",
+          "docs/schemas/workflow-state.schema.json",
+          "scripts/adlc.py",
+          "agents/planner.md",
+          "skills/codegen-context/SKILL.md",
+          "skills/eval-council/SKILL.md",
+          "docs/specs/compound-engineering-learning-store.md"
+        ],
+        "validation_gates": [
+          "Schema validation",
+          "loop-test-selection",
+          "loop-action-validate",
+          "loop-maturity-audit",
+          "emit-work-items --require-ready",
+          "Graphify query"
+        ],
+        "failure_semantics": [
+          "Missing Loop Contract or action envelope downgrades autonomous claim to assisted-loop status.",
+          "Missing required tests blocks self-autonomous verdict.",
+          "Missing control/progress fields caps Control channel score at 1."
+        ],
+        "idempotency": "Action admission and evaluator outputs are deterministic for the same contract, action, workflow, state, and test-plan inputs.",
+        "privacy_redaction": "Reports use artifact refs and bounded stderr tails; compound learning captures only redacted summaries and verifier refs.",
+        "evidence_refs": [
+          "README.md",
+          "WORKFLOW.md",
+          "scripts/adlc.py",
+          "docs/schemas/workflow-state.schema.json"
+        ]
+      }
+    ],
+    "17_productionization_gates": [
+      {
+        "id": "G-ADLC-SELF-AUTONOMY-NO-OVERCLAIM",
+        "task_refs": [
+          "ADLC-LSMA-005",
+          "ADLC-LSMA-006",
+          "ADLC-LSMA-VAL"
+        ],
+        "claim": "ADLC may label a workflow self-autonomous only when the loop-maturity evaluator scores mostly 3s and dimensions 2, 3, and 7 have no 0-1 scores.",
+        "coverage_state": "governed",
+        "operational_readiness": {
+          "owner": "adlc-maintainers",
+          "deployment_path": "Repo-local CLI, schemas, fixtures, and agent/skill docs",
+          "rollback_path": "Disable loop-maturity enforcement by omitting Loop Contract refs and reverting schema/CLI changes",
+          "runbook_refs": [
+            "docs/specs/loop-system-maturity-audit.md"
+          ],
+          "support_boundary": "Local ADLC framework validation only; live remote runner interruption is future work unless separately implemented."
+        },
+        "security_privacy": {
+          "threat_model_delta": "Autonomous-loop claims increase agent authority risk if controls are missing.",
+          "secrets_handling": "Feedback artifacts and learning capture must avoid secrets and redact command output where configured.",
+          "data_retention": "Reports and fixtures are repo-local artifacts.",
+          "redaction_posture": "Store compact refs and bounded output tails, not unbounded raw logs.",
+          "policy_authority": "ADLC maintainers",
+          "approval_authority": "Human engineer gate",
+          "audit_evidence": [
+            "loop-maturity report",
+            "workflow-state control/progress fixture",
+            "test-selection validation"
+          ]
+        },
+        "reliability_failure_modes": [
+          "Self-autonomous verdict emitted despite gameable test selection.",
+          "Loop runs without no-progress escalation.",
+          "Abort request is treated as steer context.",
+          "Learning capture persists an unsupported maturity claim."
+        ],
+        "validation_evidence": [
+          "loop-maturity-audit CLI reports",
+          "loop-test-selection CLI reports",
+          "workflow-state schema tests",
+          "Graphify integration query"
+        ],
+        "no_overclaim": [
+          "Current ADLC should be described as Assisted loop until this implementation lands and evaluates stronger.",
+          "Self-autonomous status is per workflow, not global to the repo.",
+          "Evaluator support is not the same as live process kill-switch support."
+        ],
+        "known_unsupported_states": [
+          "Live signal-based interrupt handling before a runner implements it.",
+          "External-provider rollback without provider-specific side-effect rollback support.",
+          "Independent golden truth where the contract only supplies agent-authored tests."
+        ]
+      }
+    ]
+  }
+}

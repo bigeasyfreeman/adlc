@@ -121,7 +121,7 @@ Every work-item emitter must carry these fields forward from the Build Brief tas
 
 - `artifact_type`
 - `task_classification`
-- `work_item_metadata` when present (`area`, `area_label`, `phase_label`, `target_project`, `labels`, `external_refs`)
+- `work_item_metadata` when present (`area`, `area_label`, `phase_label`, `target_project`, `labels`, `external_refs`, `loop_contract_path`, `loop_action_path`, `loop_maturity_report_path`)
 - `decision_contract`
 - `verification_spec`
 - acceptance criteria or Given/When/Then contract
@@ -135,6 +135,7 @@ Every work-item emitter must carry these fields forward from the Build Brief tas
 - `implementation_interface_contract` when present, including reuse, consumes, emits, minimum fields, invariants, integration points, validation gates, failure semantics, and privacy/redaction posture
 - `productionization_gate` when present, including claim, Coverage State, validation evidence, No-Overclaim boundaries, reliability failure modes, operational readiness, rollback/runbook/observability posture, and security/privacy posture
 - `slop_quality_gate` when present, including applicability reason, eval cases, metrics, threshold, failure action, and case-promotion sources
+- Loop Contract refs when present; emitters preserve `loop_contract_path`, `loop_action_path`, and `loop_maturity_report_path` but do not upgrade maturity claims without verifier evidence
 - `evidence_responsibilities`
 - `definition_of_done`
 - failure-mode cross references
@@ -260,8 +261,10 @@ The readiness checker validates:
    - `implementation_interface_contract` for active integration or reusable framework surfaces
    - `productionization_gate` for active production support claims
    - `slop_quality_gate` when `generated_output_surface.active=true`; if the brief includes `slop_quality_gate` for an inactive surface it must use `applicability=not_applicable` with a concrete reason
+   - Loop Contract refs when LLM-driven action, test-selection, control-channel, escalation, or maturity evidence is active
 6. **Production-ready claim checks** — `productionization_gate.coverage_state=production_ready` requires an `implementation_interface_contract`, validation evidence, No-Overclaim boundaries, reliability failure modes, owner, rollback path, runbook/alerting/dashboard/SLO posture where applicable, and security/privacy redaction posture. Missing proof returns `overclaimed_production_ready`.
-7. **Phase-project map** — when a `--phase-project-map` is provided, any task with a `phase_label` that exists in the map must have a matching `target_project` in `work_item_metadata`.
+7. **Loop action checks** — LLM-driven action tickets must preserve loop refs and name the deterministic verifier (`loop-test-selection`, `loop-action-validate`, or `loop-maturity-audit`) that admits or blocks the action.
+8. **Phase-project map** — when a `--phase-project-map` is provided, any task with a `phase_label` that exists in the map must have a matching `target_project` in `work_item_metadata`.
 
 ### CLI Flags
 

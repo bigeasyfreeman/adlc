@@ -1,0 +1,151 @@
+{
+  "brief_id": "ADLC-LOOP-SYSTEM-MATURITY-AUDIT",
+  "checkpoint": {
+    "history": [
+      {
+        "label": "done",
+        "observation": "test plan written",
+        "phase": "gen_tests",
+        "status": "completed",
+        "timestamp": "2026-01-01T00:00:01Z"
+      }
+    ],
+    "next_action": {
+      "control_events": [
+        {
+          "event_id": "ctrl:steer:1",
+          "event_type": "steer",
+          "evidence_refs": [
+            "tests/fixtures/loop_maturity/test-plan-complete-required.json"
+          ],
+          "reason": "Use the complete required-test fixture.",
+          "status": "applied",
+          "timestamp": "2026-01-01T00:00:02Z"
+        }
+      ],
+      "escalation_context": {
+        "context_refs": [
+          "tests/fixtures/loop_maturity/workflow-state-control-progress.json"
+        ],
+        "no_progress_after": 2,
+        "phase": "test_strength",
+        "recent_observations": [
+          "required tests now covered"
+        ],
+        "requested_decision": "none",
+        "trigger": "not_active"
+      },
+      "loop_progress": {
+        "evidence_refs": [
+          "tests/fixtures/loop_maturity/test-plan-complete-required.json"
+        ],
+        "iteration_count": 2,
+        "last_observation": "complete fixture covers floor:schema and required:test-selection",
+        "last_progress_signal": "resolved_missing_required_test"
+      },
+      "no_progress_count": 0,
+      "node": {
+        "agent": "test-strength-auditor",
+        "id": "test_strength",
+        "label": "Test Strength / Conditional Audit",
+        "type": "agent"
+      },
+      "phase": "test_strength",
+      "runnable": true,
+      "safe_checkpoint": {
+        "checkpoint_id": "checkpoint:test-strength:ready",
+        "evidence_refs": [
+          ".adlc/workflow_state.json"
+        ],
+        "idempotent": true,
+        "phase": "test_strength",
+        "retryable": true,
+        "rollback_plan": "No external side effects; rerun CLI validation."
+      },
+      "status": "planned",
+      "task_resume_status": {
+        "counts": {
+          "in_progress": 1
+        },
+        "incomplete": [
+          {
+            "input_hash": "loop-test-selection",
+            "primary_verifier": "bin/adlc loop-test-selection",
+            "status": "in_progress",
+            "task_id": "ADLC-LSMA-003"
+          }
+        ],
+        "total": 1
+      }
+    },
+    "workspace": "/tmp/adlc-loop-test"
+  },
+  "control_events": [
+    {
+      "event_id": "ctrl:steer:1",
+      "event_type": "steer",
+      "evidence_refs": [
+        "tests/fixtures/loop_maturity/test-plan-complete-required.json"
+      ],
+      "reason": "Use the complete required-test fixture.",
+      "status": "applied",
+      "timestamp": "2026-01-01T00:00:02Z"
+    }
+  ],
+  "escalation_context": {
+    "context_refs": [
+      "tests/fixtures/loop_maturity/workflow-state-control-progress.json"
+    ],
+    "no_progress_after": 2,
+    "phase": "test_strength",
+    "recent_observations": [
+      "required tests now covered"
+    ],
+    "requested_decision": "none",
+    "trigger": "not_active"
+  },
+  "loop_progress": {
+    "evidence_refs": [
+      "tests/fixtures/loop_maturity/test-plan-complete-required.json"
+    ],
+    "iteration_count": 2,
+    "last_observation": "complete fixture covers floor:schema and required:test-selection",
+    "last_progress_signal": "resolved_missing_required_test"
+  },
+  "no_progress_count": 0,
+  "phase": "test_strength",
+  "resume_count": 1,
+  "safe_checkpoint": {
+    "checkpoint_id": "checkpoint:test-strength:ready",
+    "evidence_refs": [
+      ".adlc/workflow_state.json"
+    ],
+    "idempotent": true,
+    "phase": "test_strength",
+    "retryable": true,
+    "rollback_plan": "No external side effects; rerun CLI validation."
+  },
+  "session_id": "adlc-loop-test",
+  "side_effects": [],
+  "started_at": "2026-01-01T00:00:00Z",
+  "status": "planned",
+  "step": "ready",
+  "task_fingerprints": [
+    {
+      "changed_files": [
+        "scripts/adlc.py"
+      ],
+      "commit": null,
+      "evidence": [
+        "missing required test caught"
+      ],
+      "input_hash": "loop-test-selection",
+      "post_change_status": "not_run",
+      "pre_change_status": "failed_expected",
+      "primary_verifier": "bin/adlc loop-test-selection",
+      "status": "in_progress",
+      "task_id": "ADLC-LSMA-003"
+    }
+  ],
+  "updated_at": "2026-06-08T01:09:40Z"
+}

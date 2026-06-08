@@ -1,0 +1,156 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/loop-maturity-report.schema.json",
+  "title": "ADLC Loop Maturity Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "report_id",
+    "loop_contract_id",
+    "maturity_verdict",
+    "dimension_scores",
+    "highest_leverage_gap",
+    "prioritized_gaps",
+    "one_question"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "report_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "loop_contract_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "maturity_verdict": {
+      "type": "string",
+      "enum": ["one_shot_in_disguise", "assisted_loop", "self_autonomous"]
+    },
+    "action_admission": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["admitted", "rejected", "escalate", "not_evaluated"]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "dimension_scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "real_loop_vs_one_shot",
+        "win_condition_rigor",
+        "test_selection_cannot_be_gamed",
+        "self_grading_risk",
+        "feedback_fidelity",
+        "control_channel",
+        "failure_handling_escalation"
+      ],
+      "properties": {
+        "real_loop_vs_one_shot": {
+          "$ref": "#/definitions/dimension_score"
+        },
+        "win_condition_rigor": {
+          "$ref": "#/definitions/dimension_score"
+        },
+        "test_selection_cannot_be_gamed": {
+          "$ref": "#/definitions/dimension_score"
+        },
+        "self_grading_risk": {
+          "$ref": "#/definitions/dimension_score"
+        },
+        "feedback_fidelity": {
+          "$ref": "#/definitions/dimension_score"
+        },
+        "control_channel": {
+          "$ref": "#/definitions/dimension_score"
+        },
+        "failure_handling_escalation": {
+          "$ref": "#/definitions/dimension_score"
+        }
+      }
+    },
+    "highest_leverage_gap": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prioritized_gaps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocks_autonomy", "fragile_under_load", "polish"],
+      "properties": {
+        "blocks_autonomy": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "fragile_under_load": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "polish": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "one_question": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "definitions": {
+    "dimension_score": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "one_line_evidence", "evidence_refs", "missing_mechanisms"],
+      "properties": {
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "one_line_evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "missing_mechanisms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

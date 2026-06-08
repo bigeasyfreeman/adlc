@@ -265,6 +265,28 @@ Missing or weak gates return:
 
 Do not require productionization gates for trivial docs, lint-only, build-validation, deterministic refactors, or code-only work when no production support claim changes.
 
+### Loop System Maturity Checks
+
+For every task that changes autonomous loop behavior, LLM action admission, test-selection policy, repair/retry routing, workflow control events, no-progress detection, escalation, or a maturity claim:
+
+- `loop_contract_path` must be present and validate against `docs/schemas/loop-contract.schema.json`.
+- If an LLM-proposed action is provided, it must validate against `docs/schemas/loop-action.schema.json` and pass `bin/adlc loop-action-validate`.
+- If a test plan is provided, it must pass `bin/adlc loop-test-selection`; the mandatory floor and required tests computed from task signals cannot be skipped.
+- Required generated tests must carry machine-readable `coverage_tags` and `covers_required_tests` so selection is mechanical, not narrative.
+- Agent discretion is additive only: it may add tests, but it may not remove the mandatory floor or required tests.
+- The loop must expose real feedback, progress/no-progress state, a safe checkpoint, a control channel, and escalation context when it claims assisted or autonomous loop behavior.
+- Maturity claims must be backed by `bin/adlc loop-maturity-audit`; `self_autonomous` is blocked when win condition, test selection, or failure handling scores 0-1.
+
+Missing or weak loop gates return:
+
+- `missing_loop_contract` when an active LLM-driven loop surface lacks a Loop Contract.
+- `missing_required_loop_tests` when mandatory or task-signal tests are not covered.
+- `loop_action_not_admitted` when the proposed LLM action violates tool, required-test, control-event, or safe-checkpoint constraints.
+- `self_autonomy_overclaim` when the task claims self-autonomy without robust deterministic win condition, non-gameable test selection, and failure handling.
+- `self_grading_loop` when the same agent-written artifact is treated as the only truth source for its own correctness.
+
+Do not require Loop Contracts for ordinary deterministic CLI/schema/documentation work unless the task delegates decisions or actions to an LLM loop.
+
 ### Slop Quality Gate Checks
 
 For every task that changes prompt behavior, model selection, agent roles, generated content, response templates, product output, user-visible AI output, or output validators:

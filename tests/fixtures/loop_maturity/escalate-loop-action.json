@@ -1,0 +1,18 @@
+{
+  "contract_version": "1.0.0",
+  "action_id": "action:escalate-no-progress",
+  "proposed_by": "llm",
+  "action_type": "escalate",
+  "tool": "human-escalation",
+  "rationale": "The loop has repeated the same missing required test and needs human direction.",
+  "expected_observation": "Escalation context is emitted for a human decision.",
+  "required_preconditions": ["no_progress_after_threshold"],
+  "satisfies_required_tests": [],
+  "control_event_type": "escalate",
+  "safe_checkpoint_required": true,
+  "rollback_note": "Stop at the current safe checkpoint and preserve evidence refs.",
+  "evidence_refs": [
+    "tests/fixtures/loop_maturity/workflow-state-control-progress.json"
+  ]
+}
+

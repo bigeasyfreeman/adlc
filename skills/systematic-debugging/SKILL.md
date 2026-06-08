@@ -60,6 +60,7 @@ EVIDENCE CHECKLIST:
 [ ] Reproduction steps (can you trigger it reliably?)
 [ ] Related log output (structured logs, not just the error line)
 [ ] Recent changes to files in the error's dependency chain
+[ ] Loop progress state when active (`loop_progress`, `no_progress_count`, pending `control_events`, `safe_checkpoint`, and `escalation_context`)
 ```
 
 **Evidence collection commands:**
@@ -171,6 +172,12 @@ debugging_report:
     git_diff_summary: "what changed since last working state"
     reproduction: "reliable | intermittent | once"
     related_logs: []
+    loop_progress:
+      last_progress_signal: "string | null"
+      no_progress_count: 0
+      pending_control_events: []
+      safe_checkpoint: "checkpoint id | null"
+      escalation_context: "summary | null"
 
   hypotheses:
     - id: H1
@@ -257,6 +264,19 @@ routing:
   missing_validation: → agent that owns the endpoint
 ```
 
+### Loop Progress Integration
+
+When a failure occurs inside an LLM-driven ADLC loop, the coordinator must update workflow state with:
+
+- `loop_progress.last_observation`: the real tool output or error, not the agent's guess.
+- `loop_progress.last_progress_signal`: what changed since the prior attempt, or `none`.
+- `no_progress_count`: incremented only when the last action produced no new evidence, no changed failing assertion, and no narrower hypothesis.
+- `control_events`: pending `steer`, `abort`, `interrupt`, or `escalate` requests that must land at a safe checkpoint.
+- `safe_checkpoint`: the idempotent phase or artifact state where retry, repair, or abort is safe.
+- `escalation_context`: trigger, recent observations, no-progress threshold, context refs, and the exact decision requested from a human.
+
+If `no_progress_count` reaches the Loop Contract threshold, stop repairing and escalate with the debugging report plus the Loop Contract evidence. Do not keep rerunning the same failing command just because it returns a different timestamp.
+
 ### History Capture
 
 Every debugging_report with `time_spent.total > 10m` is automatically captured by history-agent as a LEARNING, so the same root cause pattern is recognized faster next time.
@@ -294,4 +314,3 @@ Every debugging_report with `time_spent.total > 10m` is automatically captured b
 - **Schema validation:** Validate debugging reports against the declared report structure before persistence or handoff.
 - **Workflow checkpoints:** Persist checkpoints after each debugging phase (evidence, hypothesis, test, fix) via `docs/specs/workflow-checkpoints.md`.
 - **Stop reasons:** Emit structured terminal reasons for unresolved incidents (`dependency_change`, `schema_mismatch`, `timeout`).
-
