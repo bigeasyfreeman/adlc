@@ -1,0 +1,57 @@
+{
+  "contract_version": "1.0.0",
+  "contract_id": "invalid-missing-test-floor",
+  "autonomy_claim": "assisted_loop",
+  "job_win_condition": {
+    "job": "Invalid fixture",
+    "done_when": "This should not validate",
+    "deterministic_checks": ["bin/adlc validate-artifact"]
+  },
+  "allowed_tools": [
+    {
+      "name": "bin/adlc validate-artifact",
+      "actions": ["run_tool"]
+    }
+  ],
+  "feedback_channels": [
+    {
+      "after_action": "command",
+      "observes": ["stdout"]
+    }
+  ],
+  "stop_escalate_rules": {
+    "max_iterations": 1,
+    "no_progress_after": 1,
+    "escalate_when": ["invalid"]
+  },
+  "test_selection": {
+    "mandatory_floor": [],
+    "required_from_task_signals": [
+      {
+        "id": "required:test-selection",
+        "command": "bin/adlc loop-test-selection",
+        "coverage_tags": ["test-selection"]
+      }
+    ],
+    "additive_agent_tests": true
+  },
+  "safe_bail_state": {
+    "state": "invalid",
+    "rollback": "invalid",
+    "idempotency": "invalid"
+  },
+  "progress_signal": {
+    "signals": ["invalid"],
+    "no_progress_rule": "invalid"
+  },
+  "control_channel": {
+    "supports": ["escalate"],
+    "safe_checkpoint_required": true
+  },
+  "independent_truth": {
+    "type": "schema",
+    "evidence": ["invalid"]
+  },
+  "redaction_posture": "invalid"
+}
+

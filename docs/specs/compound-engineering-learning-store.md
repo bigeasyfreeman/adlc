@@ -13,7 +13,7 @@ Use one of two tracks:
 - `bugfix`: a verified failure, root cause, fix, and prevention note.
 - `knowledge`: a verified convention, integration pattern, workflow decision, or reusable implementation note.
 
-Both tracks must include evidence, a verifier, stale conditions, and redaction status.
+Both tracks must include evidence, a verifier, stale conditions, and redaction status. Loop maturity reports can be captured as `knowledge` only when they cite `loop_contract_path`, `loop_maturity_report_path`, and the verifier command that produced the report.
 
 ## Frontmatter Contract
 
@@ -89,5 +89,13 @@ When a useful learning depends on a sensitive detail, write the stable behavior 
 `compound_preflight` scans `docs/solutions/` before research and emits compact `learning_refs`: ID, path, title, tags, summary, source evidence, verifier, stale status, and no-op reasons. It does not paste full entries into downstream prompts.
 
 Research, planning, reuse analysis, and codegen context consume `learning_refs` as prior-art candidates. A task can cite them when they are directly relevant, but code behavior still requires direct verification.
+
+For LLM-driven loop work, compact refs may include:
+
+- `loop_contract_path`
+- `loop_maturity_report_path`
+- `maturity_verdict`
+- score gaps that remain stale until `bin/adlc loop-maturity-audit` is rerun
+- the no-overclaim boundary that says whether the loop is `assisted_loop` or `self_autonomous`
 
 `learning_capture` runs after PR prep only when a verified reusable learning exists. `learning_refresh` is scoped maintenance: run it for a stale signal, a requested module/domain, or a significant refactor. Broad refresh is not part of the default build loop.

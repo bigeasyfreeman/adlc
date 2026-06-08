@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/loop-action.schema.json",
+  "title": "ADLC Loop Action",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "action_id",
+    "proposed_by",
+    "action_type",
+    "tool",
+    "rationale",
+    "expected_observation",
+    "required_preconditions",
+    "satisfies_required_tests",
+    "safe_checkpoint_required",
+    "rollback_note",
+    "evidence_refs"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "action_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proposed_by": {
+      "type": "string",
+      "enum": ["llm", "human", "tool"]
+    },
+    "action_type": {
+      "type": "string",
+      "enum": ["observe", "run_tool", "run_tests", "repair", "replan", "steer", "abort", "escalate"]
+    },
+    "tool": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expected_observation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "required_preconditions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "satisfies_required_tests": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "control_event_type": {
+      "type": ["string", "null"],
+      "enum": ["steer", "abort", "interrupt", "escalate", null]
+    },
+    "safe_checkpoint_required": {
+      "type": "boolean"
+    },
+    "rollback_note": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}
+

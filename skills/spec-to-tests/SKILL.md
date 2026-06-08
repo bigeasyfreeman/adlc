@@ -31,6 +31,7 @@ Use exactly these inputs:
 - per-task `acceptance_criteria`
 - `files_to_create/modify`
 - `reference_impl` path
+- optional `loop_contract_path` when the task changes an LLM-driven loop, action admission, test selection, control events, no-progress detection, escalation, or loop maturity
 - repo test conventions discovered at runtime
 
 If any acceptance criterion arrives as an unstructured string with no normalized `id`, `given`, `when`, and `then`, do not invent structure. Emit `stuck`.
@@ -39,6 +40,7 @@ If any acceptance criterion arrives as an unstructured string with no normalized
 
 - Test files written under the repo's native test root and naming conventions
 - `.adlc/test_plan.json` mapping `ac_id -> test_path -> expected_pre_change_failure_reason`
+- When a Loop Contract is active, each generated test also records `coverage_tags` and `covers_required_tests` so `bin/adlc loop-test-selection` can mechanically prove the mandatory floor and task-signal tests are covered.
 - `.adlc/pre_change_run.txt` capturing stdout from the pre-change run that proves the generated verifier fails for the documented reason
 
 ## Authoring Workflow
@@ -46,10 +48,13 @@ If any acceptance criterion arrives as an unstructured string with no normalized
 1. Read the task's `verification_spec`, `acceptance_criteria`, `files_to_create/modify`, and `reference_impl`.
 2. Discover the repo's native test root, framework, helper layout, fixture style, and test naming conventions at runtime.
 3. Normalize verifier scope against `verification_spec.target_files` when present.
-4. Author the smallest failing tests or reproducers that make each acceptance criterion falsifiable before code changes.
-5. Run the generated verifier set before editing production code.
-6. Record the failing stdout in `.adlc/pre_change_run.txt`.
-7. Emit `.adlc/test_plan.json` only after the self-check passes.
+4. If `loop_contract_path` is active, read the Loop Contract and list its `test_selection.mandatory_floor` and `test_selection.required_from_task_signals` test IDs before authoring tests.
+5. Author the smallest failing tests or reproducers that make each acceptance criterion falsifiable before code changes.
+6. Tag generated tests with `coverage_tags` and `covers_required_tests` when they satisfy a Loop Contract test ID.
+7. Run `bin/adlc loop-test-selection --loop-contract [loop_contract_path] --test-plan .adlc/test_plan.json --json` before returning `done` when a Loop Contract is active.
+8. Run the generated verifier set before editing production code.
+9. Record the failing stdout in `.adlc/pre_change_run.txt`.
+10. Emit `.adlc/test_plan.json` only after the self-check passes.
 
 ## Behavior by Task Class
 
@@ -120,6 +125,12 @@ Before emitting `done`, all of these must pass:
 5. Generated tests pass stop-slop anti-stub patterns.
 6. `test_plan.json` validates against the schema in this skill.
 
+Loop Contract addendum:
+
+- Mandatory floor tests and required task-signal tests must be covered when `loop_contract_path` is active.
+- Agent-selected tests are additive only. Do not remove or downgrade required tests to make the plan cheaper.
+- Coverage must be machine-readable through `coverage_tags` and `covers_required_tests`; prose explanations do not satisfy `bin/adlc loop-test-selection`.
+
 ## Output Schema (`test_plan.json`)
 
 ```json
@@ -178,6 +189,20 @@ Before emitting `done`, all of these must pass:
           "assertion_count": {
             "type": "integer",
             "minimum": 1
+          },
+          "coverage_tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "covers_required_tests": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
       }

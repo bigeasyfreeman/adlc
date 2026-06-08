@@ -112,6 +112,11 @@ JSON
   return "$status"
 }
 
+assert_workflow_state_accepts_loop_progress_control() {
+  "$ROOT/bin/adlc" validate-artifact --schema workflow-state --input "$ROOT/tests/fixtures/loop_maturity/workflow-state-control-progress.json" --json |
+    jq -e '.valid == true and (.errors | length) == 0' >/dev/null
+}
+
 assert_emit_preserves_slop_quality_gate() {
   local tmp
   tmp="$(mktemp)"
@@ -149,6 +154,27 @@ assert_emit_preserves_slop_quality_gate() {
       .artifacts[0].slop_quality_gate.eval_cases[0].source == "golden" and
       .artifacts[0].slop_quality_gate.failure_action == "block" and
       .artifacts[0].slop_quality_gate.case_promotion_sources[1] == "council_rejection"
+    ' >/dev/null || status=$?
+
+  rm -f "$tmp"
+  return "$status"
+}
+
+assert_emit_preserves_loop_contract_refs() {
+  local tmp
+  tmp="$(mktemp)"
+  jq '
+    (.sections."8_task_tickets"[0].work_item_metadata.loop_contract_path) = "tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json" |
+    (.sections."8_task_tickets"[0].work_item_metadata.loop_action_path) = "tests/fixtures/loop_maturity/valid-loop-action.json" |
+    (.sections."8_task_tickets"[0].work_item_metadata.loop_maturity_report_path) = "tests/fixtures/loop_maturity/assisted-loop-report.json"
+  ' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp"
+
+  local status=0
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$tmp" --dry-run --json |
+    jq -e '
+      .artifacts[0].loop_contract_path == "tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json" and
+      .artifacts[0].loop_action_path == "tests/fixtures/loop_maturity/valid-loop-action.json" and
+      .artifacts[0].loop_maturity_report_path == "tests/fixtures/loop_maturity/assisted-loop-report.json"
     ' >/dev/null || status=$?
 
   rm -f "$tmp"
@@ -404,10 +430,12 @@ assert "applicability-manifest schema parses" "jq empty '$ROOT/docs/schemas/appl
 assert "build-brief schema parses" "jq empty '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null 2>&1"
 assert "learning-entry schema parses" "jq empty '$ROOT/docs/schemas/learning-entry.schema.json' >/dev/null 2>&1"
 assert "workflow-state schema parses" "jq empty '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null 2>&1"
+assert "loop-system schemas parse" "jq empty '$ROOT/docs/schemas/loop-contract.schema.json' '$ROOT/docs/schemas/loop-action.schema.json' '$ROOT/docs/schemas/loop-maturity-report.schema.json' >/dev/null 2>&1"
 assert "skills manifest parses" "jq empty '$ROOT/skills/manifest.json' >/dev/null 2>&1"
 assert "applicability issue set parses" "jq empty '$ROOT/tests/fixtures/applicability-issue-set.json' >/dev/null 2>&1"
 assert "artifact contract case set parses" "jq empty '$ROOT/tests/fixtures/adlc-artifact-contract-cases.json' >/dev/null 2>&1"
 assert "implementation interface productionization example parses" "jq empty '$ROOT/docs/build-briefs/implementation-interfaces-productionization-example.json' >/dev/null 2>&1"
+assert "loop-system maturity fixtures parse" "jq empty '$ROOT'/tests/fixtures/loop_maturity/*.json >/dev/null 2>&1"
 
 echo ""
 echo "--- Build Brief Contract ---"
@@ -426,6 +454,7 @@ assert "task schema supports stable identity and resume fingerprints" "jq -e '.d
 assert "task schema supports slop quality gates" "jq -e '.definitions.task.properties.slop_quality_gate[\"\$ref\"] == \"#/definitions/slop_quality_gate\" and (.definitions.slop_quality_gate.properties.applicability.enum | index(\"required\")) and (.definitions.slop_quality_gate.properties.mode.enum | index(\"agent_output\")) and (.definitions.slop_quality_gate.properties.failure_action.enum | index(\"human_approval\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports explicit generated-output surfaces" "jq -e '.definitions.task.properties.generated_output_surface[\"\$ref\"] == \"#/definitions/generated_output_surface\" and (.definitions.generated_output_surface.required | index(\"active\")) and (.definitions.generated_output_surface.required | index(\"reason\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports implementation interface and productionization gates" "jq -e '.definitions.task.properties.implementation_interface_contract[\"\$ref\"] == \"#/definitions/implementation_interface_contract\" and .definitions.task.properties.productionization_gate[\"\$ref\"] == \"#/definitions/productionization_gate\" and (.properties.sections.properties | has(\"16_implementation_interfaces\")) and (.properties.sections.properties | has(\"17_productionization_gates\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "task metadata supports loop contract refs" "jq -e '.definitions.task.properties.work_item_metadata.properties.loop_contract_path.type == \"string\" and .definitions.task.properties.work_item_metadata.properties.loop_action_path.type == \"string\" and .definitions.task.properties.work_item_metadata.properties.loop_maturity_report_path.type == \"string\"' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "implementation interface schema captures interface contract shape" "jq -e '.definitions.implementation_interface_contract.oneOf[0].required as \$r | (\$r | index(\"reuse\")) and (\$r | index(\"consumes\")) and (\$r | index(\"emits\")) and (\$r | index(\"minimum_fields\")) and (\$r | index(\"invariants\")) and (\$r | index(\"integration_points\")) and (\$r | index(\"validation_gates\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "productionization gate schema supports coverage state and no-overclaim" "jq -e '(.definitions.productionization_gate.oneOf[0].properties.coverage_state.enum | index(\"production_ready\")) and (.definitions.productionization_gate.oneOf[0].properties.coverage_state.enum | index(\"monitor_only\")) and (.definitions.productionization_gate.oneOf[0].required | index(\"no_overclaim\")) and (.definitions.productionization_gate.oneOf[0].properties.operational_readiness.properties | has(\"rollback_path\")) and (.definitions.productionization_gate.oneOf[0].properties.security_privacy.properties | has(\"redaction_posture\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "slop quality metrics can reference validators" "jq -e '.definitions.slop_quality_gate.properties.metrics.items.oneOf[] | select(.type==\"object\") | (.required | index(\"metric_type\")) and (.required | index(\"validator_ref\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
@@ -441,8 +470,11 @@ assert "task schema keeps failure_modes required" "jq -e '.definitions.task.requ
 assert "change surface includes service_boundary_change" "jq -e '.properties.change_surface.required | index(\"service_boundary_change\")' '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null"
 assert "applicability manifest supports implementation and productionization sections" "jq -e '(.properties.section_policy.items.properties.section_name.enum | index(\"16_implementation_interfaces\")) and (.properties.section_policy.items.properties.section_name.enum | index(\"17_productionization_gates\"))' '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null"
 assert "workflow-state supports compound phases and task fingerprints" "jq -e '(.properties.phase.enum | index(\"compound_preflight\")) and (.properties.phase.enum | index(\"learning_capture\")) and .properties.task_fingerprints.items.properties.input_hash.type == \"string\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
+assert "workflow-state supports loop progress and control channel" "jq -e '.properties.loop_progress.properties.last_progress_signal.type == \"string\" and (.properties.control_events.items.properties.event_type.enum | index(\"steer\")) and (.properties.control_events.items.properties.event_type.enum | index(\"abort\")) and .properties.safe_checkpoint.properties.idempotent.type == \"boolean\" and .properties.escalation_context.properties.no_progress_after.type == \"integer\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
+assert "test-author output supports loop coverage tags" "jq -e '.properties.generated_tests.items.properties.coverage_tags.type == \"array\" and .properties.generated_tests.items.properties.covers_required_tests.type == \"array\"' '$ROOT/docs/schemas/test-author-output.schema.json' >/dev/null"
 assert "workflow-state validates task fingerprints" "assert_workflow_state_accepts_task_fingerprints"
 assert "workflow-state validates interface and productionization statuses" "assert_workflow_state_accepts_interface_and_productionization_status"
+assert "workflow-state validates loop progress and control fixture" "assert_workflow_state_accepts_loop_progress_control"
 
 echo ""
 echo "--- Artifact Contract Cases ---"
@@ -454,7 +486,9 @@ echo ""
 echo "--- Prompt Contracts ---"
 assert "scalable AI code primitives spec exists" "[ -f '$ROOT/docs/specs/scalable-ai-code-primitives.md' ] && rg -q 'Graph-Backed Construct Map|Agent Paved-Road Registry|Verifiability Gate|Production Invariant Coverage' '$ROOT/docs/specs/scalable-ai-code-primitives.md'"
 assert "slop eval loop spec exists" "[ -f '$ROOT/docs/specs/slop-eval-loop.md' ] && rg -q 'Benchmark Contract|Pre-Ship Regression|Delivery Guard|Post-Ship Sampling|Case Promotion' '$ROOT/docs/specs/slop-eval-loop.md'"
+assert "loop-system maturity spec exists" "[ -f '$ROOT/docs/specs/loop-system-maturity-audit.md' ] && rg -q 'Loop Contract|LLM Action Envelope|mandatory_floor|additive_agent_tests|self_autonomous' '$ROOT/docs/specs/loop-system-maturity-audit.md'"
 assert "compound learning store spec and template exist" "[ -f '$ROOT/docs/specs/compound-engineering-learning-store.md' ] && [ -f '$ROOT/docs/solutions/README.md' ] && [ -f '$ROOT/docs/solutions/_template.md' ] && rg -q 'docs/solutions|learning_refs|learning_capture|learning_refresh|redaction' '$ROOT/docs/specs/compound-engineering-learning-store.md'"
+assert "compound learning store captures loop maturity reports" "rg -q 'loop_contract_path|loop_maturity_report_path|maturity_verdict' '$ROOT/docs/specs/compound-engineering-learning-store.md'"
 assert "learning-entry validator exists and accepts valid fixtures" "[ -x '$ROOT/scripts/validate_learning_entry.py' ] && '$ROOT/scripts/validate_learning_entry.py' '$ROOT/tests/fixtures/learning-entry-bug.md' >/dev/null && '$ROOT/scripts/validate_learning_entry.py' '$ROOT/tests/fixtures/learning-entry-knowledge.md' >/dev/null"
 assert "learning-entry validator rejects malformed fixtures" "if '$ROOT/scripts/validate_learning_entry.py' '$ROOT/tests/fixtures/learning-entry-invalid.md' >/dev/null 2>&1; then false; else true; fi"
 assert "triage emits task classification" "rg -q 'task_classification' '$ROOT/agents/triage.md'"
@@ -485,6 +519,7 @@ assert "planner defines artifact taxonomy and automatic validation tasks" "rg -q
 assert "planner blocks unresolved Type 1 implementation" "rg -q 'unresolved Type 1.*decision_gate|decision_gate.*unresolved Type 1' '$ROOT/agents/planner.md'"
 assert "planner emits scalable AI code primitive evidence" "rg -q 'Scalable AI Code Primitives|construct_map|paved_road_refs|production_invariant_coverage|Verifiability gate' '$ROOT/agents/planner.md'"
 assert "planner emits implementation interface and productionization gates" "rg -q 'Implementation Interface And Productionization Gates|implementation_interface_contract|productionization_gate|missing_productionization_gate|production_ready' '$ROOT/agents/planner.md'"
+assert "planner emits loop contracts for LLM-driven action gates" "rg -q 'Loop Contract And LLM Action Gates|loop_contract_path|loop_action_path|loop_maturity_report_path|loop-maturity-audit' '$ROOT/agents/planner.md'"
 assert "planner emits slop quality gates for generated outputs" "rg -q 'Slop Quality Gate|slop_quality_gate|case_promotion_sources|generated-output surface' '$ROOT/agents/planner.md'"
 assert "planner omits slop quality gates when not applicable" "rg -q 'omit .*slop_quality_gate|Do not add the gate as ceremony' '$ROOT/agents/planner.md'"
 assert "code reviewer runs comprehension gate" "rg -q 'Comprehension Gate|comprehension_artifact|REVIEW REQUIRED|HOLD' '$ROOT/agents/code-reviewer.md'"
@@ -496,6 +531,7 @@ assert "verification discipline is task-class-aware" "rg -q 'build_validation|li
 assert "codegen context consumes verification_spec" "rg -q 'verification_spec' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context inlines scalable AI code primitives" "rg -q 'missing_scalable_code_primitives|Scalable AI Code Primitives|construct_map_refs|paved_road_refs|production_invariant_coverage' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context inlines implementation interface and productionization gates" "rg -q 'missing_implementation_interface_contract|missing_productionization_gate|overclaimed_production_ready|Implementation Interface|Productionization Gate' '$ROOT/skills/codegen-context/SKILL.md'"
+assert "codegen context inlines loop contracts and action gates" "rg -q 'missing_loop_contract|Loop Contract|loop-test-selection|loop-action-validate|loop-maturity-audit' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context inlines slop quality gates" "rg -q 'missing_slop_quality_gate|Slop Quality Gate|slop_quality_gate|case-promotion sources' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context consumes compact learning refs" "rg -q 'compound_context|learning_refs|Full solution-note bodies|Prior Learnings' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "reuse analysis checks docs solutions learning refs" "rg -q 'docs/solutions|compound_context.learning_refs|Learning Store Prior Art|no_op_reasons' '$ROOT/skills/reuse-analysis/SKILL.md'"
@@ -503,6 +539,7 @@ assert "DoD uses core baseline and overlays" "rg -q 'core baseline|overlay' '$RO
 assert "eval council checks applicability manifest" "rg -q 'applicability_manifest' '$ROOT/skills/eval-council/SKILL.md'"
 assert "eval council gates scalable AI code primitives" "rg -q 'Scalable AI Code Primitive Checks|unverifiable_delegation|paved_road_refs|production_invariant_coverage' '$ROOT/skills/eval-council/SKILL.md'"
 assert "eval council gates implementation interface and productionization claims" "rg -q 'Implementation Interface And Productionization Gate Checks|missing_implementation_interface_contract|missing_productionization_gate|overclaimed_production_ready' '$ROOT/skills/eval-council/SKILL.md'"
+assert "eval council gates loop maturity claims" "rg -q 'Loop System Maturity Checks|missing_loop_contract|missing_required_loop_tests|loop_action_not_admitted|self_autonomy_overclaim' '$ROOT/skills/eval-council/SKILL.md'"
 assert "eval council gates slop quality benchmarks" "rg -q 'Slop Quality Gate Checks|missing_slop_quality_gate|missing_slop_eval_cases|slop_regression|slop_score_below_threshold' '$ROOT/skills/eval-council/SKILL.md'"
 assert "fix loop uses primary verifier wording" "rg -q 'primary verifier' '$ROOT/skills/fix-loop/SKILL.md'"
 assert "shared emitter contract covers supported targets and local MCP providers" "rg -q 'GitHub|Linear|Notion|Work-item emitter|Document emitter|locally installed MCP provider|capability_bindings' '$ROOT/docs/specs/emitter-contract.md'"
@@ -510,6 +547,7 @@ assert "shared emitter contract preserves reuse and tech debt context" "rg -q 'r
 assert "shared emitter contract preserves artifact taxonomy and enterprise readiness" "rg -q 'artifact_type|decision_contract|enterprise_readiness_contract|validation_task|unresolved_dependency_alias' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves scalable AI code primitives" "rg -q 'construct_map_refs|paved_road_refs|intent_contract_refs|production_invariant_coverage' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves implementation interface and productionization gates" "rg -q 'implementation_interface_contract|productionization_gate|Coverage State|No-Overclaim|overclaimed_production_ready' '$ROOT/docs/specs/emitter-contract.md'"
+assert "shared emitter contract preserves loop contract refs" "rg -q 'loop_contract_path|loop_action_path|loop_maturity_report_path|Loop action checks' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves slop quality gates" "rg -q 'slop_quality_gate|case-promotion sources|generated-output behavior' '$ROOT/docs/specs/emitter-contract.md'"
 assert "JIRA ticket creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "Confluence decomposition respects applicability manifest" "rg -q 'contract_version|applicability_manifest|active Build Brief sections' '$ROOT/skills/confluence-decomposition/SKILL.md'"
@@ -518,10 +556,12 @@ assert "Linear ticket creation preserves verification contract" "rg -q 'contract
 assert "Linear ticket creation preserves artifact taxonomy and enterprise readiness" "rg -q 'artifact_type|Decision Contract|Compatibility Contract|Evidence Responsibilities|Definition of Done|enterprise readiness contract' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "work item emitters preserve scalable AI code primitives" "rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Scalable AI Code Primitives|Construct map refs|Paved-road refs|Production invariant coverage' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "work item emitters preserve implementation interface and productionization gates" "rg -q 'Implementation Interface Contract|Productionization Gate|Coverage State|No-Overclaim' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Implementation Interface Contract|Productionization Gate|Coverage State|No-Overclaim' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Implementation Interface Contract|Productionization Gate|Coverage State|No-Overclaim' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
+assert "work item emitters preserve loop contract refs" "rg -q 'Loop Contract refs|loop_contract_path|loop_action_path|loop_maturity_report_path' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Loop Contract refs|loop_contract_path|loop_action_path|loop_maturity_report_path' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Loop Contract refs|loop_contract_path|loop_action_path|loop_maturity_report_path' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "work item emitters preserve slop quality gates" "rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "emit-work-items preserves scalable AI code primitive refs" "assert_emit_preserves_scalable_primitives"
 assert "emit-work-items preserves task fingerprints" "assert_emit_preserves_task_fingerprints"
 assert "emit-work-items preserves implementation interface and productionization contracts" "assert_emit_preserves_implementation_and_productionization_contracts"
+assert "emit-work-items preserves loop contract refs" "assert_emit_preserves_loop_contract_refs"
 assert "emit-work-items preserves slop quality gates" "assert_emit_preserves_slop_quality_gate"
 assert "implementation interface productionization example is ready" "'$ROOT/bin/adlc' emit-work-items --target linear --build-brief '$ROOT/docs/build-briefs/implementation-interfaces-productionization-example.json' --dry-run --require-ready --json | jq -e '.readiness_report.status == \"ready\" and .artifacts[0].implementation_interface_contract.id == \"iface:adlc-iip-example\" and .artifacts[0].productionization_gate.coverage_state == \"production_ready\"' >/dev/null"
 assert "emit-work-items omits absent slop quality gates" "assert_emit_omits_absent_slop_quality_gate"
@@ -570,6 +610,7 @@ assert "WORKFLOW.dot no longer marks gen_tests as dashed" "! rg -q 'gen_tests .*
 assert "WORKFLOW.md table includes test-author row" "rg -q 'agents/test-author\\.md.*spec-to-tests, tdd-enforcement, qa-test-data' '$ROOT/WORKFLOW.md'"
 assert "WORKFLOW.md removes gen_tests tool block" "! rg -q '^gen_tests:' '$ROOT/WORKFLOW.md'"
 assert "coder consumes test_plan.json" "rg -q 'test_plan\\.json|test_plan_missing|generated_tests' '$ROOT/agents/coder.md'"
+assert "test author emits loop coverage tags" "rg -q 'loop_contract_path|coverage_tags|covers_required_tests|loop-test-selection' '$ROOT/agents/test-author.md'"
 assert "README lists spec-to-tests in core engineering" "rg -q 'spec-to-tests.*failing-test authoring from Brief' '$ROOT/README.md'"
 assert "README lists test-author agent" "rg -q '\\| \\*\\*test-author\\*\\* \\| Authors failing verifier tests from Brief \\| Sonnet \\| spec-to-tests, tdd-enforcement, qa-test-data \\|' '$ROOT/README.md'"
 assert "applicability-manifest verifier includes target_files and expected_failure_mode" "jq -e '.definitions.verifier.properties.target_files.type == \"array\" and .definitions.verifier.properties.expected_failure_mode.type == \"string\"' '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null"
@@ -578,6 +619,7 @@ assert "build-brief keeps string acceptance criteria for backward compatibility"
 assert "build-brief accepts structured acceptance criteria objects" "jq -e '.definitions.task.properties.acceptance_criteria.items.oneOf[] | select(.type==\"object\") | .properties.id.pattern == \"^AC-[A-Z0-9_-]+$\"' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "applicability manifest spec documents optional verifier fields" "rg -q 'Optional Fields|target_files|expected_failure_mode' '$ROOT/docs/specs/applicability-manifest.md'"
 assert "spec-to-tests skill declares all six quality gates" "rg -q 'acceptance_criteria.*>=1 generated test' '$ROOT/skills/spec-to-tests/SKILL.md' && rg -q 'Every test has at least one concrete assertion' '$ROOT/skills/spec-to-tests/SKILL.md' && rg -q 'Pre-change run captured; failure reason matches .*expected_failure_mode' '$ROOT/skills/spec-to-tests/SKILL.md' && rg -q 'Test file paths intersect .*verification_spec\\.target_files' '$ROOT/skills/spec-to-tests/SKILL.md' && rg -q 'Generated tests pass stop-slop anti-stub patterns' '$ROOT/skills/spec-to-tests/SKILL.md' && rg -q 'test_plan\\.json.*validates against the schema in this skill' '$ROOT/skills/spec-to-tests/SKILL.md'"
+assert "spec-to-tests enforces additive loop test selection" "rg -q 'mandatory_floor|required_from_task_signals|additive only|coverage_tags|covers_required_tests|loop-test-selection' '$ROOT/skills/spec-to-tests/SKILL.md'"
 
 echo ""
 echo "--- Post-Fix-0 Hardening ---"
@@ -635,6 +677,7 @@ assert "stop-slop content mode routes through slop-judge with schema" "rg -q 'sl
 assert "stop-slop defines output eval loop" "rg -q 'Output Eval Loop|slop_quality_gate|Pre-ship regression|case_promotion_sources' '$ROOT/skills/stop-slop/SKILL.md'"
 assert "slop-judge returns numeric scores and candidate cases" "rg -q 'criterion_scores|regression_delta|new_eval_case_candidate|missing_benchmark' '$ROOT/skills/slop-judge/SKILL.md'"
 assert "feedback loop promotes slop failures into eval cases" "rg -q 'Eval Case Promotion|candidate eval cases|slop_removal|new_eval_case_candidate' '$ROOT/skills/feedback-loop/SKILL.md'"
+assert "systematic debugging records loop progress and no-progress signals" "rg -q 'loop_progress|no_progress_count|control_events|safe_checkpoint|escalation_context' '$ROOT/skills/systematic-debugging/SKILL.md'"
 assert "manifest registers stop-slop slop quality outputs" "jq -e '.skills[] | select(.name==\"stop-slop\") | .activation.consumes_manifest == true and (.activation.produces | index(\"slop_quality_report\")) != null and (.activation.produces | index(\"slop_eval_case_candidates\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "manifest registers slop-judge score outputs" "jq -e '.skills[] | select(.name==\"slop-judge\") | .contract_version == \"2.0.0\" and (.activation.produces | index(\"slop_quality_score\")) != null and (.activation.produces | index(\"slop_eval_case_candidates\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "triage extracts signal features and low_confidence judge output" "rg -q 'Deterministic Feature Extraction|signal_features|low_confidence_judge' '$ROOT/agents/triage.md'"
@@ -742,6 +785,7 @@ assert "WORKFLOW.dot routes compound preflight before research" "rg -q 'triage -
 assert "WORKFLOW.dot routes learning capture before engineer review" "rg -q 'pr_prep -> learning_capture' '$ROOT/WORKFLOW.dot' && rg -q 'learning_capture -> engineer_review.*label=\"pass\"' '$ROOT/WORKFLOW.dot'"
 assert "WORKFLOW.md binds compound context and learning capture" "rg -q 'bin/adlc compound-context|docs/solutions|scripts/validate_learning_entry.py' '$ROOT/WORKFLOW.md'"
 assert "agent-native interface documents compound context" "rg -q 'compound-context|docs/solutions|task-level fingerprints|compound_context' '$ROOT/docs/specs/agent-native-interface.md'"
+assert "agent-native interface documents loop MCP commands" "rg -q 'loop-test-selection|loop-action-validate|loop-maturity-audit|loop_action_validate|loop_maturity_audit' '$ROOT/docs/specs/agent-native-interface.md'"
 
 echo ""
 echo "--- Work-Item Reconciliation ---"

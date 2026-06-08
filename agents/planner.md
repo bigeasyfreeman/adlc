@@ -61,6 +61,7 @@ Build Briefs must preserve the primitives that keep AI-generated code scalable:
 - **Verifiability gate:** classify whether the task is deterministic, bounded judgment, or unverifiable. Unverifiable work becomes a `decision_gate` or explicit human checkpoint instead of autonomous implementation.
 - **Production invariant coverage:** when the task touches identity, auth, tenancy, data integrity, persistence, ordering, retries, idempotency, sensitive data, migrations, downgrade, or observability, name the invariant and how the verifier or DoD protects it.
 - **Productionization gate:** when a task makes or changes a production support claim, include Coverage State, validation evidence, operational readiness, security/privacy posture, reliability failure modes, and No-Overclaim boundaries.
+- **Loop Contract:** when a task creates or changes an LLM-driven action loop, name the win condition, allowed tools, feedback channels, mandatory and required tests, additive-only test discretion, safe checkpoint, progress signal, control channel, independent truth, and escalation rules.
 
 Do not turn these primitives into generic production-readiness prose. Every claim needs a path, graph query, schema, test, fixture, command, or context artifact.
 
@@ -87,6 +88,28 @@ For each production support claim, include `productionization_gate` with:
 - `no_overclaim`
 
 Return `revise` or emit a blocking validation task when an active surface is missing the needed `implementation_interface_contract`. Return `revise` with `missing_productionization_gate` when a production claim lacks a gate. Never label a task `production_ready` unless the evidence supports it; otherwise use a lower coverage state and a concrete no-overclaim boundary.
+
+## Loop Contract And LLM Action Gates
+
+ADLC is LLM-driven with deterministic constraints. For each task that creates or changes an autonomous loop, LLM action admission, tool-calling policy, self-healing behavior, test-selection policy, workflow control channel, escalation path, or maturity claim, include a Loop Contract reference on the task or its `work_item_metadata`:
+
+- `loop_contract_path`: JSON artifact that validates against `docs/schemas/loop-contract.schema.json`
+- `loop_action_path`: optional LLM Action Envelope that validates against `docs/schemas/loop-action.schema.json`
+- `loop_maturity_report_path`: optional maturity evidence that validates against `docs/schemas/loop-maturity-report.schema.json`
+
+The Loop Contract must define:
+
+- job and deterministic win condition
+- allowed tools and actions
+- real feedback after every step
+- stop, steer, abort, and escalation rules
+- mandatory test floor and required tests computed from task signals
+- additive-only agent test discretion
+- safe bail state and idempotent checkpoint
+- progress signal, no-progress threshold, and escalation context
+- independent truth source so the loop does not grade only its own output
+
+If a task claims `self_autonomous`, require `bin/adlc loop-maturity-audit` evidence with no 0-1 scores for win condition, test selection, or failure handling. Otherwise use `assisted_loop` or `one_shot_in_disguise` honestly. Do not credit intentions; credit only schemas, tests, workflow state, tool output, and cited evidence.
 
 ## Slop Quality Gate
 
@@ -152,6 +175,7 @@ Task-writing rules:
 - Every task that changes code must cite `paved_road_refs` or explicitly state `no_paved_road_found` with the closest convention and review rationale.
 - Every task that changes an integration boundary, schema, emitter payload, workflow state, CLI contract, provider edge, or reusable framework surface must include `implementation_interface_contract`.
 - Every task that makes a production support claim must include `productionization_gate`; use a lower Coverage State rather than overclaiming `production_ready`.
+- Every task that delegates decisions or actions to an LLM loop must include `loop_contract_path` and must name the required `bin/adlc loop-test-selection`, `bin/adlc loop-action-validate`, or `bin/adlc loop-maturity-audit` verifier that proves deterministic control of that loop.
 - If a task introduces a new abstraction, justify why the existing pattern cannot absorb the change without creating worse coupling.
 - If tech debt must be paid down before feature work, split that work into an explicit prerequisite task rather than burying it in implementation notes.
 - `anti_slop_rules` must forbid reimplementing cited helpers, services, or patterns when they already exist.
@@ -210,6 +234,8 @@ Prompt for a Type 1 decision as soon as it is detected. If it remains unresolved
     "production_invariant_coverage": [],
     "implementation_interface_contracts": [],
     "productionization_gates": [],
+    "loop_contract_refs": [],
+    "loop_maturity_reports": [],
     "context_layer_requirements": [],
     "dark_code_hotspots": [],
     "open_questions": [],

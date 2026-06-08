@@ -15,6 +15,7 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 import uuid
 import warnings
 from datetime import datetime, timezone
@@ -30,6 +31,9 @@ SCHEMA_ALIASES = {
     "build-brief": "docs/schemas/build-brief.schema.json",
     "coder-output": "docs/schemas/coder-output.schema.json",
     "council-verdict": "docs/schemas/council-verdict-output.schema.json",
+    "loop-action": "docs/schemas/loop-action.schema.json",
+    "loop-contract": "docs/schemas/loop-contract.schema.json",
+    "loop-maturity-report": "docs/schemas/loop-maturity-report.schema.json",
     "test-author-output": "docs/schemas/test-author-output.schema.json",
     "test-strength-output": "docs/schemas/test-strength-output.schema.json",
     "triage-output": "docs/schemas/triage-output.schema.json",
@@ -589,6 +593,11 @@ def command_resume_workflow(args: argparse.Namespace) -> int:
             "node": node_by_id.get(state["phase"]),
             "runnable": state["status"] == "planned" and state["phase"] not in {"done", "escalate"},
             "task_resume_status": task_fingerprint_summary(state),
+            "loop_progress": state.get("loop_progress"),
+            "no_progress_count": state.get("no_progress_count", 0),
+            "control_events": state.get("control_events", []),
+            "safe_checkpoint": state.get("safe_checkpoint"),
+            "escalation_context": state.get("escalation_context"),
         }
         state.setdefault("checkpoint", {})["next_action"] = next_action
         save_workflow_state(state_path, state)
@@ -1448,6 +1457,9 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "target_project": meta.get("target_project"),
             "labels": meta.get("labels", []),
             "external_refs": meta.get("external_refs", []),
+            "loop_contract_path": meta.get("loop_contract_path"),
+            "loop_action_path": meta.get("loop_action_path"),
+            "loop_maturity_report_path": meta.get("loop_maturity_report_path"),
             "linked_failure_modes": task.get("failure_modes", []),
             "idempotency_key": idempotency_key,
             "emission_status": "deduplicated" if idempotency_key in terminal_keys else "pending",
@@ -1474,6 +1486,9 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             artifact["productionization_gate"] = task["productionization_gate"]
         if task.get("slop_quality_gate") is not None:
             artifact["slop_quality_gate"] = task["slop_quality_gate"]
+        for optional_key in ("loop_contract_path", "loop_action_path", "loop_maturity_report_path"):
+            if artifact.get(optional_key) is None:
+                artifact.pop(optional_key, None)
         artifacts.append(artifact)
 
     dependency_links = []
@@ -1708,6 +1723,374 @@ def emit_work_items_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, An
     return (1 if provider_failed or partial_failure else 0), result
 
 
+def cli_input_path(raw_path: str, base: Path | None = None) -> Path:
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    return (base or Path.cwd()) / path
+
+
+def required_test_ids(contract: Dict[str, Any]) -> List[str]:
+    selection = contract.get("test_selection", {})
+    items = []
+    for key in ("mandatory_floor", "required_from_task_signals"):
+        value = selection.get(key, [])
+        if isinstance(value, list):
+            items.extend(value)
+    ids = []
+    for item in items:
+        if isinstance(item, dict) and isinstance(item.get("id"), str):
+            ids.append(item["id"])
+    return ids
+
+
+def provided_required_test_ids(test_plan: Dict[str, Any]) -> set:
+    provided = set()
+    for test in test_plan.get("generated_tests", []):
+        if not isinstance(test, dict):
+            continue
+        for key in ("covers_required_tests", "coverage_tags"):
+            values = test.get(key, [])
+            if isinstance(values, list):
+                for value in values:
+                    if isinstance(value, str):
+                        provided.add(value)
+    return provided
+
+
+def loop_test_selection_payload(contract_path: Path, test_plan_path: Path) -> Dict[str, Any]:
+    contract_errors = validate_artifact(resolve_schema("loop-contract"), contract_path)
+    if contract_errors:
+        raise ValueError("loop contract failed schema validation: " + "; ".join(contract_errors))
+    contract = read_json(contract_path)
+    test_plan = read_json(test_plan_path)
+
+    required = required_test_ids(contract)
+    provided = provided_required_test_ids(test_plan)
+    missing = [test_id for test_id in required if test_id not in provided]
+    generated_tests = test_plan.get("generated_tests", [])
+    untagged = [
+        test.get("test_name") or test.get("test_path") or "<unknown>"
+        for test in generated_tests
+        if isinstance(test, dict) and not test.get("coverage_tags")
+    ]
+    issues = []
+    if missing:
+        issues.append(
+            {
+                "rule": "missing_required_tests",
+                "message": "test plan omits required loop tests",
+                "missing_required_tests": missing,
+            }
+        )
+    if untagged:
+        issues.append(
+            {
+                "rule": "missing_coverage_tags",
+                "message": "generated tests must carry machine-readable coverage_tags",
+                "tests": untagged,
+            }
+        )
+
+    return {
+        "status": "blocked" if issues else "pass",
+        "contract_id": contract.get("contract_id"),
+        "required_tests": required,
+        "provided_required_tests": sorted(provided),
+        "missing_required_tests": missing,
+        "issues": issues,
+        "test_plan": rel_path(test_plan_path),
+    }
+
+
+def command_loop_test_selection(args: argparse.Namespace) -> int:
+    try:
+        payload = loop_test_selection_payload(
+            cli_input_path(args.loop_contract),
+            cli_input_path(args.test_plan),
+        )
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['contract_id']}: loop test selection {payload['status']}")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def latest_pending_control_event(state: Dict[str, Any]) -> Dict[str, Any] | None:
+    for event in reversed(state.get("control_events", [])):
+        if isinstance(event, dict) and event.get("status") == "pending":
+            return event
+    return None
+
+
+def loop_action_validate_payload(contract_path: Path, action_path: Path, state_path: Path | None = None) -> Dict[str, Any]:
+    contract_errors = validate_artifact(resolve_schema("loop-contract"), contract_path)
+    action_errors = validate_artifact(resolve_schema("loop-action"), action_path)
+    if contract_errors:
+        raise ValueError("loop contract failed schema validation: " + "; ".join(contract_errors))
+    if action_errors:
+        raise ValueError("loop action failed schema validation: " + "; ".join(action_errors))
+    contract = read_json(contract_path)
+    action = read_json(action_path)
+    state = load_workflow_state(state_path) if state_path else {}
+
+    allowed = {
+        tool.get("name"): set(tool.get("actions", []))
+        for tool in contract.get("allowed_tools", [])
+        if isinstance(tool, dict)
+    }
+    issues = []
+    tool = action.get("tool")
+    action_type = action.get("action_type")
+    if tool not in allowed:
+        issues.append({"rule": "tool_not_allowed", "message": f"tool is not allowed by Loop Contract: {tool}"})
+    elif action_type not in allowed[tool]:
+        issues.append(
+            {
+                "rule": "action_not_allowed_for_tool",
+                "message": f"action {action_type} is not allowed for tool {tool}",
+            }
+        )
+
+    pending_control = latest_pending_control_event(state)
+    if pending_control and pending_control.get("event_type") in {"abort", "interrupt"} and action_type not in {"abort", "escalate"}:
+        issues.append(
+            {
+                "rule": "blocked_by_control_event",
+                "message": f"pending {pending_control.get('event_type')} control event blocks action",
+            }
+        )
+
+    if action.get("safe_checkpoint_required"):
+        checkpoint = state.get("safe_checkpoint")
+        if not isinstance(checkpoint, dict) or checkpoint.get("idempotent") is not True:
+            issues.append(
+                {
+                    "rule": "missing_safe_checkpoint",
+                    "message": "action requires an idempotent safe checkpoint",
+                }
+            )
+
+    if action_type == "run_tests":
+        required = set(required_test_ids(contract))
+        satisfied = set(action.get("satisfies_required_tests", []))
+        missing = sorted(required - satisfied)
+        if missing:
+            issues.append(
+                {
+                    "rule": "action_skips_required_tests",
+                    "message": "LLM-proposed action does not satisfy all required tests",
+                    "missing_required_tests": missing,
+                }
+            )
+
+    escalation_context = state.get("escalation_context") if isinstance(state, dict) else None
+    if issues:
+        status = "rejected"
+    elif action_type == "escalate":
+        status = "escalate"
+    else:
+        status = "admitted"
+
+    return {
+        "status": status,
+        "contract_id": contract.get("contract_id"),
+        "action_id": action.get("action_id"),
+        "action_type": action_type,
+        "tool": tool,
+        "issues": issues,
+        "escalation_context": escalation_context if status == "escalate" else None,
+        "evidence_refs": action.get("evidence_refs", []),
+    }
+
+
+def command_loop_action_validate(args: argparse.Namespace) -> int:
+    try:
+        state_path = cli_input_path(args.state) if args.state else None
+        payload = loop_action_validate_payload(
+            cli_input_path(args.loop_contract),
+            cli_input_path(args.action),
+            state_path,
+        )
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['action_id']}: loop action {payload['status']}")
+    return 0 if payload["status"] in {"admitted", "escalate"} else 1
+
+
+def dimension(score: int, evidence: str, refs: List[str], missing: List[str] | None = None) -> Dict[str, Any]:
+    return {
+        "score": score,
+        "one_line_evidence": evidence,
+        "evidence_refs": refs,
+        "missing_mechanisms": missing or [],
+    }
+
+
+def maturity_verdict(scores: Dict[str, Dict[str, Any]], requested: str) -> str:
+    low_scores = [item["score"] for item in scores.values() if item["score"] <= 1]
+    critical_low = any(
+        scores[key]["score"] <= 1
+        for key in ("win_condition_rigor", "test_selection_cannot_be_gamed", "failure_handling_escalation")
+    )
+    mostly_robust = sum(1 for item in scores.values() if item["score"] == 3) >= 5
+    if low_scores and len(low_scores) >= 2:
+        return "one_shot_in_disguise"
+    if requested == "self_autonomous" and mostly_robust and not critical_low:
+        return "self_autonomous"
+    return "assisted_loop"
+
+
+def loop_maturity_audit_payload(
+    contract_path: Path,
+    workflow_path: Path | None = None,
+    state_path: Path | None = None,
+    test_plan_path: Path | None = None,
+    action_path: Path | None = None,
+) -> Dict[str, Any]:
+    contract_errors = validate_artifact(resolve_schema("loop-contract"), contract_path)
+    if contract_errors:
+        raise ValueError("loop contract failed schema validation: " + "; ".join(contract_errors))
+    contract = read_json(contract_path)
+    state = load_workflow_state(state_path) if state_path else {}
+    test_plan = read_json(test_plan_path) if test_plan_path and test_plan_path.is_file() else {}
+
+    test_required = required_test_ids(contract)
+    test_missing = sorted(set(test_required) - provided_required_test_ids(test_plan)) if test_plan else test_required
+    has_workflow = bool(workflow_path and workflow_path.is_file())
+    has_progress = isinstance(state.get("loop_progress"), dict)
+    has_control = bool(state.get("control_events")) and isinstance(state.get("safe_checkpoint"), dict)
+    has_escalation = isinstance(state.get("escalation_context"), dict)
+    action_admission = {"status": "not_evaluated", "evidence_refs": []}
+    if action_path:
+        action_payload = loop_action_validate_payload(contract_path, action_path, state_path)
+        action_admission = {
+            "status": action_payload["status"],
+            "evidence_refs": action_payload.get("evidence_refs", []),
+        }
+
+    test_score = 3 if not test_missing and contract["test_selection"].get("additive_agent_tests") is True else 1
+    control_score = 2 if has_control else 1
+    failure_score = 2 if has_escalation and contract.get("stop_escalate_rules", {}).get("no_progress_after") else 1
+    scores = {
+        "real_loop_vs_one_shot": dimension(
+            2 if has_workflow and contract.get("feedback_channels") else 1,
+            "Workflow graph and feedback channels are present." if has_workflow else "Workflow evidence is missing.",
+            [rel_path(workflow_path)] if workflow_path else [],
+            [] if has_workflow else ["workflow graph evidence"],
+        ),
+        "win_condition_rigor": dimension(
+            2 if contract.get("job_win_condition", {}).get("deterministic_checks") else 1,
+            "Loop Contract declares deterministic done checks.",
+            [rel_path(contract_path)],
+            [],
+        ),
+        "test_selection_cannot_be_gamed": dimension(
+            test_score,
+            "Required test floor is satisfied." if not test_missing else "Required tests are missing.",
+            [rel_path(test_plan_path)] if test_plan_path else [],
+            [f"missing {item}" for item in test_missing],
+        ),
+        "self_grading_risk": dimension(
+            1 if contract.get("independent_truth", {}).get("type") == "agent_self_assessment" else 2,
+            "Independent truth is declared outside model self-assessment.",
+            contract.get("independent_truth", {}).get("evidence", []),
+            [],
+        ),
+        "feedback_fidelity": dimension(
+            2 if contract.get("feedback_channels") and has_progress else 1,
+            "Feedback channels and workflow observations are modeled." if has_progress else "Workflow observations are not modeled.",
+            [rel_path(state_path)] if state_path else [],
+            [] if has_progress else ["loop progress observations"],
+        ),
+        "control_channel": dimension(
+            control_score,
+            "State-level control channel and safe checkpoint are modeled." if has_control else "Control channel state is missing.",
+            [rel_path(state_path)] if state_path else [],
+            [] if has_control else ["control events", "safe checkpoint"],
+        ),
+        "failure_handling_escalation": dimension(
+            failure_score,
+            "No-progress escalation context is modeled." if has_escalation else "Escalation context is missing.",
+            [rel_path(state_path)] if state_path else [],
+            [] if has_escalation else ["escalation context"],
+        ),
+    }
+    verdict = maturity_verdict(scores, contract.get("autonomy_claim", "assisted_loop"))
+
+    if test_missing:
+        highest_gap = "Complete non-gameable test selection by covering all required tests."
+    elif control_score <= 1:
+        highest_gap = "Add control events and safe checkpoint evidence."
+    elif failure_score <= 1:
+        highest_gap = "Add no-progress and escalation context evidence."
+    else:
+        highest_gap = "Move from fixture-level evidence to runtime enforcement across all autonomous loop phases."
+
+    report = {
+        "contract_version": "1.0.0",
+        "report_id": f"report:{contract.get('contract_id')}",
+        "loop_contract_id": contract.get("contract_id"),
+        "maturity_verdict": verdict,
+        "action_admission": action_admission,
+        "dimension_scores": scores,
+        "highest_leverage_gap": highest_gap,
+        "prioritized_gaps": {
+            "blocks_autonomy": [highest_gap] if verdict != "self_autonomous" else [],
+            "fragile_under_load": ["Runtime enforcement remains broader than fixture validation."],
+            "polish": ["Render maturity reports for human review."],
+        },
+        "one_question": "Which ADLC workflow should be the first production self-autonomous loop rather than assisted loop?",
+    }
+    errors = validate_artifact_payload(resolve_schema("loop-maturity-report"), report)
+    if errors:
+        raise ValueError("generated loop maturity report failed schema validation: " + "; ".join(errors))
+    return report
+
+
+def validate_artifact_payload(schema_path: Path, artifact: Dict[str, Any]) -> List[str]:
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as handle:
+        tmp_path = Path(handle.name)
+        handle.write(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
+    try:
+        return validate_artifact(schema_path, tmp_path)
+    finally:
+        try:
+            tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def command_loop_maturity_audit(args: argparse.Namespace) -> int:
+    try:
+        output_path = cli_input_path(args.output) if args.output else None
+        payload = loop_maturity_audit_payload(
+            contract_path=cli_input_path(args.loop_contract),
+            workflow_path=cli_input_path(args.workflow) if args.workflow else None,
+            state_path=cli_input_path(args.state) if args.state else None,
+            test_plan_path=cli_input_path(args.test_plan) if args.test_plan else None,
+            action_path=cli_input_path(args.action) if args.action else None,
+        )
+        if output_path:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['loop_contract_id']}: {payload['maturity_verdict']}")
+    return 0
+
+
 def command_emit_work_items(args: argparse.Namespace) -> int:
     try:
         exit_code, payload = emit_work_items_payload(args)
@@ -1863,6 +2246,50 @@ def mcp_tools() -> List[Dict[str, Any]]:
                 },
             },
         },
+        {
+            "name": "adlc_loop_test_selection",
+            "description": "Validate that a test plan covers every required Loop Contract test and uses machine-readable coverage tags.",
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["loop_contract", "test_plan"],
+                "properties": {
+                    "loop_contract": {"type": "string", "minLength": 1},
+                    "test_plan": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": "adlc_loop_action_validate",
+            "description": "Validate an LLM-proposed loop action against allowed tools, required tests, control events, and safe checkpoints.",
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["loop_contract", "action"],
+                "properties": {
+                    "loop_contract": {"type": "string", "minLength": 1},
+                    "action": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": "adlc_loop_maturity_audit",
+            "description": "Score loop-system maturity from a Loop Contract plus workflow, state, test-plan, and action evidence.",
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["loop_contract"],
+                "properties": {
+                    "loop_contract": {"type": "string", "minLength": 1},
+                    "workflow": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "test_plan": {"type": "string", "minLength": 1},
+                    "action": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
     ]
 
 
@@ -1931,6 +2358,11 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             "node": node_by_id.get(state["phase"]),
             "runnable": state["status"] == "planned" and state["phase"] not in {"done", "escalate"},
             "task_resume_status": task_fingerprint_summary(state),
+            "loop_progress": state.get("loop_progress"),
+            "no_progress_count": state.get("no_progress_count", 0),
+            "control_events": state.get("control_events", []),
+            "safe_checkpoint": state.get("safe_checkpoint"),
+            "escalation_context": state.get("escalation_context"),
         }
         state.setdefault("checkpoint", {})["next_action"] = next_action
         save_workflow_state(state_path, state)
@@ -1969,6 +2401,45 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             brief_path = ROOT / brief_path
         payload = slop_gate_payload(brief_path)
         return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_loop_test_selection":
+        loop_contract = arguments.get("loop_contract")
+        test_plan = arguments.get("test_plan")
+        if not isinstance(loop_contract, str) or not isinstance(test_plan, str):
+            raise ValueError("adlc_loop_test_selection requires string arguments: loop_contract, test_plan")
+        payload = loop_test_selection_payload(
+            cli_input_path(loop_contract, ROOT),
+            cli_input_path(test_plan, ROOT),
+        )
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_loop_action_validate":
+        loop_contract = arguments.get("loop_contract")
+        action = arguments.get("action")
+        state = arguments.get("state")
+        if not isinstance(loop_contract, str) or not isinstance(action, str):
+            raise ValueError("adlc_loop_action_validate requires string arguments: loop_contract, action")
+        payload = loop_action_validate_payload(
+            cli_input_path(loop_contract, ROOT),
+            cli_input_path(action, ROOT),
+            cli_input_path(state, ROOT) if isinstance(state, str) else None,
+        )
+        return tool_result(payload, is_error=payload["status"] == "rejected")
+    if name == "adlc_loop_maturity_audit":
+        loop_contract = arguments.get("loop_contract")
+        if not isinstance(loop_contract, str):
+            raise ValueError("adlc_loop_maturity_audit requires string argument: loop_contract")
+        output = arguments.get("output")
+        payload = loop_maturity_audit_payload(
+            contract_path=cli_input_path(loop_contract, ROOT),
+            workflow_path=cli_input_path(arguments["workflow"], ROOT) if isinstance(arguments.get("workflow"), str) else None,
+            state_path=cli_input_path(arguments["state"], ROOT) if isinstance(arguments.get("state"), str) else None,
+            test_plan_path=cli_input_path(arguments["test_plan"], ROOT) if isinstance(arguments.get("test_plan"), str) else None,
+            action_path=cli_input_path(arguments["action"], ROOT) if isinstance(arguments.get("action"), str) else None,
+        )
+        if isinstance(output, str):
+            output_path = cli_input_path(output, ROOT)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return tool_result(payload, is_error=payload["maturity_verdict"] == "one_shot_in_disguise")
     raise KeyError(f"Unknown tool: {name}")
 
 
@@ -2068,6 +2539,30 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--input", required=True, help="Artifact JSON path.")
     validate.add_argument("--json", action="store_true", help="Emit JSON.")
     validate.set_defaults(func=command_validate_artifact)
+
+    loop_tests = subparsers.add_parser("loop-test-selection", help="Validate Loop Contract required-test coverage.")
+    loop_tests.add_argument("--loop-contract", required=True, help="Loop Contract JSON path.")
+    loop_tests.add_argument("--test-plan", required=True, help=".adlc/test_plan.json-compatible path.")
+    loop_tests.add_argument("--json", action="store_true", help="Emit JSON.")
+    loop_tests.set_defaults(func=command_loop_test_selection)
+
+    loop_action = subparsers.add_parser("loop-action-validate", help="Validate an LLM-proposed loop action before execution.")
+    loop_action.add_argument("--loop-contract", required=True, help="Loop Contract JSON path.")
+    loop_action.add_argument("--action", required=True, help="Loop Action JSON path.")
+    loop_action.add_argument("--state", help="Workflow state path.")
+    loop_action.add_argument("--json", action="store_true", help="Emit JSON.")
+    loop_action.set_defaults(func=command_loop_action_validate)
+
+    loop_maturity = subparsers.add_parser("loop-maturity-audit", help="Score loop-system maturity from contract and evidence.")
+    loop_maturity.add_argument("--loop-contract", required=True, help="Loop Contract JSON path.")
+    loop_maturity.add_argument("--workflow", help="Workflow graph path.")
+    loop_maturity.add_argument("--state", help="Workflow state path.")
+    loop_maturity.add_argument("--build-brief", help="Build Brief JSON path for future task-signal scoring.")
+    loop_maturity.add_argument("--test-plan", help=".adlc/test_plan.json-compatible path.")
+    loop_maturity.add_argument("--action", help="Optional Loop Action JSON path to include admission status.")
+    loop_maturity.add_argument("--output", help="Optional output report path.")
+    loop_maturity.add_argument("--json", action="store_true", help="Emit JSON.")
+    loop_maturity.set_defaults(func=command_loop_maturity_audit)
 
     run = subparsers.add_parser("run", help="Run or dry-run ADLC workflow phases with persisted state.")
     run.add_argument("--brief-id", help="Build Brief ID. Required when creating new state without --input.")

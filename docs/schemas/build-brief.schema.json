@@ -501,6 +501,18 @@
                 "type": "string",
                 "minLength": 1
               }
+            },
+            "loop_contract_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "loop_action_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "loop_maturity_report_path": {
+              "type": "string",
+              "minLength": 1
             }
           }
         },

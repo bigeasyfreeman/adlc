@@ -1,0 +1,35 @@
+{
+  "brief_id": "ADLC-LOOP-SYSTEM-MATURITY-AUDIT",
+  "task_id": "ADLC-LSMA-003",
+  "generated_tests": [
+    {
+      "ac_id": "AC-ADLC_LSMA_003-FLOOR",
+      "test_path": "tests/test_adlc_cli.sh",
+      "test_name": "loop_contract_schema_validation",
+      "expected_pre_change_failure_reason": "loop contract schema alias missing",
+      "assertion_count": 1,
+      "coverage_tags": ["schema", "loop-contract"],
+      "covers_required_tests": ["floor:schema"]
+    },
+    {
+      "ac_id": "AC-ADLC_LSMA_003-REQUIRED",
+      "test_path": "tests/test_adlc_cli.sh",
+      "test_name": "loop_test_selection_required_signal",
+      "expected_pre_change_failure_reason": "loop-test-selection command missing",
+      "assertion_count": 1,
+      "coverage_tags": ["test-selection", "required-tests"],
+      "covers_required_tests": ["required:test-selection"]
+    }
+  ],
+  "pre_change_run_path": ".adlc/pre_change_run.txt",
+  "verifier_target_intersection": true,
+  "self_check": {
+    "gate_1": "pass",
+    "gate_2": "pass",
+    "gate_3": "pass",
+    "gate_4": "pass",
+    "gate_5": "pass",
+    "gate_6": "pass"
+  }
+}
+

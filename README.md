@@ -5,7 +5,7 @@ Agentic Development Lifecycle.
 ADLC is a graph-driven framework for turning scoped work into reviewed code. The source tree contains agent configs, skill definitions, deterministic evaluators, and runtime adapter targets. `setup.sh` derives install counts from the repository so the shipped inventory stays truthful as the framework changes.
 
 ```
-Build Loop:  PRD → Compound Preflight → Graph Research → Brief (Implementation Interface + Productionization Gate) → Council → Scaffold → LDD → TDD → Code → Comprehension Gate → PR → Learning Capture → You
+Build Loop:  PRD → Compound Preflight → Graph Research → Brief (Loop Contract + Implementation Interface + Productionization Gate) → Council → Scaffold → LDD → TDD → Code → Comprehension Gate → PR → Learning Capture → You
 Fix Loop:    Capture → Confirm → Investigate → Fix → Prove → Council → PR
 Feedback:    Human edits → Diff capture → Pattern distill → Skill update
 ```
@@ -57,6 +57,39 @@ cp -r skills/codebase-research/ ~/my-project/.claude/skills/codebase-research/
 
 ## Pipeline
 
+### Current Operating Model
+
+ADLC now operates as an LLM-driven development system with deterministic control gates. The LLM still performs the judgment-heavy work: triage, research synthesis, planning, code generation, review, and repair. ADLC constrains those actions with schemas, verifier contracts, readiness checks, test-selection gates, workflow state, and explicit escalation rules.
+
+The shipped framework layers are:
+
+| Layer | What It Gives ADLC | How It Is Used |
+|---|---|---|
+| Compound engineering | Prior verified work, task refs, verifier refs, resume context, and graph status as compact context | `bin/adlc compound-context` before research |
+| Scalable code primitives | Construct refs, paved-road reuse, intent contracts, production invariants, and verifiability | Build Brief task fields and Eval Council checks |
+| Implementation Interface | Task-scoped contract for what a change reuses, consumes, emits, preserves, integrates with, and validates | Active when a task touches repo boundaries, schemas, emitters, providers, workflow state, CLI contracts, or reusable framework surfaces |
+| Productionization Gate | Bounded production claim with Coverage State, evidence, rollback/observability/security posture, reliability risks, and No-Overclaim boundaries | Active when a task claims production support or production readiness |
+| Slop Quality Gate | Output-side benchmark, threshold, eval cases, and failure action for generated-output surfaces | Active when a task changes prompt/model/agent/generated content behavior |
+| Loop Contract | LLM action-loop contract: job, win condition, allowed tools, real feedback, required tests, progress, control channel, safe checkpoint, independent truth, and escalation | Active when a task delegates decisions, tool use, test selection, retry/repair, escalation, or maturity claims to an LLM loop |
+
+The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, retry caps, workflow state, compound context, readiness gates, test-strength checks, and now Loop Contract admission gates. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, or failure handling.
+
+What is automatic today:
+
+- schema validation for Build Briefs, workflow state, agent outputs, Loop Contracts, Loop Actions, and maturity reports
+- readiness blocking through `emit-work-items --require-ready`
+- generated-output slop gate checks when a generated-output surface is active
+- implementation-interface and productionization overclaim checks
+- Loop Contract test-selection, action-admission, and maturity-audit CLI/MCP tools
+- resume summaries for task fingerprints, loop progress, no-progress count, control events, safe checkpoints, and escalation context
+
+What is still explicit:
+
+- Loop Contracts are activated by task/workflow surface evidence; ADLC does not force them onto deterministic docs, lint, or build-validation work.
+- LLM runtime invocation still goes through the selected adapter: Claude, Codex, Cursor, Antigravity, or Factory.
+- Live process kill switches and provider-specific rollback are not claimed by default; state-level steer, abort, interrupt, escalate, safe checkpoint, and rollback notes are the current supported control model.
+- Full self-autonomy is a per-workflow evidence claim, not the default framework claim.
+
 ### Build Loop
 
 ```
@@ -69,8 +102,10 @@ start → triage → compound_preflight (learning refs + resume context) → res
 Overlay gates are driven by the Build Brief `applicability_manifest` and task
 surface evidence. Implementation Interface contracts and Productionization Gate
 claims are optional Build Brief layers; they activate when repo integration or
-production-ready claims are in scope. Inactive overlays are skipped or recorded
-as explicit no-ops; they are not filler sections every task must satisfy.
+production-ready claims are in scope. Loop Contracts activate when ADLC delegates
+decisions, tool use, test selection, retry/repair, escalation, or maturity claims
+to an LLM-driven loop. Inactive overlays are skipped or recorded as explicit
+no-ops; they are not filler sections every task must satisfy.
 `compound_preflight` also no-ops explicitly when `docs/solutions` or
 `graphify-out` is missing, so new repos do not pay setup tax before research.
 
@@ -127,9 +162,22 @@ bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc resume-workflow --workspace . --json
 bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
+bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
+bin/adlc loop-action-validate --loop-contract docs/loop-contracts/task.json --action .adlc/loop_action.json --state .adlc/workflow_state.json --json
+bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --json
 bin/adlc emit-work-items --target linear --build-brief .adlc/build_brief.json --dry-run --json
 bin/adlc mcp-tools --json
 bin/adlc mcp-serve
+```
+
+Minimal Loop Contract flow:
+
+```bash
+bin/adlc validate-artifact --schema loop-contract --input docs/loop-contracts/task.json --json
+bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
+bin/adlc validate-artifact --schema loop-action --input .adlc/loop_action.json --json
+bin/adlc loop-action-validate --loop-contract docs/loop-contracts/task.json --action .adlc/loop_action.json --state .adlc/workflow_state.json --json
+bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --action .adlc/loop_action.json --json
 ```
 
 Public-repo hygiene is intentional:
@@ -162,7 +210,7 @@ Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 Skill definitions are injected into agents at startup. Runtime install counts are derived by `setup.sh` rather than hardcoded in docs.
 
 **Core Engineering:**
-`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (22-check DoD) · `spec-to-tests` (failing-test authoring from Brief)
+`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (22-check DoD) · `spec-to-tests` (failing-test authoring from Brief, with Loop Contract coverage tags when active)
 
 **Security:**
 `security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`
@@ -204,7 +252,9 @@ The Build Brief Agent produces a brief with an `applicability_manifest`, a core 
 | 17 | Productionization Gates (Coverage State, Validation Evidence, No-Overclaim, rollback/observability/security posture) | When a task makes or changes a production support claim |
 | 18 | Revision History (council finding IDs → changes) | Always |
 
-Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, failure modes, and enough acceptance criteria to define the verifier contract. Tasks that touch integration boundaries should carry an `implementation_interface_contract`; tasks that claim `production_ready` must carry a `productionization_gate` with validation evidence and no-overclaim boundaries.
+Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, failure modes, and enough acceptance criteria to define the verifier contract. Tasks that touch integration boundaries should carry an `implementation_interface_contract`; tasks that claim `production_ready` must carry a `productionization_gate` with validation evidence and no-overclaim boundaries. Tasks that introduce or change LLM-driven loop behavior should carry a Loop Contract and the deterministic loop verifier commands that prove required tests, action admission, progress/control state, and maturity verdicts.
+
+Loop Contracts are task/workflow control artifacts, not a required Build Brief section for every task. Emit them as referenced JSON artifacts through `work_item_metadata.loop_contract_path`, `loop_action_path`, and `loop_maturity_report_path` when an LLM-driven loop surface is active.
 
 ## Customization
 
@@ -264,6 +314,7 @@ adlc/
 - [`docs/specs/graph-research-and-comprehension.md`](docs/specs/graph-research-and-comprehension.md) — Graphify, Beads, context-layer, and comprehension-gate contract
 - [`docs/specs/scalable-ai-code-primitives.md`](docs/specs/scalable-ai-code-primitives.md) — Graph-backed context, paved-road reuse, verifiability, and production invariant contract
 - [`docs/specs/implementation-interfaces-and-productionization.md`](docs/specs/implementation-interfaces-and-productionization.md) — Implementation Interface, Productionization Gate, Coverage State, and No-Overclaim contract
+- [`docs/specs/loop-system-maturity-audit.md`](docs/specs/loop-system-maturity-audit.md) — Loop Contract, LLM Action Envelope, non-gameable test selection, control channel, and maturity audit contract
 - [`docs/specs/slop-eval-loop.md`](docs/specs/slop-eval-loop.md) — Output-side slop benchmark, threshold, regression, and case-promotion contract
 - [`docs/specs/compound-engineering-learning-store.md`](docs/specs/compound-engineering-learning-store.md) — `docs/solutions` learning-entry schema, capture, refresh, and preflight contract
 - [`docs/adlc-v2-tickets.md`](docs/adlc-v2-tickets.md) — 58-ticket implementation roadmap

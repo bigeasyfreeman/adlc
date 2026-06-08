@@ -313,6 +313,174 @@
         }
       }
     },
+    "loop_progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "iteration_count",
+        "last_progress_signal",
+        "last_observation",
+        "evidence_refs"
+      ],
+      "properties": {
+        "iteration_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_progress_signal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "last_observation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "no_progress_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "control_events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "event_type",
+          "status",
+          "reason",
+          "timestamp"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "steer",
+              "abort",
+              "interrupt",
+              "escalate"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "applied",
+              "deferred",
+              "completed"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "safe_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_id",
+        "phase",
+        "idempotent",
+        "retryable",
+        "rollback_plan"
+      ],
+      "properties": {
+        "checkpoint_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "phase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "idempotent": {
+          "type": "boolean"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "rollback_plan": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "escalation_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trigger",
+        "phase",
+        "requested_decision",
+        "context_refs"
+      ],
+      "properties": {
+        "trigger": {
+          "type": "string",
+          "minLength": 1
+        },
+        "phase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requested_decision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "no_progress_after": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recent_observations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "context_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
     "stop_reason": {
       "type": "string"
     }

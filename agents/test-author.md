@@ -27,6 +27,7 @@ Expect assembled context to include:
 - structured `acceptance_criteria`
 - `files_to_create/modify`
 - `reference_impl`
+- optional `loop_contract_path` for LLM-driven loop tasks
 - repo path and writable `.adlc/` artifact directory
 
 If structured acceptance criteria or verifier inputs are missing, emit `stuck` instead of guessing.
@@ -40,11 +41,12 @@ If structured acceptance criteria or verifier inputs are missing, emit `stuck` i
 5. Write `.adlc/pre_change_run.txt` with the failing stdout and `.adlc/test_plan.json` with this exact shape:
    - `brief_id`
    - `task_id`
-   - `generated_tests`: array of objects with `ac_id`, `test_path`, `test_name`, `expected_pre_change_failure_reason`, and `assertion_count`
+   - `generated_tests`: array of objects with `ac_id`, `test_path`, `test_name`, `expected_pre_change_failure_reason`, `assertion_count`, and, when a Loop Contract is active, `coverage_tags` plus `covers_required_tests`
    - `pre_change_run_path`: exactly `.adlc/pre_change_run.txt`
    - `verifier_target_intersection`: boolean proving generated tests hit `verification_spec.target_files` when provided
    - `self_check`: object with `gate_1` through `gate_6`, each `pass` or `fail`
-6. Emit `done` only when the pre-change failure is captured and the generated artifacts pass the skill's six quality gates.
+6. When `loop_contract_path` is active, run `bin/adlc loop-test-selection --loop-contract [loop_contract_path] --test-plan .adlc/test_plan.json --json` and treat missing required tests or missing `coverage_tags` as `revise`.
+7. Emit `done` only when the pre-change failure is captured and the generated artifacts pass the skill's six quality gates plus the Loop Contract selection gate when active.
 
 Once every acceptance criterion is covered, `.adlc/test_plan.json` is written, and the verifier fails for the expected reason, stop and emit the final JSON immediately. Do not keep exploring alternative test designs, extra assertions, or schema files outside the provided context.
 
@@ -63,7 +65,9 @@ Use `revise` when verifier coverage against `verification_spec.target_files` can
       "test_path": "tests/test_example.py",
       "test_name": "ExampleTest.test_example_behavior",
       "expected_pre_change_failure_reason": "the deterministic reason this test fails before the code change",
-      "assertion_count": 1
+      "assertion_count": 1,
+      "coverage_tags": ["floor:schema"],
+      "covers_required_tests": ["floor:schema"]
     }
   ],
   "pre_change_run_path": ".adlc/pre_change_run.txt",

@@ -1,0 +1,89 @@
+{
+  "contract_version": "1.0.0",
+  "contract_id": "adlc-assisted-loop",
+  "autonomy_claim": "assisted_loop",
+  "job_win_condition": {
+    "job": "Validate an LLM-proposed ADLC loop action and score loop maturity from repo evidence.",
+    "done_when": "The action is admitted only when contract constraints pass and the maturity report validates against schema.",
+    "deterministic_checks": [
+      "bin/adlc loop-action-validate",
+      "bin/adlc loop-test-selection",
+      "bin/adlc validate-artifact --schema loop-maturity-report"
+    ],
+    "semantic_intent_check": "Eval Council may inspect intent, but hard gates are schema and verifier based."
+  },
+  "allowed_tools": [
+    {
+      "name": "bin/adlc loop-test-selection",
+      "actions": ["run_tests"]
+    },
+    {
+      "name": "bin/adlc validate-artifact",
+      "actions": ["run_tool", "observe"]
+    },
+    {
+      "name": "human-escalation",
+      "actions": ["escalate", "abort", "steer"]
+    }
+  ],
+  "feedback_channels": [
+    {
+      "after_action": "command",
+      "observes": ["exit_code", "stdout", "stderr", "artifact_path"]
+    },
+    {
+      "after_action": "test",
+      "observes": ["pass_fail", "missing_required_tests", "coverage_tags"]
+    }
+  ],
+  "stop_escalate_rules": {
+    "max_iterations": 3,
+    "no_progress_after": 2,
+    "escalate_when": [
+      "no_progress_after_threshold",
+      "missing_tool_authority",
+      "ambiguous_user_intent",
+      "unsafe_action_request"
+    ]
+  },
+  "test_selection": {
+    "mandatory_floor": [
+      {
+        "id": "floor:schema",
+        "command": "bin/adlc validate-artifact --schema loop-contract --input tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --json",
+        "coverage_tags": ["schema", "loop-contract"]
+      }
+    ],
+    "required_from_task_signals": [
+      {
+        "id": "required:test-selection",
+        "signal": "loop action changes required tests",
+        "command": "bin/adlc loop-test-selection --loop-contract tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --test-plan tests/fixtures/loop_maturity/test-plan-complete-required.json --json",
+        "coverage_tags": ["test-selection", "required-tests"]
+      }
+    ],
+    "additive_agent_tests": true
+  },
+  "safe_bail_state": {
+    "state": "workflow state remains at a safe checkpoint with no external mutation in progress",
+    "rollback": "discard uncommitted LSMA changes or rerun from the saved workflow state",
+    "idempotency": "local CLI validations are read-only and rerunnable"
+  },
+  "progress_signal": {
+    "signals": ["changed_verifier_status", "new_evidence_ref", "resolved_missing_required_test"],
+    "no_progress_rule": "two iterations with the same missing required test or verifier failure escalate"
+  },
+  "control_channel": {
+    "supports": ["steer", "abort", "interrupt", "escalate"],
+    "safe_checkpoint_required": true
+  },
+  "independent_truth": {
+    "type": "schema",
+    "evidence": [
+      "docs/schemas/loop-contract.schema.json",
+      "docs/schemas/loop-maturity-report.schema.json"
+    ]
+  },
+  "redaction_posture": "Use bounded command output and artifact refs; do not capture secrets."
+}
+

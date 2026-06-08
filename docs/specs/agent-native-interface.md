@@ -29,8 +29,9 @@ An orchestrating agent can integrate with ADLC by following this sequence:
 5. Run `bin/adlc compound-context` before research to collect compact learning refs, task refs, verifier refs, graph status, and no-op reasons.
 6. Validate every phase output against the matching schema in `docs/schemas/` before advancing.
 7. Persist phase artifacts under `.adlc/` using the schema-backed filenames expected by downstream agents.
-8. For work-item or document publishing, resolve a local MCP provider through the normalized capability bindings in `docs/specs/emitter-contract.md`.
-9. Use stop reasons from `docs/specs/stop-reasons.md` and permission logging from `docs/specs/permission-logging.md` for machine-readable failure handling.
+8. When a phase delegates decisions or actions to an LLM-driven loop, validate required-test coverage, action admission, and maturity evidence through the Loop Contract commands.
+9. For work-item or document publishing, resolve a local MCP provider through the normalized capability bindings in `docs/specs/emitter-contract.md`.
+10. Use stop reasons from `docs/specs/stop-reasons.md` and permission logging from `docs/specs/permission-logging.md` for machine-readable failure handling.
 
 The local CLI exposes the native hooks directly:
 
@@ -42,12 +43,15 @@ bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc resume-workflow --workspace . --json
 bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
+bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
+bin/adlc loop-action-validate --loop-contract docs/loop-contracts/task.json --action .adlc/loop_action.json --state .adlc/workflow_state.json --json
+bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --json
 bin/adlc emit-work-items --target linear --build-brief .adlc/build_brief.json --dry-run --json
 bin/adlc mcp-tools --json
 bin/adlc mcp-serve
 ```
 
-`mcp-serve` implements a minimal newline-delimited JSON-RPC stdio server with `initialize`, `tools/list`, and `tools/call` for ADLC discovery, validation, compound context preflight, dry-run phase execution, resume inspection, and work-item emitter payload generation. Mutating work-item emission requires explicit `allow_mutation` plus a local `provider_command`.
+`mcp-serve` implements a minimal newline-delimited JSON-RPC stdio server with `initialize`, `tools/list`, and `tools/call` for ADLC discovery, validation, compound context preflight, loop test selection, LLM action admission, loop maturity audit, dry-run phase execution, resume inspection, and work-item emitter payload generation. Mutating work-item emission requires explicit `allow_mutation` plus a local `provider_command`.
 
 ## Current Native Level
 
@@ -60,6 +64,7 @@ ADLC is agent-native at the contract and harness layer:
 - smoke and contract tests exercise the same adapter and schema surfaces an orchestrator would use
 - workflow state is persisted under `.adlc/workflow_state.json` and validated against `docs/schemas/workflow-state.schema.json`
 - optional task-level fingerprints in workflow state let `resume-workflow` report completed, skipped, failed, and incomplete executable tasks
+- optional Loop Contract fields in workflow state let `resume-workflow` report progress, no-progress count, pending control events, safe checkpoints, and escalation context
 - `compound-context` keeps prior learnings compact by passing `docs/solutions` paths, summaries, source refs, verifier refs, and stale signals rather than full notes
 - work-item emitter payloads preserve ADLC artifact taxonomy, decision contracts, verifier contracts, compatibility constraints, and evidence responsibilities
 
@@ -75,6 +80,9 @@ The current thin orchestrator surface exposes:
 | `list_phases` | Return ordered DAG phases from `WORKFLOW.dot` |
 | `validate_artifact` | Validate a named artifact against the appropriate schema |
 | `compound_context` | Compute compact learning refs, graph status, task refs, verifier refs, and explicit no-op reasons |
+| `loop_test_selection` | Check mandatory floor and task-signal required tests against `.adlc/test_plan.json` coverage tags |
+| `loop_action_validate` | Admit, reject, or escalate an LLM-proposed action from allowed tools, required tests, state, and checkpoint evidence |
+| `loop_maturity_audit` | Score loop maturity from Loop Contract, workflow, state, test-plan, and action evidence |
 | `run_phase` | Invoke the configured runtime adapter for a single DAG phase |
 | `resume_workflow` | Load workflow state, identify the next runnable phase, and continue |
 | `emit_work_items` | Run a normalized dry-run or mutation against a configured MCP provider |
