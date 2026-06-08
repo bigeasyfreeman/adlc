@@ -19,7 +19,7 @@ Verdicts:
 
 ## Current ADLC Baseline
 
-ADLC currently scores as `assisted_loop`. It has a directed workflow graph, labels, retry caps, verifier-first test generation, workflow state, test-strength audit, compound preflight, and human gates. It does not yet have a single enforceable Loop Contract and action envelope that prove required tests, progress, control events, and escalation context for each autonomous workflow.
+ADLC currently scores as `assisted_loop`. It has a directed workflow graph, labels, retry caps, verifier-first test generation, workflow state, test-strength audit, compound preflight, Loop Contract/action validators, execution-backed required-test result artifacts, and human gates. It still treats self-autonomy as a per-workflow evidence claim, not a default framework claim, and tag-only required-test plans are capped below robust.
 
 ## Seven Audit Dimensions
 
@@ -43,8 +43,9 @@ Check whether required tests cannot be gamed. A Loop Contract must declare:
 - `required_from_task_signals`: tests computed from task signals such as changed files, schemas, acceptance criteria, production invariants, and interface contracts.
 - `additive_agent_tests`: model-selected tests that may add coverage but may never remove required tests.
 - `coverage_tags`: machine-readable tags proving what each test covers.
+- `loop-test-result`: executed command records proving each required test actually ran and passed.
 
-If an agent could skip the test that catches its own bug, this dimension scores at most `1`.
+If an agent could skip the test that catches its own bug, this dimension scores at most `1`. If required tests are only tag-covered without executed result evidence, this dimension is capped at `2`.
 
 ### Self-grading risk
 
@@ -95,9 +96,8 @@ The deterministic validator admits, rejects, repair-routes, or escalation-routes
 ## No-Overclaim Rules
 
 - Missing Loop Contract or action envelope downgrades autonomous claims to `assisted_loop`.
-- Missing required tests blocks `self_autonomous`.
+- Missing required tests or missing executed required-test result evidence blocks `self_autonomous`.
 - A score of `0` or `1` on win condition, test selection, or failure handling blocks `self_autonomous`.
 - Live kill-switch support is unsupported unless implemented and tested.
 - External-provider rollback is unsupported unless provider-specific rollback exists.
 - Compound learning capture may store only verified, redacted loop patterns with maturity-report evidence and stale conditions.
-

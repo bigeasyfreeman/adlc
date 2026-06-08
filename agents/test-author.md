@@ -41,11 +41,12 @@ If structured acceptance criteria or verifier inputs are missing, emit `stuck` i
 5. Write `.adlc/pre_change_run.txt` with the failing stdout and `.adlc/test_plan.json` with this exact shape:
    - `brief_id`
    - `task_id`
-   - `generated_tests`: array of objects with `ac_id`, `test_path`, `test_name`, `expected_pre_change_failure_reason`, `assertion_count`, and, when a Loop Contract is active, `coverage_tags` plus `covers_required_tests`
+   - `generated_tests`: array of objects with `ac_id`, `test_path`, `test_name`, `expected_pre_change_failure_reason`, `assertion_count`, and, when a Loop Contract is active, `coverage_tags`, `covers_required_tests`, and optional `execution_evidence_refs`
+   - optional `test_result_refs` when Loop Contract required tests were executed and recorded in a `loop-test-result` artifact
    - `pre_change_run_path`: exactly `.adlc/pre_change_run.txt`
    - `verifier_target_intersection`: boolean proving generated tests hit `verification_spec.target_files` when provided
    - `self_check`: object with `gate_1` through `gate_6`, each `pass` or `fail`
-6. When `loop_contract_path` is active, run `bin/adlc loop-test-selection --loop-contract [loop_contract_path] --test-plan .adlc/test_plan.json --json` and treat missing required tests or missing `coverage_tags` as `revise`.
+6. When `loop_contract_path` is active, run `bin/adlc loop-test-selection --loop-contract [loop_contract_path] --test-plan .adlc/test_plan.json --json` and treat missing required tests or missing `coverage_tags` as `revise`. When required-test execution evidence exists, write a `loop-test-result` artifact and rerun with `--require-test-results [path]`.
 7. Emit `done` only when the pre-change failure is captured and the generated artifacts pass the skill's six quality gates plus the Loop Contract selection gate when active.
 
 Once every acceptance criterion is covered, `.adlc/test_plan.json` is written, and the verifier fails for the expected reason, stop and emit the final JSON immediately. Do not keep exploring alternative test designs, extra assertions, or schema files outside the provided context.
@@ -67,9 +68,11 @@ Use `revise` when verifier coverage against `verification_spec.target_files` can
       "expected_pre_change_failure_reason": "the deterministic reason this test fails before the code change",
       "assertion_count": 1,
       "coverage_tags": ["floor:schema"],
-      "covers_required_tests": ["floor:schema"]
+      "covers_required_tests": ["floor:schema"],
+      "execution_evidence_refs": [".adlc/loop_test_result.json"]
     }
   ],
+  "test_result_refs": [".adlc/loop_test_result.json"],
   "pre_change_run_path": ".adlc/pre_change_run.txt",
   "verifier_target_intersection": true,
   "self_check": {

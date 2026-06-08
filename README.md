@@ -55,6 +55,22 @@ Or copy what you need by hand:
 cp -r skills/codebase-research/ ~/my-project/.claude/skills/codebase-research/
 ```
 
+`setup.sh` also installs a target-repo wrapper at `.adlc/bin/adlc`. The wrapper
+sets `ADLC_ROOT` back to this checkout and runs the deterministic ADLC CLI, so a
+target repo can validate schemas, readiness, Loop Contracts, and MCP tool
+metadata without copying the runtime source.
+
+The shipped usage path is the runtime CLI plus installed agents/skills. Repo-local
+goal prompts or decomposition scratch files are not required to install or run ADLC.
+
+Runtime preflight:
+
+```bash
+python3 -m pip install -e .
+bin/adlc health-check --json
+~/my-project/.adlc/bin/adlc health-check --json
+```
+
 ## Pipeline
 
 ### Current Operating Model
@@ -72,7 +88,7 @@ The shipped framework layers are:
 | Slop Quality Gate | Output-side benchmark, threshold, eval cases, and failure action for generated-output surfaces | Active when a task changes prompt/model/agent/generated content behavior |
 | Loop Contract | LLM action-loop contract: job, win condition, allowed tools, real feedback, required tests, progress, control channel, safe checkpoint, independent truth, and escalation | Active when a task delegates decisions, tool use, test selection, retry/repair, escalation, or maturity claims to an LLM loop |
 
-The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, retry caps, workflow state, compound context, readiness gates, test-strength checks, and now Loop Contract admission gates. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, or failure handling.
+The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, retry caps, workflow state, compound context, readiness gates, test-strength checks, Loop Contract admission gates, and execution-backed required-test evidence when `loop-test-result` artifacts are supplied. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, or failure handling. Tag-only Loop Contract coverage is intentionally capped below robust.
 
 What is automatic today:
 
@@ -81,6 +97,8 @@ What is automatic today:
 - generated-output slop gate checks when a generated-output surface is active
 - implementation-interface and productionization overclaim checks
 - Loop Contract test-selection, action-admission, and maturity-audit CLI/MCP tools
+- strict Loop Contract required-test proof through `docs/schemas/loop-test-result.schema.json` and `loop-test-selection --require-test-results`
+- runtime preflight through `bin/adlc health-check --json`
 - resume summaries for task fingerprints, loop progress, no-progress count, control events, safe checkpoints, and escalation context
 
 What is still explicit:
@@ -157,14 +175,16 @@ Agent-native discovery and validation:
 ```bash
 bin/adlc list-agents --json
 bin/adlc list-phases --json
+bin/adlc health-check --json
 bin/adlc validate-artifact --schema build-brief --input .adlc/build_brief.json --json
 bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc resume-workflow --workspace . --json
 bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
+bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --require-test-results .adlc/loop_test_result.json --json
 bin/adlc loop-action-validate --loop-contract docs/loop-contracts/task.json --action .adlc/loop_action.json --state .adlc/workflow_state.json --json
-bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --json
+bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --test-results .adlc/loop_test_result.json --json
 bin/adlc emit-work-items --target linear --build-brief .adlc/build_brief.json --dry-run --json
 bin/adlc mcp-tools --json
 bin/adlc mcp-serve
@@ -175,9 +195,11 @@ Minimal Loop Contract flow:
 ```bash
 bin/adlc validate-artifact --schema loop-contract --input docs/loop-contracts/task.json --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
+bin/adlc validate-artifact --schema loop-test-result --input .adlc/loop_test_result.json --json
+bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --require-test-results .adlc/loop_test_result.json --json
 bin/adlc validate-artifact --schema loop-action --input .adlc/loop_action.json --json
 bin/adlc loop-action-validate --loop-contract docs/loop-contracts/task.json --action .adlc/loop_action.json --state .adlc/workflow_state.json --json
-bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --action .adlc/loop_action.json --json
+bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --test-results .adlc/loop_test_result.json --action .adlc/loop_action.json --json
 ```
 
 Public-repo hygiene is intentional:
@@ -210,7 +232,7 @@ Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 Skill definitions are injected into agents at startup. Runtime install counts are derived by `setup.sh` rather than hardcoded in docs.
 
 **Core Engineering:**
-`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (22-check DoD) · `spec-to-tests` (failing-test authoring from Brief, with Loop Contract coverage tags when active)
+`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (22-check DoD) · `spec-to-tests` (failing-test authoring from Brief, with Loop Contract coverage tags and execution evidence when active)
 
 **Security:**
 `security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`
@@ -290,7 +312,7 @@ adlc/
 ├── docs/                   # build-briefs/, schemas/, specs/, tests/, adlc-v2-spec, tickets
 ├── docs/solutions/         # Schema-validated compound engineering learning store
 ├── tests/                  # contract checks, backtests, smoke harness
-└── scripts/                # CLI and validation utilities
+└── scripts/                # stable CLI entrypoint, adlc_runtime package, and validation utilities
 ```
 
 ## Principles

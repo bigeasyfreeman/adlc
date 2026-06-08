@@ -37,7 +37,7 @@
         },
         {
           "claim": "The correct integration path is to extend the existing ADLC model rather than add a parallel productionization framework.",
-          "source_ref": "ADLC_IMPLEMENTATION_INTERFACES_PRODUCTIONIZATION_GOAL_PROMPT.md",
+          "source_ref": "user-request:implementation-interfaces-productionization",
           "extracted_from": "User-provided goal prompt"
         }
       ],
@@ -309,7 +309,7 @@
           "docs/specs/scalable-ai-code-primitives.md"
         ],
         "intent_contract_refs": [
-          "ADLC_IMPLEMENTATION_INTERFACES_PRODUCTIONIZATION_GOAL_PROMPT.md"
+          "user-request:implementation-interfaces-productionization"
         ],
         "production_invariant_coverage": [
           {
@@ -1410,7 +1410,7 @@
           "README.md:Verification"
         ],
         "intent_contract_refs": [
-          "ADLC_IMPLEMENTATION_INTERFACES_PRODUCTIONIZATION_GOAL_PROMPT.md"
+          "user-request:implementation-interfaces-productionization"
         ],
         "production_invariant_coverage": [
           {

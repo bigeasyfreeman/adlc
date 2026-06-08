@@ -41,6 +41,7 @@ If any acceptance criterion arrives as an unstructured string with no normalized
 - Test files written under the repo's native test root and naming conventions
 - `.adlc/test_plan.json` mapping `ac_id -> test_path -> expected_pre_change_failure_reason`
 - When a Loop Contract is active, each generated test also records `coverage_tags` and `covers_required_tests` so `bin/adlc loop-test-selection` can mechanically prove the mandatory floor and task-signal tests are covered.
+- When required Loop Contract tests have actually run, record the independent result refs in `execution_evidence_refs` and top-level `test_result_refs`, then use `bin/adlc loop-test-selection --require-test-results [path]` so coverage cannot pass on tags alone.
 - `.adlc/pre_change_run.txt` capturing stdout from the pre-change run that proves the generated verifier fails for the documented reason
 
 ## Authoring Workflow
@@ -52,9 +53,10 @@ If any acceptance criterion arrives as an unstructured string with no normalized
 5. Author the smallest failing tests or reproducers that make each acceptance criterion falsifiable before code changes.
 6. Tag generated tests with `coverage_tags` and `covers_required_tests` when they satisfy a Loop Contract test ID.
 7. Run `bin/adlc loop-test-selection --loop-contract [loop_contract_path] --test-plan .adlc/test_plan.json --json` before returning `done` when a Loop Contract is active.
-8. Run the generated verifier set before editing production code.
-9. Record the failing stdout in `.adlc/pre_change_run.txt`.
-10. Emit `.adlc/test_plan.json` only after the self-check passes.
+8. If a `loop-test-result` artifact exists for required tests, run `bin/adlc loop-test-selection --loop-contract [loop_contract_path] --test-plan .adlc/test_plan.json --require-test-results [loop-test-result path] --json` before returning `done`.
+9. Run the generated verifier set before editing production code.
+10. Record the failing stdout in `.adlc/pre_change_run.txt`.
+11. Emit `.adlc/test_plan.json` only after the self-check passes.
 
 ## Behavior by Task Class
 
@@ -130,6 +132,7 @@ Loop Contract addendum:
 - Mandatory floor tests and required task-signal tests must be covered when `loop_contract_path` is active.
 - Agent-selected tests are additive only. Do not remove or downgrade required tests to make the plan cheaper.
 - Coverage must be machine-readable through `coverage_tags` and `covers_required_tests`; prose explanations do not satisfy `bin/adlc loop-test-selection`.
+- For productionization, robust maturity requires executed required-test evidence in `docs/schemas/loop-test-result.schema.json`; tag-only plans are capped below robust.
 
 ## Output Schema (`test_plan.json`)
 
@@ -203,8 +206,22 @@ Loop Contract addendum:
               "type": "string",
               "minLength": 1
             }
+          },
+          "execution_evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
+      }
+    },
+    "test_result_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
       }
     },
     "pre_change_run_path": {

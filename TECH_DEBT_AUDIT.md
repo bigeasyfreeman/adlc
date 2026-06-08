@@ -1,105 +1,73 @@
-# TECH DEBT AUDIT - ADLC Entropy-Control Review
+# Tech Debt Audit - ADLC Cleanup Hardening Closeout
 
-Generated: 2026-06-01
-Scope: ADLC repository, with emphasis on whether the new scalable AI/code-quality primitives reduce AI slop without adding fake safety, unnecessary blockers, or hallucinated complexity.
+Generated: 2026-06-08
+Method: FastRuby tech-debt skill adapted for ADLC's Python/shell/Markdown stack, Graphify orientation, and ADLC's own runtime validation.
+Scope: Cleanup hardening slice for execution-backed Loop Contract evidence, deterministic runtime packaging, CLI/MCP metadata, and runtime modularization.
 
 ## Executive Summary
 
-- ADLC has the right core primitives: graph-backed context, concise intent contracts, paved-road registry, compatibility contracts, verifiability gates, slop quality gates, and feedback-loop hardening.
-- The strongest design choice is that the new specs explicitly reject broad governance and trivial-work ceremony, especially in `docs/specs/scalable-ai-code-primitives.md:108` and `docs/specs/slop-eval-loop.md:157`.
-- The main risk is not the primitives themselves. It is drift between conditional intent and universal workflow wiring.
-- The current workflow still routes every build through `security`, `test_strength`, and `slop_gate` in the default loop, despite newer applicability rules saying these should be conditional. See `README.md:62`, `WORKFLOW.dot:96`, and `platform/AGENTS.md:26`.
-- The slop gate is currently specified as a workflow command, but there is no repo or PATH executable for `stop-slop` or `slop-check`. That makes the gate look real before it is operational. See `WORKFLOW.md:128` and `skills/stop-slop/SKILL.md:430`.
-- Readiness documentation promises generated-output slop-gate validation, but `scripts/adlc.py` does not enforce that rule today. This creates false confidence around `ready` status. See `docs/specs/emitter-contract.md:257` versus `scripts/adlc.py:816`.
-- The schema still requires many protective fields for every task, which encourages boilerplate compliance and can recreate the old security-analysis overreach pattern. See `docs/schemas/build-brief.schema.json:210`.
-- Tests are good at preserving fields and contracts, but several critical tests are string-presence checks rather than behavior checks. See `tests/test_adlc_contracts.sh:266`.
-- The best cleanup is a subtraction pass: make overlay gates executable or explicitly no-op, centralize applicability, remove universal slop/security language, and add negative tests proving inactive gates stay inactive.
+- The highest-risk cleanup findings from the prior audit are now materially handled: Loop Contract required tests can be execution-backed, target installs get a deterministic ADLC runtime wrapper, runtime dependencies are declared, the dead `loop-maturity-audit --build-brief` flag is removed, and `scripts/adlc.py` is now a stable entrypoint rather than the runtime body.
+- ADLC's truthful operating state remains **assisted loop**. That is still correct. The framework now has stronger evidence gates, but full self-autonomy remains a per-workflow score claim.
+- The main remaining risk is depth, not absence: `scripts/adlc_runtime/cli.py` is still large, readiness logic is still dense, and maturity dimensions other than test selection still rely on declaration-shaped evidence.
+- The deterministic validation suite passed end to end after this cleanup: CLI 58/58, contract checks 351/351, backtest 126/126, setup 119/119, Python compile, shell syntax, health check, loop artifact validation, and `git diff --check`.
 
-## Architectural Mental Model
+## Adapted Health Score
 
-ADLC is a Markdown-first agent lifecycle framework. The core loop is:
+| Category | Score | Evidence |
+| --- | ---: | --- |
+| Security hygiene | 18/20 | Secret-like examples remain docs/fixtures oriented; no new credential surface was added. |
+| Dependencies | 16/20 | `pyproject.toml:1` declares runtime and optional audit/PDF deps; no lockfile yet. |
+| Coverage | 13/20 | Contract/backtest/setup coverage expanded, but no measured Python or shell coverage report exists. |
+| Complexity | 14/20 | `scripts/adlc.py:1` is now a thin entrypoint and metadata moved to `scripts/adlc_runtime/metadata.py:1`; `cli.py` remains large. |
+| Maintainability | 16/20 | CLI/MCP descriptions share metadata, setup installs a runtime wrapper, and Graphify output is ignored; readiness remains concentrated. |
+| Total | 77/100 | Stronger productionization posture, with remaining work around modularity, coverage, and evidence fidelity. |
 
-1. Research the codebase and constraints.
-2. Plan tasks into a build brief.
-3. Assemble implementation context.
-4. Implement and review.
-5. Validate, emit work items, and prepare PR/deployment artifacts.
+## Resolved Or Improved
 
-The recent AI-scaling additions are meant to keep this loop stable as agent output increases:
+| Prior Finding | Status | Evidence |
+| --- | --- | --- |
+| TD-001 install/runtime gap | RESOLVED | `setup.sh:50` installs `.adlc/bin/adlc`; `tests/test_setup.sh:101` proves the wrapper exists and runs `health-check`. |
+| TD-002 tag-only required tests | RESOLVED | `docs/schemas/loop-test-result.schema.json:1`, `scripts/adlc_runtime/cli.py:1816`, and `tests/test_adlc_cli.sh:76` add execution-backed required-test evidence. |
+| TD-003 maturity over-credit | RESOLVED | `scripts/adlc_runtime/cli.py:2091` caps tag-only test selection at score 2; `tests/test_adlc_cli.sh:82` locks the behavior. |
+| TD-005 monolithic public CLI | PARTIAL | `scripts/adlc.py:1` is a stable wrapper and `scripts/adlc_runtime/metadata.py:43` centralizes command metadata. `scripts/adlc_runtime/cli.py` still needs deeper module splits. |
+| TD-006 dependency hygiene | RESOLVED | `pyproject.toml:1` declares `jsonschema` plus optional PDF/audit extras; `scripts/adlc_runtime/cli.py:737` exposes `health-check`. |
+| TD-008 CLI/MCP drift | PARTIAL | `scripts/adlc_runtime/metadata.py:43` drives shared command descriptions and MCP names; argparse/MCP argument schemas are still not fully generated from one spec. |
+| TD-009 dead future flag | RESOLVED | `loop-maturity-audit --help` now exposes `--test-results`, not `--build-brief`; `tests/test_adlc_cli.sh:84` verifies it. |
+| TD-013 complexity tooling gap | PARTIAL | Optional audit deps are declared in `pyproject.toml:14`; no CI command runs them yet. |
+| TD-015 graph output policy | RESOLVED | `.gitignore:30` ignores `graphify-out/` as local analysis cache. |
 
-- `graphify_context` should anchor code understanding in a graph of code relationships instead of free-form ecology narratives.
-- `paved_road_refs` should push agents toward known frameworks, entrypoints, and build contracts.
-- `intent_contract` and `compatibility_contract` should preserve product and engineering intent before code is generated.
-- `verification_spec` and `slop_quality_gate` should keep output quality measurable.
-- `feedback-loop` should convert accepted failures into future tests without letting rules accrete unchecked.
+## Remaining Findings
 
-That direction is sound. The failure mode to watch is when a conditional primitive becomes mandatory process for every task, or when a documented gate is not actually executable.
-
-## Findings
-
-| ID | Severity | Finding | Evidence | Recommendation |
-| --- | --- | --- | --- | --- |
-| F001 | High | The default workflow still makes security and slop-like prevention gates structurally universal. This recreates the old "security analysis everywhere" failure pattern under new names. | `README.md:62` always lists `security -> qa -> test_strength -> slop_gate -> pr_prep`. `WORKFLOW.dot:96` routes `code_review -> security -> qa -> test_strength -> slop_gate`. `platform/AGENTS.md:26` says security review runs on every change. | Add explicit skip/no-op edges keyed by `applicability_manifest`. Update docs to say these overlays run only when their surface is active. |
-| F002 | High | The slop gate is specified as a workflow command, but the command is not implemented in this repo or available on PATH. This is fake safety if followed literally. | `WORKFLOW.md:128` declares `stop-slop all --commit HEAD`. `skills/stop-slop/SKILL.md:430` documents `stop-slop check ...`. Local command discovery found no `stop-slop` or `slop-check`. | Either implement `bin/adlc slop-gate` and wire the skill to it, or mark the current skill as advisory until an executable exists. Add a CLI smoke test. |
-| F003 | High | Readiness docs promise slop-gate enforcement for generated-output changes, but the readiness checker does not implement that rule. | `docs/specs/emitter-contract.md:257` says readiness checks `slop_quality_gate`. `scripts/adlc.py:816` through `scripts/adlc.py:853` checks core task fields but not generated-output slop-gate requirements. `scripts/adlc.py:954` only preserves the field if present. | Add a deterministic generated-output surface flag, then enforce `slop_quality_gate` only for that flag. Add a negative fixture where missing slop gate fails only for generated-output work. |
-| F004 | Medium | The build-brief schema requires many protective fields for every task, which encourages invented boilerplate rather than real risk reduction. | `docs/schemas/build-brief.schema.json:210` through `docs/schemas/build-brief.schema.json:234` requires `anti_slop_rules`, `tech_debt_boundaries`, `compatibility_contract`, `verification_spec`, and other fields for all tasks. `docs/schemas/build-brief.schema.json:334` requires at least one `anti_slop_rules` item. | Keep core verifier and acceptance fields required. Move heavier controls behind explicit task classification or allow compact structured `not_applicable` objects. |
-| F005 | Medium | The slop-eval spec is broader than the planner implementation, which can lead agents to apply quality gates to ordinary docs, code, and release tasks. | `docs/specs/slop-eval-loop.md:11` says the contract applies to code, prose, product outputs, and agent outputs. `docs/specs/slop-eval-loop.md:76` requires delivery guards before tickets, PRs, documents, and releases. The non-goals later narrow this at `docs/specs/slop-eval-loop.md:157`. | Rewrite the top of the spec around "generated-output surfaces". Keep deterministic code quality checks separate from open-ended AI-output evals. |
-| F006 | Medium | The planner says inactive slop gates may be omitted, but its output shape still shows a top-level `slop_quality_gate` object. This nudges agents to fill it anyway. | `agents/planner.md:67` through `agents/planner.md:79` scopes slop gates to generated-output surfaces. `agents/planner.md:162` through `agents/planner.md:179` still includes `"slop_quality_gate": {}` in the output JSON example. | Make the JSON example omit the field by default or use `null` with an explicit "include only when active" note outside the JSON. |
-| F007 | Medium | Codegen context always reserves a Slop Quality Gate section in prompts, even when inactive. This adds cognitive load and invites boilerplate. | `skills/codegen-context/SKILL.md:282` through `skills/codegen-context/SKILL.md:297` always includes section 9 for the slop quality gate, with a not-applicable reason when inactive. | Omit the section entirely when inactive. Put inactive overlays in a one-line applicability summary instead. |
-| F008 | Medium | `stop-slop` rules are overbroad and stylistic enough to block legitimate work if made executable as-is. | `skills/stop-slop/SKILL.md:5` through `skills/stop-slop/SKILL.md:19` applies broad pre-commit triggers. `skills/stop-slop/SKILL.md:94` through `skills/stop-slop/SKILL.md:104` hard-fails placeholders and TODO/FIXME. `skills/stop-slop/SKILL.md:260` through `skills/stop-slop/SKILL.md:388` bans broad prose patterns. | Split deterministic code checks from stylistic content rubrics. Default to changed generated-output artifacts, not all source and docs. Make TODO/FIXME policy path-aware. |
-| F009 | Medium | Slop metrics are strings, not executable validators, so a quality number can be named without being reproducible. | `docs/schemas/build-brief.schema.json:891` through `docs/schemas/build-brief.schema.json:897` defines metrics as free-form strings. `docs/schemas/build-brief.schema.json:1001` through `docs/schemas/build-brief.schema.json:1021` stores result scores, but not validator references. | Require each metric to name `metric_type` plus `validator_ref`, `judge_skill`, or `command`. Allow free-form text only in rationale fields. |
-| F010 | Medium | Eval council still requires always-active personas and inactive overlay reasons, which can duplicate applicability work and increase token/process overhead. | `skills/eval-council/SKILL.md:13` through `skills/eval-council/SKILL.md:16` says core lenses always run and inactive overlays require reasons. `skills/eval-council/SKILL.md:38` through `skills/eval-council/SKILL.md:51` repeats that policy. | Make `applicability_manifest` the single suppression artifact. Eval council should consume it instead of asking each persona to restate not-applicable reasoning. |
-| F011 | Medium | Tests prove new fields are preserved, but not that the gates make the right runtime decision. | `tests/test_adlc_contracts.sh:26` through `tests/test_adlc_contracts.sh:102` verifies field preservation and omission. `tests/test_adlc_contracts.sh:266` only greps that `WORKFLOW.md` contains the stop-slop command. | Add behavior tests: code-only work with no slop gate passes, generated-output work without a slop gate fails, and the workflow command resolves to an executable or explicit no-op. |
-| F012 | Low | `stop-slop` references a brand foundation file that is not part of ADLC. That makes the skill feel project-specific while living in the core framework. | `skills/stop-slop/SKILL.md:398` through `skills/stop-slop/SKILL.md:407` references `charters/magnus-brand-foundation.md`. Repository file discovery found no matching charter file. | Move brand-specific checks to an overlay or mark the path as optional project-local configuration. |
-
-## Top 5 If You Fix Nothing Else
-
-1. Make `security`, `test_strength`, and `slop_gate` conditional in the workflow, not just in prose.
-2. Implement or remove the literal `stop-slop` command from the workflow contract.
-3. Add readiness enforcement for generated-output slop gates, scoped by an explicit surface flag.
-4. Remove universal `slop_quality_gate` placeholders from planner and codegen prompts.
-5. Add negative tests that prove inactive overlays do not block simple docs, lint, build-validation, and code-only changes.
-
-## Quick Wins
-
-- Change `platform/AGENTS.md:26` from "Security review runs ... on every change" to "Security review runs when the applicability manifest marks a security-relevant surface active."
-- In `WORKFLOW.dot`, add conditional skip edges for inactive overlays.
-- In `WORKFLOW.md`, replace `stop-slop all --commit HEAD` with either an implemented `bin/adlc slop-gate` command or an explicit "not executable yet" spec note.
-- In `agents/planner.md`, remove the empty `slop_quality_gate` object from the base JSON skeleton.
-- In `skills/codegen-context/SKILL.md`, render the slop gate section only when the work touches generated-output behavior.
-- In `tests/test_adlc_contracts.sh`, add one generated-output negative fixture and one code-only positive fixture.
-
-## Things That Look Bad But Are Actually Fine
-
-- The scalable AI primitives spec itself is well scoped. It explicitly says not to add broad productivity metrics, heavyweight release governance, or paved-road evidence for trivial docs/lint/build validation at `docs/specs/scalable-ai-code-primitives.md:108` through `docs/specs/scalable-ai-code-primitives.md:118`.
-- The same spec has removal criteria for prompts that invent graph claims, misuse paved roads, or mandate new governance, which is the right entropy-control mechanism. See `docs/specs/scalable-ai-code-primitives.md:119` through `docs/specs/scalable-ai-code-primitives.md:126`.
-- The emitter correctly omits absent `slop_quality_gate` fields. See `scripts/adlc.py:954` through `scripts/adlc.py:955` and the omission test at `tests/test_adlc_contracts.sh:99`.
-- The paved-road registry already contains the right anti-overreach language: no invented paved roads, no blocking justified abstractions, and no broad rewrites. See `skills/paved-road-registry/SKILL.md:92` through `skills/paved-road-registry/SKILL.md:99`.
-- The feedback-loop skill has useful anti-accretion controls: candidate eval cases require approval, and rule growth is capped. See `skills/feedback-loop/SKILL.md:70` through `skills/feedback-loop/SKILL.md:75` and `skills/feedback-loop/SKILL.md:104` through `skills/feedback-loop/SKILL.md:115`.
-- The current validation fixtures already suppress security and observability for build-validation-only work, which is the right pattern to extend to slop and other overlays. See `docs/build-briefs/xia-adlc-remediation.json:38` through `docs/build-briefs/xia-adlc-remediation.json:58`.
+| ID | Category | Severity | Effort | Description | Recommendation |
+| --- | --- | --- | --- | --- | --- |
+| TD-R1 | Runtime modularity | Medium | L | `scripts/adlc_runtime/cli.py` still owns workflow parsing, schema validation, readiness, compound context, emitters, loop maturity, MCP dispatch, and CLI parsing. | Split next into `schemas.py`, `workflow.py`, `readiness.py`, `compound.py`, `loop_contracts.py`, `emitters.py`, and `mcp.py` with behavior-preserving tests. |
+| TD-R2 | Evidence fidelity | Medium | M | Test selection now uses execution evidence, but `self_grading_risk`, `feedback_fidelity`, and some control/failure scores still trust declaration-shaped state more than validated evidence artifacts. | Require existing evidence refs and typed evidence classes before allowing score 3 in those dimensions. |
+| TD-R3 | Readiness rule concentration | Medium | M | Readiness checks remain concentrated in one runtime path with repeated policy knowledge also present in schema/docs/tests. | Introduce a readiness rule registry returning normalized issue objects and use it from emitters and tests. |
+| TD-R4 | Coverage measurement | Medium | M | Shell contract tests are broad, but there is no measured coverage report for Python runtime branches or shell setup paths. | Add `coverage.py` for Python and a documented shell coverage posture or bats/shellspec equivalent. |
+| TD-R5 | Packaging completeness | Low | M | Target repos get an `ADLC_ROOT` wrapper, not a vendored or packaged standalone CLI. That is deterministic but still coupled to the source checkout path. | Decide between source-checkout wrapper, console-script package, or vendored runtime mode before advertising ADLC as independently installable. |
+| TD-R6 | Optional audit execution | Low | S | Optional tools are declared but not wired into a single non-blocking local audit command. | Extend `bin/adlc health-check --include-optional` or add `bin/adlc audit-runtime` to run configured tools when installed. |
 
 ## Validation Performed
 
-- `bash tests/test_adlc_contracts.sh` passed, 286/286 checks.
-- `bash tests/test_setup.sh` passed, 108/108 checks.
-- `bash tests/backtest/run_backtest.sh` passed, 126/126 checks.
-- `python3 -m py_compile scripts/adlc.py` passed.
-- `bash -n tests/test_adlc_contracts.sh tests/test_setup.sh tests/backtest/run_backtest.sh tests/smoke/run_smoke.sh` passed.
-- `bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/xia-adlc-remediation.json --json` returned valid.
-- `bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/xia-adlc-remediation.json --dry-run --json` preserved omission of absent `slop_quality_gate`.
-- `bash tests/smoke/run_smoke.sh` correctly refused token-spend smoke execution without `SMOKE=1`.
-- `git diff --check` passed.
-- Optional tools were unavailable in this environment: `ruff`, `pip-audit`, and `vulture`.
+- `python3 -m py_compile scripts/adlc.py scripts/adlc_runtime/__init__.py scripts/adlc_runtime/metadata.py scripts/adlc_runtime/cli.py scripts/md2pdf.py scripts/validate_learning_entry.py` - passed.
+- `bash -n setup.sh tests/test_adlc_cli.sh tests/test_adlc_contracts.sh tests/test_setup.sh tests/backtest/run_backtest.sh tests/smoke/run_smoke.sh tests/artifact_contract/evaluate.sh` - passed.
+- `jq empty docs/schemas/loop-test-result.schema.json docs/schemas/test-author-output.schema.json tests/fixtures/loop_maturity/*.json` - passed.
+- `bin/adlc health-check --json` - passed with `status=pass`.
+- `bin/adlc validate-artifact --schema loop-test-result --input tests/fixtures/loop_maturity/test-results-complete-required.json --json` - valid.
+- `bin/adlc loop-test-selection --loop-contract tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --test-plan tests/fixtures/loop_maturity/test-plan-complete-required.json --require-test-results tests/fixtures/loop_maturity/test-results-complete-required.json --json` - passed with all required tests executed.
+- `bash tests/test_adlc_cli.sh` - passed, 58/58.
+- `bash tests/test_adlc_contracts.sh` - passed, 351/351.
+- `bash tests/backtest/run_backtest.sh` - passed, 126/126.
+- `bash tests/test_setup.sh` - passed, 119/119.
+- `git diff --check` - passed.
 
-## Open Questions
+## Things That Look Bad But Are Actually Fine
 
-- Should `slop_quality_gate` protect only generated AI/user-facing output, or also agent-authored internal artifacts such as PR descriptions and ticket bodies? The implementation should choose one default and encode it centrally.
-- Should ADLC have a single `surface_classification` or `change_surface` field that controls all overlays, including security, observability, slop, release, rollback, and paved-road requirements?
-- Should `stop-slop` become a real `bin/adlc` subcommand, or should slop evaluation remain a skill-level protocol until there is an executable benchmark runner?
-- How strict should code-output slop rules be for tests, examples, and fixtures? Current broad TODO/FIXME and placeholder checks would likely create false positives.
+- ADLC still reports `assisted_loop` by default. That is the correct no-overclaim posture until a specific workflow earns robust scores with objective evidence.
+- `.adlc/bin/adlc` points to the source checkout through `ADLC_ROOT`. That is acceptable for this slice because setup tests prove it works and it avoids copying runtime source into target repos.
+- `graphify-out/` is ignored. Graphify is analysis cache here, not committed product evidence.
+- The CLI runtime still being large is residual debt, not a regression. The public entrypoint and metadata split create the safe boundary for the next modularization pass.
 
 ## Bottom Line
 
-The new primitives are worth keeping, but only if ADLC treats them as conditional engineering contracts instead of universal ritual.
-
-The framework has already added many of the right guardrails in specs and skills. The next improvement should be subtractive: remove universal gate language, make applicability the single source of truth, and test both sides of the decision. That is how ADLC avoids repeating the earlier security-analysis failure under a newer label.
+The cleanup slice moved ADLC from prompt-heavy framework wiring toward a more productionized deterministic runtime. The biggest gaming path, tag-only Loop Contract required-test coverage, now has a strict execution-backed mode and maturity cap. The next high-leverage cleanup is deeper runtime modularity plus evidence validation for the remaining maturity dimensions.

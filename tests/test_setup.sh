@@ -98,6 +98,9 @@ mkdir -p "$TARGET"
 
 assert_dir_exists ".claude/skills/ created" "$TARGET/.claude/skills"
 assert_dir_exists ".claude/agents/ created" "$TARGET/.claude/agents"
+assert_file_exists ".adlc/bin/adlc runtime wrapper created" "$TARGET/.adlc/bin/adlc"
+assert ".adlc/bin/adlc runtime wrapper is executable" "[ -x '$TARGET/.adlc/bin/adlc' ]"
+assert ".adlc/bin/adlc can run health-check" "'$TARGET/.adlc/bin/adlc' health-check --json | jq -e '.summary.failed_required == 0' >/dev/null"
 assert_file_count "$SKILL_COUNT skills installed" "$TARGET/.claude/skills" "SKILL.md" "$SKILL_COUNT"
 assert_file_count "$AGENT_COUNT installable agents installed" "$TARGET/.claude/agents" "*.md" "$AGENT_COUNT"
 assert_file_exists "CLAUDE.md created" "$TARGET/CLAUDE.md"
@@ -133,6 +136,7 @@ mkdir -p "$TARGET"
 "$ADLC_DIR/setup.sh" codex "$TARGET" > /dev/null 2>&1
 
 assert_dir_exists ".agents/skills/ created" "$TARGET/.agents/skills"
+assert_file_exists ".adlc/bin/adlc runtime wrapper created" "$TARGET/.adlc/bin/adlc"
 assert_file_count "$SKILL_COUNT skills installed" "$TARGET/.agents/skills" "SKILL.md" "$SKILL_COUNT"
 assert_file_exists "AGENTS.md created" "$TARGET/AGENTS.md"
 
@@ -152,6 +156,7 @@ mkdir -p "$TARGET"
 "$ADLC_DIR/setup.sh" cursor "$TARGET" > /dev/null 2>&1
 
 assert_dir_exists ".cursor/rules/ created" "$TARGET/.cursor/rules"
+assert_file_exists ".adlc/bin/adlc runtime wrapper created" "$TARGET/.adlc/bin/adlc"
 SKILL_RULES=$(find "$TARGET/.cursor/rules" -name "adlc-*.mdc" ! -name "adlc-agent-*.mdc" | wc -l | tr -d ' ')
 assert "$SKILL_COUNT skill rules installed (got $SKILL_RULES)" "[ '$SKILL_RULES' -eq '$SKILL_COUNT' ]"
 
@@ -176,6 +181,7 @@ mkdir -p "$TARGET"
 "$ADLC_DIR/setup.sh" antigravity "$TARGET" > /dev/null 2>&1
 
 assert_dir_exists ".agent/skills/ created" "$TARGET/.agent/skills"
+assert_file_exists ".adlc/bin/adlc runtime wrapper created" "$TARGET/.adlc/bin/adlc"
 assert_file_count "$SKILL_COUNT skills installed" "$TARGET/.agent/skills" "SKILL.md" "$SKILL_COUNT"
 assert_file_exists "agents.md created" "$TARGET/agents.md"
 
@@ -196,6 +202,7 @@ mkdir -p "$TARGET"
 
 assert_dir_exists ".factory/droids/ created" "$TARGET/.factory/droids"
 assert_dir_exists ".factory/docs/ created" "$TARGET/.factory/docs"
+assert_file_exists ".adlc/bin/adlc runtime wrapper created" "$TARGET/.adlc/bin/adlc"
 assert_file_count "$AGENT_COUNT installable droids installed" "$TARGET/.factory/droids" "adlc-*.md" "$AGENT_COUNT"
 assert_file_count "$SKILL_COUNT skill docs installed" "$TARGET/.factory/docs" "adlc-*.md" "$SKILL_COUNT"
 assert_file_exists "AGENTS.md created" "$TARGET/AGENTS.md"
@@ -222,6 +229,7 @@ assert_dir_exists "Cursor: .cursor/rules/" "$TARGET/.cursor/rules"
 assert_dir_exists "Antigravity: .agent/skills/" "$TARGET/.agent/skills"
 assert_dir_exists "Factory: .factory/droids/" "$TARGET/.factory/droids"
 assert_dir_exists "Factory: .factory/docs/" "$TARGET/.factory/docs"
+assert_file_exists "Runtime: .adlc/bin/adlc" "$TARGET/.adlc/bin/adlc"
 
 echo ""
 
@@ -237,6 +245,7 @@ mkdir -p "$TARGET"
 
 assert_file_count "Still $SKILL_COUNT skills after double install" "$TARGET/.claude/skills" "SKILL.md" "$SKILL_COUNT"
 assert_file_count "Still $AGENT_COUNT installable agents after double install" "$TARGET/.claude/agents" "*.md" "$AGENT_COUNT"
+assert_file_exists "Still has runtime wrapper after double install" "$TARGET/.adlc/bin/adlc"
 
 echo ""
 
