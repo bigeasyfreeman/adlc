@@ -1,0 +1,17 @@
+{
+  "contract_version": "1.0.0",
+  "contract_id": "adlc-assisted-loop",
+  "task_id": "ADLC-LSMA-003",
+  "runner": "tests/test_adlc_cli.sh",
+  "results": [
+    {
+      "required_test_id": "floor:schema",
+      "command": "bin/adlc validate-artifact --schema loop-contract --input tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json --json",
+      "exit_code": 0,
+      "runner": "tests/test_adlc_cli.sh",
+      "artifact_refs": [
+        "tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json"
+      ]
+    }
+  ]
+}

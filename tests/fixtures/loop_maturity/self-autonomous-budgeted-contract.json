@@ -1,0 +1,100 @@
+{
+  "contract_version": "1.0.0",
+  "contract_id": "adlc-self-autonomous-budgeted-loop",
+  "autonomy_claim": "self_autonomous",
+  "job_win_condition": {
+    "job": "Validate a self-autonomous ADLC loop claim with executed tests, action admission, control state, and healthy budget evidence.",
+    "done_when": "The maturity audit returns self_autonomous only when deterministic evidence and budget guard status are healthy.",
+    "deterministic_checks": [
+      "bin/adlc loop-budget-check",
+      "bin/adlc loop-action-validate",
+      "bin/adlc loop-test-selection --require-test-results",
+      "bin/adlc loop-maturity-audit"
+    ],
+    "semantic_intent_check": "Human review remains the production boundary outside this fixture."
+  },
+  "allowed_tools": [
+    {
+      "name": "bin/adlc loop-test-selection",
+      "actions": ["run_tests"]
+    },
+    {
+      "name": "bin/adlc loop-budget-check",
+      "actions": ["observe", "run_tool"]
+    },
+    {
+      "name": "human-escalation",
+      "actions": ["escalate", "abort", "steer"]
+    }
+  ],
+  "feedback_channels": [
+    {
+      "after_action": "command",
+      "observes": ["exit_code", "stdout", "stderr", "budget_status"]
+    },
+    {
+      "after_action": "test",
+      "observes": ["pass_fail", "missing_required_tests", "coverage_tags"]
+    }
+  ],
+  "stop_escalate_rules": {
+    "max_iterations": 3,
+    "no_progress_after": 2,
+    "escalate_when": [
+      "budget_exhausted",
+      "no_progress_after_threshold",
+      "missing_tool_authority",
+      "unsafe_action_request"
+    ]
+  },
+  "test_selection": {
+    "mandatory_floor": [
+      {
+        "id": "floor:schema",
+        "command": "bin/adlc validate-artifact --schema loop-contract --input tests/fixtures/loop_maturity/self-autonomous-budgeted-contract.json --json",
+        "coverage_tags": ["schema", "loop-contract"]
+      }
+    ],
+    "required_from_task_signals": [
+      {
+        "id": "required:test-selection",
+        "signal": "loop action changes required tests",
+        "command": "bin/adlc loop-test-selection --loop-contract tests/fixtures/loop_maturity/self-autonomous-budgeted-contract.json --test-plan tests/fixtures/loop_maturity/test-plan-complete-required.json --require-test-results tests/fixtures/loop_maturity/test-results-complete-required.json --json",
+        "coverage_tags": ["test-selection", "required-tests"]
+      }
+    ],
+    "additive_agent_tests": true
+  },
+  "safe_bail_state": {
+    "state": "workflow state remains at a safe checkpoint with no external mutation in progress",
+    "rollback": "rerun from the saved workflow state without applying external side effects",
+    "idempotency": "local CLI validations are read-only and rerunnable"
+  },
+  "progress_signal": {
+    "signals": ["changed_verifier_status", "budget_status_updated", "resolved_missing_required_test"],
+    "no_progress_rule": "two iterations with unchanged verifier or budget failures escalate"
+  },
+  "control_channel": {
+    "supports": ["steer", "abort", "interrupt", "escalate"],
+    "safe_checkpoint_required": true
+  },
+  "independent_truth": {
+    "type": "external_command",
+    "evidence": [
+      "bin/adlc loop-test-selection --require-test-results",
+      "bin/adlc loop-budget-check",
+      "bin/adlc validate-artifact --schema loop-maturity-report"
+    ]
+  },
+  "redaction_posture": "Store token totals and budget refs only; do not capture prompts, API keys, bearer tokens, billing account IDs, or raw provider logs.",
+  "budget_guard": {
+    "token_budget_ref": "tests/fixtures/loop_maturity/token-budget-healthy.json",
+    "hard_stop_behavior": "block_call",
+    "required_for": ["llm_action", "self_autonomous"],
+    "budget_exhausted_stop_reason": "budget_exhausted",
+    "evidence_refs": [
+      "tests/fixtures/loop_maturity/token-budget-healthy.json",
+      "docs/specs/pre-turn-check.md"
+    ]
+  }
+}

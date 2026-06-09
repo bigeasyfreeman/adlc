@@ -71,8 +71,22 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "execution_evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
+      }
+    },
+    "test_result_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
       }
     },
     "pre_change_run_path": {

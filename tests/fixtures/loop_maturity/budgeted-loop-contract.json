@@ -1,0 +1,99 @@
+{
+  "contract_version": "1.0.0",
+  "contract_id": "adlc-budgeted-loop",
+  "autonomy_claim": "assisted_loop",
+  "job_win_condition": {
+    "job": "Validate an LLM-proposed ADLC loop action with token budget evidence before execution.",
+    "done_when": "The action is admitted only when contract constraints and budget guard checks pass.",
+    "deterministic_checks": [
+      "bin/adlc loop-budget-check",
+      "bin/adlc loop-action-validate",
+      "bin/adlc loop-maturity-audit"
+    ],
+    "semantic_intent_check": "Eval Council may inspect intent, but budget admission is deterministic."
+  },
+  "allowed_tools": [
+    {
+      "name": "bin/adlc loop-test-selection",
+      "actions": ["run_tests"]
+    },
+    {
+      "name": "bin/adlc loop-budget-check",
+      "actions": ["observe", "run_tool"]
+    },
+    {
+      "name": "human-escalation",
+      "actions": ["escalate", "abort", "steer"]
+    }
+  ],
+  "feedback_channels": [
+    {
+      "after_action": "command",
+      "observes": ["exit_code", "stdout", "stderr", "budget_status"]
+    },
+    {
+      "after_action": "budget_check",
+      "observes": ["projected_total_tokens", "budget_remaining", "stop_reason"]
+    }
+  ],
+  "stop_escalate_rules": {
+    "max_iterations": 3,
+    "no_progress_after": 2,
+    "escalate_when": [
+      "budget_exhausted",
+      "no_progress_after_threshold",
+      "missing_tool_authority",
+      "unsafe_action_request"
+    ]
+  },
+  "test_selection": {
+    "mandatory_floor": [
+      {
+        "id": "floor:schema",
+        "command": "bin/adlc validate-artifact --schema loop-contract --input tests/fixtures/loop_maturity/budgeted-loop-contract.json --json",
+        "coverage_tags": ["schema", "loop-contract"]
+      }
+    ],
+    "required_from_task_signals": [
+      {
+        "id": "required:test-selection",
+        "signal": "loop action changes required tests",
+        "command": "bin/adlc loop-test-selection --loop-contract tests/fixtures/loop_maturity/budgeted-loop-contract.json --test-plan tests/fixtures/loop_maturity/test-plan-complete-required.json --json",
+        "coverage_tags": ["test-selection", "required-tests"]
+      }
+    ],
+    "additive_agent_tests": true
+  },
+  "safe_bail_state": {
+    "state": "workflow state remains at a safe checkpoint with no external mutation in progress",
+    "rollback": "discard uncommitted loop-budget changes or rerun from the saved workflow state",
+    "idempotency": "local CLI validations are read-only and rerunnable"
+  },
+  "progress_signal": {
+    "signals": ["changed_verifier_status", "budget_status_updated", "resolved_missing_required_test"],
+    "no_progress_rule": "two iterations with the same missing required test, verifier failure, or exhausted budget escalate"
+  },
+  "control_channel": {
+    "supports": ["steer", "abort", "interrupt", "escalate"],
+    "safe_checkpoint_required": true
+  },
+  "independent_truth": {
+    "type": "schema",
+    "evidence": [
+      "docs/schemas/loop-contract.schema.json",
+      "docs/schemas/token-budget.schema.json",
+      "docs/schemas/loop-maturity-report.schema.json"
+    ]
+  },
+  "redaction_posture": "Store token totals and budget refs only; do not capture prompts, API keys, bearer tokens, billing account IDs, or raw provider logs.",
+  "budget_guard": {
+    "token_budget_ref": "tests/fixtures/loop_maturity/token-budget-healthy.json",
+    "hard_stop_behavior": "block_call",
+    "required_for": ["llm_action", "self_autonomous"],
+    "budget_exhausted_stop_reason": "budget_exhausted",
+    "evidence_refs": [
+      "tests/fixtures/loop_maturity/token-budget-healthy.json",
+      "docs/specs/pre-turn-check.md"
+    ]
+  }
+}

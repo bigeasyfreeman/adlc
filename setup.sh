@@ -47,6 +47,19 @@ usage() {
 
 [ -z "$PLATFORM" ] && usage
 
+install_runtime() {
+  local bin_dir="$TARGET/.adlc/bin"
+  mkdir -p "$bin_dir"
+  cat > "$bin_dir/adlc" <<SH
+#!/usr/bin/env bash
+set -euo pipefail
+export ADLC_ROOT="$ADLC_DIR"
+exec "$ADLC_DIR/bin/adlc" "\$@"
+SH
+  chmod +x "$bin_dir/adlc"
+  echo "  ✓ ADLC runtime wrapper installed to .adlc/bin/adlc"
+}
+
 sync_skills() {
   local dest="$1"
   echo "  Syncing $SOURCE_SKILL_COUNT skills → $dest"
@@ -205,6 +218,8 @@ case "$PLATFORM" in
     ;;
   *) usage ;;
 esac
+
+install_runtime
 
 echo ""
 echo "Done. See README.md for usage instructions."

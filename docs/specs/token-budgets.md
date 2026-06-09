@@ -17,6 +17,8 @@
 2. Track tokens by phase and by skill invocation.
 3. Enforce pre-turn check for every model call.
 4. Emit warnings at 50%, alerts at 80%, stop at 100%.
+5. For LLM-backed Loop Contracts, store a compact `budget_guard.token_budget_ref` instead of raw prompts, provider logs, API keys, bearer tokens, or billing account IDs.
+6. A token budget may report `status: "stale"` when its totals are no longer trusted. Stale evidence blocks `self_autonomous` loop maturity until refreshed.
 
 ## Override Mechanism
 Per-brief override payload:
@@ -34,3 +36,7 @@ Per-brief override payload:
 
 ## Output Requirement
 Final report must include `tokens_by_phase`, `tokens_by_skill`, and estimated cost by model.
+
+## Loop Budget Guard Evidence
+
+`bin/adlc loop-budget-check` reads this artifact before an LLM loop action and emits `budget_status`. The budget status is safe to pass through Loop Actions, workflow state, maturity reports, and learning refs because it contains aggregate token/cost totals and artifact paths, not raw prompts or secrets.

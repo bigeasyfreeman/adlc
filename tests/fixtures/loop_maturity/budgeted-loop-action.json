@@ -1,0 +1,28 @@
+{
+  "contract_version": "1.0.0",
+  "action_id": "action:budgeted-run-required-test-selection",
+  "proposed_by": "llm",
+  "action_type": "run_tests",
+  "tool": "bin/adlc loop-test-selection",
+  "rationale": "The next useful step is to prove required tests cannot be skipped while budget evidence remains healthy.",
+  "expected_observation": "The complete test plan satisfies the mandatory floor and task-signal required tests without exhausting the loop budget.",
+  "required_preconditions": ["safe_checkpoint", "allowed_tool", "required_tests_declared", "budget_guard"],
+  "satisfies_required_tests": ["floor:schema", "required:test-selection"],
+  "control_event_type": null,
+  "safe_checkpoint_required": true,
+  "rollback_note": "No rollback needed; this is a read-only validation command.",
+  "evidence_refs": [
+    "tests/fixtures/loop_maturity/test-plan-complete-required.json",
+    "tests/fixtures/loop_maturity/token-budget-healthy.json"
+  ],
+  "budget_estimate": {
+    "estimated_input_tokens": 10,
+    "expected_output_tokens": 10,
+    "projected_total_tokens": 20,
+    "phase": "phase_5_codegen_context",
+    "skill": "codegen-context",
+    "evidence_refs": [
+      "docs/specs/pre-turn-check.md"
+    ]
+  }
+}

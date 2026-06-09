@@ -275,13 +275,16 @@ For every task that changes autonomous loop behavior, LLM action admission, test
 - Required generated tests must carry machine-readable `coverage_tags` and `covers_required_tests` so selection is mechanical, not narrative.
 - Agent discretion is additive only: it may add tests, but it may not remove the mandatory floor or required tests.
 - The loop must expose real feedback, progress/no-progress state, a safe checkpoint, a control channel, and escalation context when it claims assisted or autonomous loop behavior.
-- Maturity claims must be backed by `bin/adlc loop-maturity-audit`; `self_autonomous` is blocked when win condition, test selection, or failure handling scores 0-1.
+- LLM-backed loop actions must carry compact `budget_guard` refs and should be checked with `bin/adlc loop-budget-check` before action admission.
+- Maturity claims must be backed by `bin/adlc loop-maturity-audit`; `self_autonomous` is blocked when win condition, test selection, or failure handling scores 0-1, or when `budget_status` is missing, stale, warning, alert, or exhausted.
 
 Missing or weak loop gates return:
 
 - `missing_loop_contract` when an active LLM-driven loop surface lacks a Loop Contract.
 - `missing_required_loop_tests` when mandatory or task-signal tests are not covered.
 - `loop_action_not_admitted` when the proposed LLM action violates tool, required-test, control-event, or safe-checkpoint constraints.
+- `loop_budget_missing` when an LLM-backed loop or self-autonomy claim lacks budget_guard evidence.
+- `loop_budget_unhealthy` when `budget_status` is stale, warning, alert, exhausted, or emits stop reason `budget_exhausted`.
 - `self_autonomy_overclaim` when the task claims self-autonomy without robust deterministic win condition, non-gameable test selection, and failure handling.
 - `self_grading_loop` when the same agent-written artifact is treated as the only truth source for its own correctness.
 

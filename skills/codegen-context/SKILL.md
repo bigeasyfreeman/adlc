@@ -344,7 +344,7 @@ These are the exact files this task touches.
 [Include this section only when active. Paste `productionization_gate`: claim, Coverage State, validation evidence, No-Overclaim boundaries, reliability failure modes, owner, rollback path, runbook/alerting/dashboard/SLO refs where applicable, security/privacy posture, and known unsupported states. Do not let the coding agent expand production claims beyond this gate.]
 
 ### Loop Contract
-[Include this section only when active. Paste `loop_contract_path`, the full Loop Contract, required test IDs, allowed tool/action pairs, real feedback sources, safe checkpoint, progress/no-progress signal, control events, escalation context, independent truth, and the exact `bin/adlc loop-test-selection`, `bin/adlc loop-action-validate`, or `bin/adlc loop-maturity-audit` command that gates this task. LLM discretion may add tests, never remove the mandatory floor or required tests.]
+[Include this section only when active. Paste `loop_contract_path`, the full Loop Contract, required test IDs, allowed tool/action pairs, real feedback sources, safe checkpoint, progress/no-progress signal, control events, escalation context, independent truth, compact `budget_guard` refs, `budget_status`, and the exact `bin/adlc loop-test-selection`, `bin/adlc loop-budget-check`, `bin/adlc loop-action-validate`, or `bin/adlc loop-maturity-audit` command that gates this task. LLM discretion may add tests, never remove the mandatory floor or required tests. Pass budget refs and aggregate token totals only; do not paste raw prompts, provider logs, API keys, bearer tokens, or billing account IDs.]
 
 ## 9. Tech Debt Boundaries
 [Paste prerequisite debt, deferred debt, and safe-deferral rationale. Do not ask the coding agent to implement unrelated catalog items.]
@@ -408,7 +408,7 @@ Pull in only the brief sections that the applicability manifest marks active:
 - construct map, paved-road evidence, intent contract, and production invariant coverage when the task changes code, schema, runtime behavior, persistence, API contracts, or deployment conventions
 - implementation-interface contracts when the task changes integration boundaries, schema, emitters, workflow state, CLI contracts, provider edges, or reusable framework surfaces
 - productionization gates when the task makes or changes a production support claim
-- loop contracts when the task changes autonomous loop behavior, LLM action admission, test-selection policy, control events, no-progress detection, escalation, or a maturity claim
+- loop contracts when the task changes autonomous loop behavior, LLM action admission, test-selection policy, control events, no-progress detection, escalation, budget_guard behavior, budget_status evidence, or a maturity claim
 - slop quality gate when the task changes generated-output behavior, prompt behavior, model selection, agent roles, content, product output, response templates, or output validators
 - context-layer artifacts and decision-log warnings when applicable
 - performance budget when applicable

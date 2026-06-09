@@ -48,6 +48,9 @@
         }
       }
     },
+    "budget_status": {
+      "$ref": "#/definitions/budget_status"
+    },
     "dimension_scores": {
       "type": "object",
       "additionalProperties": false,
@@ -122,6 +125,64 @@
     }
   },
   "definitions": {
+    "budget_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "decision", "evidence_refs"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["healthy", "warning", "alert", "exhausted", "stale", "missing"]
+        },
+        "decision": {
+          "type": "string",
+          "enum": ["proceed", "warning", "wrap_up", "blocked", "not_evaluated"]
+        },
+        "token_budget_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tokens_used": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "budget_limit": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "projected_total_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "budget_remaining": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "threshold": {
+          "type": "string",
+          "enum": ["warn_at", "alert_at", "hard_stop_at", "artifact_status", "missing", "not_evaluated"]
+        },
+        "stop_reason": {
+          "type": "string",
+          "enum": ["budget_exhausted", "budget_stale", "budget_missing"]
+        },
+        "phase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
     "dimension_score": {
       "type": "object",
       "additionalProperties": false,

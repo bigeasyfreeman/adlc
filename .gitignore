@@ -27,6 +27,7 @@ venv/
 
 # ADLC workspace artifacts
 .adlc/
+graphify-out/
 *.workspace/
 !tests/smoke/fixtures/
 !tests/smoke/fixtures/feature_bugfix/

@@ -148,7 +148,8 @@
         "healthy",
         "warning",
         "alert",
-        "exhausted"
+        "exhausted",
+        "stale"
       ]
     },
     "updated_at": {

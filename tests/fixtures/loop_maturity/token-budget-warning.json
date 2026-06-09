@@ -1,0 +1,30 @@
+{
+  "session_id": "adlc-budget-warning",
+  "brief_id": "ADLC-LOOP-BUDGET-GUARD-INTEGRATION",
+  "budget_limit": 100000,
+  "tokens_used": 52000,
+  "tokens_by_phase": {
+    "phase_5_codegen_context": 52000
+  },
+  "tokens_by_skill": {
+    "codegen-context": 52000
+  },
+  "cost_estimate": {
+    "currency": "USD",
+    "total": 2.1,
+    "by_model": {
+      "gpt-5-codex": {
+        "input_tokens": 32000,
+        "output_tokens": 20000,
+        "estimated_cost": 2.1
+      }
+    }
+  },
+  "thresholds": {
+    "warn_at": 0.5,
+    "alert_at": 0.8,
+    "hard_stop_at": 1.0
+  },
+  "status": "warning",
+  "updated_at": "2026-06-09T00:00:00Z"
+}
