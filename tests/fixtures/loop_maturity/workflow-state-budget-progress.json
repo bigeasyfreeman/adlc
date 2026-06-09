@@ -1,0 +1,97 @@
+{
+  "brief_id": "ADLC-LOOP-BUDGET-GUARD-INTEGRATION",
+  "budget_status": {
+    "budget_remaining": 98980,
+    "decision": "proceed",
+    "evidence_refs": [
+      "tests/fixtures/loop_maturity/token-budget-healthy.json"
+    ],
+    "phase": "phase_5_codegen_context",
+    "projected_total_tokens": 1020,
+    "skill": "codegen-context",
+    "status": "healthy",
+    "threshold": "warn_at",
+    "token_budget_ref": "tests/fixtures/loop_maturity/token-budget-healthy.json"
+  },
+  "checkpoint": {
+    "history": [
+      {
+        "label": "done",
+        "observation": "budgeted loop fixtures written",
+        "phase": "gen_tests",
+        "status": "completed",
+        "timestamp": "2026-06-09T00:00:01Z"
+      }
+    ],
+    "workspace": "/tmp/adlc-loop-budget-test"
+  },
+  "control_events": [
+    {
+      "event_id": "ctrl:steer:budget:1",
+      "event_type": "steer",
+      "evidence_refs": [
+        "tests/fixtures/loop_maturity/token-budget-healthy.json"
+      ],
+      "reason": "Use healthy budget evidence for the next loop action.",
+      "status": "applied",
+      "timestamp": "2026-06-09T00:00:02Z"
+    }
+  ],
+  "escalation_context": {
+    "context_refs": [
+      "tests/fixtures/loop_maturity/workflow-state-budget-progress.json"
+    ],
+    "no_progress_after": 2,
+    "phase": "test_strength",
+    "recent_observations": [
+      "budget guard evidence remains healthy"
+    ],
+    "requested_decision": "none",
+    "trigger": "not_active"
+  },
+  "loop_progress": {
+    "evidence_refs": [
+      "tests/fixtures/loop_maturity/token-budget-healthy.json",
+      "tests/fixtures/loop_maturity/test-plan-complete-required.json"
+    ],
+    "iteration_count": 2,
+    "last_observation": "budgeted action has healthy budget and required-test evidence",
+    "last_progress_signal": "budget_status_updated"
+  },
+  "no_progress_count": 0,
+  "phase": "test_strength",
+  "resume_count": 1,
+  "safe_checkpoint": {
+    "checkpoint_id": "checkpoint:test-strength:budget-ready",
+    "evidence_refs": [
+      ".adlc/workflow_state.json"
+    ],
+    "idempotent": true,
+    "phase": "test_strength",
+    "retryable": true,
+    "rollback_plan": "No external side effects; rerun CLI validation."
+  },
+  "session_id": "adlc-loop-budget-test",
+  "side_effects": [],
+  "started_at": "2026-06-09T00:00:00Z",
+  "status": "planned",
+  "step": "ready",
+  "task_fingerprints": [
+    {
+      "changed_files": [
+        "scripts/adlc_runtime/cli.py"
+      ],
+      "commit": null,
+      "evidence": [
+        "loop-budget-check healthy path passed"
+      ],
+      "input_hash": "loop-budget-check",
+      "post_change_status": "not_run",
+      "pre_change_status": "failed_expected",
+      "primary_verifier": "bin/adlc loop-budget-check",
+      "status": "in_progress",
+      "task_id": "ADLC-LBG-003"
+    }
+  ],
+  "updated_at": "2026-06-09T00:00:03Z"
+}

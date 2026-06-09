@@ -24,8 +24,10 @@ Provide deterministic cost visibility for each ADLC run.
 - Append to Build Brief output package.
 - Post summary to Slack orchestration channel.
 - Persist under workflow/session state.
+- Reference compact `budget_status` evidence from Loop Contracts, Loop Actions, workflow state, and maturity reports when an LLM-backed loop is active.
 
 ## Calculation Rules
 - Use configured model price table at runtime.
 - Include retries and deduplicated attempts.
 - Round costs to 4 decimal places internally, 2 for display.
+- Do not persist raw prompts, provider logs, API keys, bearer tokens, billing account IDs, or live billing exports in loop budget evidence.

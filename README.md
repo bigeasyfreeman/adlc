@@ -86,9 +86,9 @@ The shipped framework layers are:
 | Implementation Interface | Task-scoped contract for what a change reuses, consumes, emits, preserves, integrates with, and validates | Active when a task touches repo boundaries, schemas, emitters, providers, workflow state, CLI contracts, or reusable framework surfaces |
 | Productionization Gate | Bounded production claim with Coverage State, evidence, rollback/observability/security posture, reliability risks, and No-Overclaim boundaries | Active when a task claims production support or production readiness |
 | Slop Quality Gate | Output-side benchmark, threshold, eval cases, and failure action for generated-output surfaces | Active when a task changes prompt/model/agent/generated content behavior |
-| Loop Contract | LLM action-loop contract: job, win condition, allowed tools, real feedback, required tests, progress, control channel, safe checkpoint, independent truth, and escalation | Active when a task delegates decisions, tool use, test selection, retry/repair, escalation, or maturity claims to an LLM loop |
+| Loop Contract | LLM action-loop contract: job, win condition, allowed tools, real feedback, required tests, progress, control channel, safe checkpoint, independent truth, escalation, and optional `budget_guard` evidence | Active when a task delegates decisions, tool use, test selection, retry/repair, escalation, or maturity claims to an LLM loop |
 
-The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, retry caps, workflow state, compound context, readiness gates, test-strength checks, Loop Contract admission gates, and execution-backed required-test evidence when `loop-test-result` artifacts are supplied. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, or failure handling. Tag-only Loop Contract coverage is intentionally capped below robust.
+The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, retry caps, workflow state, compound context, readiness gates, test-strength checks, Loop Contract admission gates, and execution-backed required-test evidence when `loop-test-result` artifacts are supplied. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, failure handling, or budget evidence. Missing, stale, warning, alert, or exhausted `budget_status` blocks `self_autonomous`; healthy local budget evidence is necessary but not sufficient. Tag-only Loop Contract coverage is intentionally capped below robust.
 
 What is automatic today:
 
@@ -97,6 +97,7 @@ What is automatic today:
 - generated-output slop gate checks when a generated-output surface is active
 - implementation-interface and productionization overclaim checks
 - Loop Contract test-selection, action-admission, and maturity-audit CLI/MCP tools
+- deterministic `loop-budget-check` CLI/MCP budget guard for LLM-backed Loop Actions
 - strict Loop Contract required-test proof through `docs/schemas/loop-test-result.schema.json` and `loop-test-selection --require-test-results`
 - runtime preflight through `bin/adlc health-check --json`
 - resume summaries for task fingerprints, loop progress, no-progress count, control events, safe checkpoints, and escalation context
@@ -183,8 +184,9 @@ bin/adlc resume-workflow --workspace . --json
 bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --require-test-results .adlc/loop_test_result.json --json
+bin/adlc loop-budget-check --token-budget .adlc/token_budget.json --estimated-input-tokens 2000 --expected-output-tokens 4000 --phase phase_5_codegen_context --skill codegen-context --json
 bin/adlc loop-action-validate --loop-contract docs/loop-contracts/task.json --action .adlc/loop_action.json --state .adlc/workflow_state.json --json
-bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --test-results .adlc/loop_test_result.json --json
+bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --test-results .adlc/loop_test_result.json --token-budget .adlc/token_budget.json --json
 bin/adlc emit-work-items --target linear --build-brief .adlc/build_brief.json --dry-run --json
 bin/adlc mcp-tools --json
 bin/adlc mcp-serve
@@ -197,9 +199,11 @@ bin/adlc validate-artifact --schema loop-contract --input docs/loop-contracts/ta
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
 bin/adlc validate-artifact --schema loop-test-result --input .adlc/loop_test_result.json --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --require-test-results .adlc/loop_test_result.json --json
+bin/adlc validate-artifact --schema token-budget --input .adlc/token_budget.json --json
+bin/adlc loop-budget-check --token-budget .adlc/token_budget.json --estimated-input-tokens 2000 --expected-output-tokens 4000 --phase phase_5_codegen_context --skill codegen-context --json
 bin/adlc validate-artifact --schema loop-action --input .adlc/loop_action.json --json
-bin/adlc loop-action-validate --loop-contract docs/loop-contracts/task.json --action .adlc/loop_action.json --state .adlc/workflow_state.json --json
-bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --test-results .adlc/loop_test_result.json --action .adlc/loop_action.json --json
+bin/adlc loop-action-validate --loop-contract docs/loop-contracts/task.json --action .adlc/loop_action.json --state .adlc/workflow_state.json --token-budget .adlc/token_budget.json --json
+bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --test-results .adlc/loop_test_result.json --action .adlc/loop_action.json --token-budget .adlc/token_budget.json --json
 ```
 
 Public-repo hygiene is intentional:

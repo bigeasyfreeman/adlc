@@ -96,6 +96,7 @@ ADLC is LLM-driven with deterministic constraints. For each task that creates or
 - `loop_contract_path`: JSON artifact that validates against `docs/schemas/loop-contract.schema.json`
 - `loop_action_path`: optional LLM Action Envelope that validates against `docs/schemas/loop-action.schema.json`
 - `loop_maturity_report_path`: optional maturity evidence that validates against `docs/schemas/loop-maturity-report.schema.json`
+- `budget_guard.token_budget_ref`: required when the task delegates an LLM-backed loop action or claims `self_autonomous`
 
 The Loop Contract must define:
 
@@ -108,8 +109,9 @@ The Loop Contract must define:
 - safe bail state and idempotent checkpoint
 - progress signal, no-progress threshold, and escalation context
 - independent truth source so the loop does not grade only its own output
+- budget_guard refs, `budget_status`, and `budget_exhausted` stop behavior when LLM-backed actions or self-autonomy claims are active
 
-If a task claims `self_autonomous`, require `bin/adlc loop-maturity-audit` evidence with no 0-1 scores for win condition, test selection, or failure handling. Otherwise use `assisted_loop` or `one_shot_in_disguise` honestly. Do not credit intentions; credit only schemas, tests, workflow state, tool output, and cited evidence.
+If a task claims `self_autonomous`, require `bin/adlc loop-maturity-audit` evidence with no 0-1 scores for win condition, test selection, or failure handling, plus healthy `budget_status` from `bin/adlc loop-budget-check`. Missing, stale, warning, alert, or exhausted budget evidence blocks `self_autonomous`. Otherwise use `assisted_loop` or `one_shot_in_disguise` honestly. Do not credit intentions; credit only schemas, tests, workflow state, tool output, budget evidence, and cited evidence.
 
 ## Slop Quality Gate
 
@@ -175,7 +177,7 @@ Task-writing rules:
 - Every task that changes code must cite `paved_road_refs` or explicitly state `no_paved_road_found` with the closest convention and review rationale.
 - Every task that changes an integration boundary, schema, emitter payload, workflow state, CLI contract, provider edge, or reusable framework surface must include `implementation_interface_contract`.
 - Every task that makes a production support claim must include `productionization_gate`; use a lower Coverage State rather than overclaiming `production_ready`.
-- Every task that delegates decisions or actions to an LLM loop must include `loop_contract_path` and must name the required `bin/adlc loop-test-selection`, `bin/adlc loop-action-validate`, or `bin/adlc loop-maturity-audit` verifier that proves deterministic control of that loop.
+- Every task that delegates decisions or actions to an LLM loop must include `loop_contract_path` and must name the required `bin/adlc loop-test-selection`, `bin/adlc loop-budget-check`, `bin/adlc loop-action-validate`, or `bin/adlc loop-maturity-audit` verifier that proves deterministic control of that loop.
 - If a task introduces a new abstraction, justify why the existing pattern cannot absorb the change without creating worse coupling.
 - If tech debt must be paid down before feature work, split that work into an explicit prerequisite task rather than burying it in implementation notes.
 - `anti_slop_rules` must forbid reimplementing cited helpers, services, or patterns when they already exist.

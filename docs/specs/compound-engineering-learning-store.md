@@ -95,7 +95,9 @@ For LLM-driven loop work, compact refs may include:
 - `loop_contract_path`
 - `loop_maturity_report_path`
 - `maturity_verdict`
+- `budget_status` and compact `budget_guard` refs when the loop is LLM-backed
 - score gaps that remain stale until `bin/adlc loop-maturity-audit` is rerun
 - the no-overclaim boundary that says whether the loop is `assisted_loop` or `self_autonomous`
+- stale conditions for token-budget artifacts, including missing, stale, warning, alert, or exhausted budget evidence
 
 `learning_capture` runs after PR prep only when a verified reusable learning exists. `learning_refresh` is scoped maintenance: run it for a stale signal, a requested module/domain, or a significant refactor. Broad refresh is not part of the default build loop.

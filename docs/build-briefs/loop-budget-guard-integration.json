@@ -1,0 +1,1831 @@
+{
+  "version": "1.0.0",
+  "adlc_mode": "decompose_only",
+  "brief_id": "ADLC-LOOP-BUDGET-GUARD-INTEGRATION",
+  "prd_id": "ADLC-LOOP-BUDGET-GUARD-PRD",
+  "applicability_manifest": {
+    "version": "1.0.0",
+    "task_classification": "infra",
+    "task_classification_confidence": 0.96,
+    "classification_evidence": [
+      "The change binds existing token-budget, pre-turn-check, and cost-reporting specs into ADLC Loop Contracts, action admission, workflow state, maturity reports, and agent guidance.",
+      "The change affects local schemas, CLI/MCP commands, fixtures, skills, and docs rather than an application runtime feature."
+    ],
+    "change_surface": {
+      "new_attack_surface": false,
+      "runtime_path_change": true,
+      "service_boundary_change": false,
+      "external_integration": false,
+      "persistent_storage": true,
+      "api_change": true,
+      "data_format_change": true,
+      "auth_change": false,
+      "perf_sensitive": true,
+      "user_facing_operation": false
+    },
+    "claim_provenance": {
+      "supported": [
+        {
+          "claim": "ADLC already has Loop Contract schemas, action validation, required-test evidence, maturity reports, workflow progress/control state, and assisted-loop no-overclaim behavior.",
+          "source_ref": "README.md, docs/specs/loop-system-maturity-audit.md, docs/schemas/loop-contract.schema.json, scripts/adlc_runtime/cli.py, tests/fixtures/loop_maturity/",
+          "extracted_from": "Local ADLC loop-system maturity implementation"
+        },
+        {
+          "claim": "ADLC already has token-budget, pre-turn-check, cost-reporting, stop-reason, and session-state specs, but loop maturity does not require budget evidence for self-autonomous claims.",
+          "source_ref": "docs/specs/token-budgets.md, docs/specs/pre-turn-check.md, docs/specs/cost-reporting.md, docs/schemas/token-budget.schema.json, docs/schemas/session-state.schema.json",
+          "extracted_from": "Local ADLC infrastructure specs"
+        },
+        {
+          "claim": "The loop-engineering strategy review identifies budget binding as the highest-value missing integration before claiming self-autonomous loop maturity.",
+          "source_ref": "docs/research/loop-engineering-adlc-strategy-review.md",
+          "extracted_from": "Local loop-engineering strategy review"
+        }
+      ],
+      "unsupported": [],
+      "contradicted": []
+    },
+    "contamination": {
+      "flags": [
+        "scope_creep",
+        "unsupported_claim"
+      ],
+      "supported_claims": [
+        "Budget guards should become first-class evidence for LLM-backed Loop Contracts.",
+        "Missing budget evidence should block self_autonomous verdicts while preserving assisted_loop compatibility.",
+        "Budget enforcement should reuse existing token-budget and pre-turn-check specs rather than adding a second cost-control framework."
+      ],
+      "unsupported_claims": [],
+      "contradicted_claims": [],
+      "needs_clarification": [],
+      "suspect_phrases": [
+        "rewrite the ADLC runner as a scheduler",
+        "make every deterministic task carry budget fields",
+        "claim global self-autonomy after adding budget docs",
+        "implement provider billing integration in this slice"
+      ]
+    },
+    "section_policy": [
+      {
+        "section_name": "1_context",
+        "status": "active",
+        "reason": "The change closes a specific loop-engineering strategy gap."
+      },
+      {
+        "section_name": "8_task_tickets",
+        "status": "active",
+        "reason": "The user asked for end-to-end implementation tasks."
+      },
+      {
+        "section_name": "11_validation_plan",
+        "status": "active",
+        "reason": "Schema, CLI, MCP, maturity, and contract-test surfaces must all be validated."
+      },
+      {
+        "section_name": "12_skill_trigger_configuration",
+        "status": "active",
+        "reason": "Planner, codegen context, Eval Council, and LLM security skills must consume budget evidence."
+      },
+      {
+        "section_name": "16_implementation_interfaces",
+        "status": "active",
+        "reason": "Budget guards become an implementation interface between Loop Contract, token-budget artifacts, action admission, maturity audit, and workflow state."
+      },
+      {
+        "section_name": "17_productionization_gates",
+        "status": "active",
+        "reason": "Self-autonomous loop claims need a no-overclaim production gate when budget evidence is missing, exhausted, or stale."
+      }
+    ],
+    "verification_spec": {
+      "primary_verifier": {
+        "type": "command",
+        "target": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/loop-budget-guard-integration.json --dry-run --require-ready --json",
+        "expected_pre_change": "fail",
+        "expected_post_change": "pass",
+        "rationale": "The decomposition must remain schema-valid and readiness-clean before implementation starts.",
+        "target_files": [
+          "docs/build-briefs/loop-budget-guard-integration.json"
+        ],
+        "expected_failure_mode": "loop budget guard decomposition missing or readiness blocked"
+      },
+      "secondary_verifiers": [
+        {
+          "type": "command",
+          "target": "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/loop-budget-guard-integration.json --json",
+          "expected_pre_change": "fail",
+          "expected_post_change": "pass",
+          "rationale": "The decomposition must satisfy the strict ADLC Build Brief schema.",
+          "target_files": [
+            "docs/build-briefs/loop-budget-guard-integration.json"
+          ],
+          "expected_failure_mode": "Build Brief schema validation fails"
+        }
+      ],
+      "must_fail_before_change": true,
+      "must_be_deterministic": true,
+      "scope_note": "This validates the plan artifact, not the implementation."
+    }
+  },
+  "enterprise_readiness_contract": {
+    "production_grade_target": "Make token and cost budget evidence a first-class Loop Contract guard: LLM-backed loops declare budget refs, action admission checks projected spend before continuing, maturity reports show budget status, and self_autonomous claims are blocked when budget evidence is missing, stale, alerting, or exhausted.",
+    "backward_compatibility": "Existing Build Briefs, deterministic tasks, Loop Contracts without autonomy claims, workflow states, and emitter payloads must continue to validate. Budget guard fields are optional unless a workflow claims self_autonomous or delegates an LLM-backed loop action.",
+    "forward_compatibility": "Budget artifacts should reuse docs/schemas/token-budget.schema.json and docs/specs/pre-turn-check.md so future runtime adapters can connect real provider usage without changing Loop Contract semantics.",
+    "failure_mode_coverage": [
+      "Runaway loops are covered by projected-token budget checks, hard-stop behavior, and structured budget_exhausted stop reasons.",
+      "Silent cost drift is covered by maturity-report budget_status evidence and workflow-state budget summaries.",
+      "Overclaimed autonomy is covered by downgrading self_autonomous requests when budget evidence is missing, stale, warning, alert, or exhausted.",
+      "Compatibility drift is covered by optional budget fields and validation fixtures for both budgeted and legacy assisted-loop contracts."
+    ],
+    "definition_of_done": [
+      "Loop Contract, Loop Action, Loop Maturity Report, workflow-state, and token-budget aliases support budget guard evidence without breaking existing fixtures.",
+      "ADLC exposes deterministic loop-budget-check CLI and MCP surfaces that implement pre-turn budget decisions.",
+      "loop-action-validate can use budget evidence to reject or route budget-exhausted LLM actions before execution.",
+      "loop-maturity-audit emits budget_status and blocks self_autonomous when budget evidence is absent or unhealthy.",
+      "Planner, codegen-context, Eval Council, LLM security, README, and agent-native docs tell agents when budget guards are required.",
+      "Contract tests, CLI tests, schema validation, Build Brief readiness, and Graphify update/query pass end to end.",
+      "A follow-on tech-debt cleanup pass can run with implementation evidence and no broad unresolved generated churn."
+    ],
+    "validation_tasks": [
+      "ADLC-LBG-VAL"
+    ],
+    "compliance_posture": "No external billing provider, account credential, secret, or production mutation is introduced. The slice uses local token-budget artifacts, cost estimates, workflow state, schema validation, and CLI/MCP contracts.",
+    "construct_map_refs": [
+      "README.md",
+      "docs/specs/loop-system-maturity-audit.md",
+      "docs/specs/token-budgets.md",
+      "docs/specs/pre-turn-check.md",
+      "docs/specs/cost-reporting.md",
+      "docs/schemas/token-budget.schema.json",
+      "docs/schemas/loop-contract.schema.json",
+      "docs/schemas/loop-action.schema.json",
+      "docs/schemas/loop-maturity-report.schema.json",
+      "docs/schemas/workflow-state.schema.json",
+      "scripts/adlc_runtime/cli.py",
+      "scripts/adlc_runtime/metadata.py"
+    ],
+    "paved_road_refs": [
+      "tests/test_adlc_cli.sh",
+      "tests/test_adlc_contracts.sh",
+      "docs/specs/llm-vs-deterministic.md",
+      "skills/llm-security/SKILL.md",
+      "skills/codegen-context/SKILL.md",
+      "skills/eval-council/SKILL.md"
+    ],
+    "production_invariant_coverage": [
+      "idempotency: budget checks are deterministic for the same token-budget artifact, projected action cost, and thresholds.",
+      "persistence: budget evidence is stored as repo-local fixtures or workflow/session state refs, not only in chat.",
+      "observability: CLI, workflow state, and maturity reports expose budget status, thresholds, projected tokens, and stop reason.",
+      "sensitive_data: budget reports store token and cost totals, not prompts, API keys, provider tokens, or raw billing data.",
+      "downgrade: unhealthy or missing budget evidence downgrades self_autonomous claims rather than blocking assisted_loop usage."
+    ],
+    "implementation_interface_refs": [
+      "I-ADLC-LOOP-BUDGET-GUARD"
+    ],
+    "productionization_gate_refs": [
+      "G-ADLC-LOOP-BUDGET-NO-OVERCLAIM"
+    ]
+  },
+  "sections": {
+    "1_context": "ADLC already has Loop Contracts, action admission, required-test evidence, workflow progress/control state, maturity audit, and compound-learning refs. The local loop-engineering review identified one remaining production gap before stronger autonomous-loop claims: token and dollar budget evidence is documented in separate specs, but it is not yet bound into Loop Contracts, action validation, maturity reports, or no-overclaim gates.",
+    "2_scope_and_constraints": "In scope: budget guard semantics in loop-system docs, schema extensions, budget fixtures, token-budget schema aliasing, loop-budget-check CLI/MCP, action-admission budget checks, maturity-report budget_status, workflow-state budget summaries, planner/codegen/eval/security guidance, README/agent-native docs, and tests. Out of scope: provider billing APIs, actual hosted scheduler implementation, broad refactors unrelated to loop budget controls, or forcing budget artifacts onto deterministic docs/lint/build-validation work.",
+    "3_repo_findings": "Current ADLC evidence: README states assisted_loop by default and exposes loop-test-selection, loop-action-validate, and loop-maturity-audit. docs/specs/token-budgets.md, pre-turn-check.md, cost-reporting.md, token-budget.schema.json, and session-state.schema.json already define budgets. scripts/adlc_runtime/cli.py currently scores loop maturity from contract, state, tests, and action evidence, but not budget evidence. The next slice should bridge these existing surfaces rather than add a parallel budget framework.",
+    "4_architecture": "Add a Loop Budget Guard overlay. The Loop Contract may declare budget_guard refs and hard-stop behavior. The Loop Action may declare projected budget estimate. A new loop-budget-check command reads a token-budget artifact and projected action cost, then emits proceed, warning, wrap_up, or blocked with stop_reason budget_exhausted. loop-action-validate can consume the budget check before admitting an action. loop-maturity-audit includes budget_status and blocks self_autonomous unless budget evidence is healthy and current. Workflow state and resume output surface budget status for continuing loops.",
+    "5_security_review": [
+      {
+        "risk": "Budget reports could accidentally persist prompts, credentials, or provider account details.",
+        "mitigation": "Budget artifacts store totals, thresholds, model IDs, and evidence refs only; docs and skills must explicitly forbid raw prompts, API keys, bearer tokens, and billing account identifiers."
+      },
+      {
+        "risk": "Budget checks could be bypassed by omitting budget evidence from a self_autonomous loop.",
+        "mitigation": "Maturity audit must downgrade or block self_autonomous when budget evidence is missing, stale, warning, alert, or exhausted."
+      },
+      {
+        "risk": "Budget guard fields could make existing deterministic tasks noisy or brittle.",
+        "mitigation": "Budget fields stay optional unless the task delegates an LLM-backed loop action or claims self_autonomous maturity."
+      }
+    ],
+    "6_observability_slo": "Every active budget guard should leave machine-readable evidence: token budget artifact path, projected input/output tokens, projected total, threshold status, stop reason when blocked, cost estimate path when available, workflow-state budget summary, and maturity-report budget_status. Human-readable docs must keep the no-overclaim boundary clear: assisted_loop can proceed with documented limits; self_autonomous requires healthy budget evidence.",
+    "7_execution_plan": "Implement in six slices plus validation. First define budget-guard semantics. Second extend schemas and fixtures. Third add the loop-budget-check CLI/MCP contract. Fourth wire budget checks into action validation and workflow resume state. Fifth wire budget status into maturity audit and self-autonomy no-overclaim. Sixth update agent/skill/docs surfaces. Finally run full validation and leave the repo ready for a tech-debt cleanup pass.",
+    "8_task_tickets": [
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LBG-001",
+        "title": "Define Loop Budget Guard semantics",
+        "objective": "Document the budget guard as part of ADLC loop-system maturity without creating a second budget framework.",
+        "task_classification": "docs",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Reuse existing token-budget, pre-turn-check, cost-reporting, and stop-reason specs; bind them into Loop Contracts only when LLM-backed loop behavior is active."
+        },
+        "scope": [
+          "Update docs/specs/loop-system-maturity-audit.md with budget_guard, budget_status, and budget_exhausted no-overclaim rules.",
+          "Update docs/specs/token-budgets.md and docs/specs/pre-turn-check.md only where needed to define loop-specific evidence refs.",
+          "Update README.md to state that budget evidence is required for self_autonomous loop claims.",
+          "Keep assisted_loop compatibility explicit."
+        ],
+        "out_of_scope": [
+          "No provider billing API integration.",
+          "No new scheduler or hosted runner.",
+          "No required budget fields for deterministic docs/lint/build-validation work."
+        ],
+        "dependencies": [],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LBG_001-SEMANTICS",
+            "given": "a workflow claims self_autonomous loop maturity",
+            "when": "the loop-system maturity spec is read",
+            "then": "the spec requires healthy budget evidence as a no-overclaim gate",
+            "measurable_post_condition": "docs/specs/loop-system-maturity-audit.md names budget_guard, budget_status, budget_exhausted, and self_autonomous downgrade behavior"
+          },
+          {
+            "id": "AC-ADLC_LBG_001-COMPAT",
+            "given": "a deterministic or assisted_loop task has no budget guard",
+            "when": "ADLC docs describe Loop Contract activation",
+            "then": "the task is not forced to add budget artifacts unless it delegates an LLM-backed loop action or claims self_autonomous",
+            "measurable_post_condition": "README.md and the loop maturity spec both state the compatibility boundary"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not add vague cost-awareness prose without machine-readable fields.",
+          "Do not claim budget controls are enforced before CLI/schema tasks implement them.",
+          "Do not make budget evidence mandatory for non-LLM deterministic tasks."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Budget specs exist outside loop maturity and can be missed by autonomous-loop claims.",
+          "deferred_debt": "Provider-specific billing reconciliation remains outside this slice.",
+          "deferral_safety": "Local token-budget artifacts and estimates are enough to block runaway loop claims without requiring provider integration."
+        },
+        "compatibility_contract": {
+          "backward": "Existing Loop Contracts continue to validate until schema tasks add optional budget fields.",
+          "forward": "The spec names stable budget_guard and budget_status concepts for schema and CLI implementation.",
+          "migration_or_rollout": "Docs land first, then schema and CLI tasks make the contract executable."
+        },
+        "implementation_notes": [
+          "Keep the LLM-driven action, deterministic control-plane split intact.",
+          "Use stop reason budget_exhausted from docs/specs/stop-reasons.md.",
+          "Treat budget evidence as a maturity gate, not a blanket workflow tax."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "rg -n \"budget_guard|budget_status|budget_exhausted|self_autonomous\" docs/specs/loop-system-maturity-audit.md README.md docs/specs/pre-turn-check.md docs/specs/token-budgets.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The budget guard semantics must be documented before schema or CLI work begins.",
+            "target_files": [
+              "docs/specs/loop-system-maturity-audit.md",
+              "README.md",
+              "docs/specs/pre-turn-check.md",
+              "docs/specs/token-budgets.md"
+            ],
+            "expected_failure_mode": "budget guard semantics missing from loop-system docs"
+          },
+          "secondary_verifiers": [],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Docs-only contract slice."
+        },
+        "evidence_responsibilities": [
+          "Show the exact spec lines for budget_guard, budget_status, budget_exhausted, and self_autonomous downgrade.",
+          "Show that assisted_loop remains valid without budget evidence."
+        ],
+        "definition_of_done": [
+          "Loop budget guard semantics are versioned in docs.",
+          "No-overclaim language is explicit.",
+          "No runtime enforcement is claimed before later tasks implement it."
+        ],
+        "failure_modes": [
+          "MEDIUM: Budget guard becomes broad prose and cannot be tested; mitigation: name schema/CLI concepts up front.",
+          "MEDIUM: Existing workflows are made noisy; mitigation: optional until LLM-backed loop or self_autonomous claim."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "docs/specs/loop-system-maturity-audit.md",
+          "README.md",
+          "docs/specs/pre-turn-check.md",
+          "docs/specs/token-budgets.md"
+        ],
+        "files_to_create": [],
+        "reference_impl": "docs/specs/pre-turn-check.md",
+        "work_item_metadata": {
+          "area": "loop-budget",
+          "area_label": "area:loop-budget",
+          "phase_label": "phase:spec",
+          "target_project": "ADLC Loop Budget Guard",
+          "labels": [
+            "adlc",
+            "loop-maturity",
+            "budget-guard"
+          ],
+          "external_refs": [
+            "docs/research/loop-engineering-adlc-strategy-review.md"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LOOP-BUDGET-GUARD-SPEC",
+          "capability": "Loop budget guard terminology",
+          "reuse": [
+            "docs/specs/pre-turn-check.md",
+            "docs/specs/token-budgets.md"
+          ],
+          "consumes": [
+            "Loop Contract maturity semantics",
+            "token-budget thresholds",
+            "cost-reporting evidence"
+          ],
+          "emits": [
+            "documented budget_guard fields",
+            "documented budget_status maturity evidence"
+          ],
+          "minimum_fields": [
+            "budget_guard",
+            "budget_status",
+            "budget_exhausted stop reason",
+            "self_autonomous downgrade rule"
+          ],
+          "invariants": [
+            "Budget evidence is required only for active LLM-backed loop claims.",
+            "Docs do not claim enforcement before CLI/schema tasks land."
+          ],
+          "integration_points": [
+            "docs/specs/loop-system-maturity-audit.md",
+            "README.md"
+          ],
+          "validation_gates": [
+            "rg documentation coverage"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LBG-001-NO-OVERCLAIM",
+          "claim": "Budget guard semantics are defined but not yet enforced.",
+          "coverage_state": "evidence_only",
+          "validation_evidence": [
+            "rg docs coverage"
+          ],
+          "no_overclaim": [
+            "Do not claim budget enforcement until ADLC-LBG-003 and ADLC-LBG-004 pass.",
+            "Do not claim self_autonomous support from docs alone."
+          ],
+          "reliability_failure_modes": [
+            "Budget semantics drift from existing token-budget specs."
+          ]
+        },
+        "production_invariant_coverage": [
+          {
+            "invariant": "downgrade",
+            "status": "covered",
+            "evidence": [
+              "Docs require missing or unhealthy budget evidence to block self_autonomous claims."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LBG-002",
+        "title": "Extend loop budget schemas and fixtures",
+        "objective": "Add optional budget guard fields and fixtures across Loop Contract, Loop Action, Loop Maturity Report, workflow state, and token-budget validation aliases.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Extend existing schemas with backward-compatible optional fields; require them only by evaluator policy for self_autonomous claims."
+        },
+        "scope": [
+          "Add optional budget_guard to docs/schemas/loop-contract.schema.json.",
+          "Add optional budget_estimate to docs/schemas/loop-action.schema.json.",
+          "Add budget_status to docs/schemas/loop-maturity-report.schema.json.",
+          "Add optional budget_status or budget_events to docs/schemas/workflow-state.schema.json.",
+          "Add token-budget and session-state schema aliases in scripts/adlc_runtime/metadata.py.",
+          "Add healthy, warning, exhausted, and stale budget fixtures under tests/fixtures/loop_maturity/."
+        ],
+        "out_of_scope": [
+          "No CLI enforcement in this task.",
+          "No provider billing reconciliation.",
+          "No mandatory migration of existing loop fixtures unless needed for report schema compatibility."
+        ],
+        "dependencies": [
+          "ADLC-LBG-001"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LBG_002-SCHEMAS",
+            "given": "a Loop Contract declares a token budget ref and hard stop behavior",
+            "when": "ADLC validates the fixture",
+            "then": "the contract, action, workflow-state, and maturity-report fixtures validate against schemas",
+            "measurable_post_condition": "validate-artifact passes for budgeted loop fixtures"
+          },
+          {
+            "id": "AC-ADLC_LBG_002-COMPAT",
+            "given": "the existing assisted-loop fixtures do not carry a budget guard",
+            "when": "contract and CLI tests run",
+            "then": "legacy assisted-loop fixtures still pass",
+            "measurable_post_condition": "tests/test_adlc_cli.sh and tests/test_adlc_contracts.sh keep existing loop fixture assertions green"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not duplicate token-budget.schema.json inside Loop Contract.",
+          "Do not make optional budget fields globally required.",
+          "Do not accept arbitrary unstructured budget blobs."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Loop schemas lack budget evidence fields and schema aliases for token-budget validation.",
+          "deferred_debt": "Real provider usage ingestion can be added after local budget semantics are stable.",
+          "deferral_safety": "Fixtures and schema aliases let the CLI enforce budget decisions deterministically now."
+        },
+        "compatibility_contract": {
+          "backward": "Existing loop fixtures and Build Briefs validate without budget_guard unless self_autonomous is requested by evaluator logic.",
+          "forward": "Budget fields reference token-budget artifacts by path so future runtime adapters can populate them.",
+          "migration_or_rollout": "Add budgeted fixtures alongside existing fixtures; update existing reports only if schema requires budget_status with compatibility defaults."
+        },
+        "implementation_notes": [
+          "Prefer small objects with refs: token_budget_ref, cost_report_ref, max_projected_tokens, hard_stop_behavior, stale_after_seconds.",
+          "Keep budget_status reportable as healthy, warning, alert, exhausted, missing, or stale.",
+          "Schema alias names should be token-budget and session-state."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc validate-artifact --schema loop-contract --input tests/fixtures/loop_maturity/budgeted-loop-contract.json --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Budgeted Loop Contracts must validate as structured artifacts.",
+            "target_files": [
+              "docs/schemas/loop-contract.schema.json",
+              "tests/fixtures/loop_maturity/budgeted-loop-contract.json"
+            ],
+            "expected_failure_mode": "budgeted loop contract fixture or schema field missing"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc validate-artifact --schema token-budget --input tests/fixtures/loop_maturity/token-budget-healthy.json --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Token budget artifacts need a first-class schema alias.",
+              "target_files": [
+                "scripts/adlc_runtime/metadata.py",
+                "docs/schemas/token-budget.schema.json",
+                "tests/fixtures/loop_maturity/token-budget-healthy.json"
+              ],
+              "expected_failure_mode": "token-budget schema alias missing"
+            },
+            {
+              "type": "command",
+              "target": "bin/adlc validate-artifact --schema loop-maturity-report --input tests/fixtures/loop_maturity/budgeted-maturity-report.json --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Maturity reports must carry budget status evidence.",
+              "target_files": [
+                "docs/schemas/loop-maturity-report.schema.json",
+                "tests/fixtures/loop_maturity/budgeted-maturity-report.json"
+              ],
+              "expected_failure_mode": "budget_status missing from report schema or fixture"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Schema and fixture compatibility slice."
+        },
+        "evidence_responsibilities": [
+          "Show budgeted fixtures validate.",
+          "Show existing assisted-loop fixtures still validate.",
+          "Show token-budget schema alias works."
+        ],
+        "definition_of_done": [
+          "Budgeted loop fixtures exist and validate.",
+          "Existing loop fixtures remain valid.",
+          "Schema aliases cover token-budget and session-state."
+        ],
+        "failure_modes": [
+          "HIGH: Schema change breaks existing assisted-loop fixtures; mitigation: keep fields optional or provide compatibility defaults.",
+          "MEDIUM: Budget evidence becomes free-form; mitigation: validate against token-budget schema and enumerated statuses."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "docs/schemas/loop-contract.schema.json",
+          "docs/schemas/loop-action.schema.json",
+          "docs/schemas/loop-maturity-report.schema.json",
+          "docs/schemas/workflow-state.schema.json",
+          "scripts/adlc_runtime/metadata.py",
+          "tests/test_adlc_contracts.sh",
+          "tests/test_adlc_cli.sh"
+        ],
+        "files_to_create": [
+          "tests/fixtures/loop_maturity/budgeted-loop-contract.json",
+          "tests/fixtures/loop_maturity/budgeted-loop-action.json",
+          "tests/fixtures/loop_maturity/budgeted-maturity-report.json",
+          "tests/fixtures/loop_maturity/workflow-state-budget-progress.json",
+          "tests/fixtures/loop_maturity/token-budget-healthy.json",
+          "tests/fixtures/loop_maturity/token-budget-warning.json",
+          "tests/fixtures/loop_maturity/token-budget-exhausted.json"
+        ],
+        "reference_impl": "docs/schemas/token-budget.schema.json",
+        "work_item_metadata": {
+          "area": "loop-budget",
+          "area_label": "area:loop-budget",
+          "phase_label": "phase:schemas",
+          "target_project": "ADLC Loop Budget Guard",
+          "labels": [
+            "adlc",
+            "schema",
+            "loop-maturity"
+          ],
+          "external_refs": [
+            "docs/specs/token-budgets.md"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LOOP-BUDGET-SCHEMAS",
+          "capability": "Schema-backed loop budget guard artifacts",
+          "reuse": [
+            "docs/schemas/token-budget.schema.json",
+            "docs/schemas/loop-contract.schema.json",
+            "docs/schemas/loop-maturity-report.schema.json"
+          ],
+          "consumes": [
+            "Loop Contract artifacts",
+            "Loop Action artifacts",
+            "Token Budget artifacts",
+            "Workflow State artifacts"
+          ],
+          "emits": [
+            "budgeted loop fixtures",
+            "budget_status maturity report evidence",
+            "token-budget schema alias"
+          ],
+          "minimum_fields": [
+            "budget_guard.token_budget_ref",
+            "budget_guard.hard_stop_behavior",
+            "budget_estimate.projected_total_tokens",
+            "budget_status.status",
+            "budget_status.evidence_refs"
+          ],
+          "invariants": [
+            "Budget fields are optional for legacy assisted-loop fixtures.",
+            "Self-autonomous enforcement is implemented by evaluator policy, not by making all schemas globally strict."
+          ],
+          "integration_points": [
+            "docs/schemas",
+            "scripts/adlc_runtime/metadata.py",
+            "tests/fixtures/loop_maturity"
+          ],
+          "validation_gates": [
+            "validate-artifact schema checks",
+            "contract and CLI fixture tests"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LBG-002-GOVERNED",
+          "claim": "Budget evidence can be represented as structured local artifacts.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "validate-artifact --schema token-budget",
+            "validate-artifact --schema loop-contract",
+            "validate-artifact --schema loop-maturity-report"
+          ],
+          "no_overclaim": [
+            "Schema support does not prove runtime budget enforcement.",
+            "Existing assisted-loop fixtures remain compatibility examples, not self-autonomous proof."
+          ],
+          "reliability_failure_modes": [
+            "Schema aliases drift from actual files.",
+            "Budget fixtures pass but CLI does not consume them yet."
+          ]
+        },
+        "production_invariant_coverage": [
+          {
+            "invariant": "persistence",
+            "status": "covered",
+            "evidence": [
+              "Budget evidence is represented as versioned JSON fixtures and schema aliases."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LBG-003",
+        "title": "Add deterministic loop budget check CLI and MCP tool",
+        "objective": "Implement the pre-turn budget decision as a deterministic ADLC command and expose it through MCP.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Implement local projected-token budget checks from token-budget artifacts; do not integrate provider billing APIs in this slice."
+        },
+        "scope": [
+          "Add bin/adlc loop-budget-check with --token-budget, --estimated-input-tokens, --expected-output-tokens, --phase, --skill, --json.",
+          "Return status proceed, warning, wrap_up, or blocked and include projected_total, threshold, budget_remaining, and stop_reason when blocked.",
+          "Exit nonzero only for blocked or invalid input.",
+          "Add command metadata and MCP tool schema.",
+          "Add CLI and MCP tests."
+        ],
+        "out_of_scope": [
+          "No real-time provider usage pull.",
+          "No currency conversion.",
+          "No mutation of token-budget artifacts unless a later task explicitly adds it."
+        ],
+        "dependencies": [
+          "ADLC-LBG-002"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LBG_003-PROCEED",
+            "given": "a healthy token-budget artifact and a small projected action cost",
+            "when": "loop-budget-check runs",
+            "then": "it returns proceed with projected totals and exits 0",
+            "measurable_post_condition": "tests/test_adlc_cli.sh asserts proceed for token-budget-healthy.json"
+          },
+          {
+            "id": "AC-ADLC_LBG_003-BLOCK",
+            "given": "an exhausted token-budget artifact or projected cost crossing hard_stop_at",
+            "when": "loop-budget-check runs",
+            "then": "it returns blocked with stop_reason budget_exhausted and exits nonzero",
+            "measurable_post_condition": "tests/test_adlc_cli.sh asserts blocked and budget_exhausted"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not use LLM judgment for budget math.",
+          "Do not hide threshold math in prose-only output.",
+          "Do not treat warning and hard stop as the same state."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Budget checks are specified but not executable in the ADLC CLI.",
+          "deferred_debt": "Updating live token usage counters during real adapter execution can wait until runtime adapters own usage accounting.",
+          "deferral_safety": "A read-only deterministic command is enough for action admission and maturity evidence."
+        },
+        "compatibility_contract": {
+          "backward": "Existing CLI commands and MCP tools remain unchanged.",
+          "forward": "The output shape can be embedded in action validation, workflow state, and maturity reports.",
+          "migration_or_rollout": "Add the command and tests without making callers use it until later tasks wire it in."
+        },
+        "implementation_notes": [
+          "Use integer token math and threshold ratios from token-budget.schema.json artifacts.",
+          "Map alert_at to wrap_up, hard_stop_at to blocked, and warn_at to warning.",
+          "Include phase and skill only as attribution fields, not as required budget lookup keys."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc loop-budget-check --token-budget tests/fixtures/loop_maturity/token-budget-healthy.json --estimated-input-tokens 10 --expected-output-tokens 10 --phase phase_5_codegen_context --skill codegen-context --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "ADLC must expose a deterministic budget decision command.",
+            "target_files": [
+              "scripts/adlc_runtime/cli.py",
+              "scripts/adlc_runtime/metadata.py",
+              "tests/fixtures/loop_maturity/token-budget-healthy.json"
+            ],
+            "expected_failure_mode": "loop-budget-check command missing"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "tests/test_adlc_cli.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "CLI tests must cover proceed, warning or wrap_up, and blocked budget outcomes.",
+              "target_files": [
+                "tests/test_adlc_cli.sh",
+                "scripts/adlc_runtime/cli.py"
+              ],
+              "expected_failure_mode": "budget CLI tests missing or failing"
+            },
+            {
+              "type": "command",
+              "target": "printf '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}\\n' | bin/adlc mcp-serve | jq -e '.result.tools[] | select(.name==\"adlc_loop_budget_check\")' >/dev/null",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "MCP clients need the same budget-check tool.",
+              "target_files": [
+                "scripts/adlc_runtime/cli.py",
+                "scripts/adlc_runtime/metadata.py"
+              ],
+              "expected_failure_mode": "MCP tool declaration missing"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Read-only budget-check command and MCP exposure."
+        },
+        "evidence_responsibilities": [
+          "Show proceed and blocked JSON outputs.",
+          "Show blocked output includes stop_reason budget_exhausted.",
+          "Show MCP tools/list includes adlc_loop_budget_check."
+        ],
+        "definition_of_done": [
+          "loop-budget-check exists and is deterministic.",
+          "MCP exposes the same command.",
+          "CLI tests cover healthy and exhausted budget paths."
+        ],
+        "failure_modes": [
+          "HIGH: Hard-stop math allows a projected overrun; mitigation: test crossing hard_stop_at.",
+          "MEDIUM: Command returns ambiguous status; mitigation: enum status and stop_reason assertions."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc_runtime/cli.py",
+          "scripts/adlc_runtime/metadata.py",
+          "tests/test_adlc_cli.sh",
+          "tests/test_adlc_contracts.sh"
+        ],
+        "files_to_create": [],
+        "reference_impl": "docs/specs/pre-turn-check.md",
+        "work_item_metadata": {
+          "area": "loop-budget",
+          "area_label": "area:loop-budget",
+          "phase_label": "phase:cli",
+          "target_project": "ADLC Loop Budget Guard",
+          "labels": [
+            "adlc",
+            "cli",
+            "mcp"
+          ],
+          "external_refs": [
+            "docs/specs/pre-turn-check.md"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LOOP-BUDGET-CHECK",
+          "capability": "Deterministic loop pre-turn budget decision",
+          "reuse": [
+            "docs/specs/pre-turn-check.md",
+            "docs/schemas/token-budget.schema.json"
+          ],
+          "consumes": [
+            "token-budget artifact",
+            "estimated input tokens",
+            "expected output tokens",
+            "thresholds"
+          ],
+          "emits": [
+            "budget decision status",
+            "projected total",
+            "stop_reason budget_exhausted when blocked"
+          ],
+          "minimum_fields": [
+            "status",
+            "projected_total",
+            "budget_limit",
+            "threshold",
+            "stop_reason"
+          ],
+          "invariants": [
+            "Budget math is deterministic.",
+            "Blocked budget decisions exit nonzero.",
+            "Warning and wrap_up states remain distinguishable."
+          ],
+          "integration_points": [
+            "scripts/adlc_runtime/cli.py",
+            "scripts/adlc_runtime/metadata.py",
+            "mcp-tools",
+            "mcp-serve"
+          ],
+          "validation_gates": [
+            "CLI tests",
+            "MCP tools/list test"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LBG-003-GOVERNED",
+          "claim": "ADLC can compute local loop budget decisions before LLM-backed actions.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "loop-budget-check CLI tests",
+            "MCP tool declaration test"
+          ],
+          "no_overclaim": [
+            "The command estimates projected budget state; it does not pull provider billing usage.",
+            "The command does not enforce action admission until ADLC-LBG-004 wires it in."
+          ],
+          "reliability_failure_modes": [
+            "Projected cost is missing or underestimated by caller.",
+            "Token budget artifact is stale."
+          ]
+        },
+        "production_invariant_coverage": [
+          {
+            "invariant": "retries",
+            "status": "covered",
+            "evidence": [
+              "Hard-stop budget state returns budget_exhausted before another LLM turn."
+            ]
+          },
+          {
+            "invariant": "observability",
+            "status": "covered",
+            "evidence": [
+              "Budget decision JSON includes thresholds and projected totals."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LBG-004",
+        "title": "Gate loop action admission and resume state with budget evidence",
+        "objective": "Wire budget checks into LLM action admission and workflow resume summaries so budget exhaustion can stop the loop before another action executes.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Action admission may consume a budget artifact when provided; missing budget evidence is handled by maturity policy in ADLC-LBG-005."
+        },
+        "scope": [
+          "Extend loop-action-validate with optional --token-budget or budget refs from the Loop Contract.",
+          "Reject or route actions when loop-budget-check returns blocked.",
+          "Add budget_status to workflow-state fixture and resume-workflow next_action output.",
+          "Preserve existing action-validation behavior when no token budget is provided for assisted_loop contracts."
+        ],
+        "out_of_scope": [
+          "No live process kill switch.",
+          "No provider API usage sync.",
+          "No mutation of token-budget artifacts during validation."
+        ],
+        "dependencies": [
+          "ADLC-LBG-003"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LBG_004-ACTION",
+            "given": "a loop action would cross the hard-stop budget threshold",
+            "when": "loop-action-validate runs with token-budget evidence",
+            "then": "the action is rejected or routed with budget_exhausted before execution",
+            "measurable_post_condition": "tests/test_adlc_cli.sh asserts budget-exhausted action validation"
+          },
+          {
+            "id": "AC-ADLC_LBG_004-RESUME",
+            "given": "workflow state contains budget_status",
+            "when": "resume-workflow runs",
+            "then": "next_action includes the budget status and stop reason when present",
+            "measurable_post_condition": "tests/test_adlc_cli.sh asserts resume budget summary"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not execute or simulate the LLM action after a blocked budget state.",
+          "Do not make no-budget assisted_loop validation fail in this task.",
+          "Do not bury budget reasons inside generic rejected-action text."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "loop-action-validate enforces tools, tests, controls, and checkpoints but not budget state.",
+          "deferred_debt": "Runtime adapters can later write live usage into token-budget artifacts.",
+          "deferral_safety": "Read-only action admission still prevents another loop step when supplied evidence says budget is exhausted."
+        },
+        "compatibility_contract": {
+          "backward": "Existing loop-action-validate invocations without --token-budget keep their current assisted_loop behavior.",
+          "forward": "Budget output shape is reusable by runtime adapters and MCP callers.",
+          "migration_or_rollout": "Add optional arguments and state fields, then update tests and docs."
+        },
+        "implementation_notes": [
+          "Reuse loop_budget_check_payload rather than reimplementing budget math.",
+          "Return a concrete issue rule such as budget_exhausted when blocking.",
+          "Resume output should report budget_status without modifying unrelated workflow behavior."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc loop-action-validate --loop-contract tests/fixtures/loop_maturity/budgeted-loop-contract.json --action tests/fixtures/loop_maturity/budgeted-loop-action.json --state tests/fixtures/loop_maturity/workflow-state-budget-progress.json --token-budget tests/fixtures/loop_maturity/token-budget-exhausted.json --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Action admission must surface budget exhaustion before execution.",
+            "target_files": [
+              "scripts/adlc_runtime/cli.py",
+              "docs/schemas/workflow-state.schema.json",
+              "tests/fixtures/loop_maturity/budgeted-loop-contract.json",
+              "tests/fixtures/loop_maturity/budgeted-loop-action.json",
+              "tests/fixtures/loop_maturity/token-budget-exhausted.json"
+            ],
+            "expected_failure_mode": "loop-action-validate does not accept or enforce token-budget evidence"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc resume-workflow --state tests/fixtures/loop_maturity/workflow-state-budget-progress.json --json | jq -e '.next_action.budget_status.status' >/dev/null",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Resume output must surface budget state for continuing loops.",
+              "target_files": [
+                "scripts/adlc_runtime/cli.py",
+                "docs/schemas/workflow-state.schema.json",
+                "tests/fixtures/loop_maturity/workflow-state-budget-progress.json"
+              ],
+              "expected_failure_mode": "resume-workflow omits budget_status"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Action admission and resume-state budget integration."
+        },
+        "evidence_responsibilities": [
+          "Show budget-exhausted action validation output.",
+          "Show legacy action validation still admits existing valid-loop-action fixture.",
+          "Show resume-workflow includes budget_status."
+        ],
+        "definition_of_done": [
+          "Budget evidence can block loop action admission.",
+          "Workflow resume output includes budget status.",
+          "Existing action-validation tests remain green."
+        ],
+        "failure_modes": [
+          "HIGH: Action runs despite exhausted budget; mitigation: CLI rejection test.",
+          "MEDIUM: Budget option breaks legacy callers; mitigation: existing assisted-loop action tests remain unchanged."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc_runtime/cli.py",
+          "docs/schemas/workflow-state.schema.json",
+          "tests/test_adlc_cli.sh",
+          "docs/specs/agent-native-interface.md"
+        ],
+        "files_to_create": [],
+        "reference_impl": "scripts/adlc_runtime/cli.py",
+        "work_item_metadata": {
+          "area": "loop-budget",
+          "area_label": "area:loop-budget",
+          "phase_label": "phase:action-admission",
+          "target_project": "ADLC Loop Budget Guard",
+          "labels": [
+            "adlc",
+            "loop-action",
+            "budget-guard"
+          ],
+          "external_refs": [
+            "docs/specs/pre-turn-check.md"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LOOP-BUDGET-ACTION",
+          "capability": "Budget-aware loop action admission",
+          "reuse": [
+            "loop-action-validate",
+            "loop-budget-check",
+            "workflow-state"
+          ],
+          "consumes": [
+            "Loop Contract",
+            "Loop Action",
+            "Token Budget artifact",
+            "Workflow State"
+          ],
+          "emits": [
+            "admitted action",
+            "rejected action with budget_exhausted",
+            "resume budget summary"
+          ],
+          "minimum_fields": [
+            "budget_status.status",
+            "budget_status.stop_reason",
+            "budget_status.evidence_refs"
+          ],
+          "invariants": [
+            "Budget-exhausted actions do not admit.",
+            "Legacy assisted-loop action validation remains compatible."
+          ],
+          "integration_points": [
+            "loop-action-validate",
+            "resume-workflow",
+            "workflow-state.schema.json"
+          ],
+          "validation_gates": [
+            "CLI action tests",
+            "workflow-state validation"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LBG-004-GOVERNED",
+          "claim": "ADLC can use budget evidence to block an LLM-backed loop action before execution.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "loop-action-validate budget-exhausted test",
+            "resume-workflow budget_status test"
+          ],
+          "no_overclaim": [
+            "This is state/action admission, not live process interruption.",
+            "Provider usage collection remains outside this slice."
+          ],
+          "reliability_failure_modes": [
+            "Budget artifact is stale.",
+            "Caller omits budget evidence for assisted_loop actions."
+          ]
+        },
+        "production_invariant_coverage": [
+          {
+            "invariant": "downgrade",
+            "status": "covered",
+            "evidence": [
+              "Budget-exhausted actions are rejected or routed before execution."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LBG-005",
+        "title": "Make budget evidence part of loop maturity and self-autonomy no-overclaim",
+        "objective": "Extend loop-maturity-audit so budget status is reported and missing or unhealthy budget evidence blocks self_autonomous verdicts.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Budget evidence is a no-overclaim gate for self_autonomous loops, not a requirement for assisted_loop compatibility."
+        },
+        "scope": [
+          "Add --token-budget or budget evidence input to loop-maturity-audit.",
+          "Emit budget_status in generated maturity reports.",
+          "Block self_autonomous verdict when budget evidence is missing, stale, warning, alert, or exhausted.",
+          "Keep assisted_loop verdict valid for legacy fixtures with clear missing budget mechanism.",
+          "Add tests for healthy budget self-autonomy path and missing/exhausted budget downgrade path."
+        ],
+        "out_of_scope": [
+          "No model-provider bill reconciliation.",
+          "No automatic budget ref discovery beyond declared contract/state refs unless simple and deterministic.",
+          "No broad maturity rubric rewrite beyond budget status integration."
+        ],
+        "dependencies": [
+          "ADLC-LBG-004"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LBG_005-REPORT",
+            "given": "a loop maturity audit has token-budget evidence",
+            "when": "the report is generated",
+            "then": "the report includes budget_status with evidence refs and projected budget state",
+            "measurable_post_condition": "generated report validates against loop-maturity-report schema and includes budget_status"
+          },
+          {
+            "id": "AC-ADLC_LBG_005-NO_OVERCLAIM",
+            "given": "a contract requests self_autonomous but has missing or exhausted budget evidence",
+            "when": "loop-maturity-audit runs",
+            "then": "the verdict is not self_autonomous and prioritized gaps name the budget guard",
+            "measurable_post_condition": "tests/test_adlc_cli.sh asserts downgrade behavior"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not let self_autonomous pass with missing budget evidence.",
+          "Do not count budget docs as runtime budget evidence.",
+          "Do not lower existing critical gates for win condition, test selection, or failure handling."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "loop-maturity-audit scores seven dimensions but does not include budget state.",
+          "deferred_debt": "A richer eighth maturity dimension can be considered later if budget evidence grows beyond guard status.",
+          "deferral_safety": "A budget_status gate is enough to block overclaim without destabilizing the existing seven-dimension rubric."
+        },
+        "compatibility_contract": {
+          "backward": "Existing assisted-loop maturity reports validate with missing budget status only if schema compatibility is preserved or fixtures are updated with non-blocking missing status.",
+          "forward": "Future workflows can use healthy budget evidence as one requirement for self_autonomous maturity.",
+          "migration_or_rollout": "Update fixtures and tests together so no stale report shape remains."
+        },
+        "implementation_notes": [
+          "Prefer budget_status as a top-level report field rather than an eighth score unless schema design proves otherwise.",
+          "If budget evidence is warning or wrap_up, self_autonomous should be blocked even if action execution can continue in assisted mode.",
+          "Prioritized gaps should name budget evidence clearly."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc loop-maturity-audit --loop-contract tests/fixtures/loop_maturity/budgeted-loop-contract.json --workflow WORKFLOW.dot --state tests/fixtures/loop_maturity/workflow-state-budget-progress.json --test-plan tests/fixtures/loop_maturity/test-plan-complete-required.json --test-results tests/fixtures/loop_maturity/test-results-complete-required.json --action tests/fixtures/loop_maturity/budgeted-loop-action.json --token-budget tests/fixtures/loop_maturity/token-budget-healthy.json --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Maturity reports must include budget evidence when supplied.",
+            "target_files": [
+              "scripts/adlc_runtime/cli.py",
+              "docs/schemas/loop-maturity-report.schema.json",
+              "tests/fixtures/loop_maturity/budgeted-loop-contract.json"
+            ],
+            "expected_failure_mode": "loop-maturity-audit does not accept or emit token-budget evidence"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "tests/test_adlc_cli.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "CLI tests must cover self-autonomous budget no-overclaim behavior.",
+              "target_files": [
+                "tests/test_adlc_cli.sh",
+                "scripts/adlc_runtime/cli.py"
+              ],
+              "expected_failure_mode": "budget maturity tests missing"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Maturity-report and no-overclaim enforcement."
+        },
+        "evidence_responsibilities": [
+          "Show healthy budget maturity output includes budget_status.",
+          "Show missing or exhausted budget evidence blocks self_autonomous.",
+          "Show existing assisted_loop report remains truthful."
+        ],
+        "definition_of_done": [
+          "loop-maturity-audit emits budget_status.",
+          "Self-autonomous claims require healthy budget evidence.",
+          "Existing no-overclaim gates still block weak win condition, test selection, and failure handling."
+        ],
+        "failure_modes": [
+          "HIGH: Self-autonomous verdict passes with missing budget guard; mitigation: explicit downgrade test.",
+          "MEDIUM: Budget status obscures existing seven-dimension gaps; mitigation: preserve existing score logic and prioritized gaps."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc_runtime/cli.py",
+          "docs/schemas/loop-maturity-report.schema.json",
+          "docs/specs/loop-system-maturity-audit.md",
+          "tests/test_adlc_cli.sh",
+          "tests/test_adlc_contracts.sh"
+        ],
+        "files_to_create": [
+          "tests/fixtures/loop_maturity/self-autonomous-budgeted-contract.json",
+          "tests/fixtures/loop_maturity/self-autonomous-missing-budget-report.json"
+        ],
+        "reference_impl": "scripts/adlc_runtime/cli.py",
+        "work_item_metadata": {
+          "area": "loop-budget",
+          "area_label": "area:loop-budget",
+          "phase_label": "phase:maturity",
+          "target_project": "ADLC Loop Budget Guard",
+          "labels": [
+            "adlc",
+            "maturity",
+            "no-overclaim"
+          ],
+          "external_refs": [
+            "docs/specs/loop-system-maturity-audit.md"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LOOP-BUDGET-MATURITY",
+          "capability": "Budget-aware loop maturity report",
+          "reuse": [
+            "loop-maturity-audit",
+            "loop-budget-check",
+            "loop-maturity-report.schema.json"
+          ],
+          "consumes": [
+            "Loop Contract",
+            "Token Budget artifact",
+            "Workflow State",
+            "Loop Test Result",
+            "Loop Action"
+          ],
+          "emits": [
+            "budget_status",
+            "maturity_verdict",
+            "budget no-overclaim gaps"
+          ],
+          "minimum_fields": [
+            "budget_status.status",
+            "budget_status.blocks_self_autonomous",
+            "budget_status.evidence_refs"
+          ],
+          "invariants": [
+            "Missing or unhealthy budget evidence blocks self_autonomous.",
+            "Assisted-loop compatibility remains truthful."
+          ],
+          "integration_points": [
+            "loop-maturity-audit",
+            "docs/schemas/loop-maturity-report.schema.json",
+            "tests/fixtures/loop_maturity"
+          ],
+          "validation_gates": [
+            "schema-valid generated report",
+            "self-autonomy downgrade test"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LOOP-BUDGET-NO-OVERCLAIM",
+          "claim": "Self-autonomous loop maturity requires healthy budget guard evidence.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "loop-maturity-audit budget_status test",
+            "self-autonomous downgrade test"
+          ],
+          "no_overclaim": [
+            "Healthy local budget evidence is necessary but not sufficient for self_autonomous maturity.",
+            "Provider billing reconciliation remains unsupported."
+          ],
+          "reliability_failure_modes": [
+            "Budget artifact is stale.",
+            "Projected action cost is underestimated.",
+            "Runtime adapter does not write live token usage yet."
+          ]
+        },
+        "production_invariant_coverage": [
+          {
+            "invariant": "downgrade",
+            "status": "covered",
+            "evidence": [
+              "Maturity audit blocks self_autonomous when budget evidence is missing or unhealthy."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "ADLC-LBG-006",
+        "title": "Wire budget guards into agents, skills, docs, and learning",
+        "objective": "Make budget guards discoverable and required by ADLC planning/review surfaces when loop autonomy or LLM-backed loop actions are active.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Wire budget guard expectations into existing ADLC agents and skills rather than adding a new planning framework."
+        },
+        "scope": [
+          "Update agents/planner.md to require budget_guard refs for self_autonomous or LLM-backed loop claims.",
+          "Update skills/codegen-context/SKILL.md to pass compact budget refs and budget_status, not raw logs.",
+          "Update skills/eval-council/SKILL.md to block missing budget evidence for self_autonomous loop claims.",
+          "Update skills/llm-security/SKILL.md and docs/specs/agent-native-interface.md to name loop-budget-check and budget_exhausted stop reasons.",
+          "Update docs/specs/compound-engineering-learning-store.md so captured loop learnings preserve budget_status evidence and stale conditions.",
+          "Update README verification examples and tests."
+        ],
+        "out_of_scope": [
+          "No new large skill bundle.",
+          "No automatic scheduling or automation setup.",
+          "No raw prompt or raw command-output capture in learning entries."
+        ],
+        "dependencies": [
+          "ADLC-LBG-005"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LBG_006-AGENTS",
+            "given": "a planner or Eval Council sees a self_autonomous loop claim",
+            "when": "budget_guard refs are absent or unhealthy",
+            "then": "the task is revised or blocked with a budget-specific reason",
+            "measurable_post_condition": "agent/skill docs contain budget_guard, budget_status, loop-budget-check, and budget_exhausted rules"
+          },
+          {
+            "id": "AC-ADLC_LBG_006-LEARNING",
+            "given": "a verified loop pattern is captured into compound learning",
+            "when": "the pattern involves LLM-backed autonomy",
+            "then": "the learning entry preserves budget_status evidence and stale conditions without raw logs",
+            "measurable_post_condition": "compound learning docs name budget_status evidence refs and redaction constraints"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not paste full budget reports or command logs into codegen context.",
+          "Do not make budget guards a generic checklist item for non-loop work.",
+          "Do not add a new planner or review stack."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Agent/skill guidance knows Loop Contracts but not budget guard evidence.",
+          "deferred_debt": "A dedicated automation/runbook skill can wait until repeated scheduled ADLC loops need it.",
+          "deferral_safety": "Existing planner, codegen-context, Eval Council, and learning-capture surfaces are enough to make budget evidence usable."
+        },
+        "compatibility_contract": {
+          "backward": "Existing non-loop tasks remain unaffected by budget guard guidance.",
+          "forward": "Future automation or runtime adapter skills can reuse the same budget_guard and budget_status vocabulary.",
+          "migration_or_rollout": "Docs and skills update alongside CLI/schema tests."
+        },
+        "implementation_notes": [
+          "Prefer compact refs: token_budget_ref, cost_report_ref, budget_status, and verifier command.",
+          "Use explicit block reason missing_loop_budget_guard or budget_guard_unhealthy where appropriate.",
+          "Keep learning capture evidence-based and redacted."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "rg -n \"budget_guard|budget_status|loop-budget-check|budget_exhausted|self_autonomous\" agents/planner.md skills/codegen-context/SKILL.md skills/eval-council/SKILL.md skills/llm-security/SKILL.md docs/specs/agent-native-interface.md docs/specs/compound-engineering-learning-store.md README.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Core ADLC agents, skills, and docs must consume budget guard evidence.",
+            "target_files": [
+              "agents/planner.md",
+              "skills/codegen-context/SKILL.md",
+              "skills/eval-council/SKILL.md",
+              "skills/llm-security/SKILL.md",
+              "docs/specs/agent-native-interface.md",
+              "docs/specs/compound-engineering-learning-store.md",
+              "README.md"
+            ],
+            "expected_failure_mode": "budget guard guidance missing from agents or skills"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "tests/test_adlc_contracts.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Contract tests must lock budget guard wiring into docs and skills.",
+              "target_files": [
+                "tests/test_adlc_contracts.sh",
+                "agents/planner.md",
+                "skills/codegen-context/SKILL.md",
+                "skills/eval-council/SKILL.md"
+              ],
+              "expected_failure_mode": "contract tests do not cover budget guard wiring"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Agent/skill/docs discoverability and no-overclaim wiring."
+        },
+        "evidence_responsibilities": [
+          "Show rg coverage across planner, codegen-context, Eval Council, LLM security, agent-native docs, learning store, and README.",
+          "Show contract tests cover the new guidance.",
+          "Show learning capture guidance avoids raw budget logs."
+        ],
+        "definition_of_done": [
+          "Agents and skills know when budget guards are required.",
+          "Eval Council can block unsupported self-autonomous budget claims.",
+          "Compound learning can capture budget-aware loop patterns with redacted evidence refs."
+        ],
+        "failure_modes": [
+          "MEDIUM: Budget guard exists but agents ignore it; mitigation: planner/Eval Council/codegen contract tests.",
+          "MEDIUM: Learning entries capture raw logs; mitigation: redaction and compact-ref guidance."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "agents/planner.md",
+          "skills/codegen-context/SKILL.md",
+          "skills/eval-council/SKILL.md",
+          "skills/llm-security/SKILL.md",
+          "docs/specs/agent-native-interface.md",
+          "docs/specs/compound-engineering-learning-store.md",
+          "README.md",
+          "tests/test_adlc_contracts.sh"
+        ],
+        "files_to_create": [],
+        "reference_impl": "skills/llm-security/SKILL.md",
+        "work_item_metadata": {
+          "area": "loop-budget",
+          "area_label": "area:loop-budget",
+          "phase_label": "phase:agent-wiring",
+          "target_project": "ADLC Loop Budget Guard",
+          "labels": [
+            "adlc",
+            "agents",
+            "skills"
+          ],
+          "external_refs": [
+            "docs/research/loop-engineering-adlc-strategy-review.md"
+          ]
+        },
+        "implementation_interface_contract": {
+          "id": "I-ADLC-LOOP-BUDGET-WIRING",
+          "capability": "Agent and skill consumption of loop budget evidence",
+          "reuse": [
+            "agents/planner.md",
+            "skills/codegen-context/SKILL.md",
+            "skills/eval-council/SKILL.md",
+            "skills/llm-security/SKILL.md"
+          ],
+          "consumes": [
+            "budget_guard refs",
+            "budget_status evidence",
+            "loop-budget-check verifier output"
+          ],
+          "emits": [
+            "budget-aware Build Brief tasks",
+            "budget-aware codegen context",
+            "budget-aware Eval Council findings",
+            "budget-aware learning refs"
+          ],
+          "minimum_fields": [
+            "budget_guard",
+            "budget_status",
+            "loop-budget-check command",
+            "budget_exhausted stop reason"
+          ],
+          "invariants": [
+            "Prompts receive compact budget refs, not raw logs.",
+            "Self-autonomous loop claims require budget evidence."
+          ],
+          "integration_points": [
+            "planner",
+            "codegen-context",
+            "eval-council",
+            "llm-security",
+            "compound learning"
+          ],
+          "validation_gates": [
+            "rg contract coverage",
+            "contract tests"
+          ]
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LBG-006-GOVERNED",
+          "claim": "ADLC planning, context, review, and learning surfaces consume budget guard evidence.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "agent/skill rg coverage",
+            "tests/test_adlc_contracts.sh"
+          ],
+          "no_overclaim": [
+            "Agent guidance does not create live billing enforcement.",
+            "Budget-aware learning entries are evidence refs, not proof of future budget health."
+          ],
+          "reliability_failure_modes": [
+            "Prompt bloat from raw budget reports.",
+            "Eval Council misses missing budget guard claims."
+          ]
+        },
+        "production_invariant_coverage": [
+          {
+            "invariant": "observability",
+            "status": "covered",
+            "evidence": [
+              "Planner, codegen, Eval Council, and learning docs preserve budget evidence refs."
+            ]
+          }
+        ]
+      },
+      {
+        "artifact_type": "validation_task",
+        "task_id": "ADLC-LBG-VAL",
+        "title": "Validate loop budget guard integration end to end",
+        "objective": "Run deterministic validation for the full budget-guard integration and leave evidence for the follow-on tech-debt cleanup pass.",
+        "task_classification": "build_validation",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-06-30",
+          "blocks_implementation": false,
+          "resolution": "Validation task only; no Type 1 decision is required."
+        },
+        "scope": [
+          "Run schema validation for this Build Brief and all budgeted loop fixtures.",
+          "Run loop-budget-check healthy, warning or wrap_up, and exhausted paths.",
+          "Run loop-action-validate with budget evidence.",
+          "Run loop-maturity-audit with budget evidence and self-autonomy downgrade cases.",
+          "Run contract tests, CLI tests, Python compile, diff hygiene, and Graphify update/query.",
+          "Document any smoke blocker and exact rerun path."
+        ],
+        "out_of_scope": [
+          "No broad tech-debt refactor in this validation task.",
+          "No PR publish/merge unless explicitly requested after validation."
+        ],
+        "dependencies": [
+          "ADLC-LBG-001",
+          "ADLC-LBG-002",
+          "ADLC-LBG-003",
+          "ADLC-LBG-004",
+          "ADLC-LBG-005",
+          "ADLC-LBG-006"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-ADLC_LBG_VAL-CLI",
+            "given": "the implementation tasks are complete",
+            "when": "ADLC validation commands run",
+            "then": "schema, CLI, contract, maturity, and budget guard tests pass",
+            "measurable_post_condition": "tests/test_adlc_cli.sh and tests/test_adlc_contracts.sh pass with budget guard coverage"
+          },
+          {
+            "id": "AC-ADLC_LBG_VAL-GRAPH",
+            "given": "docs and code changed",
+            "when": "Graphify is updated and queried",
+            "then": "the graph can describe the budget guard integration and any remaining risks",
+            "measurable_post_condition": "graphify update . succeeds and a budget guard query returns relevant nodes"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not mark complete if generated fixtures or reports are dirty without explanation.",
+          "Do not claim self_autonomous framework status from local budget guard tests alone.",
+          "Do not skip Graphify update after code/doc changes."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Implementation may leave runtime modularity or naming cleanup opportunities.",
+          "deferred_debt": "Run a dedicated tech-debt cleanup pass after this validation task rather than mixing broad refactors into implementation.",
+          "deferral_safety": "Validation evidence and Graphify output give the tech-debt pass a clean target."
+        },
+        "compatibility_contract": {
+          "backward": "Existing ADLC loop, compound, emitter, schema, and smoke-harness contract tests remain green.",
+          "forward": "Budget guard evidence is now available for future automation/runbook or runtime-adapter work.",
+          "migration_or_rollout": "Ship as opt-in budget guards for LLM-backed loops; do not require every Build Brief to change."
+        },
+        "implementation_notes": [
+          "Restore generated timestamp-only artifacts such as tests/backtest/last_report.json before closeout unless intentionally changed.",
+          "If smoke cannot run because credentials or adapter config are absent, record the exact blocker and deterministic validations instead.",
+          "Leave a concise follow-on tech-debt cleanup target list."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/loop-budget-guard-integration.json --dry-run --require-ready --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The full decomposition must remain readiness-clean after implementation.",
+            "target_files": [
+              "docs/build-briefs/loop-budget-guard-integration.json"
+            ],
+            "expected_failure_mode": "loop budget guard readiness blocked"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/loop-budget-guard-integration.json --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "The Build Brief must remain schema-valid.",
+              "target_files": [
+                "docs/build-briefs/loop-budget-guard-integration.json"
+              ],
+              "expected_failure_mode": "Build Brief schema validation fails"
+            },
+            {
+              "type": "command",
+              "target": "tests/test_adlc_contracts.sh && tests/test_adlc_cli.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Contract and CLI behavior must remain green.",
+              "target_files": [
+                "tests/test_adlc_contracts.sh",
+                "tests/test_adlc_cli.sh",
+                "scripts/adlc_runtime/cli.py",
+                "scripts/adlc_runtime/metadata.py"
+              ],
+              "expected_failure_mode": "contract or CLI tests fail"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "End-to-end validation for budget guard integration."
+        },
+        "evidence_responsibilities": [
+          "Record exact validation commands and pass/fail results.",
+          "Record final maturity verdict and budget_status behavior.",
+          "Record Graphify update/query outcome.",
+          "Record tech-debt cleanup targets without doing broad cleanup in this validation task."
+        ],
+        "definition_of_done": [
+          "All deterministic validation commands pass or blockers are documented with rerun paths.",
+          "Current loop maturity remains assisted_loop by default unless a specific fixture legitimately earns self_autonomous.",
+          "Follow-on tech-debt cleanup scope is clear."
+        ],
+        "failure_modes": [
+          "HIGH: Validation passes but self-autonomy is overclaimed; mitigation: explicit no-overclaim closeout.",
+          "MEDIUM: Generated artifacts dirty the worktree; mitigation: inspect and restore unintentional generated churn."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "docs/build-briefs/loop-budget-guard-integration.json",
+          "scripts/adlc_runtime/cli.py",
+          "scripts/adlc_runtime/metadata.py",
+          "tests/test_adlc_cli.sh",
+          "tests/test_adlc_contracts.sh",
+          "README.md",
+          "docs/specs/loop-system-maturity-audit.md",
+          "docs/specs/agent-native-interface.md"
+        ],
+        "files_to_create": [],
+        "reference_impl": "ADLC_LOOP_SYSTEM_MATURITY_PRODUCTIONIZATION_GOAL_PROMPT.md",
+        "work_item_metadata": {
+          "area": "loop-budget",
+          "area_label": "area:loop-budget",
+          "phase_label": "phase:validation",
+          "target_project": "ADLC Loop Budget Guard",
+          "labels": [
+            "adlc",
+            "validation",
+            "graphify"
+          ],
+          "external_refs": [
+            "docs/research/loop-engineering-adlc-strategy-review.md"
+          ]
+        },
+        "implementation_interface_contract": {
+          "applicability": "not_applicable",
+          "reason": "Validation closeout task; implementation interfaces are covered by the implementation tasks."
+        },
+        "productionization_gate": {
+          "id": "G-ADLC-LBG-VAL-NO-OVERCLAIM",
+          "claim": "Loop budget guard integration is validated for local ADLC artifacts and deterministic CLI/MCP contracts.",
+          "coverage_state": "governed",
+          "validation_evidence": [
+            "validate-artifact",
+            "emit-work-items --require-ready",
+            "tests/test_adlc_contracts.sh",
+            "tests/test_adlc_cli.sh",
+            "Graphify update/query"
+          ],
+          "no_overclaim": [
+            "Do not claim provider-billing enforcement.",
+            "Do not claim global self-autonomy.",
+            "Do not claim live kill-switch support."
+          ],
+          "reliability_failure_modes": [
+            "Budget evidence is local and can become stale.",
+            "Runtime adapters do not yet write live provider token usage."
+          ]
+        },
+        "production_invariant_coverage": [
+          {
+            "invariant": "observability",
+            "status": "covered",
+            "evidence": [
+              "Validation records CLI, maturity, budget, and Graphify evidence."
+            ]
+          }
+        ]
+      }
+    ],
+    "9_risks": [
+      "Budget evidence could become stale if runtime adapters do not write live usage; mitigate with stale status and self_autonomous downgrade.",
+      "Schema changes could break existing loop fixtures; mitigate by keeping budget fields optional for assisted_loop compatibility.",
+      "Budget controls could be mistaken for real billing enforcement; mitigate with no-overclaim gates and explicit local-estimate wording.",
+      "Runtime CLI could grow denser; defer broad modularity cleanup to the follow-on tech-debt pass."
+    ],
+    "10_rollout": "Ship as an opt-in loop budget guard overlay. Existing assisted_loop workflows continue unchanged. New or updated LLM-backed loop tasks can add budget_guard refs immediately. self_autonomous claims require healthy budget_status evidence after this slice.",
+    "11_validation_plan": [
+      "git diff --check",
+      "python3 -m py_compile scripts/adlc.py scripts/adlc_runtime/__init__.py scripts/adlc_runtime/metadata.py scripts/adlc_runtime/cli.py scripts/validate_learning_entry.py",
+      "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/loop-budget-guard-integration.json --json",
+      "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/loop-budget-guard-integration.json --dry-run --require-ready --json",
+      "bin/adlc validate-artifact --schema token-budget --input tests/fixtures/loop_maturity/token-budget-healthy.json --json",
+      "bin/adlc validate-artifact --schema loop-contract --input tests/fixtures/loop_maturity/budgeted-loop-contract.json --json",
+      "bin/adlc validate-artifact --schema loop-action --input tests/fixtures/loop_maturity/budgeted-loop-action.json --json",
+      "bin/adlc validate-artifact --schema loop-maturity-report --input tests/fixtures/loop_maturity/budgeted-maturity-report.json --json",
+      "bin/adlc loop-budget-check --token-budget tests/fixtures/loop_maturity/token-budget-healthy.json --estimated-input-tokens 10 --expected-output-tokens 10 --phase phase_5_codegen_context --skill codegen-context --json",
+      "bin/adlc loop-budget-check --token-budget tests/fixtures/loop_maturity/token-budget-exhausted.json --estimated-input-tokens 10 --expected-output-tokens 10 --phase phase_5_codegen_context --skill codegen-context --json",
+      "bin/adlc loop-action-validate --loop-contract tests/fixtures/loop_maturity/budgeted-loop-contract.json --action tests/fixtures/loop_maturity/budgeted-loop-action.json --state tests/fixtures/loop_maturity/workflow-state-budget-progress.json --token-budget tests/fixtures/loop_maturity/token-budget-healthy.json --json",
+      "bin/adlc loop-maturity-audit --loop-contract tests/fixtures/loop_maturity/budgeted-loop-contract.json --workflow WORKFLOW.dot --state tests/fixtures/loop_maturity/workflow-state-budget-progress.json --test-plan tests/fixtures/loop_maturity/test-plan-complete-required.json --test-results tests/fixtures/loop_maturity/test-results-complete-required.json --action tests/fixtures/loop_maturity/budgeted-loop-action.json --token-budget tests/fixtures/loop_maturity/token-budget-healthy.json --json",
+      "tests/test_adlc_contracts.sh",
+      "tests/test_adlc_cli.sh",
+      "tests/backtest/run_backtest.sh",
+      "graphify update .",
+      "graphify query \"How does ADLC bind Loop Contracts to token budget guards, action admission, maturity reports, workflow state, and self-autonomy no-overclaim?\" --budget 3000"
+    ],
+    "12_skill_trigger_configuration": [
+      {
+        "skill_or_agent": "agents/planner.md",
+        "trigger": "A task delegates decisions, tool use, retry/repair, or maturity claims to an LLM-backed loop.",
+        "required_change": "Require budget_guard refs for self_autonomous claims and name loop-budget-check as a verifier when budget evidence is active."
+      },
+      {
+        "skill_or_agent": "skills/codegen-context/SKILL.md",
+        "trigger": "A coding task has active loop_contract_path and budget_guard refs.",
+        "required_change": "Pass compact token_budget_ref, cost_report_ref, and budget_status evidence, not raw token logs."
+      },
+      {
+        "skill_or_agent": "skills/eval-council/SKILL.md",
+        "trigger": "A maturity or productionization claim references self_autonomous loop behavior.",
+        "required_change": "Block missing_loop_budget_guard or budget_guard_unhealthy before approving self_autonomous claims."
+      },
+      {
+        "skill_or_agent": "skills/llm-security/SKILL.md",
+        "trigger": "A task introduces or changes LLM-backed loop execution.",
+        "required_change": "Require token/cost budget evidence and structured budget_exhausted stop reasons."
+      },
+      {
+        "skill_or_agent": "docs/specs/compound-engineering-learning-store.md",
+        "trigger": "Learning capture stores a verified loop pattern.",
+        "required_change": "Capture budget_status refs and stale conditions for LLM-backed loop learnings."
+      }
+    ],
+    "13_comprehension_context": {
+      "core_refs": [
+        "docs/research/loop-engineering-adlc-strategy-review.md",
+        "docs/specs/loop-system-maturity-audit.md",
+        "docs/specs/token-budgets.md",
+        "docs/specs/pre-turn-check.md",
+        "docs/specs/cost-reporting.md",
+        "scripts/adlc_runtime/cli.py"
+      ],
+      "read_order": [
+        "Graphify report/query first",
+        "strategy review",
+        "loop maturity spec",
+        "token budget/pre-turn specs",
+        "schemas and fixtures",
+        "CLI and tests"
+      ]
+    },
+    "14_graph_research_evidence": {
+      "preflight_query": "graphify query \"How should loop budget guards integrate with Loop Contracts, token budgets, action admission, maturity reports, workflow state, and no-overclaim gates?\" --budget 3000",
+      "current_graph_report": "graphify-out/GRAPH_REPORT.md built from 764140c2 on 2026-06-09",
+      "note": "graphify update . is AST-only in this local CLI; semantic doc refresh requires graphify extract with an LLM backend."
+    },
+    "15_dark_code_risk": {
+      "risk": "scripts/adlc_runtime/cli.py is already large; the implementation should keep budget logic factored into small helpers so the tech-debt cleanup pass can split modules without behavior changes.",
+      "mitigation": "Add focused helper functions and tests now; defer broad runtime modularity cleanup to the follow-on tech-debt pass."
+    },
+    "16_implementation_interfaces": [
+      {
+        "id": "I-ADLC-LOOP-BUDGET-GUARD",
+        "capability": "Budget guard evidence across Loop Contract, Loop Action, workflow state, maturity report, CLI/MCP, and agent guidance",
+        "reuse": [
+          "docs/schemas/token-budget.schema.json",
+          "docs/specs/pre-turn-check.md",
+          "loop-test-selection",
+          "loop-action-validate",
+          "loop-maturity-audit"
+        ],
+        "consumes": [
+          "Loop Contract",
+          "Loop Action",
+          "Token Budget artifact",
+          "Workflow State",
+          "Test Plan",
+          "Loop Test Result"
+        ],
+        "emits": [
+          "loop-budget-check result",
+          "budget-aware action admission result",
+          "budget_status maturity evidence",
+          "budget-aware self-autonomy no-overclaim"
+        ],
+        "minimum_fields": [
+          "budget_guard",
+          "budget_status",
+          "budget_estimate",
+          "token_budget_ref",
+          "budget_exhausted"
+        ],
+        "invariants": [
+          "Budget evidence is required for self_autonomous LLM-backed loops.",
+          "Assisted-loop compatibility remains valid.",
+          "Budget math is deterministic and schema-backed.",
+          "Provider billing integration is not claimed."
+        ],
+        "integration_points": [
+          "docs/schemas",
+          "scripts/adlc_runtime/cli.py",
+          "scripts/adlc_runtime/metadata.py",
+          "tests/fixtures/loop_maturity",
+          "agents/planner.md",
+          "skills/codegen-context/SKILL.md",
+          "skills/eval-council/SKILL.md"
+        ],
+        "validation_gates": [
+          "validate-artifact schema checks",
+          "loop-budget-check CLI tests",
+          "loop-action-validate budget tests",
+          "loop-maturity-audit budget tests",
+          "contract tests"
+        ],
+        "privacy_redaction": "Budget evidence stores counts, thresholds, status, and refs only; it must not store prompts, keys, bearer tokens, or billing account identifiers."
+      }
+    ],
+    "17_productionization_gates": [
+      {
+        "id": "G-ADLC-LOOP-BUDGET-NO-OVERCLAIM",
+        "claim": "Budget guard evidence is a necessary no-overclaim gate for self_autonomous LLM-backed loops.",
+        "coverage_state": "governed",
+        "validation_evidence": [
+          "loop-budget-check tests",
+          "loop-action-validate budget tests",
+          "loop-maturity-audit self-autonomy downgrade tests",
+          "contract tests"
+        ],
+        "no_overclaim": [
+          "Healthy local budget evidence is necessary but not sufficient for self_autonomous maturity.",
+          "Provider billing reconciliation is not implemented.",
+          "Live kill-switch support is not implemented.",
+          "Global ADLC self-autonomy is not claimed."
+        ],
+        "known_unsupported_states": [
+          "automatic provider usage ingestion",
+          "real-time hosted billing limits",
+          "live signal interruption of already-running actions"
+        ],
+        "reliability_failure_modes": [
+          "Budget artifacts can be stale.",
+          "Projected token estimates can be low.",
+          "Runtime adapters may not yet write live usage."
+        ],
+        "security_privacy": {
+          "threat_model_delta": "Budget artifacts add local cost/usage metadata but no secrets or external auth.",
+          "secrets_handling": "Do not persist prompts, API keys, bearer tokens, or billing account IDs.",
+          "data_retention": "Budget artifacts are repo-local fixtures or workflow/session state refs.",
+          "redaction_posture": "Store counts, costs, model IDs, statuses, and evidence refs only.",
+          "policy_authority": "ADLC maintainers",
+          "approval_authority": "human engineer for budget overrides",
+          "audit_evidence": [
+            "docs/specs/pre-turn-check.md",
+            "docs/schemas/token-budget.schema.json"
+          ]
+        }
+      }
+    ]
+  }
+}

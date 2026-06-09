@@ -1,0 +1,84 @@
+{
+  "contract_version": "1.0.0",
+  "report_id": "report:adlc-budgeted-loop",
+  "loop_contract_id": "adlc-budgeted-loop",
+  "maturity_verdict": "assisted_loop",
+  "action_admission": {
+    "status": "admitted",
+    "evidence_refs": [
+      "tests/fixtures/loop_maturity/budgeted-loop-action.json"
+    ]
+  },
+  "budget_status": {
+    "status": "healthy",
+    "decision": "proceed",
+    "token_budget_ref": "tests/fixtures/loop_maturity/token-budget-healthy.json",
+    "tokens_used": 1000,
+    "budget_limit": 100000,
+    "projected_total_tokens": 1020,
+    "budget_remaining": 98980,
+    "threshold": "warn_at",
+    "phase": "phase_5_codegen_context",
+    "skill": "codegen-context",
+    "evidence_refs": [
+      "tests/fixtures/loop_maturity/token-budget-healthy.json"
+    ]
+  },
+  "dimension_scores": {
+    "real_loop_vs_one_shot": {
+      "score": 3,
+      "one_line_evidence": "Workflow graph, feedback channels, and loop progress are present.",
+      "evidence_refs": ["WORKFLOW.dot", "tests/fixtures/loop_maturity/workflow-state-budget-progress.json"],
+      "missing_mechanisms": []
+    },
+    "win_condition_rigor": {
+      "score": 3,
+      "one_line_evidence": "Loop Contract declares deterministic budget, action, and maturity checks.",
+      "evidence_refs": ["tests/fixtures/loop_maturity/budgeted-loop-contract.json"],
+      "missing_mechanisms": []
+    },
+    "test_selection_cannot_be_gamed": {
+      "score": 3,
+      "one_line_evidence": "Required tests are tag-covered and backed by executed passed results.",
+      "evidence_refs": ["tests/fixtures/loop_maturity/test-results-complete-required.json"],
+      "missing_mechanisms": []
+    },
+    "self_grading_risk": {
+      "score": 3,
+      "one_line_evidence": "Independent truth is declared outside model self-assessment.",
+      "evidence_refs": ["docs/schemas/token-budget.schema.json"],
+      "missing_mechanisms": []
+    },
+    "feedback_fidelity": {
+      "score": 3,
+      "one_line_evidence": "Budget and test observations are modeled in workflow state.",
+      "evidence_refs": ["tests/fixtures/loop_maturity/workflow-state-budget-progress.json"],
+      "missing_mechanisms": []
+    },
+    "control_channel": {
+      "score": 3,
+      "one_line_evidence": "State-level steer, abort, interrupt, and escalate support is modeled.",
+      "evidence_refs": ["tests/fixtures/loop_maturity/workflow-state-budget-progress.json"],
+      "missing_mechanisms": []
+    },
+    "failure_handling_escalation": {
+      "score": 3,
+      "one_line_evidence": "No-progress and budget exhaustion escalation context is modeled.",
+      "evidence_refs": ["tests/fixtures/loop_maturity/workflow-state-budget-progress.json"],
+      "missing_mechanisms": []
+    }
+  },
+  "highest_leverage_gap": "Move from fixture-level evidence to runtime enforcement across all autonomous loop phases.",
+  "prioritized_gaps": {
+    "blocks_autonomy": [
+      "Runtime enforcement across all production loop phases"
+    ],
+    "fragile_under_load": [
+      "Budget evidence is local and can become stale"
+    ],
+    "polish": [
+      "Render budget status in human review reports"
+    ]
+  },
+  "one_question": "Which ADLC workflow should be the first production self-autonomous loop rather than assisted loop?"
+}

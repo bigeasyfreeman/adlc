@@ -14,8 +14,10 @@ SCHEMA_ALIASES = {
     "loop-contract": "docs/schemas/loop-contract.schema.json",
     "loop-maturity-report": "docs/schemas/loop-maturity-report.schema.json",
     "loop-test-result": "docs/schemas/loop-test-result.schema.json",
+    "session-state": "docs/schemas/session-state.schema.json",
     "test-author-output": "docs/schemas/test-author-output.schema.json",
     "test-strength-output": "docs/schemas/test-strength-output.schema.json",
+    "token-budget": "docs/schemas/token-budget.schema.json",
     "triage-output": "docs/schemas/triage-output.schema.json",
     "workflow-state": "docs/schemas/workflow-state.schema.json",
 }
@@ -84,6 +86,10 @@ COMMAND_METADATA = {
     "loop-action-validate": {
         "mcp_name": "adlc_loop_action_validate",
         "description": "Validate an LLM-proposed loop action against allowed tools, required tests, control events, and safe checkpoints.",
+    },
+    "loop-budget-check": {
+        "mcp_name": "adlc_loop_budget_check",
+        "description": "Evaluate a projected LLM loop action against a local token budget before the next model call.",
     },
     "loop-maturity-audit": {
         "mcp_name": "adlc_loop_maturity_audit",

@@ -145,6 +145,5 @@ Invoke when: a task involves LLM calls (`llm_call_fn`), prompt construction, mod
 
 - **Contract versioning:** Include `contract_version` in all skill payloads and enforce compatibility before processing.
 - **Schema validation:** Validate LLM security findings against `docs/schemas/security-assessment.schema.json` and fail on contract drift.
-- **Budget controls:** Any LLM-assisted checks must honor per-skill budgets from `docs/specs/token-budgets.md` with pre-turn checks.
+- **Budget controls:** Any LLM-assisted checks must honor per-skill budgets from `docs/specs/token-budgets.md` with pre-turn checks. For LLM-backed Loop Contracts, require compact `budget_guard` refs, run or cite `bin/adlc loop-budget-check`, and treat `budget_exhausted` or stale `budget_status` as a blocking stop reason before action execution.
 - **Stop reasons:** Return structured stop reasons when analysis is blocked (`budget_exhausted`, `missing_llm_touchpoints`, `contract_mismatch`).
-

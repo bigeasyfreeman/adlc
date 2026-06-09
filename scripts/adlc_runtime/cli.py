@@ -563,19 +563,7 @@ def command_resume_workflow(args: argparse.Namespace) -> int:
         state = load_workflow_state(state_path)
         state["resume_count"] = int(state.get("resume_count", 0)) + 1
         state["updated_at"] = utc_now()
-        node_by_id, _ = workflow_maps()
-        next_action = {
-            "phase": state["phase"],
-            "status": state["status"],
-            "node": node_by_id.get(state["phase"]),
-            "runnable": state["status"] == "planned" and state["phase"] not in {"done", "escalate"},
-            "task_resume_status": task_fingerprint_summary(state),
-            "loop_progress": state.get("loop_progress"),
-            "no_progress_count": state.get("no_progress_count", 0),
-            "control_events": state.get("control_events", []),
-            "safe_checkpoint": state.get("safe_checkpoint"),
-            "escalation_context": state.get("escalation_context"),
-        }
+        next_action = resume_next_action_payload(state)
         state.setdefault("checkpoint", {})["next_action"] = next_action
         save_workflow_state(state_path, state)
     except Exception as exc:
@@ -773,6 +761,23 @@ def task_fingerprint_summary(state: Dict[str, Any]) -> Dict[str, Any]:
         "total": sum(counts.values()),
         "counts": counts,
         "incomplete": incomplete,
+    }
+
+
+def resume_next_action_payload(state: Dict[str, Any]) -> Dict[str, Any]:
+    node_by_id, _ = workflow_maps()
+    return {
+        "phase": state["phase"],
+        "status": state["status"],
+        "node": node_by_id.get(state["phase"]),
+        "runnable": state["status"] == "planned" and state["phase"] not in {"done", "escalate"},
+        "task_resume_status": task_fingerprint_summary(state),
+        "loop_progress": state.get("loop_progress"),
+        "no_progress_count": state.get("no_progress_count", 0),
+        "control_events": state.get("control_events", []),
+        "safe_checkpoint": state.get("safe_checkpoint"),
+        "escalation_context": state.get("escalation_context"),
+        "budget_status": state.get("budget_status"),
     }
 
 
@@ -1920,6 +1925,199 @@ def command_loop_test_selection(args: argparse.Namespace) -> int:
     return 0 if payload["status"] == "pass" else 1
 
 
+def clamp_nonnegative_int(value: Any, field_name: str) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be an integer") from exc
+    if parsed < 0:
+        raise ValueError(f"{field_name} must be non-negative")
+    return parsed
+
+
+def token_budget_health_from_ratio(ratio: float, thresholds: Dict[str, Any]) -> Tuple[str, str, str]:
+    warn_at = float(thresholds.get("warn_at", 0.5))
+    alert_at = float(thresholds.get("alert_at", 0.8))
+    hard_stop_at = float(thresholds.get("hard_stop_at", 1.0))
+    if ratio >= hard_stop_at:
+        return "exhausted", "blocked", "hard_stop_at"
+    if ratio >= alert_at:
+        return "alert", "wrap_up", "alert_at"
+    if ratio >= warn_at:
+        return "warning", "warning", "warn_at"
+    return "healthy", "proceed", "warn_at"
+
+
+def worse_budget_health(left: str, right: str) -> str:
+    order = {
+        "healthy": 0,
+        "warning": 1,
+        "alert": 2,
+        "exhausted": 3,
+        "stale": 4,
+    }
+    return left if order.get(left, 0) >= order.get(right, 0) else right
+
+
+def decision_for_budget_health(status: str, threshold: str) -> Tuple[str, str, str | None]:
+    if status == "stale":
+        return "blocked", "artifact_status", "budget_stale"
+    if status == "exhausted":
+        return "blocked", "hard_stop_at" if threshold != "artifact_status" else "artifact_status", "budget_exhausted"
+    if status == "alert":
+        return "wrap_up", "alert_at" if threshold != "artifact_status" else "artifact_status", None
+    if status == "warning":
+        return "warning", "warn_at" if threshold != "artifact_status" else "artifact_status", None
+    return "proceed", "warn_at", None
+
+
+def loop_budget_check_payload(
+    token_budget_path: Path,
+    estimated_input_tokens: int,
+    expected_output_tokens: int,
+    phase: str | None = None,
+    skill: str | None = None,
+) -> Dict[str, Any]:
+    errors = validate_artifact(resolve_schema("token-budget"), token_budget_path)
+    if errors:
+        raise ValueError("token budget failed schema validation: " + "; ".join(errors))
+
+    budget = read_json(token_budget_path)
+    estimated_input_tokens = clamp_nonnegative_int(estimated_input_tokens, "--estimated-input-tokens")
+    expected_output_tokens = clamp_nonnegative_int(expected_output_tokens, "--expected-output-tokens")
+    budget_limit = clamp_nonnegative_int(budget.get("budget_limit"), "budget_limit")
+    tokens_used = clamp_nonnegative_int(budget.get("tokens_used"), "tokens_used")
+    if budget_limit <= 0:
+        raise ValueError("budget_limit must be positive")
+
+    projected_total = tokens_used + estimated_input_tokens + expected_output_tokens
+    budget_remaining = max(0, budget_limit - projected_total)
+    projected_ratio = projected_total / budget_limit
+    ratio_status, ratio_decision, ratio_threshold = token_budget_health_from_ratio(
+        projected_ratio,
+        budget.get("thresholds", {}),
+    )
+    artifact_status = budget.get("status")
+    budget_health = ratio_status
+    threshold = ratio_threshold
+    if artifact_status in {"warning", "alert", "exhausted", "stale"}:
+        budget_health = worse_budget_health(str(artifact_status), ratio_status)
+        if budget_health == artifact_status:
+            threshold = "artifact_status"
+    decision, threshold, stop_reason = decision_for_budget_health(budget_health, threshold)
+
+    evidence_refs = [rel_path(token_budget_path)]
+    status_payload: Dict[str, Any] = {
+        "status": budget_health,
+        "decision": decision,
+        "token_budget_ref": rel_path(token_budget_path),
+        "tokens_used": tokens_used,
+        "budget_limit": budget_limit,
+        "projected_total_tokens": projected_total,
+        "budget_remaining": budget_remaining,
+        "threshold": threshold,
+        "evidence_refs": evidence_refs,
+    }
+    if phase:
+        status_payload["phase"] = phase
+    if skill:
+        status_payload["skill"] = skill
+    if stop_reason:
+        status_payload["stop_reason"] = stop_reason
+
+    payload: Dict[str, Any] = {
+        "contract_version": "1.0.0",
+        "status": decision,
+        "budget_status": status_payload,
+        "token_budget": rel_path(token_budget_path),
+        "estimated_input_tokens": estimated_input_tokens,
+        "expected_output_tokens": expected_output_tokens,
+        "projected_total": projected_total,
+        "budget_remaining": budget_remaining,
+        "threshold": threshold,
+    }
+    if phase:
+        payload["phase"] = phase
+    if skill:
+        payload["skill"] = skill
+    if stop_reason:
+        payload["stop_reason"] = stop_reason
+    return payload
+
+
+def command_loop_budget_check(args: argparse.Namespace) -> int:
+    try:
+        payload = loop_budget_check_payload(
+            token_budget_path=cli_input_path(args.token_budget),
+            estimated_input_tokens=args.estimated_input_tokens,
+            expected_output_tokens=args.expected_output_tokens,
+            phase=args.phase,
+            skill=args.skill,
+        )
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['token_budget']}: budget {payload['status']}")
+    return 1 if payload["status"] == "blocked" else 0
+
+
+def resolve_contract_token_budget_path(
+    explicit_path: Path | None,
+    contract: Dict[str, Any],
+    contract_path: Path,
+) -> Path | None:
+    if explicit_path:
+        return explicit_path
+    budget_guard = contract.get("budget_guard")
+    if not isinstance(budget_guard, dict):
+        return None
+    ref = budget_guard.get("token_budget_ref")
+    if not isinstance(ref, str) or not ref.strip():
+        return None
+    ref_path = Path(ref)
+    if ref_path.is_absolute():
+        return ref_path
+    candidates = [
+        (Path.cwd() / ref_path).resolve(),
+        (ROOT / ref_path).resolve(),
+        (contract_path.parent / ref_path).resolve(),
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[1]
+
+
+def action_budget_estimate(action: Dict[str, Any]) -> Dict[str, Any]:
+    estimate = action.get("budget_estimate")
+    if not isinstance(estimate, dict):
+        return {
+            "estimated_input_tokens": 0,
+            "expected_output_tokens": 0,
+            "phase": None,
+            "skill": None,
+        }
+    return {
+        "estimated_input_tokens": clamp_nonnegative_int(estimate.get("estimated_input_tokens", 0), "budget_estimate.estimated_input_tokens"),
+        "expected_output_tokens": clamp_nonnegative_int(estimate.get("expected_output_tokens", 0), "budget_estimate.expected_output_tokens"),
+        "phase": estimate.get("phase") if isinstance(estimate.get("phase"), str) else None,
+        "skill": estimate.get("skill") if isinstance(estimate.get("skill"), str) else None,
+    }
+
+
+def missing_budget_status(contract: Dict[str, Any], reason: str = "budget_missing") -> Dict[str, Any]:
+    return {
+        "status": "missing",
+        "decision": "blocked" if contract.get("autonomy_claim") == "self_autonomous" else "not_evaluated",
+        "threshold": "missing",
+        "stop_reason": "budget_missing",
+        "evidence_refs": [reason],
+    }
+
+
 def latest_pending_control_event(state: Dict[str, Any]) -> Dict[str, Any] | None:
     for event in reversed(state.get("control_events", [])):
         if isinstance(event, dict) and event.get("status") == "pending":
@@ -1927,7 +2125,12 @@ def latest_pending_control_event(state: Dict[str, Any]) -> Dict[str, Any] | None
     return None
 
 
-def loop_action_validate_payload(contract_path: Path, action_path: Path, state_path: Path | None = None) -> Dict[str, Any]:
+def loop_action_validate_payload(
+    contract_path: Path,
+    action_path: Path,
+    state_path: Path | None = None,
+    token_budget_path: Path | None = None,
+) -> Dict[str, Any]:
     contract_errors = validate_artifact(resolve_schema("loop-contract"), contract_path)
     action_errors = validate_artifact(resolve_schema("loop-action"), action_path)
     if contract_errors:
@@ -1937,6 +2140,7 @@ def loop_action_validate_payload(contract_path: Path, action_path: Path, state_p
     contract = read_json(contract_path)
     action = read_json(action_path)
     state = load_workflow_state(state_path) if state_path else {}
+    resolved_budget_path = resolve_contract_token_budget_path(token_budget_path, contract, contract_path)
 
     allowed = {
         tool.get("name"): set(tool.get("actions", []))
@@ -1988,6 +2192,27 @@ def loop_action_validate_payload(contract_path: Path, action_path: Path, state_p
                 }
             )
 
+    budget_check = None
+    budget_status = state.get("budget_status") if isinstance(state.get("budget_status"), dict) else None
+    if resolved_budget_path:
+        estimate = action_budget_estimate(action)
+        budget_check = loop_budget_check_payload(
+            resolved_budget_path,
+            estimate["estimated_input_tokens"],
+            estimate["expected_output_tokens"],
+            phase=estimate.get("phase"),
+            skill=estimate.get("skill"),
+        )
+        budget_status = budget_check["budget_status"]
+        if budget_check["status"] == "blocked":
+            issues.append(
+                {
+                    "rule": budget_check.get("stop_reason", "budget_blocked"),
+                    "message": "budget guard blocks the LLM-proposed action before execution",
+                    "budget_status": budget_status,
+                }
+            )
+
     escalation_context = state.get("escalation_context") if isinstance(state, dict) else None
     if issues:
         status = "rejected"
@@ -2005,6 +2230,8 @@ def loop_action_validate_payload(contract_path: Path, action_path: Path, state_p
         "issues": issues,
         "escalation_context": escalation_context if status == "escalate" else None,
         "evidence_refs": action.get("evidence_refs", []),
+        "budget_check": budget_check,
+        "budget_status": budget_status,
     }
 
 
@@ -2015,6 +2242,7 @@ def command_loop_action_validate(args: argparse.Namespace) -> int:
             cli_input_path(args.loop_contract),
             cli_input_path(args.action),
             state_path,
+            cli_input_path(args.token_budget) if args.token_budget else None,
         )
     except Exception as exc:
         print(str(exc), file=sys.stderr)
@@ -2035,7 +2263,11 @@ def dimension(score: int, evidence: str, refs: List[str], missing: List[str] | N
     }
 
 
-def maturity_verdict(scores: Dict[str, Dict[str, Any]], requested: str) -> str:
+def maturity_verdict(
+    scores: Dict[str, Dict[str, Any]],
+    requested: str,
+    budget_status: Dict[str, Any] | None = None,
+) -> str:
     low_scores = [item["score"] for item in scores.values() if item["score"] <= 1]
     critical_low = any(
         scores[key]["score"] <= 1
@@ -2044,6 +2276,8 @@ def maturity_verdict(scores: Dict[str, Dict[str, Any]], requested: str) -> str:
     mostly_robust = sum(1 for item in scores.values() if item["score"] == 3) >= 5
     if low_scores and len(low_scores) >= 2:
         return "one_shot_in_disguise"
+    if requested == "self_autonomous" and budget_status and budget_status.get("status") != "healthy":
+        return "assisted_loop"
     if requested == "self_autonomous" and mostly_robust and not critical_low:
         return "self_autonomous"
     return "assisted_loop"
@@ -2056,6 +2290,7 @@ def loop_maturity_audit_payload(
     test_plan_path: Path | None = None,
     action_path: Path | None = None,
     test_results_path: Path | None = None,
+    token_budget_path: Path | None = None,
 ) -> Dict[str, Any]:
     contract_errors = validate_artifact(resolve_schema("loop-contract"), contract_path)
     if contract_errors:
@@ -2076,13 +2311,27 @@ def loop_maturity_audit_payload(
     has_progress = isinstance(state.get("loop_progress"), dict)
     has_control = bool(state.get("control_events")) and isinstance(state.get("safe_checkpoint"), dict)
     has_escalation = isinstance(state.get("escalation_context"), dict)
+    supports_control = set(contract.get("control_channel", {}).get("supports", []))
     action_admission = {"status": "not_evaluated", "evidence_refs": []}
+    budget_status = None
+    contract_has_budget_guard = isinstance(contract.get("budget_guard"), dict)
+    explicit_token_budget = token_budget_path is not None
     if action_path:
-        action_payload = loop_action_validate_payload(contract_path, action_path, state_path)
+        action_payload = loop_action_validate_payload(contract_path, action_path, state_path, token_budget_path)
         action_admission = {
             "status": action_payload["status"],
             "evidence_refs": action_payload.get("evidence_refs", []),
         }
+        budget_status = action_payload.get("budget_status")
+    if contract.get("autonomy_claim") == "self_autonomous" and not contract_has_budget_guard and not explicit_token_budget:
+        budget_status = missing_budget_status(contract, "self_autonomous Loop Contract missing budget_guard")
+    if budget_status is None:
+        resolved_budget_path = resolve_contract_token_budget_path(token_budget_path, contract, contract_path)
+        if resolved_budget_path:
+            budget_check = loop_budget_check_payload(resolved_budget_path, 0, 0)
+            budget_status = budget_check["budget_status"]
+    if budget_status is None:
+        budget_status = missing_budget_status(contract, "token budget evidence missing")
 
     if test_missing:
         test_score = 1
@@ -2105,17 +2354,24 @@ def loop_maturity_audit_payload(
         test_evidence = "Agent-selected tests are not additive-only."
         test_missing_mechanisms = ["additive agent test rule"]
 
-    control_score = 2 if has_control else 1
-    failure_score = 2 if has_escalation and contract.get("stop_escalate_rules", {}).get("no_progress_after") else 1
+    no_progress_after = contract.get("stop_escalate_rules", {}).get("no_progress_after")
+    no_progress_count = state.get("no_progress_count", 0)
+    robust_action = action_admission["status"] in {"admitted", "escalate", "not_evaluated"}
+    control_score = 3 if has_control and {"steer", "abort", "interrupt", "escalate"}.issubset(supports_control) else (2 if has_control else 1)
+    failure_score = (
+        3
+        if has_escalation and no_progress_after and isinstance(no_progress_count, int) and no_progress_count <= int(no_progress_after)
+        else (2 if has_escalation and no_progress_after else 1)
+    )
     scores = {
         "real_loop_vs_one_shot": dimension(
-            2 if has_workflow and contract.get("feedback_channels") else 1,
+            3 if has_workflow and contract.get("feedback_channels") and has_progress else (2 if has_workflow and contract.get("feedback_channels") else 1),
             "Workflow graph and feedback channels are present." if has_workflow else "Workflow evidence is missing.",
             [rel_path(workflow_path)] if workflow_path else [],
-            [] if has_workflow else ["workflow graph evidence"],
+            [] if has_workflow and has_progress else ["workflow graph evidence", "loop progress observations"],
         ),
         "win_condition_rigor": dimension(
-            2 if contract.get("job_win_condition", {}).get("deterministic_checks") else 1,
+            3 if len(contract.get("job_win_condition", {}).get("deterministic_checks", [])) >= 2 else (2 if contract.get("job_win_condition", {}).get("deterministic_checks") else 1),
             "Loop Contract declares deterministic done checks.",
             [rel_path(contract_path)],
             [],
@@ -2127,13 +2383,13 @@ def loop_maturity_audit_payload(
             test_missing_mechanisms,
         ),
         "self_grading_risk": dimension(
-            1 if contract.get("independent_truth", {}).get("type") == "agent_self_assessment" else 2,
+            1 if contract.get("independent_truth", {}).get("type") == "agent_self_assessment" else (3 if contract.get("independent_truth", {}).get("evidence") else 2),
             "Independent truth is declared outside model self-assessment.",
             contract.get("independent_truth", {}).get("evidence", []),
             [],
         ),
         "feedback_fidelity": dimension(
-            2 if contract.get("feedback_channels") and has_progress else 1,
+            3 if contract.get("feedback_channels") and has_progress and robust_action else (2 if contract.get("feedback_channels") and has_progress else 1),
             "Feedback channels and workflow observations are modeled." if has_progress else "Workflow observations are not modeled.",
             [rel_path(state_path)] if state_path else [],
             [] if has_progress else ["loop progress observations"],
@@ -2151,9 +2407,16 @@ def loop_maturity_audit_payload(
             [] if has_escalation else ["escalation context"],
         ),
     }
-    verdict = maturity_verdict(scores, contract.get("autonomy_claim", "assisted_loop"))
+    verdict = maturity_verdict(scores, contract.get("autonomy_claim", "assisted_loop"), budget_status)
 
-    if test_missing:
+    budget_blocks_autonomy = (
+        contract.get("autonomy_claim") == "self_autonomous"
+        and isinstance(budget_status, dict)
+        and budget_status.get("status") != "healthy"
+    )
+    if budget_blocks_autonomy:
+        highest_gap = "Add healthy Loop Budget Guard evidence before claiming self-autonomous loop maturity."
+    elif test_missing:
         highest_gap = "Complete non-gameable test selection by covering all required tests."
     elif not test_results:
         highest_gap = "Add execution-backed Loop Test Result evidence for every required test."
@@ -2172,6 +2435,7 @@ def loop_maturity_audit_payload(
         "loop_contract_id": contract.get("contract_id"),
         "maturity_verdict": verdict,
         "action_admission": action_admission,
+        "budget_status": budget_status,
         "dimension_scores": scores,
         "highest_leverage_gap": highest_gap,
         "prioritized_gaps": {
@@ -2210,6 +2474,7 @@ def command_loop_maturity_audit(args: argparse.Namespace) -> int:
             test_plan_path=cli_input_path(args.test_plan) if args.test_plan else None,
             action_path=cli_input_path(args.action) if args.action else None,
             test_results_path=cli_input_path(args.test_results) if args.test_results else None,
+            token_budget_path=cli_input_path(args.token_budget) if args.token_budget else None,
         )
         if output_path:
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2406,6 +2671,22 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("loop-budget-check"),
+            "description": command_description("loop-budget-check"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["token_budget", "estimated_input_tokens", "expected_output_tokens"],
+                "properties": {
+                    "token_budget": {"type": "string", "minLength": 1},
+                    "estimated_input_tokens": {"type": "integer", "minimum": 0},
+                    "expected_output_tokens": {"type": "integer", "minimum": 0},
+                    "phase": {"type": "string", "minLength": 1},
+                    "skill": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("loop-action-validate"),
             "description": command_description("loop-action-validate"),
             "inputSchema": {
@@ -2416,6 +2697,7 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "loop_contract": {"type": "string", "minLength": 1},
                     "action": {"type": "string", "minLength": 1},
                     "state": {"type": "string", "minLength": 1},
+                    "token_budget": {"type": "string", "minLength": 1},
                 },
             },
         },
@@ -2433,6 +2715,7 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "test_plan": {"type": "string", "minLength": 1},
                     "test_results": {"type": "string", "minLength": 1},
                     "action": {"type": "string", "minLength": 1},
+                    "token_budget": {"type": "string", "minLength": 1},
                     "output": {"type": "string", "minLength": 1},
                 },
             },
@@ -2501,19 +2784,7 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         state = load_workflow_state(state_path)
         state["resume_count"] = int(state.get("resume_count", 0)) + 1
         state["updated_at"] = utc_now()
-        node_by_id, _ = workflow_maps()
-        next_action = {
-            "phase": state["phase"],
-            "status": state["status"],
-            "node": node_by_id.get(state["phase"]),
-            "runnable": state["status"] == "planned" and state["phase"] not in {"done", "escalate"},
-            "task_resume_status": task_fingerprint_summary(state),
-            "loop_progress": state.get("loop_progress"),
-            "no_progress_count": state.get("no_progress_count", 0),
-            "control_events": state.get("control_events", []),
-            "safe_checkpoint": state.get("safe_checkpoint"),
-            "escalation_context": state.get("escalation_context"),
-        }
+        next_action = resume_next_action_payload(state)
         state.setdefault("checkpoint", {})["next_action"] = next_action
         save_workflow_state(state_path, state)
         return tool_result({"state_path": rel_path(state_path), "state": state, "next_action": next_action})
@@ -2564,16 +2835,30 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             require_test_results=bool(arguments.get("require_test_results", False)),
         )
         return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_loop_budget_check":
+        token_budget = arguments.get("token_budget")
+        if not isinstance(token_budget, str):
+            raise ValueError("adlc_loop_budget_check requires string argument: token_budget")
+        payload = loop_budget_check_payload(
+            cli_input_path(token_budget, ROOT),
+            arguments.get("estimated_input_tokens", 0),
+            arguments.get("expected_output_tokens", 0),
+            phase=arguments.get("phase") if isinstance(arguments.get("phase"), str) else None,
+            skill=arguments.get("skill") if isinstance(arguments.get("skill"), str) else None,
+        )
+        return tool_result(payload, is_error=payload["status"] == "blocked")
     if name == "adlc_loop_action_validate":
         loop_contract = arguments.get("loop_contract")
         action = arguments.get("action")
         state = arguments.get("state")
+        token_budget = arguments.get("token_budget")
         if not isinstance(loop_contract, str) or not isinstance(action, str):
             raise ValueError("adlc_loop_action_validate requires string arguments: loop_contract, action")
         payload = loop_action_validate_payload(
             cli_input_path(loop_contract, ROOT),
             cli_input_path(action, ROOT),
             cli_input_path(state, ROOT) if isinstance(state, str) else None,
+            cli_input_path(token_budget, ROOT) if isinstance(token_budget, str) else None,
         )
         return tool_result(payload, is_error=payload["status"] == "rejected")
     if name == "adlc_loop_maturity_audit":
@@ -2588,6 +2873,7 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             test_plan_path=cli_input_path(arguments["test_plan"], ROOT) if isinstance(arguments.get("test_plan"), str) else None,
             test_results_path=cli_input_path(arguments["test_results"], ROOT) if isinstance(arguments.get("test_results"), str) else None,
             action_path=cli_input_path(arguments["action"], ROOT) if isinstance(arguments.get("action"), str) else None,
+            token_budget_path=cli_input_path(arguments["token_budget"], ROOT) if isinstance(arguments.get("token_budget"), str) else None,
         )
         if isinstance(output, str):
             output_path = cli_input_path(output, ROOT)
@@ -2717,8 +3003,18 @@ def build_parser() -> argparse.ArgumentParser:
     loop_action.add_argument("--loop-contract", required=True, help="Loop Contract JSON path.")
     loop_action.add_argument("--action", required=True, help="Loop Action JSON path.")
     loop_action.add_argument("--state", help="Workflow state path.")
+    loop_action.add_argument("--token-budget", help="Token Budget JSON path. Defaults to loop_contract.budget_guard.token_budget_ref when present.")
     loop_action.add_argument("--json", action="store_true", help="Emit JSON.")
     loop_action.set_defaults(func=command_loop_action_validate)
+
+    loop_budget = subparsers.add_parser("loop-budget-check", help=command_description("loop-budget-check"))
+    loop_budget.add_argument("--token-budget", required=True, help="Token Budget JSON path.")
+    loop_budget.add_argument("--estimated-input-tokens", required=True, type=int, help="Estimated input tokens for the next LLM call.")
+    loop_budget.add_argument("--expected-output-tokens", required=True, type=int, help="Expected output tokens for the next LLM call.")
+    loop_budget.add_argument("--phase", help="Optional ADLC phase attribution.")
+    loop_budget.add_argument("--skill", help="Optional skill attribution.")
+    loop_budget.add_argument("--json", action="store_true", help="Emit JSON.")
+    loop_budget.set_defaults(func=command_loop_budget_check)
 
     loop_maturity = subparsers.add_parser("loop-maturity-audit", help=command_description("loop-maturity-audit"))
     loop_maturity.add_argument("--loop-contract", required=True, help="Loop Contract JSON path.")
@@ -2727,6 +3023,7 @@ def build_parser() -> argparse.ArgumentParser:
     loop_maturity.add_argument("--test-plan", help=".adlc/test_plan.json-compatible path.")
     loop_maturity.add_argument("--test-results", help="Loop Test Result JSON path with executed required-test evidence.")
     loop_maturity.add_argument("--action", help="Optional Loop Action JSON path to include admission status.")
+    loop_maturity.add_argument("--token-budget", help="Token Budget JSON path. Defaults to loop_contract.budget_guard.token_budget_ref when present.")
     loop_maturity.add_argument("--output", help="Optional output report path.")
     loop_maturity.add_argument("--json", action="store_true", help="Emit JSON.")
     loop_maturity.set_defaults(func=command_loop_maturity_audit)

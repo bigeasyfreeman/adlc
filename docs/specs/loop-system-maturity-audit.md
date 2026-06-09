@@ -93,11 +93,21 @@ The LLM may choose the next action, but it must emit a structured action envelop
 
 The deterministic validator admits, rejects, repair-routes, or escalation-routes the action. The model's rationale is not sufficient evidence.
 
+## Loop Budget Guard
+
+Every LLM-backed loop that claims `self_autonomous` maturity must carry budget evidence. The Loop Contract may include a `budget_guard` that points at a `docs/schemas/token-budget.schema.json` artifact and names the hard-stop behavior for the next model call. The Loop Action may include a `budget_estimate` with estimated input tokens, expected output tokens, phase, and skill attribution.
+
+ADLC evaluates the guard with `bin/adlc loop-budget-check` before action admission. The command emits `budget_status` with one of `healthy`, `warning`, `alert`, `exhausted`, `stale`, or `missing`; the action decision is `proceed`, `warning`, `wrap_up`, or `blocked`. `exhausted` emits stop reason `budget_exhausted`; stale budget evidence emits `budget_stale`.
+
+Budget evidence is a no-overclaim gate, not provider billing enforcement. A workflow can remain `assisted_loop` without budget evidence, but `self_autonomous` is blocked when `budget_status` is missing, stale, warning, alert, or exhausted. Healthy local budget evidence is necessary but not sufficient for `self_autonomous`; the win condition, required-test evidence, feedback fidelity, control channel, and failure handling must still be robust.
+
 ## No-Overclaim Rules
 
 - Missing Loop Contract or action envelope downgrades autonomous claims to `assisted_loop`.
 - Missing required tests or missing executed required-test result evidence blocks `self_autonomous`.
 - A score of `0` or `1` on win condition, test selection, or failure handling blocks `self_autonomous`.
+- Missing or unhealthy `budget_status` blocks `self_autonomous` for LLM-backed loops. Unhealthy means `missing`, `stale`, `warning`, `alert`, or `exhausted`.
+- Budget controls are local pre-turn estimates; ADLC does not claim provider-billing enforcement or live kill-switch support from `budget_guard` alone.
 - Live kill-switch support is unsupported unless implemented and tested.
 - External-provider rollback is unsupported unless provider-specific rollback exists.
 - Compound learning capture may store only verified, redacted loop patterns with maturity-report evidence and stale conditions.

@@ -14,6 +14,7 @@ Enforce budget checks before every LLM call to prevent runaway spend and incompl
 - `>= warn_at && < alert_at`: proceed and emit `budget.warning`.
 - `>= alert_at && < hard_stop_at`: enter **wrap up mode**.
 - `>= hard_stop_at`: block call and emit stop reason `budget_exhausted`.
+- stale budget artifact: block autonomous maturity claims and emit stop reason `budget_stale`.
 
 ## Wrap Up Mode
 When budget is above 80%:
@@ -36,3 +37,7 @@ When budget is above 80%:
 - If iteration 1 consumes >50% of council budget, iteration 2 must use compressed brief input.
 - If iteration 2 still fails and council budget headroom is below required estimate, block iteration 3.
 - Council budget is isolated from codegen budget.
+
+## Loop Contract Integration
+
+When a Loop Contract includes `budget_guard`, the pre-turn check is executable through `bin/adlc loop-budget-check`. `loop-action-validate` can consume the same token budget before admitting an LLM action, and `loop-maturity-audit` records the resulting `budget_status`. Missing, stale, warning, alert, or exhausted budget evidence blocks `self_autonomous` but does not invalidate legacy `assisted_loop` contracts.
