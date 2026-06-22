@@ -2188,6 +2188,319 @@ def command_loop_budget_check(args: argparse.Namespace) -> int:
     return 1 if payload["status"] == "blocked" else 0
 
 
+WORKFLOW_TO_LEGACY_PHASE = {
+    "triage": "phase_1_brief_prefill",
+    "compound_preflight": "phase_1_brief_prefill",
+    "research": "phase_0_codebase_research",
+    "plan": "phase_1_brief_prefill",
+    "plan_review": "phase_2_eval_council",
+    "intent_validation": "phase_2_eval_council",
+    "scaffold": "phase_3_scaffolding",
+    "gen_tests": "phase_4_failing_tests",
+    "context_assembly": "phase_5_codegen_context",
+    "code": "phase_9_codegen_execution",
+    "code_review": "phase_2_eval_council",
+    "security": "phase_7_security_review",
+    "qa": "phase_11_ci_cd_qa_prep",
+    "test_strength": "phase_11_ci_cd_qa_prep",
+    "slop_gate": "phase_11_ci_cd_qa_prep",
+    "fixer": "phase_9_codegen_execution",
+    "pr_prep": "phase_10_jira_confluence_prep",
+    "learning_capture": "phase_13_monitoring_feedback",
+    "engineer_review": "phase_2_eval_council",
+    "done": "phase_13_monitoring_feedback",
+    "escalate": "phase_13_monitoring_feedback",
+}
+
+
+def phase_candidates(phase: str) -> List[str]:
+    candidates = [phase]
+    legacy_phase = WORKFLOW_TO_LEGACY_PHASE.get(phase)
+    if legacy_phase:
+        candidates.append(legacy_phase)
+    for workflow_phase, mapped_legacy_phase in WORKFLOW_TO_LEGACY_PHASE.items():
+        if phase == mapped_legacy_phase:
+            candidates.append(workflow_phase)
+    return list(dict.fromkeys(candidates))
+
+
+def permission_audit_trail_for_entry(
+    session_id: str,
+    brief_id: str,
+    entry: Dict[str, Any],
+    patterns: Iterable[str],
+) -> Dict[str, Any]:
+    pattern_list = sorted(set(pattern for pattern in patterns if pattern))
+    return {
+        "session_id": session_id,
+        "brief_id": brief_id,
+        "entries": [entry],
+        "denial_summary": {
+            "count": 0 if entry["decision"] == "approved" else 1,
+            "patterns": pattern_list,
+        },
+    }
+
+
+def merged_permission_audit_trail(path: Path, new_trail: Dict[str, Any]) -> Dict[str, Any]:
+    if not path.exists():
+        return new_trail
+    errors = validate_artifact(resolve_schema("permission-audit-trail"), path)
+    if errors:
+        raise ValueError("permission audit trail failed schema validation: " + "; ".join(errors))
+    existing = read_json(path)
+    if existing.get("session_id") != new_trail["session_id"] or existing.get("brief_id") != new_trail["brief_id"]:
+        raise ValueError("permission audit trail session_id and brief_id must match appended entry")
+    entries = [*existing.get("entries", []), *new_trail["entries"]]
+    patterns = set(existing.get("denial_summary", {}).get("patterns", []))
+    patterns.update(new_trail.get("denial_summary", {}).get("patterns", []))
+    return {
+        "session_id": new_trail["session_id"],
+        "brief_id": new_trail["brief_id"],
+        "entries": entries,
+        "denial_summary": {
+            "count": sum(1 for entry in entries if entry.get("decision") != "approved"),
+            "patterns": sorted(patterns),
+        },
+    }
+
+
+def write_permission_audit_trail(path: Path, trail: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(trail, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    errors = validate_artifact(resolve_schema("permission-audit-trail"), path)
+    if errors:
+        raise ValueError("permission audit trail failed schema validation: " + "; ".join(errors))
+
+
+def action_admit_payload(
+    tool_registry_path: Path,
+    tool_name: str,
+    action: str,
+    phase: str | None = None,
+    state_path: Path | None = None,
+    brief_id: str | None = None,
+    session_id: str | None = None,
+    allow_mutation: bool = False,
+    human_approved: bool = False,
+    approval_ref: str | None = None,
+    token_budget_path: Path | None = None,
+    estimated_input_tokens: int = 0,
+    expected_output_tokens: int = 0,
+    skill: str | None = None,
+    audit_trail_path: Path | None = None,
+) -> Tuple[int, Dict[str, Any]]:
+    registry_errors = validate_artifact(resolve_schema("tool-registry"), tool_registry_path)
+    if registry_errors:
+        raise ValueError("tool registry failed schema validation: " + "; ".join(registry_errors))
+    registry = read_json(tool_registry_path)
+    state = load_workflow_state(state_path) if state_path else {}
+
+    effective_phase = phase or state.get("phase")
+    if not isinstance(effective_phase, str) or not effective_phase.strip():
+        raise ValueError("--phase is required unless --state provides phase")
+    effective_phase = effective_phase.strip()
+    effective_brief_id = brief_id or state.get("brief_id") or "UNKNOWN-BRIEF"
+    effective_session_id = session_id or state.get("session_id") or "UNKNOWN-SESSION"
+
+    tools = {
+        tool.get("name"): tool
+        for tool in registry.get("tools", [])
+        if isinstance(tool, dict) and isinstance(tool.get("name"), str)
+    }
+    tool = tools.get(tool_name)
+    phase_options = phase_candidates(effective_phase)
+    blocking_issues: List[Dict[str, Any]] = []
+    escalation_issues: List[Dict[str, Any]] = []
+
+    if tool is None:
+        side_effect_profile = "destructive"
+        permission_tier = "requires_escalation"
+        allowed_phases: List[str] = []
+        blocking_issues.append(
+            {
+                "rule": "tool_not_registered",
+                "message": f"tool is not present in the ADLC tool registry: {tool_name}",
+            }
+        )
+    else:
+        side_effect_profile = tool.get("side_effect_profile", "destructive")
+        permission_tier = tool.get("permission_tier", "requires_escalation")
+        allowed_phases = list(tool.get("available_phases", []))
+        if not set(allowed_phases).intersection(phase_options):
+            blocking_issues.append(
+                {
+                    "rule": "phase_not_allowed",
+                    "message": f"tool {tool_name} is not available in phase {effective_phase}",
+                    "allowed_phases": allowed_phases,
+                    "phase_candidates": phase_options,
+                }
+            )
+
+    if side_effect_profile in {"mutating", "destructive"} and not allow_mutation:
+        blocking_issues.append(
+            {
+                "rule": "mutation_requires_allow_mutation",
+                "message": f"{side_effect_profile} tool actions require --allow-mutation",
+            }
+        )
+    if side_effect_profile == "destructive" and not human_approved:
+        blocking_issues.append(
+            {
+                "rule": "destructive_requires_human_approval",
+                "message": "destructive tool actions require explicit human approval",
+            }
+        )
+    if permission_tier == "requires_approval" and not human_approved:
+        blocking_issues.append(
+            {
+                "rule": "permission_requires_human_approval",
+                "message": f"tool {tool_name} requires explicit human approval",
+            }
+        )
+    if permission_tier == "requires_escalation":
+        escalation_issues.append(
+            {
+                "rule": "permission_requires_escalation",
+                "message": f"tool {tool_name} requires human escalation before execution",
+            }
+        )
+
+    state_status = state.get("status") if isinstance(state, dict) else None
+    if state_status == "awaiting_approval" and side_effect_profile != "read_only" and not human_approved:
+        blocking_issues.append(
+            {
+                "rule": "workflow_awaiting_human_approval",
+                "message": "workflow state is awaiting human approval",
+            }
+        )
+
+    budget_check = None
+    budget_status = state.get("budget_status") if isinstance(state.get("budget_status"), dict) else None
+    if token_budget_path:
+        budget_phase = WORKFLOW_TO_LEGACY_PHASE.get(effective_phase, effective_phase)
+        budget_check = loop_budget_check_payload(
+            token_budget_path,
+            estimated_input_tokens,
+            expected_output_tokens,
+            phase=budget_phase,
+            skill=skill,
+        )
+        budget_status = budget_check["budget_status"]
+    if isinstance(budget_status, dict) and budget_status.get("decision") == "blocked":
+        blocking_issues.append(
+            {
+                "rule": budget_status.get("stop_reason", "budget_blocked"),
+                "message": "budget guard blocks the tool action before execution",
+                "budget_status": budget_status,
+            }
+        )
+
+    if blocking_issues:
+        status = "denied"
+    elif escalation_issues:
+        status = "escalate"
+    else:
+        status = "admitted"
+
+    timestamp = utc_now()
+    issues = [*blocking_issues, *escalation_issues]
+    reason = (
+        "tool action admitted by ADLC policy"
+        if status == "admitted"
+        else "; ".join(issue["rule"] for issue in issues)
+    )
+    decision = {"admitted": "approved", "denied": "denied", "escalate": "escalated"}[status]
+    entry: Dict[str, Any] = {
+        "decision_id": "decision:" + stable_hash("|".join([effective_session_id, effective_brief_id, tool_name, action, effective_phase, timestamp])),
+        "tool_name": tool_name,
+        "action": action,
+        "tier": permission_tier,
+        "decision": decision,
+        "reason": reason,
+        "decided_by": "human" if human_approved and decision == "approved" else "policy",
+        "timestamp": timestamp,
+        "session_id": effective_session_id,
+        "brief_id": effective_brief_id,
+        "phase": effective_phase,
+        "side_effect_profile": side_effect_profile,
+        "policy_ref": rel_path(tool_registry_path),
+    }
+    if approval_ref:
+        entry["human_approval_ref"] = approval_ref
+    if budget_status and budget_status.get("token_budget_ref"):
+        entry["budget_status_ref"] = str(budget_status["token_budget_ref"])
+
+    trail = permission_audit_trail_for_entry(
+        effective_session_id,
+        effective_brief_id,
+        entry,
+        (issue["rule"] for issue in issues),
+    )
+    if audit_trail_path:
+        trail = merged_permission_audit_trail(audit_trail_path, trail)
+        write_permission_audit_trail(audit_trail_path, trail)
+
+    payload: Dict[str, Any] = {
+        "contract_version": "1.0.0",
+        "status": status,
+        "tool_name": tool_name,
+        "action": action,
+        "phase": effective_phase,
+        "phase_candidates": phase_options,
+        "side_effect_profile": side_effect_profile,
+        "permission_tier": permission_tier,
+        "allow_mutation": allow_mutation,
+        "human_approved": human_approved,
+        "issues": issues,
+        "budget_check": budget_check,
+        "budget_status": budget_status,
+        "audit_trail": trail,
+    }
+    if audit_trail_path:
+        payload["audit_trail_path"] = rel_path(audit_trail_path)
+    if tool:
+        payload["tool"] = {
+            "name": tool["name"],
+            "available_phases": allowed_phases,
+            "side_effect_profile": side_effect_profile,
+            "permission_tier": permission_tier,
+        }
+    return (0 if status == "admitted" else 1), payload
+
+
+def command_action_admit(args: argparse.Namespace) -> int:
+    try:
+        state_path = cli_input_path(args.state) if args.state else None
+        audit_trail_path = cli_input_path(args.audit_trail) if args.audit_trail else None
+        token_budget_path = cli_input_path(args.token_budget) if args.token_budget else None
+        exit_code, payload = action_admit_payload(
+            tool_registry_path=cli_input_path(args.tool_registry),
+            tool_name=args.tool,
+            action=args.action,
+            phase=args.phase,
+            state_path=state_path,
+            brief_id=args.brief_id,
+            session_id=args.session_id,
+            allow_mutation=args.allow_mutation,
+            human_approved=args.human_approved,
+            approval_ref=args.approval_ref,
+            token_budget_path=token_budget_path,
+            estimated_input_tokens=args.estimated_input_tokens,
+            expected_output_tokens=args.expected_output_tokens,
+            skill=args.skill,
+            audit_trail_path=audit_trail_path,
+        )
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['tool_name']}:{payload['action']} {payload['status']} in {payload['phase']}")
+    return exit_code
+
+
 def resolve_contract_token_budget_path(
     explicit_path: Path | None,
     contract: Dict[str, Any],
@@ -2714,6 +3027,32 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("action-admit"),
+            "description": command_description("action-admit"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["tool_registry", "tool", "action"],
+                "properties": {
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "tool": {"type": "string", "minLength": 1},
+                    "action": {"type": "string", "minLength": 1},
+                    "phase": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "brief_id": {"type": "string", "minLength": 1},
+                    "session_id": {"type": "string", "minLength": 1},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                    "token_budget": {"type": "string", "minLength": 1},
+                    "estimated_input_tokens": {"type": "integer", "minimum": 0, "default": 0},
+                    "expected_output_tokens": {"type": "integer", "minimum": 0, "default": 0},
+                    "skill": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("run-phase"),
             "description": command_description("run-phase"),
             "inputSchema": {
@@ -2903,6 +3242,28 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         suites_arg = arguments.get("suite")
         suites = suites_arg if isinstance(suites_arg, list) else None
         exit_code, payload = ci_payload(suites)
+        return tool_result(payload, is_error=exit_code != 0)
+    if name == "adlc_action_admit":
+        for key in ("tool_registry", "tool", "action"):
+            if not isinstance(arguments.get(key), str):
+                raise ValueError(f"adlc_action_admit requires string argument: {key}")
+        exit_code, payload = action_admit_payload(
+            tool_registry_path=cli_input_path(arguments["tool_registry"], ROOT),
+            tool_name=arguments["tool"],
+            action=arguments["action"],
+            phase=arguments.get("phase") if isinstance(arguments.get("phase"), str) else None,
+            state_path=cli_input_path(arguments["state"], ROOT) if isinstance(arguments.get("state"), str) else None,
+            brief_id=arguments.get("brief_id") if isinstance(arguments.get("brief_id"), str) else None,
+            session_id=arguments.get("session_id") if isinstance(arguments.get("session_id"), str) else None,
+            allow_mutation=bool(arguments.get("allow_mutation", False)),
+            human_approved=bool(arguments.get("human_approved", False)),
+            approval_ref=arguments.get("approval_ref") if isinstance(arguments.get("approval_ref"), str) else None,
+            token_budget_path=cli_input_path(arguments["token_budget"], ROOT) if isinstance(arguments.get("token_budget"), str) else None,
+            estimated_input_tokens=clamp_nonnegative_int(arguments.get("estimated_input_tokens", 0), "estimated_input_tokens"),
+            expected_output_tokens=clamp_nonnegative_int(arguments.get("expected_output_tokens", 0), "expected_output_tokens"),
+            skill=arguments.get("skill") if isinstance(arguments.get("skill"), str) else None,
+            audit_trail_path=cli_input_path(arguments["audit_trail"], ROOT) if isinstance(arguments.get("audit_trail"), str) else None,
+        )
         return tool_result(payload, is_error=exit_code != 0)
     if name == "adlc_run_phase":
         args = argparse.Namespace(
@@ -3137,6 +3498,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ci.add_argument("--json", action="store_true", help="Emit JSON.")
     ci.set_defaults(func=command_ci)
+
+    action_admit = subparsers.add_parser("action-admit", help=command_description("action-admit"))
+    action_admit.add_argument("--tool-registry", required=True, help="Tool Registry JSON path.")
+    action_admit.add_argument("--tool", required=True, help="Concrete tool name requested by the harness.")
+    action_admit.add_argument("--action", required=True, help="Concrete action or operation requested for the tool.")
+    action_admit.add_argument("--phase", help="Current ADLC workflow phase. Defaults to --state phase when present.")
+    action_admit.add_argument("--state", help="Workflow state path used for phase, session, brief, and budget context.")
+    action_admit.add_argument("--brief-id", help="Build Brief id for the permission audit trail.")
+    action_admit.add_argument("--session-id", help="Session id for the permission audit trail.")
+    action_admit.add_argument("--allow-mutation", action="store_true", help="Explicitly allow mutating or destructive tool classes.")
+    action_admit.add_argument("--human-approved", action="store_true", help="Record that a human approved the requested action.")
+    action_admit.add_argument("--approval-ref", help="Human approval ticket, comment, or transcript reference.")
+    action_admit.add_argument("--token-budget", help="Token Budget JSON path used as a hard-stop guard.")
+    action_admit.add_argument("--estimated-input-tokens", type=int, default=0, help="Projected input tokens for this action.")
+    action_admit.add_argument("--expected-output-tokens", type=int, default=0, help="Projected output tokens for this action.")
+    action_admit.add_argument("--skill", help="Optional skill attribution for the budget check.")
+    action_admit.add_argument("--audit-trail", help="Permission Audit Trail JSON path to create or append.")
+    action_admit.add_argument("--json", action="store_true", help="Emit JSON.")
+    action_admit.set_defaults(func=command_action_admit)
 
     loop_tests = subparsers.add_parser("loop-test-selection", help=command_description("loop-test-selection"))
     loop_tests.add_argument("--loop-contract", required=True, help="Loop Contract JSON path.")

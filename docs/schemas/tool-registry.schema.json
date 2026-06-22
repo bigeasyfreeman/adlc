@@ -65,24 +65,7 @@
             "type": "array",
             "minItems": 1,
             "items": {
-              "type": "string",
-              "enum": [
-                "phase_0_codebase_research",
-                "phase_0a_grafana_observability",
-                "phase_1_brief_prefill",
-                "phase_2_eval_council",
-                "phase_3_scaffolding",
-                "phase_4_failing_tests",
-                "phase_5_codegen_context",
-                "phase_6_parallel_codegen",
-                "phase_7_security_review",
-                "phase_8_task_breakdown",
-                "phase_9_codegen_execution",
-                "phase_10_jira_confluence_prep",
-                "phase_11_ci_cd_qa_prep",
-                "phase_12_deploy_gate",
-                "phase_13_monitoring_feedback"
-              ]
+              "$ref": "#/definitions/phase"
             }
           },
           "owners": {
@@ -116,24 +99,7 @@
           ],
           "properties": {
             "phase": {
-              "type": "string",
-              "enum": [
-                "phase_0_codebase_research",
-                "phase_0a_grafana_observability",
-                "phase_1_brief_prefill",
-                "phase_2_eval_council",
-                "phase_3_scaffolding",
-                "phase_4_failing_tests",
-                "phase_5_codegen_context",
-                "phase_6_parallel_codegen",
-                "phase_7_security_review",
-                "phase_8_task_breakdown",
-                "phase_9_codegen_execution",
-                "phase_10_jira_confluence_prep",
-                "phase_11_ci_cd_qa_prep",
-                "phase_12_deploy_gate",
-                "phase_13_monitoring_feedback"
-              ]
+              "$ref": "#/definitions/phase"
             },
             "context": {
               "type": "object",
@@ -156,6 +122,50 @@
           }
         }
       }
+    }
+  },
+  "definitions": {
+    "phase": {
+      "type": "string",
+      "enum": [
+        "start",
+        "triage",
+        "compound_preflight",
+        "research",
+        "plan",
+        "plan_review",
+        "intent_validation",
+        "scaffold",
+        "gen_tests",
+        "context_assembly",
+        "code",
+        "code_review",
+        "security",
+        "qa",
+        "test_strength",
+        "slop_gate",
+        "pr_prep",
+        "learning_capture",
+        "engineer_review",
+        "fixer",
+        "done",
+        "escalate",
+        "phase_0_codebase_research",
+        "phase_0a_grafana_observability",
+        "phase_1_brief_prefill",
+        "phase_2_eval_council",
+        "phase_3_scaffolding",
+        "phase_4_failing_tests",
+        "phase_5_codegen_context",
+        "phase_6_parallel_codegen",
+        "phase_7_security_review",
+        "phase_8_task_breakdown",
+        "phase_9_codegen_execution",
+        "phase_10_jira_confluence_prep",
+        "phase_11_ci_cd_qa_prep",
+        "phase_12_deploy_gate",
+        "phase_13_monitoring_feedback"
+      ]
     }
   }
 }

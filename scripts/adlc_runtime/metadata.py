@@ -65,6 +65,10 @@ COMMAND_METADATA = {
         "mcp_name": "adlc_ci",
         "description": "Run the canonical local ADLC verification suite and emit a structured summary.",
     },
+    "action-admit": {
+        "mcp_name": "adlc_action_admit",
+        "description": "Admit, deny, or escalate a concrete tool action against the ADLC tool registry and permission policy.",
+    },
     "run-phase": {
         "mcp_name": "adlc_run_phase",
         "description": "Run or dry-run one ADLC workflow phase and persist workflow state.",

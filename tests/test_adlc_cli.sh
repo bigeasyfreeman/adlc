@@ -87,6 +87,57 @@ cp "$ROOT/tests/fixtures/loop_maturity/workflow-state-budget-progress.json" "$tm
 assert "resume-workflow reports loop budget status" "'$ROOT/bin/adlc' resume-workflow --state '$tmp_dir/loop-workflow-state-budget.json' --json | jq -e '.next_action.budget_status.status == \"healthy\" and .next_action.budget_status.decision == \"proceed\" and .next_action.budget_status.token_budget_ref == \"tests/fixtures/loop_maturity/token-budget-healthy.json\"' >/dev/null"
 
 echo ""
+echo "--- Action Admission ---"
+cat > "$tmp_dir/action-tool-registry.json" <<'JSON'
+{
+  "version": "1.0.0",
+  "default_policy": "deny",
+  "tools": [
+    {
+      "name": "Read",
+      "description": "Read files",
+      "inputSchema": {},
+      "side_effect_profile": "read_only",
+      "permission_tier": "unrestricted",
+      "available_phases": ["research"]
+    },
+    {
+      "name": "Write",
+      "description": "Write files",
+      "inputSchema": {},
+      "side_effect_profile": "mutating",
+      "permission_tier": "requires_approval",
+      "available_phases": ["code"]
+    },
+    {
+      "name": "linear-work-item-emitter",
+      "description": "Mutate Linear work items",
+      "inputSchema": {},
+      "side_effect_profile": "mutating",
+      "permission_tier": "requires_approval",
+      "available_phases": ["pr_prep"]
+    },
+    {
+      "name": "Shell",
+      "description": "Run destructive shell operations",
+      "inputSchema": {},
+      "side_effect_profile": "destructive",
+      "permission_tier": "requires_escalation",
+      "available_phases": ["code"]
+    }
+  ]
+}
+JSON
+assert "validate-artifact accepts workflow-phase tool registry" "'$ROOT/bin/adlc' validate-artifact --schema tool-registry --input '$tmp_dir/action-tool-registry.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+assert "action-admit admits read-only action and writes audit trail" "'$ROOT/bin/adlc' action-admit --tool-registry '$tmp_dir/action-tool-registry.json' --tool Read --action read_file --phase research --brief-id BRF-ACTION --session-id SESSION-ACTION --audit-trail '$tmp_dir/action-read-audit.json' --json | jq -e '.status == \"admitted\" and .audit_trail.entries[0].decision == \"approved\" and .audit_trail.denial_summary.count == 0' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema permission-audit-trail --input '$tmp_dir/action-read-audit.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+assert "action-admit denies mutating action without explicit approval" "if '$ROOT/bin/adlc' action-admit --tool-registry '$tmp_dir/action-tool-registry.json' --tool Write --action edit_file --phase code --brief-id BRF-ACTION --session-id SESSION-ACTION --audit-trail '$tmp_dir/action-denied-audit.json' --json >'$tmp_dir/action-denied.json' 2>/dev/null; then false; else jq -e '.status == \"denied\" and any(.issues[]; .rule == \"mutation_requires_allow_mutation\") and any(.issues[]; .rule == \"permission_requires_human_approval\") and .audit_trail.entries[0].decision == \"denied\"' '$tmp_dir/action-denied.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema permission-audit-trail --input '$tmp_dir/action-denied-audit.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null; fi"
+assert "action-admit admits approved mutation" "'$ROOT/bin/adlc' action-admit --tool-registry '$tmp_dir/action-tool-registry.json' --tool Write --action edit_file --phase code --brief-id BRF-ACTION --session-id SESSION-ACTION --allow-mutation --human-approved --approval-ref human:cli-test --audit-trail '$tmp_dir/action-approved-audit.json' --json | jq -e '.status == \"admitted\" and .audit_trail.entries[0].decision == \"approved\" and .audit_trail.entries[0].decided_by == \"human\" and .audit_trail.entries[0].human_approval_ref == \"human:cli-test\"' >/dev/null"
+assert "action-admit denies out-of-phase invocation" "if '$ROOT/bin/adlc' action-admit --tool-registry '$tmp_dir/action-tool-registry.json' --tool Read --action read_file --phase code --brief-id BRF-ACTION --session-id SESSION-ACTION --json >'$tmp_dir/action-phase-denied.json' 2>/dev/null; then false; else jq -e '.status == \"denied\" and any(.issues[]; .rule == \"phase_not_allowed\") and .audit_trail.denial_summary.count == 1' '$tmp_dir/action-phase-denied.json' >/dev/null; fi"
+assert "action-admit escalates requires-escalation tools" "if '$ROOT/bin/adlc' action-admit --tool-registry '$tmp_dir/action-tool-registry.json' --tool Shell --action remove_path --phase code --brief-id BRF-ACTION --session-id SESSION-ACTION --allow-mutation --human-approved --json >'$tmp_dir/action-escalate.json' 2>/dev/null; then false; else jq -e '.status == \"escalate\" and any(.issues[]; .rule == \"permission_requires_escalation\") and .audit_trail.entries[0].decision == \"escalated\"' '$tmp_dir/action-escalate.json' >/dev/null; fi"
+assert "action-admit denies exhausted budget before execution" "if '$ROOT/bin/adlc' action-admit --tool-registry '$tmp_dir/action-tool-registry.json' --tool Read --action read_file --phase research --brief-id BRF-ACTION --session-id SESSION-ACTION --token-budget '$ROOT/tests/fixtures/loop_maturity/token-budget-exhausted.json' --estimated-input-tokens 10 --expected-output-tokens 10 --json >'$tmp_dir/action-budget-denied.json' 2>/dev/null; then false; else jq -e '.status == \"denied\" and .budget_status.status == \"exhausted\" and any(.issues[]; .rule == \"budget_exhausted\")' '$tmp_dir/action-budget-denied.json' >/dev/null; fi"
+assert "action-admit denies external provider mutation until approved" "if '$ROOT/bin/adlc' action-admit --tool-registry '$tmp_dir/action-tool-registry.json' --tool linear-work-item-emitter --action upsert_artifacts --phase pr_prep --brief-id BRF-ACTION --session-id SESSION-ACTION --json >'$tmp_dir/action-provider-denied.json' 2>/dev/null; then false; else jq -e '.status == \"denied\" and any(.issues[]; .rule == \"mutation_requires_allow_mutation\") and any(.issues[]; .rule == \"permission_requires_human_approval\")' '$tmp_dir/action-provider-denied.json' >/dev/null; fi"
+
+echo ""
 echo "--- Loop System Maturity ---"
 assert "loop-test-selection passes complete required plan" "'$ROOT/bin/adlc' loop-test-selection --loop-contract '$ROOT/tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json' --test-plan '$ROOT/tests/fixtures/loop_maturity/test-plan-complete-required.json' --json | jq -e '.status == \"pass\" and (.missing_required_tests | length) == 0 and (.provided_required_tests | index(\"required:test-selection\")) != null' >/dev/null"
 assert "loop-test-selection passes strict executed required results" "'$ROOT/bin/adlc' loop-test-selection --loop-contract '$ROOT/tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json' --test-plan '$ROOT/tests/fixtures/loop_maturity/test-plan-complete-required.json' --require-test-results '$ROOT/tests/fixtures/loop_maturity/test-results-complete-required.json' --json | jq -e '.status == \"pass\" and (.missing_executed_required_tests | length) == 0 and (.executed_required_tests | index(\"required:test-selection\")) != null' >/dev/null"
@@ -178,11 +229,12 @@ assert "emit-work-items preserves partial stop reason on failed provider batches
 
 echo ""
 echo "--- MCP Wrapper ---"
-assert "mcp-tools emits MCP tool declarations" "'$ROOT/bin/adlc' mcp-tools --json | jq -e '(.tools | length) >= 13 and any(.tools[]; .name == \"adlc_validate_artifact\" and (.inputSchema.required | index(\"schema\"))) and any(.tools[]; .name == \"adlc_health_check\") and any(.tools[]; .name == \"adlc_ci\" and .inputSchema.properties.suite.type == \"array\") and any(.tools[]; .name == \"adlc_run_phase\") and any(.tools[]; .name == \"adlc_emit_work_items\") and any(.tools[]; .name == \"adlc_compound_context\") and any(.tools[]; .name == \"adlc_loop_test_selection\" and .inputSchema.properties.require_test_results.type == \"boolean\") and any(.tools[]; .name == \"adlc_loop_budget_check\" and (.inputSchema.required | index(\"token_budget\")) and .inputSchema.properties.estimated_input_tokens.type == \"integer\") and any(.tools[]; .name == \"adlc_loop_action_validate\" and .inputSchema.properties.token_budget.type == \"string\") and any(.tools[]; .name == \"adlc_loop_maturity_audit\" and .inputSchema.properties.test_results.type == \"string\" and .inputSchema.properties.token_budget.type == \"string\" and (.inputSchema.properties | has(\"build_brief\") | not))' >/dev/null"
+assert "mcp-tools emits MCP tool declarations" "'$ROOT/bin/adlc' mcp-tools --json | jq -e '(.tools | length) >= 14 and any(.tools[]; .name == \"adlc_validate_artifact\" and (.inputSchema.required | index(\"schema\"))) and any(.tools[]; .name == \"adlc_health_check\") and any(.tools[]; .name == \"adlc_ci\" and .inputSchema.properties.suite.type == \"array\") and any(.tools[]; .name == \"adlc_action_admit\" and (.inputSchema.required | index(\"tool_registry\")) and .inputSchema.properties.allow_mutation.type == \"boolean\") and any(.tools[]; .name == \"adlc_run_phase\") and any(.tools[]; .name == \"adlc_emit_work_items\") and any(.tools[]; .name == \"adlc_compound_context\") and any(.tools[]; .name == \"adlc_loop_test_selection\" and .inputSchema.properties.require_test_results.type == \"boolean\") and any(.tools[]; .name == \"adlc_loop_budget_check\" and (.inputSchema.required | index(\"token_budget\")) and .inputSchema.properties.estimated_input_tokens.type == \"integer\") and any(.tools[]; .name == \"adlc_loop_action_validate\" and .inputSchema.properties.token_budget.type == \"string\") and any(.tools[]; .name == \"adlc_loop_maturity_audit\" and .inputSchema.properties.test_results.type == \"string\" and .inputSchema.properties.token_budget.type == \"string\" and (.inputSchema.properties | has(\"build_brief\") | not))' >/dev/null"
 assert "mcp-serve handles initialize and tools/list" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"0\"}}}' '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' | '$ROOT/bin/adlc' mcp-serve | jq -s -e '.[0].result.capabilities.tools.listChanged == false and any(.[1].result.tools[]; .name == \"adlc_list_agents\")' >/dev/null"
 assert "mcp-serve calls adlc_list_agents" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_list_agents\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.count >= 11' >/dev/null"
 assert "mcp-serve calls health check" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_health_check\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"
 assert "mcp-serve calls selectable ci suites" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_ci\",\"arguments\":{\"suite\":[\"health-check\",\"py-compile\"]}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and .result.structuredContent.summary.total == 2' >/dev/null"
+assert "mcp-serve calls action admission" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_action_admit\",\"arguments\":{\"tool_registry\":\"'$tmp_dir'/action-tool-registry.json\",\"tool\":\"Read\",\"action\":\"read_file\",\"phase\":\"research\",\"brief_id\":\"BRF-ACTION\",\"session_id\":\"SESSION-ACTION\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"admitted\" and .result.structuredContent.audit_trail.entries[0].decision == \"approved\"' >/dev/null"
 assert "mcp-serve calls strict loop test selection" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_test_selection\",\"arguments\":{\"loop_contract\":\"tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json\",\"test_plan\":\"tests/fixtures/loop_maturity/test-plan-complete-required.json\",\"test_results\":\"tests/fixtures/loop_maturity/test-results-complete-required.json\",\"require_test_results\":true}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and (.result.structuredContent.executed_required_tests | index(\"required:test-selection\")) != null' >/dev/null"
 assert "mcp-serve calls loop budget check" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_budget_check\",\"arguments\":{\"token_budget\":\"tests/fixtures/loop_maturity/token-budget-healthy.json\",\"estimated_input_tokens\":10,\"expected_output_tokens\":10,\"phase\":\"phase_5_codegen_context\",\"skill\":\"codegen-context\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"proceed\" and .result.structuredContent.budget_status.status == \"healthy\"' >/dev/null"
 assert "mcp-serve calls loop action validation" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_action_validate\",\"arguments\":{\"loop_contract\":\"tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json\",\"action\":\"tests/fixtures/loop_maturity/valid-loop-action.json\",\"state\":\"tests/fixtures/loop_maturity/workflow-state-control-progress.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"admitted\"' >/dev/null"

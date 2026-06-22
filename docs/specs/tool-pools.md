@@ -15,5 +15,6 @@ Default deny. Tools are explicitly allowed per phase based on registry metadata.
 
 ## Enforcement
 1. Resolve allowed list from `tool-registry` by current phase.
-2. Reject out-of-phase invocation with `permission.denied` event.
-3. Log denied attempts in permission audit trail.
+2. Call `bin/adlc action-admit --tool-registry <path> --tool <name> --action <operation> --phase <phase> --json` before the harness runs the tool.
+3. Reject out-of-phase invocation with `permission.denied` event.
+4. Log denied or escalated attempts in a schema-valid permission audit trail.
