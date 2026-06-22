@@ -118,6 +118,7 @@ dogfood_repo="$tmp_dir/control-plane-repo"
 mkdir -p "$dogfood_repo/scripts/adlc_runtime" "$dogfood_repo/docs/schemas"
 cp "$ROOT/scripts/adlc_runtime/metadata.py" "$dogfood_repo/scripts/adlc_runtime/metadata.py"
 cp "$ROOT"/docs/schemas/*.schema.json "$dogfood_repo/docs/schemas/"
+python3 -c "from pathlib import Path; p = Path('$dogfood_repo/scripts/adlc_runtime/metadata.py'); p.write_text(p.read_text().replace('    \"learning-entry\": \"docs/schemas/learning-entry.schema.json\",\\n', ''))"
 printf '.adlc/\n__pycache__/\n*.pyc\n' > "$dogfood_repo/.gitignore"
 git -C "$dogfood_repo" init -q
 git -C "$dogfood_repo" config user.email adlc@example.invalid
