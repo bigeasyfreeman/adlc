@@ -1,0 +1,203 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/control-plane-drift-report.schema.json",
+  "title": "ADLC Control-Plane Drift Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "loop_id",
+    "status",
+    "dry_run",
+    "human_review_required",
+    "run_identity",
+    "workspace",
+    "state_ref",
+    "graph",
+    "verification",
+    "drift",
+    "work_item_sync",
+    "loop_contract_ref",
+    "proposed_action",
+    "action_validation",
+    "repair",
+    "evidence_refs",
+    "next_action",
+    "warnings",
+    "issues"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "loop_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["no_drift", "planned", "needs_human", "blocked", "fail"]
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "human_review_required": {
+      "type": "boolean"
+    },
+    "run_identity": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["brief_id", "run_id", "session_id"]
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "report_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "graph": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["present", "stale"]
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pre", "final"],
+      "properties": {
+        "pre": {
+          "$ref": "#/definitions/verification_run"
+        },
+        "final": {
+          "$ref": "#/definitions/verification_run"
+        }
+      }
+    },
+    "drift": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "detected",
+        "rule",
+        "metadata_path",
+        "schema_count",
+        "alias_count",
+        "missing_aliases",
+        "stale_aliases",
+        "issues"
+      ]
+    },
+    "work_item_sync": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["request_ref", "summary", "operations"]
+    },
+    "loop_contract_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proposed_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_ref", "action_id"],
+      "properties": {
+        "action_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "action_validation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["status", "action_id", "tool", "issues"]
+    },
+    "repair": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["applied", "changed_files", "added_aliases", "dirty_before"]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "next_action": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stop_reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["rule"]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": ["blocked", "fail"]
+          }
+        }
+      },
+      "then": {
+        "required": ["stop_reason"]
+      }
+    }
+  ],
+  "definitions": {
+    "verification_run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "commands", "results"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail", "not_run"]
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["command", "exit_code", "status"]
+          }
+        }
+      }
+    }
+  }
+}

@@ -17,6 +17,7 @@ Define the minimum contract an external agent or orchestrator needs to discover,
 | `bin/adlc` | Thin local CLI for discovery, workflow inspection, schema validation, workflow state transitions, dry-run/runtime phase execution, emitter payloads, and MCP stdio exposure |
 | `docs/specs/emitter-contract.md` | Normalized work-item and document emitter contract for MCP-backed integrations |
 | `docs/specs/executable-tool-nodes.md` | Deterministic tool-node execution, artifact, and fail-closed mutation contract |
+| `docs/specs/control-plane-drift-loop.md` | First bounded ADLC dogfood loop for control-plane drift detection and repair |
 | `.adlc/` | Per-run workspace state and artifacts such as `test_plan.json`, `loop_test_result.json`, `pre_change_run.txt`, and `test_strength_report.json` |
 
 ## Quick Hook Contract
@@ -49,6 +50,7 @@ bin/adlc run-phase qa --workspace . --verifier 'pytest tests/test_task.py' --jso
 bin/adlc run-phase learning_capture --input .adlc/pr_prep_output.json --workspace . --dry-run --json
 bin/adlc resume-workflow --workspace . --json
 bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
+bin/adlc control-plane-drift-loop --workspace . --verifier 'python3 -m py_compile scripts/adlc_runtime/metadata.py' --dry-run --json
 bin/adlc action-admit --tool-registry .adlc/tool_registry.json --tool Read --action read_file --phase research --brief-id BRF-123 --run-id ADLC-RUN-123 --session-id SESSION-123 --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --require-test-results .adlc/loop_test_result.json --json
@@ -70,7 +72,7 @@ bin/adlc mcp-tools --json
 bin/adlc mcp-serve
 ```
 
-`mcp-serve` implements a minimal newline-delimited JSON-RPC stdio server with `initialize`, `tools/list`, and `tools/call` for ADLC discovery, health checks, validation, compound context preflight, executable tool-node phase artifacts, tool-registry action admission, loop test selection, loop budget checks, LLM action admission, loop maturity audit, dry-run phase execution, resume inspection, work-item emitter payload generation, work-item state synchronization, work queue status and lifecycle actions, and worktree prepare/status/cleanup. Mutating work-item emission requires explicit `allow_mutation` plus a local `provider_command`. Mutating work-item synchronization also requires `tool_registry` admission evidence before the local provider command can run. Mutating queue, worktree, and tool-node operations also require explicit `allow_mutation` and `tool_registry` admission evidence.
+`mcp-serve` implements a minimal newline-delimited JSON-RPC stdio server with `initialize`, `tools/list`, and `tools/call` for ADLC discovery, health checks, validation, compound context preflight, executable tool-node phase artifacts, control-plane drift dogfood, tool-registry action admission, loop test selection, loop budget checks, LLM action admission, loop maturity audit, dry-run phase execution, resume inspection, work-item emitter payload generation, work-item state synchronization, work queue status and lifecycle actions, and worktree prepare/status/cleanup. Mutating work-item emission requires explicit `allow_mutation` plus a local `provider_command`. Mutating work-item synchronization also requires `tool_registry` admission evidence before the local provider command can run. Mutating queue, worktree, tool-node, and control-plane repair operations also require explicit `allow_mutation` and `tool_registry` admission evidence.
 
 ## Current Native Level
 
@@ -88,6 +90,7 @@ ADLC is agent-native at the contract and harness layer:
 - workflow state can carry `work_item_links` so tracker items stay correlated with stable ADLC external IDs, run identity, verifier evidence, blockers, and next action across resumes
 - workflow state can carry `queue_claims` and `worktree_refs` so a harness can see claimed, running, blocked, completed, escalated, and isolated work across resumes
 - workflow state can carry `phase_artifacts` so a harness can inspect deterministic tool-node outputs across resumes
+- `control-plane-drift-loop` provides the first bounded dogfood loop: it detects schema-alias drift, validates a repair action, applies only admitted metadata repair, reruns verifiers, syncs work state, and stops for human review
 - optional task-level fingerprints in workflow state let `resume-workflow` report completed, skipped, failed, and incomplete executable tasks
 - optional Loop Contract fields in workflow state let `resume-workflow` report progress, no-progress count, pending control events, safe checkpoints, escalation context, and `budget_status`
 - `loop-test-result` artifacts let `loop-test-selection --require-test-results` and `loop-maturity-audit --test-results` distinguish tag-only coverage from executed required-test evidence
@@ -107,6 +110,7 @@ The current thin orchestrator surface exposes:
 | `validate_artifact` | Validate a named artifact against the appropriate schema |
 | `health_check` | Check required runtime dependencies, schema aliases, and CLI wrapper availability |
 | `compound_context` | Compute compact learning refs, graph status, task refs, verifier refs, and explicit no-op reasons |
+| `control_plane_drift_loop` | Detect bounded ADLC control-plane drift, validate a repair action, optionally apply the admitted fix, verify, and stop for review |
 | `loop_test_selection` | Check mandatory floor and task-signal required tests against `.adlc/test_plan.json` coverage tags, and optionally require executed `.adlc/loop_test_result.json` evidence |
 | `loop_budget_check` | Check projected input/output tokens against `.adlc/token_budget.json`, then emit `budget_status`, `wrap_up`, or stop reason `budget_exhausted` |
 | `loop_action_validate` | Admit, reject, or escalate an LLM-proposed action from allowed tools, required tests, state, and checkpoint evidence |

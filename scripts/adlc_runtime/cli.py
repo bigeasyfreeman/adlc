@@ -8,6 +8,7 @@ without becoming a full workflow orchestrator.
 from __future__ import annotations
 
 import argparse
+import ast
 import fnmatch
 import hashlib
 import json
@@ -5116,6 +5117,538 @@ def validate_artifact_payload(schema_path: Path, artifact: Dict[str, Any]) -> Li
             pass
 
 
+def workspace_rel_path(path: Path, workspace: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(workspace.resolve()))
+    except ValueError:
+        return rel_path(path)
+
+
+def parse_schema_aliases(metadata_path: Path) -> Dict[str, str]:
+    module = compile(metadata_path.read_text(encoding="utf-8"), str(metadata_path), "exec", flags=ast.PyCF_ONLY_AST)  # type: ignore[name-defined]
+    for node in module.body:  # type: ignore[attr-defined]
+        if not isinstance(node, ast.Assign):  # type: ignore[name-defined]
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == "SCHEMA_ALIASES":  # type: ignore[name-defined]
+                value = ast.literal_eval(node.value)  # type: ignore[name-defined]
+                if not isinstance(value, dict):
+                    raise ValueError("SCHEMA_ALIASES must be a dictionary")
+                return {str(key): str(raw_value) for key, raw_value in value.items()}
+    raise ValueError(f"SCHEMA_ALIASES assignment not found: {metadata_path}")
+
+
+def schema_alias_for_path(path: Path) -> str:
+    name = path.name
+    suffix = ".schema.json"
+    return name[: -len(suffix)] if name.endswith(suffix) else path.stem
+
+
+def schema_alias_drift(workspace: Path) -> Dict[str, Any]:
+    metadata_path = workspace / "scripts" / "adlc_runtime" / "metadata.py"
+    schemas_dir = workspace / "docs" / "schemas"
+    issues: List[Dict[str, Any]] = []
+    if not metadata_path.is_file():
+        issues.append({"rule": "missing_metadata_py", "path": workspace_rel_path(metadata_path, workspace)})
+        return {"detected": True, "rule": "schema_alias_missing", "metadata_path": workspace_rel_path(metadata_path, workspace), "schema_count": 0, "alias_count": 0, "missing_aliases": [], "stale_aliases": [], "issues": issues}
+    if not schemas_dir.is_dir():
+        issues.append({"rule": "missing_schema_directory", "path": workspace_rel_path(schemas_dir, workspace)})
+        return {"detected": True, "rule": "schema_alias_missing", "metadata_path": workspace_rel_path(metadata_path, workspace), "schema_count": 0, "alias_count": 0, "missing_aliases": [], "stale_aliases": [], "issues": issues}
+
+    aliases = parse_schema_aliases(metadata_path)
+    schema_files = sorted(path for path in schemas_dir.glob("*.schema.json") if path.is_file())
+    schema_refs = [workspace_rel_path(path, workspace) for path in schema_files]
+    aliased_refs = set(aliases.values())
+    missing_aliases = [
+        {
+            "rule": "schema_alias_missing",
+            "alias": schema_alias_for_path(path),
+            "path": workspace_rel_path(path, workspace),
+        }
+        for path in schema_files
+        if workspace_rel_path(path, workspace) not in aliased_refs
+    ]
+    stale_aliases = [
+        {
+            "rule": "schema_alias_stale",
+            "alias": alias,
+            "path": target,
+        }
+        for alias, target in sorted(aliases.items())
+        if target.startswith("docs/schemas/") and target not in set(schema_refs)
+    ]
+    issues.extend(missing_aliases)
+    issues.extend(stale_aliases)
+    return {
+        "detected": bool(issues),
+        "rule": "schema_alias_missing",
+        "metadata_path": workspace_rel_path(metadata_path, workspace),
+        "schema_count": len(schema_files),
+        "alias_count": len(aliases),
+        "missing_aliases": missing_aliases,
+        "stale_aliases": stale_aliases,
+        "issues": issues,
+    }
+
+
+def render_schema_alias_block(aliases: Dict[str, str]) -> List[str]:
+    lines = ["SCHEMA_ALIASES = {\n"]
+    for alias in sorted(aliases):
+        lines.append(f"    {json.dumps(alias)}: {json.dumps(aliases[alias])},\n")
+    lines.append("}\n")
+    return lines
+
+
+def replace_schema_alias_block(metadata_path: Path, aliases: Dict[str, str]) -> None:
+    text = metadata_path.read_text(encoding="utf-8")
+    module = compile(text, str(metadata_path), "exec", flags=ast.PyCF_ONLY_AST)  # type: ignore[name-defined]
+    start_line = None
+    end_line = None
+    for node in module.body:  # type: ignore[attr-defined]
+        if not isinstance(node, ast.Assign):  # type: ignore[name-defined]
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == "SCHEMA_ALIASES":  # type: ignore[name-defined]
+                start_line = node.lineno - 1
+                end_line = getattr(node, "end_lineno", None)
+                break
+        if start_line is not None:
+            break
+    if start_line is None or end_line is None:
+        raise ValueError("unable to locate SCHEMA_ALIASES line range")
+    lines = text.splitlines(keepends=True)
+    lines[start_line:end_line] = render_schema_alias_block(aliases)
+    metadata_path.write_text("".join(lines), encoding="utf-8")
+
+
+def apply_schema_alias_repair(workspace: Path, drift: Dict[str, Any]) -> Dict[str, Any]:
+    metadata_path = workspace / drift["metadata_path"]
+    aliases = parse_schema_aliases(metadata_path)
+    added: List[Dict[str, str]] = []
+    for issue in drift.get("missing_aliases", []):
+        alias = str(issue.get("alias") or "")
+        target = str(issue.get("path") or "")
+        if not alias or not target or alias in aliases:
+            continue
+        aliases[alias] = target
+        added.append({"alias": alias, "path": target})
+    if added:
+        replace_schema_alias_block(metadata_path, aliases)
+    return {
+        "changed": bool(added),
+        "changed_files": [drift["metadata_path"]] if added else [],
+        "added_aliases": added,
+    }
+
+
+def default_control_plane_verifiers(workspace: Path) -> List[str]:
+    if (workspace / "bin" / "adlc").is_file():
+        return ["bin/adlc health-check --json"]
+    if (workspace / "scripts" / "adlc_runtime" / "metadata.py").is_file():
+        return ["python3 -m py_compile scripts/adlc_runtime/metadata.py"]
+    return []
+
+
+def verifier_status(results: List[Dict[str, Any]]) -> str:
+    if not results:
+        return "not_run"
+    return "fail" if any(item.get("exit_code") != 0 for item in results) else "pass"
+
+
+def git_head_payload(workspace: Path) -> Dict[str, Any]:
+    result = subprocess.run(["git", "-C", str(workspace), "rev-parse", "--short", "HEAD"], text=True, capture_output=True, check=False)
+    if result.returncode != 0:
+        return {"present": False, "head": None, "stderr": result.stderr[-1000:]}
+    return {"present": True, "head": result.stdout.strip()}
+
+
+def graph_freshness_payload(workspace: Path) -> Dict[str, Any]:
+    graph = graph_report_payload(workspace)
+    head = git_head_payload(workspace)
+    graph["head_commit"] = head.get("head")
+    built = graph.get("built_from_commit")
+    graph["stale"] = bool(graph.get("present") and built and head.get("head") and not str(head["head"]).startswith(str(built)) and not str(built).startswith(str(head["head"])))
+    return graph
+
+
+def ensure_control_plane_state(state_path: Path, workspace: Path, brief_id: str, evidence_refs: List[str]) -> Dict[str, Any]:
+    if state_path.exists():
+        state = ensure_workflow_identity(load_workflow_state(state_path))
+    else:
+        state = new_workflow_state(brief_id=brief_id, workspace=workspace, phase="code")
+    state["phase"] = "code"
+    state["status"] = "planned"
+    state["step"] = "dogfood-control-plane-drift"
+    state["loop_progress"] = {
+        "iteration_count": int(state.get("loop_progress", {}).get("iteration_count", 0)) + 1 if isinstance(state.get("loop_progress"), dict) else 1,
+        "last_progress_signal": "control_plane_drift_scan",
+        "last_observation": "schema alias drift scan executed",
+        "evidence_refs": evidence_refs or ["adlc:control-plane-drift-loop"],
+    }
+    state["no_progress_count"] = 0
+    state["safe_checkpoint"] = {
+        "checkpoint_id": "checkpoint:" + stable_hash(str(state_path)),
+        "phase": "code",
+        "idempotent": True,
+        "retryable": True,
+        "rollback_plan": "discard the metadata.py schema-alias edit or rerun from the saved workflow state",
+        "evidence_refs": evidence_refs or ["adlc:control-plane-drift-loop"],
+    }
+    state["escalation_context"] = {
+        "trigger": "human_review_after_dogfood_repair",
+        "phase": "engineer_review",
+        "requested_decision": "review deterministic control-plane drift repair before merge",
+        "no_progress_after": 2,
+        "recent_observations": ["control-plane drift loop is bounded to schema alias repair"],
+        "context_refs": evidence_refs or ["adlc:control-plane-drift-loop"],
+    }
+    state["updated_at"] = utc_now()
+    return state
+
+
+def control_plane_loop_contract(required_verifiers: List[str]) -> Dict[str, Any]:
+    required_tests = [
+        {
+            "id": "required:control-plane-verifier",
+            "command": command,
+            "coverage_tags": ["control-plane", "schema-alias-drift"],
+        }
+        for command in (required_verifiers or ["python3 -m py_compile scripts/adlc_runtime/metadata.py"])
+    ]
+    return {
+        "contract_version": "1.0.0",
+        "contract_id": "adlc-control-plane-drift-loop",
+        "autonomy_claim": "assisted_loop",
+        "job_win_condition": {
+            "job": "Detect and repair bounded ADLC control-plane drift.",
+            "done_when": "Schema alias drift is repaired, verifier commands pass, and the workflow stops for human review.",
+            "deterministic_checks": required_verifiers or ["python3 -m py_compile scripts/adlc_runtime/metadata.py"],
+            "semantic_intent_check": "Human review confirms the repair stayed within the schema alias control-plane boundary.",
+        },
+        "allowed_tools": [
+            {"name": "adlc-control-plane", "actions": ["repair"]},
+            {"name": "human-escalation", "actions": ["escalate", "abort", "steer"]},
+        ],
+        "feedback_channels": [
+            {"after_action": "drift_scan", "observes": ["missing_alias_count", "stale_alias_count", "metadata_path"]},
+            {"after_action": "repair", "observes": ["changed_files", "added_aliases", "verifier_status"]},
+        ],
+        "stop_escalate_rules": {
+            "max_iterations": 1,
+            "no_progress_after": 1,
+            "escalate_when": ["dirty_checkout", "action_not_admitted", "verifier_failed", "human_review_required"],
+        },
+        "test_selection": {
+            "mandatory_floor": required_tests,
+            "required_from_task_signals": required_tests,
+            "additive_agent_tests": True,
+        },
+        "safe_bail_state": {
+            "state": "workflow state and report artifacts are saved before mutation",
+            "rollback": "revert metadata.py or discard the repair worktree",
+            "idempotency": "re-running the alias repair is a no-op once aliases are present",
+        },
+        "progress_signal": {
+            "signals": ["missing_alias_count_decreased", "verifier_status_passed", "state_updated"],
+            "no_progress_rule": "one failed repair or unchanged missing-alias count escalates to human review",
+        },
+        "control_channel": {
+            "supports": ["steer", "abort", "interrupt", "escalate"],
+            "safe_checkpoint_required": True,
+        },
+        "independent_truth": {
+            "type": "schema",
+            "evidence": ["docs/schemas/control-plane-drift-report.schema.json", "scripts/adlc_runtime/metadata.py"],
+        },
+        "redaction_posture": "Only bounded command output and artifact refs are captured; no secrets are read.",
+    }
+
+
+def control_plane_loop_action(drift: Dict[str, Any], required_verifiers: List[str]) -> Dict[str, Any]:
+    missing = drift.get("missing_aliases", [])
+    return {
+        "contract_version": "1.0.0",
+        "action_id": "action:repair-schema-alias-drift:" + stable_hash(json.dumps(missing, sort_keys=True)),
+        "proposed_by": "tool",
+        "action_type": "repair",
+        "tool": "adlc-control-plane",
+        "rationale": "Schema files without SCHEMA_ALIASES entries are unreachable through schema aliases and drift from the control-plane contract.",
+        "expected_observation": "Missing schema aliases are added to scripts/adlc_runtime/metadata.py and verifier commands pass.",
+        "required_preconditions": ["safe_checkpoint", "action_admission", "clean_repair_workspace"],
+        "satisfies_required_tests": ["required:control-plane-verifier"],
+        "control_event_type": None,
+        "safe_checkpoint_required": True,
+        "rollback_note": "Revert the metadata.py alias additions or discard the repair worktree.",
+        "evidence_refs": [drift.get("metadata_path", "scripts/adlc_runtime/metadata.py")],
+        "budget_estimate": {
+            "estimated_input_tokens": 0,
+            "expected_output_tokens": 0,
+            "projected_total_tokens": 0,
+            "phase": "code",
+            "skill": "drift-maintenance",
+            "evidence_refs": ["deterministic local command"],
+        },
+    }
+
+
+def write_artifact(path: Path, payload: Dict[str, Any], schema_alias: str | None = None) -> str:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if schema_alias:
+        errors = validate_artifact(resolve_schema(schema_alias), path)
+        if errors:
+            raise ValueError(f"{schema_alias} artifact failed schema validation: " + "; ".join(errors))
+    return rel_path(path)
+
+
+def control_plane_work_item_sync_payload(
+    args: argparse.Namespace,
+    state: Dict[str, Any],
+    drift: Dict[str, Any],
+    evidence_refs: List[str],
+    status: str,
+    next_action: str,
+) -> Dict[str, Any]:
+    external_id = f"adlc-control-plane-drift:{drift.get('rule', 'unknown')}"
+    return {
+        "contract_version": "1.0.0",
+        "target": args.target,
+        "work_item": {
+            "external_id": external_id,
+            "idempotency_key": external_id,
+            "build_brief_id": state["brief_id"],
+            "task_id": "ADLC-GOAL-7-CONTROL-PLANE-DRIFT",
+            "artifact_type": "control-plane-drift",
+            "title": "ADLC control-plane drift: schema alias parity",
+            "labels": ["adlc", "dogfood", "control-plane", "drift"],
+        },
+        "run_identity": {
+            "brief_id": state["brief_id"],
+            "run_id": state["run_id"],
+            "session_id": state["session_id"],
+            "resume_count": state.get("resume_count", 0),
+            "attempt": state.get("attempt", 1),
+        },
+        "status_update": {
+            "status": status,
+            "phase": "code",
+            "blockers": [
+                {
+                    "code": issue["rule"],
+                    "summary": f"{issue.get('alias', issue.get('path', 'control-plane drift'))}: {issue.get('path', '')}",
+                    "evidence_refs": [issue.get("path", drift.get("metadata_path", ""))],
+                }
+                for issue in drift.get("issues", [])
+                if isinstance(issue, dict)
+            ],
+            "verifier_results": [],
+            "evidence_refs": evidence_refs or [drift.get("metadata_path", "scripts/adlc_runtime/metadata.py")],
+            "next_action": next_action,
+            "updated_at": utc_now(),
+        },
+    }
+
+
+def control_plane_mutation_admission(args: argparse.Namespace, state_path: Path, state: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    if not args.tool_registry:
+        raise ValueError("--tool-registry is required with --allow-mutation")
+    audit_path = cli_input_path(args.audit_trail) if args.audit_trail else state_path.parent / "control_plane_permission_audit.json"
+    return action_admit_payload(
+        tool_registry_path=cli_input_path(args.tool_registry),
+        tool_name="adlc-control-plane",
+        action="repair_schema_alias_drift",
+        phase="code",
+        state_path=state_path if state_path.exists() else None,
+        brief_id=state.get("brief_id"),
+        run_id=state.get("run_id"),
+        session_id=state.get("session_id"),
+        allow_mutation=True,
+        human_approved=args.human_approved,
+        approval_ref=args.approval_ref,
+        audit_trail_path=audit_path,
+    )
+
+
+def control_plane_drift_loop_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
+    workspace = resolve_workspace(args.workspace)
+    state_path = resolve_under_workspace(args.state, workspace, ".adlc/control_plane_drift_state.json")
+    output_path = resolve_under_workspace(args.output, workspace, ".adlc/outputs/control_plane_drift_loop.json")
+    artifact_dir = output_path.parent / "control_plane_drift"
+    verifier_commands = args.verifier or default_control_plane_verifiers(workspace)
+    evidence_refs: List[str] = []
+    graph = graph_freshness_payload(workspace)
+    if graph.get("report"):
+        evidence_refs.append(str(graph["report"]))
+    state = ensure_control_plane_state(state_path, workspace, args.brief_id or "ADLC-GOAL-7-CONTROL-PLANE-DRIFT", evidence_refs)
+    save_workflow_state(state_path, state)
+    evidence_refs.append(rel_path(state_path))
+
+    pre_results, pre_evidence = run_verifier_commands(verifier_commands, workspace, artifact_dir / "pre_verification.json") if verifier_commands else ([], [])
+    evidence_refs.extend(pre_evidence)
+    drift = schema_alias_drift(workspace)
+    evidence_refs.append(drift.get("metadata_path", "scripts/adlc_runtime/metadata.py"))
+    dirty_before = git_dirty_status(workspace)
+
+    next_action = "human review control-plane drift loop evidence" if not drift["detected"] else "review planned schema alias repair"
+    work_item_request = control_plane_work_item_sync_payload(args, state, drift, evidence_refs, "planned" if drift["detected"] else "completed", next_action)
+    work_item_ref = write_artifact(artifact_dir / "work_item_sync.json", work_item_request, "work-item-sync")
+    sync_args = argparse.Namespace(
+        work_item=work_item_ref,
+        build_brief=None,
+        target=args.target,
+        workspace=str(workspace),
+        state=str(state_path),
+        existing_work_items=args.existing_work_items,
+        dry_run=True,
+        allow_mutation=False,
+        provider_command=None,
+        tool_registry=None,
+        audit_trail=None,
+        human_approved=False,
+        approval_ref=None,
+        json=True,
+    )
+    _, sync_payload = sync_work_item_payload(sync_args)
+
+    contract = control_plane_loop_contract(verifier_commands)
+    contract_ref = write_artifact(artifact_dir / "loop_contract.json", contract, "loop-contract")
+    action = control_plane_loop_action(drift, verifier_commands)
+    action_ref = write_artifact(artifact_dir / "loop_action.json", action, "loop-action")
+    action_validation = loop_action_validate_payload(cli_input_path(contract_ref), cli_input_path(action_ref), state_path)
+
+    repair: Dict[str, Any] = {
+        "applied": False,
+        "changed_files": [],
+        "added_aliases": [],
+        "dirty_before": dirty_before,
+    }
+    final_results: List[Dict[str, Any]] = []
+    final_evidence: List[str] = []
+    issues: List[Dict[str, Any]] = list(drift.get("issues", []))
+    stop_reason = None
+    status = "no_drift"
+    exit_code = 0
+
+    if not drift["detected"]:
+        state["phase"] = "engineer_review"
+        state["status"] = "awaiting_approval"
+        state["stop_reason"] = "human_gate"
+        state["updated_at"] = utc_now()
+        append_history(state, {"phase": "control_plane_drift_loop", "status": "no_drift", "artifact_ref": rel_path(output_path)})
+        save_workflow_state(state_path, state)
+    elif args.dry_run:
+        status = "planned"
+        stop_reason = "dry_run"
+        append_history(state, {"phase": "control_plane_drift_loop", "status": "planned", "artifact_ref": rel_path(output_path)})
+        save_workflow_state(state_path, state)
+    else:
+        if verifier_status(pre_results) == "fail":
+            status = "blocked"
+            stop_reason = "pre_verification_failed"
+            issues.append({"rule": "pre_verification_failed", "message": "pre-repair verifier failed"})
+            exit_code = 1
+        elif action_validation["status"] != "admitted":
+            status = "blocked"
+            stop_reason = "action_not_admitted"
+            issues.extend(action_validation.get("issues", []))
+            exit_code = 1
+        elif dirty_before.get("dirty"):
+            status = "blocked"
+            stop_reason = dirty_before.get("reason", "dirty_checkout")
+            issues.append({"rule": stop_reason, "message": "repair workspace is not clean", "git": dirty_before})
+            exit_code = 1
+        elif not args.allow_mutation:
+            status = "blocked"
+            stop_reason = "action_not_admitted"
+            issues.append({"rule": "action_not_admitted", "message": "schema alias repair requires --allow-mutation and --tool-registry"})
+            exit_code = 1
+        else:
+            admission_exit, admission = control_plane_mutation_admission(args, state_path, state)
+            repair["admission"] = admission
+            if admission_exit != 0:
+                status = "blocked"
+                stop_reason = admission.get("stop_reason") or admission["status"]
+                issues.extend(admission.get("issues", []))
+                exit_code = 1
+            else:
+                repair_result = apply_schema_alias_repair(workspace, drift)
+                repair.update(repair_result)
+                repair["applied"] = bool(repair_result["changed"])
+                if repair_result["changed"]:
+                    record_local_side_effect(state, "adlc-control-plane", "repair_schema_alias_drift", "ADLC-GOAL-7-CONTROL-PLANE-DRIFT", ",".join(repair_result["changed_files"]))
+                post_drift = schema_alias_drift(workspace)
+                repair["post_drift"] = post_drift
+                final_results, final_evidence = run_verifier_commands(verifier_commands, workspace, artifact_dir / "final_verification.json") if verifier_commands else ([], [])
+                evidence_refs.extend(final_evidence)
+                if post_drift["detected"]:
+                    status = "fail"
+                    stop_reason = "drift_still_detected"
+                    issues.extend(post_drift.get("issues", []))
+                    exit_code = 1
+                elif verifier_status(final_results) == "fail":
+                    status = "fail"
+                    stop_reason = "verifier_failed"
+                    issues.append({"rule": "verifier_failed", "message": "post-repair verifier failed"})
+                    exit_code = 1
+                else:
+                    status = "needs_human"
+                    stop_reason = "human_gate"
+                    state["phase"] = "engineer_review"
+                    state["status"] = "awaiting_approval"
+                    state["stop_reason"] = "human_gate"
+                    state["loop_progress"]["last_progress_signal"] = "schema_alias_drift_repaired"
+                    state["loop_progress"]["last_observation"] = "schema alias drift repaired and verifier commands passed"
+                    state["loop_progress"]["evidence_refs"] = evidence_refs
+                    state["updated_at"] = utc_now()
+                    append_history(state, {"phase": "control_plane_drift_loop", "status": "needs_human", "artifact_ref": rel_path(output_path), "changed_files": repair_result["changed_files"]})
+                    save_workflow_state(state_path, state)
+
+    report = {
+        "contract_version": "1.0.0",
+        "loop_id": "adlc-control-plane-drift-loop",
+        "status": status,
+        "dry_run": bool(args.dry_run),
+        "human_review_required": status in {"needs_human", "no_drift", "planned"},
+        "run_identity": workflow_identity_payload(state),
+        "workspace": str(workspace),
+        "state_ref": rel_path(state_path),
+        "graph": graph,
+        "verification": {
+            "pre": {"status": verifier_status(pre_results), "commands": verifier_commands, "results": pre_results},
+            "final": {"status": verifier_status(final_results), "commands": verifier_commands, "results": final_results},
+        },
+        "drift": drift,
+        "work_item_sync": {"request_ref": work_item_ref, "summary": sync_payload.get("summary"), "operations": sync_payload.get("operations", [])},
+        "loop_contract_ref": contract_ref,
+        "proposed_action": {"action_ref": action_ref, "action_id": action["action_id"]},
+        "action_validation": action_validation,
+        "repair": repair,
+        "evidence_refs": sorted(set(str(ref) for ref in evidence_refs if str(ref).strip())),
+        "next_action": "human review deterministic repair evidence before merge",
+        "warnings": ["graph_report_stale"] if graph.get("stale") else [],
+        "issues": issues,
+    }
+    if stop_reason:
+        report["stop_reason"] = stop_reason
+    report_ref = write_artifact(output_path, report, "control-plane-drift-report")
+    report["report_ref"] = report_ref
+    output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return exit_code, report
+
+
+def command_control_plane_drift_loop(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = control_plane_drift_loop_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['loop_id']}: {payload['status']}")
+    return exit_code
+
+
 def command_loop_maturity_audit(args: argparse.Namespace) -> int:
     try:
         output_path = cli_input_path(args.output) if args.output else None
@@ -5695,6 +6228,32 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("control-plane-drift-loop"),
+            "description": command_description("control-plane-drift-loop"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "brief_id": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                    "target": {"type": "string", "enum": list(WORK_ITEM_TARGETS), "default": "linear"},
+                    "existing_work_items": {"type": "string", "minLength": 1},
+                    "verifier": {
+                        "type": "array",
+                        "items": {"type": "string", "minLength": 1},
+                    },
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("slop-gate"),
             "description": command_description("slop-gate"),
             "inputSchema": {
@@ -5877,6 +6436,25 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             json=True,
         )
         return tool_result(compound_context_payload(args))
+    if name == "adlc_control_plane_drift_loop":
+        args = argparse.Namespace(
+            brief_id=arguments.get("brief_id"),
+            workspace=arguments.get("workspace"),
+            state=arguments.get("state"),
+            output=arguments.get("output"),
+            target=arguments.get("target") or "linear",
+            existing_work_items=arguments.get("existing_work_items"),
+            verifier=arguments.get("verifier") if isinstance(arguments.get("verifier"), list) else [],
+            dry_run=arguments.get("dry_run", True),
+            allow_mutation=arguments.get("allow_mutation", False),
+            tool_registry=arguments.get("tool_registry"),
+            audit_trail=arguments.get("audit_trail"),
+            human_approved=arguments.get("human_approved", False),
+            approval_ref=arguments.get("approval_ref"),
+            json=True,
+        )
+        exit_code, payload = control_plane_drift_loop_payload(args)
+        return tool_result(payload, is_error=exit_code != 0)
     if name == "adlc_emit_work_items":
         args = argparse.Namespace(
             target=arguments.get("target"),
@@ -6321,6 +6899,23 @@ def build_parser() -> argparse.ArgumentParser:
     compound.add_argument("--max-refs", type=int, default=8, help="Maximum learning refs to return.")
     compound.add_argument("--json", action="store_true", help="Emit JSON.")
     compound.set_defaults(func=command_compound_context)
+
+    control_drift = subparsers.add_parser("control-plane-drift-loop", help=command_description("control-plane-drift-loop"))
+    control_drift.add_argument("--brief-id", help="Brief/run identity for the dogfood loop state.")
+    control_drift.add_argument("--workspace", help="Workspace or git worktree root. Defaults to cwd.")
+    control_drift.add_argument("--state", help="Workflow state path. Defaults to .adlc/control_plane_drift_state.json under workspace.")
+    control_drift.add_argument("--output", help="Control-plane drift report path. Defaults to .adlc/outputs/control_plane_drift_loop.json under workspace.")
+    control_drift.add_argument("--target", choices=WORK_ITEM_TARGETS, default="linear", help="Work-item target used for dry-run status sync.")
+    control_drift.add_argument("--existing-work-items", help="Optional read-only tracker audit JSON used for stable-ID lookup.")
+    control_drift.add_argument("--verifier", action="append", default=[], help="Verifier command to run before and after repair. May be repeated.")
+    control_drift.add_argument("--dry-run", action="store_true", help="Plan the dogfood loop without mutating the repair workspace.")
+    control_drift.add_argument("--allow-mutation", action="store_true", help="Permit deterministic schema-alias repair after action admission.")
+    control_drift.add_argument("--tool-registry", help="Tool Registry JSON path used by action-admit before mutation.")
+    control_drift.add_argument("--audit-trail", help="Permission Audit Trail JSON path to create or append.")
+    control_drift.add_argument("--human-approved", action="store_true", help="Record that a human approved the requested repair mutation.")
+    control_drift.add_argument("--approval-ref", help="Human approval ticket, comment, or transcript reference.")
+    control_drift.add_argument("--json", action="store_true", help="Emit JSON.")
+    control_drift.set_defaults(func=command_control_plane_drift_loop)
 
     emit = subparsers.add_parser("emit-work-items", help=command_description("emit-work-items"))
     emit.add_argument("--target", required=True, choices=WORK_ITEM_TARGETS, help="Work-item target.")

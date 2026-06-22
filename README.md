@@ -188,6 +188,7 @@ bin/adlc run-phase context_assembly --build-brief .adlc/build_brief.json --works
 bin/adlc run-phase qa --workspace . --verifier 'pytest tests/test_task.py' --json
 bin/adlc resume-workflow --workspace . --json
 bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
+bin/adlc control-plane-drift-loop --workspace . --verifier 'python3 -m py_compile scripts/adlc_runtime/metadata.py' --dry-run --json
 bin/adlc action-admit --tool-registry .adlc/tool_registry.json --tool Read --action read_file --phase research --brief-id BRF-123 --run-id ADLC-RUN-123 --session-id SESSION-123 --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --require-test-results .adlc/loop_test_result.json --json
@@ -211,6 +212,8 @@ bin/adlc mcp-serve
 Queue and worktree operations are dry-run first. Mutating queue state or creating/removing worktrees requires `--allow-mutation` plus a tool-registry admission path for `adlc-queue` or `adlc-worktree`. Claims fail closed when the checkout is dirty or when expected file, directory, or glob ownership overlaps an active `claimed` or `running` task.
 
 Deterministic tool nodes emit schema-backed phase artifacts under `.adlc/outputs/` and workflow state records them in `phase_artifacts[]`. Dry-run tool-node calls produce `planned` artifacts without marking the phase complete. Mutating tool-node writes require `--allow-mutation` and `--tool-registry`.
+
+The first dogfood loop is `control-plane-drift-loop`. It detects schema-alias drift, creates a stable work-item sync payload, validates a proposed repair action, optionally applies the bounded `metadata.py` repair through action admission, reruns verifiers, and stops for human review.
 
 Minimal Loop Contract flow:
 

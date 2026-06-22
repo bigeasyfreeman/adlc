@@ -1,0 +1,16 @@
+{
+  "default_policy": "deny",
+  "tools": [
+    {
+      "available_phases": [
+        "code"
+      ],
+      "description": "ADLC control-plane repair mutation",
+      "inputSchema": {},
+      "name": "adlc-control-plane",
+      "permission_tier": "unrestricted",
+      "side_effect_profile": "mutating"
+    }
+  ],
+  "version": "1.0.0"
+}

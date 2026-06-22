@@ -51,6 +51,7 @@ assert "validate-artifact accepts budgeted loop maturity report fixture" "'$ROOT
 assert "validate-artifact accepts work queue fixture" "'$ROOT/bin/adlc' validate-artifact --schema work-queue --input '$ROOT/tests/fixtures/work_queue/valid-queue.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
 assert "validate-artifact accepts work-item sync fixture" "'$ROOT/bin/adlc' validate-artifact --schema work-item-sync --input '$ROOT/tests/fixtures/tracker_sync/run-update.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
 assert "validate-artifact accepts tool-node result fixture" "'$ROOT/bin/adlc' validate-artifact --schema tool-node-result --input '$ROOT/tests/fixtures/tool_node/valid-qa-result.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+assert "schema aliases include control-plane drift report" "'$ROOT/bin/adlc' health-check --json | jq -e '.status == \"pass\" and any(.checks[]; .name == \"schemas\" and .status == \"pass\")' >/dev/null"
 cat > "$tmp_dir/tool-registry.json" <<'JSON'
 {"version":"1.0.0","default_policy":"deny","tools":[{"name":"Read","description":"Read files","inputSchema":{},"side_effect_profile":"read_only","permission_tier":"unrestricted","available_phases":["phase_0_codebase_research"]}]}
 JSON
@@ -110,6 +111,24 @@ assert "run-phase scaffold write intent requires admission" "if '$ROOT/bin/adlc'
 assert "run-phase slop gate reuses deterministic gate" "'$ROOT/bin/adlc' run-phase slop_gate --brief-id CLI-SLOP --workspace '$tmp_dir/tool-slop' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --json | jq -e '.tool_result.status == \"skipped\" and .tool_result.skip_reason == \"generated_output_surface_inactive\" and .state.phase == \"pr_prep\"' >/dev/null"
 assert "run-phase learning capture skips without candidates" "'$ROOT/bin/adlc' run-phase learning_capture --brief-id CLI-LEARN --workspace '$tmp_dir/tool-learn' --json | jq -e '.tool_result.status == \"skipped\" and .tool_result.skip_reason == \"no_verified_learning_candidates\" and .state.phase == \"engineer_review\"' >/dev/null"
 assert "resume-workflow exposes phase artifacts" "'$ROOT/bin/adlc' resume-workflow --workspace '$tmp_dir/tool-qa-pass' --json | jq -e '.next_action.phase_artifacts[-1].phase == \"qa\" and .next_action.phase_artifacts[-1].status == \"pass\"' >/dev/null"
+
+echo ""
+echo "--- Control-Plane Dogfood Loop ---"
+dogfood_repo="$tmp_dir/control-plane-repo"
+mkdir -p "$dogfood_repo/scripts/adlc_runtime" "$dogfood_repo/docs/schemas"
+cp "$ROOT/scripts/adlc_runtime/metadata.py" "$dogfood_repo/scripts/adlc_runtime/metadata.py"
+cp "$ROOT"/docs/schemas/*.schema.json "$dogfood_repo/docs/schemas/"
+printf '.adlc/\n__pycache__/\n*.pyc\n' > "$dogfood_repo/.gitignore"
+git -C "$dogfood_repo" init -q
+git -C "$dogfood_repo" config user.email adlc@example.invalid
+git -C "$dogfood_repo" config user.name ADLC
+git -C "$dogfood_repo" add .
+git -C "$dogfood_repo" commit -q -m init
+assert "control-plane drift loop dry-run detects schema alias drift" "'$ROOT/bin/adlc' control-plane-drift-loop --brief-id ADLC-G7-TEST --workspace '$dogfood_repo' --verifier 'python3 -m py_compile scripts/adlc_runtime/metadata.py' --dry-run --json >'$tmp_dir/control-plane-dry.json' && jq -e '.status == \"planned\" and .drift.detected == true and (.drift.missing_aliases | length) >= 1 and .work_item_sync.summary.total == 1 and .action_validation.status == \"admitted\" and .repair.applied == false' '$tmp_dir/control-plane-dry.json' >/dev/null"
+assert "control-plane drift loop blocks repair without admission" "if '$ROOT/bin/adlc' control-plane-drift-loop --brief-id ADLC-G7-TEST --workspace '$dogfood_repo' --verifier 'python3 -m py_compile scripts/adlc_runtime/metadata.py' --json >'$tmp_dir/control-plane-blocked.json'; then false; else jq -e '.status == \"blocked\" and .stop_reason == \"action_not_admitted\" and any(.issues[]; .rule == \"action_not_admitted\")' '$tmp_dir/control-plane-blocked.json' >/dev/null; fi"
+assert "control-plane drift loop repairs schema alias drift with admission" "'$ROOT/bin/adlc' control-plane-drift-loop --brief-id ADLC-G7-TEST --workspace '$dogfood_repo' --verifier 'python3 -m py_compile scripts/adlc_runtime/metadata.py' --allow-mutation --tool-registry '$ROOT/tests/fixtures/control_plane/tool-registry.json' --json >'$tmp_dir/control-plane-repaired.json' && jq -e '.status == \"needs_human\" and .repair.applied == true and (.repair.changed_files | index(\"scripts/adlc_runtime/metadata.py\")) != null and (.repair.added_aliases | length) >= 1 and .repair.admission.status == \"admitted\" and .verification.final.status == \"pass\" and .drift.detected == true and .repair.post_drift.detected == false' '$tmp_dir/control-plane-repaired.json' >/dev/null"
+assert "control-plane drift report validates after repair" "'$ROOT/bin/adlc' validate-artifact --schema control-plane-drift-report --input '$dogfood_repo/.adlc/outputs/control_plane_drift_loop.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+assert "control-plane drift loop rerun reports no drift" "'$ROOT/bin/adlc' control-plane-drift-loop --brief-id ADLC-G7-TEST --workspace '$dogfood_repo' --verifier 'python3 -m py_compile scripts/adlc_runtime/metadata.py' --dry-run --json >'$tmp_dir/control-plane-clean.json' && jq -e '.status == \"no_drift\" and .drift.detected == false and .human_review_required == true' '$tmp_dir/control-plane-clean.json' >/dev/null"
 
 echo ""
 echo "--- Work Queue And Worktrees ---"

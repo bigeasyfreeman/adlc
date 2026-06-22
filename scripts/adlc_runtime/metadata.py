@@ -9,6 +9,7 @@ SCHEMA_ALIASES = {
     "applicability-manifest": "docs/schemas/applicability-manifest.schema.json",
     "build-brief": "docs/schemas/build-brief.schema.json",
     "coder-output": "docs/schemas/coder-output.schema.json",
+    "control-plane-drift-report": "docs/schemas/control-plane-drift-report.schema.json",
     "council-verdict": "docs/schemas/council-verdict-output.schema.json",
     "loop-action": "docs/schemas/loop-action.schema.json",
     "loop-contract": "docs/schemas/loop-contract.schema.json",
@@ -131,6 +132,10 @@ COMMAND_METADATA = {
     "compound-context": {
         "mcp_name": "adlc_compound_context",
         "description": "Compute compact compound engineering context from docs/solutions, Graphify status, and optional Build Brief tasks.",
+    },
+    "control-plane-drift-loop": {
+        "mcp_name": "adlc_control_plane_drift_loop",
+        "description": "Run the first ADLC dogfood loop: detect control-plane drift, validate a repair action, optionally apply a guarded fix, verify, and stop for human review.",
     },
     "slop-gate": {
         "mcp_name": "adlc_slop_gate",
