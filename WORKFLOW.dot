@@ -28,6 +28,9 @@ digraph ADLC {
     // ─── Plan Review (agentic — Eval Council) ───
     plan_review [shape=box, label="Plan Review\nEval Council", style=filled, fillcolor="#fff3e6"]
 
+    // ─── Intent Validation (human gate — narrative approval) ───
+    intent_validation [shape=hexagon, label="Intent Validation\nHuman Gate\n(Narrative + Impact)", style=filled, fillcolor="#fffacd"]
+
     // ─── Scaffold + Tests (scaffold deterministic, verifier authoring agentic) ───
     scaffold [shape=box, label="Scaffold\nArchitecture Contracts", style="dashed,filled", fillcolor="#f0f0f0"]
     gen_tests [shape=box, label="Generate Verifiers\nAuthor Failing Tests / Reproducers", style=filled, fillcolor="#e6f3ff"]
@@ -83,10 +86,15 @@ digraph ADLC {
     // Plan ↔ Review loop
     plan -> plan_review
     plan_review -> plan          [label="revise", style=dashed, color="#cc6600"]
-    plan_review -> scaffold      [label="lgtm"]
+    plan_review -> intent_validation [label="lgtm"]
     plan_review -> escalate      [label="blocked", color="red"]
     plan_review -> escalate      [label="stuck", color="red"]
     plan -> escalate             [label="escalate", color="red"]
+
+    // Intent Validation (human gate) → Scaffold or back to Plan
+    intent_validation -> scaffold [label="approved"]
+    intent_validation -> plan     [label="revise\n(max 3)", style=dashed, color="#cc6600"]
+    intent_validation -> escalate [label="rejected", color="red"]
 
     // Scaffold → Tests → Context Assembly
     scaffold -> gen_tests

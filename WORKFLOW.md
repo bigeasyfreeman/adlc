@@ -50,6 +50,7 @@ concurrency:
 
 iteration_limits:
   plan_review: 3          # Eval Council max loops
+  intent_validation: 3    # Human narrative gate max revisions before escalate
   code_review: 3          # Code review max loops
   fixer: 2                # Fix attempts before escalate
   test_strength_retry: 2  # Weak-test strengthening attempts before escalate
@@ -90,6 +91,7 @@ Judge skills resolve their `fast_judge` and `deep_judge` slots through `skills/m
 | `research` | `agents/researcher.md` | claude | claude-opus-4-6 | graph-research, codebase-research, paved-road-registry, dark-code-audit, grafana-observability |
 | `plan` | `agents/planner.md` | claude | claude-opus-4-6 | graph-research, codegen-context, architecture-pattern, reuse-analysis, paved-road-registry, context-layers |
 | `plan_review` | `agents/plan-reviewer.md` | claude | claude-opus-4-6 | eval-council |
+| `intent_validation` | *human gate* | — | — | — |
 | `scaffold` | *tool node* | — | — | architecture-pattern |
 | `gen_tests` | `agents/test-author.md` | claude | claude-sonnet-4-6 | spec-to-tests, tdd-enforcement, qa-test-data |
 | `context_assembly` | *tool node* | — | — | codegen-context |
@@ -108,6 +110,30 @@ Judge skills resolve their `fast_judge` and `deep_judge` slots through `skills/m
 enters them only when the applicability manifest or task-level surface evidence
 activates the corresponding surface. Inactive overlays are skipped rather than
 converted into boilerplate work.
+
+### Intent Validation (Human Gate)
+
+After `plan_review` approves the Build Brief and BEFORE `scaffold` or any codegen
+work begins, the human (founder or designated approver) validates intent and
+impact. This gate is the literal implementation of "state intent and impact" and
+"don't let AI make decisions" — the human decides; ADLC executes.
+
+Human inputs (one short paragraph or four short answers):
+
+- **Intent:** "This Build Brief exists to <X>"
+- **Impact:** "When shipped, the user can <Y>"
+- **Routing:** confirm product slice / Initiative
+- **Kill / keep / split decision**
+
+Human outputs:
+
+- `approved` → proceed to `scaffold`. The approved Intent and Impact populate `narrative_contract.feature` and `narrative_contract.value` in the Build Brief. The `why` and `goal` fields are derived from PRD plus the human's impact statement by the planner.
+- `revise` (with feedback) → back to `plan` (max 3 revisions per `intent_validation` iteration limit)
+- `rejected` → escalate
+
+Cost: ~5 minutes per Build Brief. Prevents 20+ hours of wasted codegen on misdirected briefs.
+
+Backward compatibility: existing workflows that do not include `intent_validation` continue to run (treated as auto-approved with a deprecation warning). New emissions at `contract_version >= 1.1.x` require `narrative_contract.human_validated_at`; emitters must refuse mutation and return `missing_intent_validation` if the field is absent.
 
 ### Tool Nodes (Deterministic — No LLM)
 

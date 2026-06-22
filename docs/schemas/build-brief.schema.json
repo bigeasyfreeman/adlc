@@ -9,6 +9,7 @@
     "adlc_mode",
     "brief_id",
     "prd_id",
+    "narrative_contract",
     "applicability_manifest",
     "enterprise_readiness_contract",
     "sections"
@@ -33,6 +34,48 @@
     "prd_id": {
       "type": "string",
       "minLength": 1
+    },
+    "narrative_contract": {
+      "type": "object",
+      "description": "Human-readable intent and impact for this Build Brief. Populated by planner from PRD + intent_validation human gate. Emitted as ## Narrative at the top of every work-item description at contract_version >= 1.1.x.",
+      "additionalProperties": false,
+      "required": ["product_feature", "feature", "value", "why", "goal"],
+      "properties": {
+        "product_feature": {
+          "type": "string",
+          "description": "3-6 sentence tight narrative connecting this ticket to the larger product feature it builds toward. Names the product feature, why it matters, and what this ticket specifically contributes. Founder voice.",
+          "minLength": 1
+        },
+        "feature": {
+          "type": "string",
+          "description": "One sentence - what this is concretely.",
+          "minLength": 1
+        },
+        "value": {
+          "type": "string",
+          "description": "One sentence - what the user gets, in user language.",
+          "minLength": 1
+        },
+        "why": {
+          "type": "string",
+          "description": "2-3 sentences - the problem this solves, in plain language. No ADLC jargon.",
+          "minLength": 1
+        },
+        "goal": {
+          "type": "string",
+          "description": "One sentence - what success looks like, observably.",
+          "minLength": 1
+        },
+        "human_validated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO8601 timestamp from intent_validation phase. REQUIRED at contract_version >= 1.1.x."
+        },
+        "human_validator": {
+          "type": "string",
+          "description": "Name of the human who approved the narrative at the intent_validation gate."
+        }
+      }
     },
     "enterprise_readiness_contract": {
       "$ref": "#/definitions/enterprise_readiness_contract"

@@ -30,11 +30,20 @@ Repo configuration binds ADLC's logical emitter capabilities to whatever tool na
 
 ```json
 {
-  "contract_version": "1.x",
+  "contract_version": "1.1.x",
   "adlc_mode": "prd_only | decompose_only | prd_and_decompose",
   "build_brief_id": "string",
   "feature_name": "string",
   "owner": "string",
+  "narrative_contract": {
+    "product_feature": "string — 3-6 sentences. High-level narrative connecting this ticket to the product feature it builds toward. Founder voice.",
+    "feature": "string — one sentence, what this is concretely",
+    "value": "string — one sentence, what the user gets, in user language",
+    "why": "string — 2-3 sentences, the problem this solves, no ADLC jargon",
+    "goal": "string — one sentence, what success looks like, observably",
+    "human_validated_at": "ISO8601 timestamp from intent_validation phase (REQUIRED at contract_version >= 1.1.x)",
+    "human_validator": "string — name of the human who approved"
+  },
   "applicability_manifest": {
     "task_classification": "feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security"
   },
@@ -119,6 +128,7 @@ Repo configuration binds ADLC's logical emitter capabilities to whatever tool na
 
 Every work-item emitter must carry these fields forward from the Build Brief task:
 
+- `narrative_contract` (REQUIRED at `contract_version >= 1.1.x`; OPTIONAL at 1.x for backward compatibility). Emitted as TWO blocks at the TOP of the artifact description, before all other sections: `## Product Feature` (3-6 sentence high-level narrative connecting the ticket to the product feature it builds toward) and `## Narrative` (Feature / Value / Why / Goal per-ticket specifics). Both blocks sourced from the planner's narrative capture and validated by the `intent_validation` human gate. If `human_validated_at` is missing on a 1.1.x brief, the emitter must refuse to mutate and return `missing_intent_validation`.
 - `artifact_type`
 - `task_classification`
 - `work_item_metadata` when present (`area`, `area_label`, `phase_label`, `target_project`, `labels`, `external_refs`, `loop_contract_path`, `loop_action_path`, `loop_maturity_report_path`)
@@ -214,9 +224,27 @@ Platform-specific config may extend the shared contract, but it must not redefin
 ## Idempotency and Permission Logging
 
 - Key format is defined in [docs/specs/idempotency-keys.md](/Users/eric/adlc/docs/specs/idempotency-keys.md).
-- Permission log shape is defined in [docs/specs/permission-logging.md](/Users/eric/adlc/docs/specs/permission-logging.md).
+- Permission log shape is defined in [docs/specs/permission-logging.md](/Users/eric/adlc/docs/permission-logging.md).
 - Mutation providers must return per-artifact metadata keyed by `idempotency_key` when they create, update, or deduplicate work items. The item should include `artifact_id` and `artifact_ref`; target-native names such as `key`, `identifier`, `number`, `id`, or `url` are accepted and normalized into workflow state.
 - Retries must return prior artifact metadata when the key is already terminal.
+
+## Source Context Refresh (Drift Maintenance)
+
+When an emitter re-runs against an existing artifact (via idempotency key), it MUST refresh stale source anchors before completing the mutation. Drift refresh is content-only and MUST NOT change the idempotency key.
+
+Procedure:
+
+1. Re-resolve `adlc:source_context` against current state:
+   - Current PRD version (read `docs/PRD.md` header in the workspace repo).
+   - Current HEAD commit (`git rev-parse HEAD` in the workspace repo).
+   - Current section references: verify each `§X.Y` still exists in the cited doc; if section numbering changed, locate the successor section by heading text.
+2. Re-resolve every file path reference against the current workspace tree:
+   - If a path has moved to a clear successor: update the reference to the new path.
+   - If a path has been deleted with no successor: emit a `drift_comment` on the artifact describing the missing path and a `needs_human_decision` marker in the response.
+3. Update `adlc:source_context` with the refreshed commit and PRD version.
+4. Populate `adlc:last_refreshed_at` with the current ISO8601 timestamp.
+
+This is the systemic fix for ticket drift. Without it, every codebase change orphans the artifacts that reference the old state. See [skills/drift-maintenance/SKILL.md](/Users/eric/adlc/skills/drift-maintenance/SKILL.md) for the canonical implementation.
 
 ## Readiness Gate
 
@@ -290,6 +318,7 @@ Emitters must stop with one of:
 - `missing_implementation_interface_contract`
 - `missing_productionization_gate`
 - `overclaimed_production_ready`
+- `missing_intent_validation` — emitted when `contract_version >= 1.1.x` and `narrative_contract.human_validated_at` is missing
 - `external_mutation_partial`
 - `readiness_check_blocked`
 

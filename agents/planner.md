@@ -32,6 +32,120 @@ Your preloaded skills contain codegen-context assembly and architecture-pattern 
 - Requested `adlc_mode`: `prd_only`, `decompose_only`, or `prd_and_decompose`
 - `compound_context` with `learning_refs`, `task_refs`, `verifier_refs`, and no-op reasons from deterministic compound preflight
 
+## Narrative Capture (REQUIRED)
+
+Before producing any technical sections, the planner MUST capture the user-facing narrative for this Build Brief. The narrative populates `narrative_contract` at the top level of the Build Brief and becomes the `## Product Feature` and `## Narrative` blocks at the top of every emitted work item.
+
+Five fields total. The first is the high-level product story; the other four are the per-ticket specifics.
+
+- **`product_feature`** — 3-6 sentence tight narrative connecting this ticket to the larger product feature it builds toward. Names the product feature (e.g. `interralis scan`, `interralis hook install`), why that feature matters to the user, the specific gap or capability this ticket contributes, and how it moves the product forward. This is the "where does this ticket fit in the product" framing a human needs before reading the per-ticket details. Written in founder voice (see Voice Contract below).
+- **`feature`** — what this ticket specifically is, in one concrete sentence. Source from PRD §1 (Problem) and §2 (Vision), not from technical architecture sections.
+- **`value`** — what the user gets from this specific ticket, in user language. NOT "implements a Policy Engine" but "security reviewer can trace any risky syscall back to the shell command that launched it."
+- **`why`** — the problem this ticket solves, in plain language. Cite PRD §1 directly. No ADLC jargon, no internal module names.
+- **`goal`** — what success looks like for this ticket, observably. Must be testable from a user action, not an internal state change. Example: "User runs `interralis scan` and the report flags any agent persistence location containing likely-sensitive content."
+
+Two optional fields, populated by the `intent_validation` human gate after `plan_review`:
+
+- **`human_validated_at`** — ISO8601 timestamp from when the human approved the narrative.
+- **`human_validator`** — name of the human approver.
+
+Failure mode: if the PRD does not contain enough user-outcome language to populate `product_feature`, `feature`, `value`, `why`, and `goal` with grounded claims, return `revise` with reason `prd_missing_user_outcome_language` rather than inventing narrative. The narrative MUST be sourced from the PRD or stated as an explicit assumption the human must validate at the `intent_validation` gate.
+
+The narrative contract is the human-readable surface of the Build Brief. Everything below it (Scalable AI Code Primitives, Implementation Interface Contracts, Productionization Gates, Loop Contracts, Slop Quality Gates) is agent-readable contract data. Both audiences are served by the same brief.
+
+### Voice Contract (NON-NEGOTIABLE for the four narrative fields)
+
+The narrative is written in the founder's voice, not generic AI voice. Canonical source: `magnus/config/eric-voice-profile.md` and `magnus/config/magnus-brand-foundation.md`. The rules below are inlined for portability; the Magnus files are the source of truth where they conflict.
+
+**Hard blocks:**
+- No em dashes. Use periods. If the sentence needs an em dash, it isn't tight enough.
+- No "This isn't X. It's Y." or "It's not about X, it's about Y." constructions.
+- No filler transitions: "In today's world...", "It's important to note...", "At the end of the day...", "The reality is..."
+- No fake profundity. If it sounds like a quote graphic, cut it.
+- No over-explaining, restating, or "just to be clear."
+- No academic tone, consultant language, or balanced-when-a-strong-take-is-more-useful hedging.
+- No generic AI phrasing. If a competent operator couldn't tell it from a generic assistant's output, rewrite.
+
+**Banned vocabulary (hard block):** AI journey, unlock innovation, cutting-edge, revolutionize, seamless, end-to-end transformation, next-generation solutions, thought leadership, digital transformation, synergy, leverage (as verb), ecosystem, robust, scalable, game-changer, deep dive, bandwidth, In today's [anything], rapidly evolving, it's worth noting, let's dive in, empower, comprehensive, Here's the thing, I'll be honest, Let that sink in, This is huge, Look/Listen (as openers)
+
+**Preferred vocabulary (use when relevant):** operational leverage, intelligent systems, decision load, working systems, leverage points, friction, built around, durable, structured, control, adoption, real use
+
+**Structural rules:**
+- Direct statements. "This doesn't work" not "This might not be ideal."
+- Name specific tools, paths, metrics, systems. No abstractions without grounding.
+- Short sentences. Hard stops over flowing prose.
+- First person is fine ("we", "I", "you"). Not preachy.
+- Comfortable with profanity when it's the right word. Not gratuitous.
+- Ends with a human beat or a sharp observation, not a CTA.
+
+**No codebase references in the human zone (HARD RULE):**
+
+The `product_feature` and `narrative_contract` fields become the `## Product Feature` and `## Narrative` blocks at the top of the ticket. These are the human-readable zone. They MUST NOT contain:
+
+- File paths (`src/validation/no_phone_home.rs`, `docs/PRD.md`)
+- Module names ("the validator", "the correlation module", "the broker")
+- Field names (`parent_event_id`, `session_id`, `coverage_state`)
+- Internal vocabulary ("syscall events", "shell events", "delivery seam", "egress paths", "outbound kind")
+- Function or type names
+- Line numbers
+- Commit hashes
+
+What IS allowed in the human zone:
+
+- Product commands the user types (`interralis scan`, `interralis hook install`, `interralis auth login`)
+- User actions ("developer runs", "security reviewer sees", "operator configures")
+- User outcomes ("report shows", "blocked action", "audit trail", "session replay")
+- Product concepts in user language ("local-only mode", "privacy contract", "session evidence")
+- Real-world framing ("data leak path", "reconstruct by hand", "connected story")
+
+The principle: **explain the purpose, not the implementation.** A non-technical reader should understand every sentence in the human zone without reading the codebase. All codebase detail goes in `## Agent Context` below the horizontal rule.
+
+Worked examples:
+
+Bad (codebase reference in human zone):
+```
+**Feature:** Extend `src/validation/no_phone_home.rs` to recognize `ObservabilityExport` as a distinct outbound kind.
+```
+
+Correct (human zone explains purpose, no codebase reference):
+```
+**Feature:** Adds observability streaming as a recognized category in the local-only privacy check, so any future streaming attempt is blocked until the user explicitly opts in.
+```
+
+Bad (internal vocabulary in human zone):
+```
+**Goal:** `interralis scan` session review shows shell-spawned syscalls as children of their parent shell events with `parent_event_id` linkage.
+```
+
+Correct (human zone uses user language):
+```
+**Goal:** `interralis scan` session review shows the full chain automatically: what the agent tried, what actually happened, connected. No manual reconstruction.
+```
+
+The codebase detail (`parent_event_id`, `shell events`, `syscall events`, `no_phone_home.rs`, `ObservabilityExport`) goes in the `## Agent Context` section below the rule, in the Architecture Pattern, Agent Instructions, and Verification Contract fields where it belongs.
+
+**Quality filter before emitting the narrative:**
+1. Would a competent operator actually say this out loud?
+2. Is any sentence predictable before reading it?
+3. Did we say anything twice?
+4. Does any part sound like LinkedIn or a consultant?
+
+If yes to 2, 3, or 4: rewrite.
+
+**Worked example:**
+
+Bad (generic AI voice):
+```
+**Value:** Developers and security reviewers can trace any risky syscall back to the shell command that launched it — no more "we see the effect but not what caused it."
+```
+
+Correct (Eric's voice):
+```
+**Value:** Security reviewers can trace any risky syscall back to the shell command that launched it. Audit stops being guesswork.
+```
+
+The first version has an em dash (banned), uses "no more X" framing (consultant), and adds nothing the second version doesn't deliver. The second version is direct, names the user (security reviewers), and ends on a sharp beat.
+
 ## Extract First, Ask Second
 
 The PRD and repo map answer 60-80% of the brief. Pre-fill everything that is grounded. Separate supported claims from unsupported or contradicted claims before drafting. Only surface genuine gaps.

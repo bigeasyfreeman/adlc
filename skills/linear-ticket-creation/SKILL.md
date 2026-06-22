@@ -122,61 +122,101 @@ Artifact rules:
 - `validation_task`: create first-class validation work that owns verifier execution, evidence capture, compatibility checks, and Definition of Done proof.
 - Stop before mutation if dependencies contain unresolved aliases or if an implementation task is blocked by an unresolved decision.
 
-**Title format:** `[Area] [Verb] [Specific Deliverable]`
+**Title format (preferred at contract_version >= 1.1.x):** `[Slice] [Outcome] — [verb] [deliverable]`
 
-**Description template:**
+The slice prefix routes the ticket to its product Initiative (e.g., `MVP:Scan`, `MVP:Hook`, `vNext:Hosted-Foundation`). The outcome is a 2-4 word user-facing phrase. The verb+deliverable suffix preserves agent-parseable scope.
+
+Examples:
+- `[MVP:Scan] Risky shell patterns surfaced — add filesystem/git/egress rules`
+- `[MVP:Hook] Codex sessions monitored — add session doorbell installer`
+- `[vNext:Hosted-Mediation] Brokered credentials issued — add lease-scoped broker path`
+
+**Title format (legacy, accepted for backward compatibility):** `[Area] [Verb] [Specific Deliverable]`
+
+Existing emissions with the legacy title format remain valid; new emissions at contract_version >= 1.1.x prefer the slice-outcome format.
+
+**Description template (contract_version >= 1.1.x):**
+
+The template has two zones: a human-readable zone at the top (Product Feature, Narrative, Task, AC, Scope, Out of Scope, Dependencies) and an agent-context zone below a horizontal rule containing every contract field. A human scanning the description reads the human zone first; the agent reads the whole thing but the contract fields are grouped for navigability.
+
 ```md
+## Product Feature
+[from narrative_contract.product_feature — 3-6 sentence high-level story connecting this ticket to the product feature it builds toward]
+
+## Narrative
+**Feature:** [from narrative_contract.feature]
+**Value:** [from narrative_contract.value]
+**Why:** [from narrative_contract.why]
+**Goal:** [from narrative_contract.goal]
+**Validated by:** [narrative_contract.human_validator] at [narrative_contract.human_validated_at]
+
 ## Task
 [Self-contained task description]
-
-## Artifact Type
-- Type: [scope_lock_epic | decision_gate | implementation_task | validation_task]
-- Executable: [yes/no]
-- Blocks implementation: [yes/no]
-
-## Decision Contract
-- Type 1 decision: [true/false]
-- Status: [not_applicable | unresolved | resolved]
-- Owner:
-- Deadline:
-- Resolution:
 
 ## Acceptance Criteria (Given/When/Then)
 - Given ...
 - When ...
 - Then ...
 
-## Architecture Pattern
+## Scope
+- [one bullet per PR-sized implementation unit, derived from task scope]
+
+## Out of Scope
+- [explicit non-goals, derived from constraints and tech-debt boundaries]
+
+## Dependencies
+- Depends on: [moved up — humans need to see blockers early]
+- Blocks:
+
+---
+
+## Agent Context
+
+> Everything below is contract data for the executing agent. Fold this section when reading as a human.
+
+### Artifact Type
+- Type: [scope_lock_epic | decision_gate | implementation_task | validation_task]
+- Executable: [yes/no]
+- Blocks implementation: [yes/no]
+
+### Decision Contract
+- Type 1 decision: [true/false]
+- Status: [not_applicable | unresolved | resolved]
+- Owner:
+- Deadline:
+- Resolution:
+
+### Architecture Pattern
 - Follow: [pattern name]
 - Reference implementation: [file path]
 
-## Reuse / Existing Patterns
+### Reuse / Existing Patterns
 - Reuse: [existing service/helper/pattern to extend]
 - Do Not Reimplement: [existing helper/service/pattern that must not be duplicated]
 
-## Constraints
+### Constraints
 - Must:
 - Must not:
 - Escalate if:
 - Task Classification: [feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security]
 
-## Tech Debt / Cleanup Boundaries
+### Tech Debt / Cleanup Boundaries
 - Prerequisite debt: [blocking debt to pay down first, or "none"]
 - Deferred debt: [allowed deferral with owner, or "none"]
 - Why deferral is safe: [brief justification when deferred debt exists]
 
-## Compatibility Contract
+### Compatibility Contract
 - Backward compatibility:
 - Forward compatibility:
 - Migration or rollout:
 
-## Scalable AI Code Primitives
+### Scalable AI Code Primitives
 - Construct map refs: [affected constructs, relationships, validation surfaces]
 - Paved-road refs: [approved reference paths or explicit no_paved_road_found]
 - Intent contract refs: [behavior/why/constraints/non-goals source]
 - Production invariant coverage: [identity/auth/tenancy/data/persistence/ordering/idempotency/retry/observability/etc. status + evidence]
 
-## Implementation Interface Contract
+### Implementation Interface Contract
 - Reuse:
 - Consumes:
 - Emits:
@@ -185,7 +225,7 @@ Artifact rules:
 - Integration points:
 - Validation gates:
 
-## Productionization Gate
+### Productionization Gate
 - Claim:
 - Coverage State: [unsupported | evidence_only | monitor_only | not_yet_ga | governed | production_ready]
 - Validation evidence:
@@ -194,7 +234,7 @@ Artifact rules:
 - Operational readiness: [owner, rollback path, runbook/alerting/dashboard/SLO refs]
 - Security/privacy posture:
 
-## Slop Quality Gate
+### Slop Quality Gate
 - Applicability: [required | not_applicable]
 - Reason:
 - Mode: [code | content | product_output | agent_output | mixed]
@@ -206,11 +246,7 @@ Artifact rules:
 - Failure action:
 - Case promotion sources:
 
-## Dependencies
-- Depends on:
-- Blocks:
-
-## Verification Contract
+### Verification Contract
 - Primary verifier: [test | command | reproducer] — [target]
 - Expected before change: fail
 - Expected after change: pass
@@ -218,23 +254,31 @@ Artifact rules:
 - Expected failure mode:
 - Overlay checks: [only when active]
 
-## Evidence Responsibilities
+### Evidence Responsibilities
 - [tests/logs/screenshots/audit/deploy evidence this issue owns]
 
-## Definition of Done
+### Definition of Done
 - [binary completion check]
 
-## Agent Instructions
+### Agent Instructions
 - Files to modify:
 - Files to create:
 - Pattern to follow:
 - Test file to update:
 
-## Failure Modes
+### Failure Modes
 - [FM-ID] [description]
 
-ADLC Idempotency Key: BRF-123:linear:TASK-7:create
+---
+
+## ADLC Provenance
+- Idempotency Key: [BRF-X:linear:TASK-Y:create]
+- Build Brief: [brief_id]
+- Source Context: [adlc:source_context, refreshed by drift-maintenance skill on each re-run]
+- Last Refreshed: [adlc:last_refreshed_at — populated by drift-maintenance skill]
 ```
+
+**Legacy description template (contract_version 1.x):** the pre-1.1 flat template (Task / Artifact Type / Decision Contract / ... / Failure Modes / ADLC Idempotency Key) remains accepted for backward compatibility. New emissions at 1.1.x prefer the two-zone format above.
 
 ### 3. Apply Linear Metadata
 
