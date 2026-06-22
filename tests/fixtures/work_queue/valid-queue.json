@@ -1,0 +1,219 @@
+{
+  "brief_id": "ADLC-GOAL-5",
+  "contract_version": "1.0.0",
+  "queue_id": "queue:adlc-goal-5",
+  "run_id": "adlc-run-goal5",
+  "session_id": "adlc-session-goal5",
+  "tasks": [
+    {
+      "brief_id": "ADLC-GOAL-5",
+      "created_at": "2026-06-22T00:00:00Z",
+      "expected_paths": [
+        {
+          "kind": "file",
+          "path": "scripts/adlc_runtime/cli.py",
+          "reason": "CLI command implementation"
+        }
+      ],
+      "priority": 10,
+      "run_id": "adlc-run-goal5",
+      "session_id": "adlc-session-goal5",
+      "source": {
+        "ref": "ADLC_GOAL_5_WORKTREE_QUEUE_SUBSTRATE_GOAL_PROMPT.md",
+        "type": "manual"
+      },
+      "status": "queued",
+      "task_id": "ADLC-G5-CLAIMABLE",
+      "title": "Add queue lifecycle commands",
+      "updated_at": "2026-06-22T00:00:00Z",
+      "verifier_refs": [
+        "tests/test_adlc_cli.sh"
+      ],
+      "work_item_external_id": "ADLC-GOAL-5:linear:ADLC-G5-CLAIMABLE:upsert"
+    },
+    {
+      "brief_id": "ADLC-GOAL-5",
+      "claim": {
+        "agent_id": "codex-alpha",
+        "brief_id": "ADLC-GOAL-5",
+        "claim_id": "claim:ADLC-G5-ACTIVE",
+        "claimed_at": "2026-06-22T00:01:00Z",
+        "expected_paths": [
+          {
+            "kind": "file",
+            "path": "docs/schemas/workflow-state.schema.json",
+            "reason": "workflow state queue refs"
+          }
+        ],
+        "run_id": "adlc-run-goal5",
+        "session_id": "adlc-session-goal5",
+        "status": "claimed",
+        "updated_at": "2026-06-22T00:01:00Z"
+      },
+      "expected_paths": [
+        {
+          "kind": "file",
+          "path": "docs/schemas/workflow-state.schema.json",
+          "reason": "workflow state queue refs"
+        }
+      ],
+      "priority": 20,
+      "source": {
+        "ref": "ADLC-GOAL-5",
+        "type": "manual"
+      },
+      "status": "claimed",
+      "task_id": "ADLC-G5-ACTIVE",
+      "title": "Extend workflow state for active claims",
+      "updated_at": "2026-06-22T00:01:00Z"
+    },
+    {
+      "brief_id": "ADLC-GOAL-5",
+      "claim": {
+        "agent_id": "codex-beta",
+        "brief_id": "ADLC-GOAL-5",
+        "claim_id": "claim:ADLC-G5-RUNNING",
+        "claimed_at": "2026-06-22T00:02:00Z",
+        "expected_paths": [
+          {
+            "kind": "directory",
+            "path": "docs/specs/",
+            "reason": "docs update"
+          }
+        ],
+        "run_id": "adlc-run-goal5",
+        "session_id": "adlc-session-goal5",
+        "status": "running",
+        "updated_at": "2026-06-22T00:02:00Z",
+        "worktree_ref": ".adlc/worktrees/adlc-g5-running"
+      },
+      "expected_paths": [
+        {
+          "kind": "directory",
+          "path": "docs/specs/",
+          "reason": "docs update"
+        }
+      ],
+      "priority": 30,
+      "source": {
+        "ref": "ADLC-GOAL-5",
+        "type": "manual"
+      },
+      "status": "running",
+      "task_id": "ADLC-G5-RUNNING",
+      "title": "Document harness-facing queue behavior",
+      "updated_at": "2026-06-22T00:02:00Z",
+      "worktree": {
+        "base_ref": "HEAD",
+        "branch": "adlc/ADLC-G5-RUNNING-aabbccddeeff",
+        "cleanup_eligible": false,
+        "dirty": false,
+        "path": ".adlc/worktrees/adlc-g5-running",
+        "status": "active",
+        "updated_at": "2026-06-22T00:02:00Z"
+      }
+    },
+    {
+      "expected_paths": [
+        {
+          "kind": "file",
+          "path": "README.md",
+          "reason": "readme update"
+        }
+      ],
+      "next_action": "wait for product owner review",
+      "priority": 40,
+      "reason": "human_review_required",
+      "source": {
+        "ref": "ADLC-GOAL-5",
+        "type": "manual"
+      },
+      "status": "blocked",
+      "task_id": "ADLC-G5-BLOCKED",
+      "title": "Review public docs wording",
+      "updated_at": "2026-06-22T00:03:00Z"
+    },
+    {
+      "evidence_refs": [
+        "bin/adlc ci --json"
+      ],
+      "expected_paths": [
+        {
+          "kind": "file",
+          "path": "tests/test_adlc_contracts.sh",
+          "reason": "contract test update"
+        }
+      ],
+      "priority": 50,
+      "source": {
+        "ref": "ADLC-GOAL-5",
+        "type": "manual"
+      },
+      "status": "done",
+      "task_id": "ADLC-G5-DONE",
+      "title": "Validate contract test coverage",
+      "updated_at": "2026-06-22T00:04:00Z"
+    },
+    {
+      "expected_paths": [
+        {
+          "kind": "file",
+          "path": "skills/eval-council/SKILL.md",
+          "reason": "requires human architecture review"
+        }
+      ],
+      "next_action": "human decides whether skill wording changes belong in Goal 5",
+      "priority": 60,
+      "reason": "architecture_scope_boundary",
+      "source": {
+        "ref": "ADLC-GOAL-5",
+        "type": "manual"
+      },
+      "status": "escalated",
+      "task_id": "ADLC-G5-ESCALATED",
+      "title": "Review architecture-scope skill change",
+      "updated_at": "2026-06-22T00:05:00Z"
+    },
+    {
+      "evidence_required": true,
+      "expected_paths": [
+        {
+          "kind": "file",
+          "path": "scripts/adlc_runtime/metadata.py",
+          "reason": "metadata verifier"
+        }
+      ],
+      "priority": 70,
+      "source": {
+        "ref": "ADLC-GOAL-5",
+        "type": "manual"
+      },
+      "status": "queued",
+      "task_id": "ADLC-G5-NEEDS-EVIDENCE",
+      "title": "Complete metadata update with verifier evidence",
+      "updated_at": "2026-06-22T00:06:00Z",
+      "verifier_refs": [
+        "python3 -m py_compile scripts/adlc_runtime/metadata.py"
+      ]
+    },
+    {
+      "expected_paths": [
+        {
+          "kind": "file",
+          "path": "docs/schemas/workflow-state.schema.json",
+          "reason": "intentional overlap with active claim"
+        }
+      ],
+      "priority": 80,
+      "source": {
+        "ref": "ADLC-GOAL-5",
+        "type": "manual"
+      },
+      "status": "queued",
+      "task_id": "ADLC-G5-OVERLAP",
+      "title": "Conflicting workflow-state edit",
+      "updated_at": "2026-06-22T00:07:00Z"
+    }
+  ],
+  "updated_at": "2026-06-22T00:07:00Z"
+}

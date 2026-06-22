@@ -1,0 +1,298 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/work-queue.schema.json",
+  "title": "ADLC Work Queue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "queue_id",
+    "updated_at",
+    "tasks"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "queue_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brief_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/task"
+      }
+    }
+  },
+  "definitions": {
+    "path_owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "kind"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "file",
+            "directory",
+            "glob"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "agent_id",
+        "status",
+        "claimed_at"
+      ],
+      "properties": {
+        "claim_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "claimed",
+            "running"
+          ]
+        },
+        "brief_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claimed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expected_paths": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/path_owner"
+          }
+        },
+        "worktree_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "worktree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "branch",
+        "path",
+        "status",
+        "updated_at"
+      ],
+      "properties": {
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "planned",
+            "prepared",
+            "active",
+            "cleanup_blocked",
+            "cleaned",
+            "abandoned"
+          ]
+        },
+        "dirty": {
+          "type": "boolean"
+        },
+        "cleanup_eligible": {
+          "type": "boolean"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_id",
+        "title",
+        "status",
+        "source",
+        "expected_paths"
+      ],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "claimed",
+            "running",
+            "blocked",
+            "done",
+            "escalated",
+            "released",
+            "abandoned"
+          ]
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "ref"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "build_brief",
+                "work_item",
+                "manual",
+                "signal",
+                "workflow_state"
+              ]
+            },
+            "ref": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "brief_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "work_item_external_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_paths": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/path_owner"
+          }
+        },
+        "verifier_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence_required": {
+          "type": "boolean"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "claim": {
+          "$ref": "#/definitions/claim"
+        },
+        "worktree": {
+          "$ref": "#/definitions/worktree"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "next_action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

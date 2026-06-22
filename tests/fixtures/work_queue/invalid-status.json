@@ -1,0 +1,22 @@
+{
+  "contract_version": "1.0.0",
+  "queue_id": "queue:invalid-status",
+  "tasks": [
+    {
+      "expected_paths": [
+        {
+          "kind": "file",
+          "path": "scripts/adlc_runtime/cli.py"
+        }
+      ],
+      "source": {
+        "ref": "invalid",
+        "type": "manual"
+      },
+      "status": "maybe",
+      "task_id": "INVALID-STATUS",
+      "title": "Invalid status"
+    }
+  ],
+  "updated_at": "2026-06-22T00:00:00Z"
+}

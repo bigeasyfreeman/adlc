@@ -100,6 +100,7 @@ What is automatic today:
 - Loop Contract test-selection, action-admission, and maturity-audit CLI/MCP tools
 - deterministic `loop-budget-check` CLI/MCP budget guard for LLM-backed Loop Actions
 - strict Loop Contract required-test proof through `docs/schemas/loop-test-result.schema.json` and `loop-test-selection --require-test-results`
+- schema-backed work queue status, task claims, completion/block/escalation state, dirty-checks, file-overlap checks, and worktree prepare/status/cleanup dry-runs
 - runtime preflight through `bin/adlc health-check --json`
 - resume summaries for task fingerprints, loop progress, no-progress count, control events, safe checkpoints, and escalation context
 
@@ -193,9 +194,19 @@ bin/adlc loop-action-validate --loop-contract docs/loop-contracts/task.json --ac
 bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --test-results .adlc/loop_test_result.json --token-budget .adlc/token_budget.json --json
 bin/adlc emit-work-items --target linear --build-brief .adlc/build_brief.json --dry-run --json
 bin/adlc sync-work-item --build-brief .adlc/build_brief.json --target linear --state .adlc/workflow_state.json --dry-run --json
+bin/adlc queue-status --queue .adlc/work_queue.json --json
+bin/adlc queue-claim --queue .adlc/work_queue.json --task-id TASK-123 --state .adlc/workflow_state.json --workspace . --dry-run --json
+bin/adlc queue-complete --queue .adlc/work_queue.json --task-id TASK-123 --state .adlc/workflow_state.json --evidence .adlc/loop_test_result.json --dry-run --json
+bin/adlc queue-block --queue .adlc/work_queue.json --task-id TASK-123 --reason file_collision --next-action 'split file ownership' --dry-run --json
+bin/adlc queue-escalate --queue .adlc/work_queue.json --task-id TASK-123 --reason human_review_required --next-action 'review architecture boundary' --dry-run --json
+bin/adlc worktree-prepare --queue .adlc/work_queue.json --task-id TASK-123 --workspace . --dry-run --json
+bin/adlc worktree-status --queue .adlc/work_queue.json --workspace . --json
+bin/adlc worktree-cleanup --queue .adlc/work_queue.json --task-id TASK-123 --workspace . --dry-run --json
 bin/adlc mcp-tools --json
 bin/adlc mcp-serve
 ```
+
+Queue and worktree operations are dry-run first. Mutating queue state or creating/removing worktrees requires `--allow-mutation` plus a tool-registry admission path for `adlc-queue` or `adlc-worktree`. Claims fail closed when the checkout is dirty or when expected file, directory, or glob ownership overlaps an active `claimed` or `running` task.
 
 Minimal Loop Contract flow:
 

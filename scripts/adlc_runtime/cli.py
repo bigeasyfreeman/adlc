@@ -8,6 +8,7 @@ without becoming a full workflow orchestrator.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -979,7 +980,776 @@ def resume_next_action_payload(state: Dict[str, Any]) -> Dict[str, Any]:
         "escalation_context": state.get("escalation_context"),
         "budget_status": state.get("budget_status"),
         "work_item_links": state.get("work_item_links", []),
+        "queue_claims": state.get("queue_claims", []),
+        "worktree_refs": state.get("worktree_refs", []),
     }
+
+
+QUEUE_STATUSES = ("queued", "claimed", "running", "blocked", "done", "escalated", "released", "abandoned")
+QUEUE_ACTIVE_STATUSES = {"claimed", "running"}
+QUEUE_FINAL_STATUSES = {"done", "escalated", "abandoned"}
+
+
+def default_queue_path(workspace: Path) -> Path:
+    return workspace / ".adlc" / "work_queue.json"
+
+
+def resolve_queue_path(raw_path: str | None, workspace: Path) -> Path:
+    if not raw_path:
+        return default_queue_path(workspace).resolve()
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path.resolve()
+    cwd_path = (Path.cwd() / path).resolve()
+    if cwd_path.exists():
+        return cwd_path
+    return (workspace / path).resolve()
+
+
+def load_work_queue(path: Path) -> Dict[str, Any]:
+    if not path.is_file():
+        raise FileNotFoundError(f"work queue not found: {path}")
+    errors = validate_artifact(resolve_schema("work-queue"), path)
+    if errors:
+        raise ValueError("work queue failed schema validation: " + "; ".join(errors))
+    queue = read_json(path)
+    if not isinstance(queue, dict):
+        raise ValueError(f"work queue must be a JSON object: {path}")
+    return queue
+
+
+def save_work_queue(path: Path, queue: Dict[str, Any]) -> None:
+    queue["updated_at"] = utc_now()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(queue, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    errors = validate_artifact(resolve_schema("work-queue"), path)
+    if errors:
+        raise ValueError("work queue failed schema validation after write: " + "; ".join(errors))
+
+
+def queue_task_key(task: Dict[str, Any]) -> Tuple[int, str, str]:
+    priority = task.get("priority")
+    if not isinstance(priority, int):
+        priority = 1000
+    return priority, str(task.get("created_at") or ""), str(task.get("task_id") or "")
+
+
+def sorted_queue_tasks(queue: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return sorted((task for task in queue.get("tasks", []) if isinstance(task, dict)), key=queue_task_key)
+
+
+def find_queue_task(queue: Dict[str, Any], task_id: str) -> Dict[str, Any]:
+    for task in queue.get("tasks", []):
+        if isinstance(task, dict) and task.get("task_id") == task_id:
+            return task
+    raise ValueError(f"task not found in work queue: {task_id}")
+
+
+def normalize_owned_path(raw_path: str) -> str:
+    normalized = raw_path.strip().replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    if normalized != "/":
+        normalized = normalized.rstrip("/")
+    return normalized or "."
+
+
+def path_owner_entries(task: Dict[str, Any]) -> List[Dict[str, str]]:
+    entries: List[Dict[str, str]] = []
+    raw_entries = task.get("expected_paths", [])
+    if not isinstance(raw_entries, list):
+        return entries
+    for raw in raw_entries:
+        if isinstance(raw, str) and raw.strip():
+            path = normalize_owned_path(raw)
+            kind = "glob" if any(char in path for char in "*?[") else "file"
+            entries.append({"path": path, "kind": kind})
+        elif isinstance(raw, dict) and isinstance(raw.get("path"), str) and raw["path"].strip():
+            path = normalize_owned_path(raw["path"])
+            kind = str(raw.get("kind") or "file")
+            if kind not in {"file", "directory", "glob"}:
+                kind = "glob" if any(char in path for char in "*?[") else "file"
+            entry = {"path": path, "kind": kind}
+            if isinstance(raw.get("reason"), str) and raw["reason"].strip():
+                entry["reason"] = raw["reason"].strip()
+            entries.append(entry)
+    return entries
+
+
+def owner_is_directory(owner: Dict[str, str]) -> bool:
+    return owner.get("kind") == "directory"
+
+
+def path_owners_overlap(left: Dict[str, str], right: Dict[str, str]) -> bool:
+    left_path = normalize_owned_path(left["path"])
+    right_path = normalize_owned_path(right["path"])
+    left_kind = left.get("kind", "file")
+    right_kind = right.get("kind", "file")
+
+    if left_kind == "glob" or right_kind == "glob":
+        return (
+            fnmatch.fnmatch(right_path, left_path)
+            or fnmatch.fnmatch(left_path, right_path)
+            or fnmatch.fnmatch(right_path + "/", left_path)
+            or fnmatch.fnmatch(left_path + "/", right_path)
+        )
+    if left_path == right_path:
+        return True
+    if owner_is_directory(left):
+        return right_path.startswith(left_path + "/")
+    if owner_is_directory(right):
+        return left_path.startswith(right_path + "/")
+    return False
+
+
+def queue_overlap_issues(queue: Dict[str, Any], candidate: Dict[str, Any]) -> List[Dict[str, Any]]:
+    candidate_paths = path_owner_entries(candidate)
+    issues: List[Dict[str, Any]] = []
+    if not candidate_paths:
+        return issues
+    for task in sorted_queue_tasks(queue):
+        if task.get("task_id") == candidate.get("task_id"):
+            continue
+        if task.get("status") not in QUEUE_ACTIVE_STATUSES:
+            continue
+        for candidate_path in candidate_paths:
+            for active_path in path_owner_entries(task):
+                if path_owners_overlap(candidate_path, active_path):
+                    issues.append(
+                        {
+                            "rule": "file_overlap",
+                            "message": "expected paths overlap an active queue claim",
+                            "task_id": candidate.get("task_id"),
+                            "conflicting_task_id": task.get("task_id"),
+                            "path": candidate_path["path"],
+                            "conflicting_path": active_path["path"],
+                        }
+                    )
+    return issues
+
+
+def git_dirty_status(workspace: Path) -> Dict[str, Any]:
+    result = subprocess.run(
+        ["git", "-C", str(workspace), "status", "--porcelain"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return {
+            "is_git": False,
+            "dirty": True,
+            "reason": "not_git_workspace",
+            "stderr": result.stderr[-1000:],
+        }
+    entries = [line for line in result.stdout.splitlines() if line.strip()]
+    return {
+        "is_git": True,
+        "dirty": bool(entries),
+        "reason": "dirty_checkout" if entries else "clean",
+        "entries": entries[:50],
+        "truncated": len(entries) > 50,
+    }
+
+
+def optional_workflow_state(workspace: Path, state_arg: str | None) -> Tuple[Path, Dict[str, Any] | None]:
+    state_path = resolve_under_workspace(state_arg, workspace, DEFAULT_STATE_PATH)
+    if not state_path.exists():
+        return state_path, None
+    return state_path, ensure_workflow_identity(load_workflow_state(state_path))
+
+
+def queue_run_identity(queue: Dict[str, Any], task: Dict[str, Any], state: Dict[str, Any] | None) -> Dict[str, Any]:
+    identity = workflow_identity_payload(state) if state else None
+    if not identity:
+        identity = {}
+    for key in ("brief_id", "run_id", "session_id"):
+        value = task.get(key) or queue.get(key)
+        if isinstance(value, str) and value.strip():
+            identity.setdefault(key, value)
+    return identity
+
+
+def queue_summary(queue: Dict[str, Any]) -> Dict[str, Any]:
+    counts = {status: 0 for status in QUEUE_STATUSES}
+    for task in sorted_queue_tasks(queue):
+        status = str(task.get("status") or "unknown")
+        counts[status] = counts.get(status, 0) + 1
+    return {
+        "total": sum(counts.values()),
+        "counts": counts,
+        "active": counts.get("claimed", 0) + counts.get("running", 0),
+        "available": counts.get("queued", 0) + counts.get("released", 0),
+        "blocked": counts.get("blocked", 0) + counts.get("escalated", 0),
+        "done": counts.get("done", 0),
+    }
+
+
+def queue_status_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    workspace = resolve_workspace(args.workspace)
+    queue_path = resolve_queue_path(args.queue, workspace)
+    queue = load_work_queue(queue_path)
+    tasks = sorted_queue_tasks(queue)
+    active_claims = [
+        {
+            "task_id": task.get("task_id"),
+            "status": task.get("status"),
+            "claim": task.get("claim"),
+            "expected_paths": path_owner_entries(task),
+            "worktree": task.get("worktree"),
+        }
+        for task in tasks
+        if task.get("status") in QUEUE_ACTIVE_STATUSES
+    ]
+    return {
+        "contract_version": "1.0.0",
+        "queue_ref": rel_path(queue_path),
+        "queue_id": queue.get("queue_id"),
+        "summary": queue_summary(queue),
+        "active_claims": active_claims,
+        "tasks": tasks,
+    }
+
+
+def claim_id_for(queue: Dict[str, Any], task: Dict[str, Any], agent_id: str, identity: Dict[str, Any]) -> str:
+    return "claim:" + stable_hash(
+        "|".join(
+            [
+                str(queue.get("queue_id", "")),
+                str(task.get("task_id", "")),
+                agent_id,
+                str(identity.get("run_id", "")),
+                str(identity.get("session_id", "")),
+            ]
+        )
+    )
+
+
+def queue_mutation_admission(
+    args: argparse.Namespace,
+    workspace: Path,
+    state_path: Path,
+    state: Dict[str, Any] | None,
+    tool_name: str,
+    action: str,
+    default_audit_name: str,
+) -> Tuple[int, Dict[str, Any]]:
+    if not args.tool_registry:
+        raise ValueError("--tool-registry is required with --allow-mutation")
+    audit_path = cli_input_path(args.audit_trail) if args.audit_trail else state_path.parent / default_audit_name
+    return action_admit_payload(
+        tool_registry_path=cli_input_path(args.tool_registry),
+        tool_name=tool_name,
+        action=action,
+        phase=(state or {}).get("phase", "code"),
+        state_path=state_path if state_path.exists() else None,
+        brief_id=(state or {}).get("brief_id"),
+        run_id=(state or {}).get("run_id"),
+        session_id=(state or {}).get("session_id"),
+        allow_mutation=True,
+        human_approved=args.human_approved,
+        approval_ref=args.approval_ref,
+        audit_trail_path=audit_path,
+    )
+
+
+def record_local_side_effect(
+    state: Dict[str, Any],
+    tool_name: str,
+    operation: str,
+    task_id: str,
+    artifact_ref: str,
+    status: str = "completed",
+    error: str | None = None,
+) -> None:
+    now = utc_now()
+    side_effect: Dict[str, Any] = {
+        "idempotency_key": ":".join(
+            [
+                str(state.get("brief_id", "UNKNOWN-BRIEF")),
+                str(tool_name),
+                str(task_id),
+                str(operation),
+                stable_hash(artifact_ref),
+            ]
+        ),
+        "brief_id": state.get("brief_id"),
+        "run_id": state.get("run_id"),
+        "session_id": state.get("session_id"),
+        "tool_name": tool_name,
+        "operation": operation,
+        "status": status,
+        "artifact_id": task_id,
+        "artifact_ref": artifact_ref,
+        "timestamp": now,
+    }
+    if error:
+        side_effect["error"] = error
+    state.setdefault("side_effects", []).append(side_effect)
+
+
+def upsert_queue_claim_state(
+    state: Dict[str, Any],
+    queue: Dict[str, Any],
+    queue_path: Path,
+    task: Dict[str, Any],
+    status: str,
+    claim: Dict[str, Any] | None,
+    reason: str | None = None,
+    next_action: str | None = None,
+    evidence_refs: List[str] | None = None,
+) -> None:
+    now = utc_now()
+    claims = [
+        item
+        for item in state.get("queue_claims", [])
+        if not (isinstance(item, dict) and item.get("queue_id") == queue.get("queue_id") and item.get("task_id") == task.get("task_id"))
+    ]
+    entry: Dict[str, Any] = {
+        "queue_id": queue.get("queue_id"),
+        "queue_ref": rel_path(queue_path),
+        "task_id": task.get("task_id"),
+        "brief_id": state.get("brief_id"),
+        "run_id": state.get("run_id"),
+        "session_id": state.get("session_id"),
+        "status": status,
+        "expected_paths": path_owner_entries(task),
+        "updated_at": now,
+    }
+    if claim:
+        for key in ("claim_id", "agent_id", "worktree_ref"):
+            if claim.get(key):
+                entry[key] = claim[key]
+    if reason:
+        entry["reason"] = reason
+    if next_action:
+        entry["next_action"] = next_action
+    if evidence_refs:
+        entry["evidence_refs"] = evidence_refs
+    claims.append({k: v for k, v in entry.items() if v is not None})
+    state["queue_claims"] = claims
+
+
+def upsert_worktree_state_ref(
+    state: Dict[str, Any],
+    queue: Dict[str, Any],
+    queue_path: Path,
+    task_id: str,
+    worktree: Dict[str, Any],
+) -> None:
+    refs = [
+        item
+        for item in state.get("worktree_refs", [])
+        if not (isinstance(item, dict) and item.get("task_id") == task_id and item.get("path") == worktree.get("path"))
+    ]
+    entry: Dict[str, Any] = {
+        "queue_id": queue.get("queue_id"),
+        "queue_ref": rel_path(queue_path),
+        "task_id": task_id,
+        "branch": worktree.get("branch"),
+        "path": worktree.get("path"),
+        "base_ref": worktree.get("base_ref"),
+        "status": worktree.get("status"),
+        "dirty": worktree.get("dirty"),
+        "cleanup_eligible": worktree.get("cleanup_eligible"),
+        "updated_at": worktree.get("updated_at") or utc_now(),
+    }
+    refs.append({k: v for k, v in entry.items() if v is not None})
+    state["worktree_refs"] = refs
+
+
+def queue_block_payload(reason: str, issues: List[Dict[str, Any]], base: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    payload = {
+        **base,
+        "status": "blocked",
+        "stop_reason": reason,
+        "issues": issues,
+    }
+    return 1, payload
+
+
+def evidence_args(args: argparse.Namespace) -> List[str]:
+    values = getattr(args, "evidence", None) or []
+    return [str(value) for value in values if str(value).strip()]
+
+
+def queue_transition_payload(args: argparse.Namespace, operation: str) -> Tuple[int, Dict[str, Any]]:
+    workspace = resolve_workspace(args.workspace)
+    queue_path = resolve_queue_path(args.queue, workspace)
+    queue = load_work_queue(queue_path)
+    task = find_queue_task(queue, args.task_id)
+    state_path, state = optional_workflow_state(workspace, args.state)
+    identity = queue_run_identity(queue, task, state)
+    dry_run = args.dry_run or not args.allow_mutation
+    now = utc_now()
+    agent_id = getattr(args, "agent_id", None) or identity.get("session_id") or os.environ.get("USER") or "adlc-agent"
+    evidence = evidence_args(args)
+    base: Dict[str, Any] = {
+        "contract_version": "1.0.0",
+        "dry_run": dry_run,
+        "operation": operation,
+        "queue_ref": rel_path(queue_path),
+        "queue_id": queue.get("queue_id"),
+        "task_id": args.task_id,
+        "task_status": task.get("status"),
+        "run_identity": identity,
+    }
+
+    if operation == "claim":
+        if task.get("status") != "queued":
+            return queue_block_payload(
+                "task_not_claimable",
+                [{"rule": "task_not_claimable", "message": f"task status is {task.get('status')}"}],
+                base,
+            )
+        dirty = git_dirty_status(workspace)
+        if dirty["dirty"]:
+            return queue_block_payload(
+                dirty.get("reason", "dirty_checkout"),
+                [{"rule": dirty.get("reason", "dirty_checkout"), "message": "workspace is not clean", "git": dirty}],
+                {**base, "git": dirty},
+            )
+        overlaps = queue_overlap_issues(queue, task)
+        if overlaps:
+            return queue_block_payload("file_overlap", overlaps, {**base, "git": dirty})
+        claim = {
+            "claim_id": claim_id_for(queue, task, str(agent_id), identity),
+            "agent_id": str(agent_id),
+            "status": "claimed",
+            "claimed_at": now,
+            "updated_at": now,
+            "expected_paths": path_owner_entries(task),
+        }
+        for key in ("brief_id", "run_id", "session_id"):
+            if identity.get(key):
+                claim[key] = identity[key]
+        if getattr(args, "worktree_ref", None):
+            claim["worktree_ref"] = args.worktree_ref
+        planned_task = {**task, "status": "claimed", "claim": claim, "updated_at": now}
+        result = {**base, "status": "pass", "git": dirty, "planned_task": planned_task, "claim": claim, "issues": []}
+        if dry_run:
+            return 0, result
+        admission_exit, admission = queue_mutation_admission(args, workspace, state_path, state, "adlc-queue", "claim_task", "queue_permission_audit.json")
+        result["admission"] = admission
+        if admission_exit != 0:
+            return queue_block_payload(admission.get("stop_reason") or admission["status"], admission.get("issues", []), result)
+        task.update(planned_task)
+        save_work_queue(queue_path, queue)
+        if state:
+            upsert_queue_claim_state(state, queue, queue_path, task, "claimed", claim)
+            record_local_side_effect(state, "adlc-queue", "claim_task", args.task_id, rel_path(queue_path))
+            state["updated_at"] = utc_now()
+            save_workflow_state(state_path, state)
+            result["state"] = state
+        result["status"] = "committed"
+        result["task"] = task
+        return 0, result
+
+    if operation == "release":
+        if task.get("status") not in QUEUE_ACTIVE_STATUSES:
+            return queue_block_payload(
+                "task_not_releasable",
+                [{"rule": "task_not_releasable", "message": f"task status is {task.get('status')}"}],
+                base,
+            )
+        planned_task = dict(task)
+        planned_task["status"] = "queued"
+        planned_task["updated_at"] = now
+        planned_task.pop("claim", None)
+        result = {**base, "status": "pass", "planned_task": planned_task, "issues": []}
+        new_state_status = "released"
+    elif operation == "complete":
+        requires_evidence = bool(task.get("evidence_required")) or bool(task.get("verifier_refs"))
+        existing_evidence = [str(value) for value in task.get("evidence_refs", []) if str(value).strip()] if isinstance(task.get("evidence_refs"), list) else []
+        if requires_evidence and not evidence and not existing_evidence:
+            return queue_block_payload(
+                "missing_verifier_evidence",
+                [{"rule": "missing_verifier_evidence", "message": "queue-complete requires --evidence for tasks with verifier_refs or evidence_required"}],
+                base,
+            )
+        planned_task = dict(task)
+        planned_task["status"] = "done"
+        planned_task["updated_at"] = now
+        planned_task["evidence_refs"] = sorted(set(existing_evidence + evidence))
+        planned_task.pop("claim", None)
+        result = {**base, "status": "pass", "planned_task": planned_task, "issues": []}
+        new_state_status = "done"
+    elif operation in {"block", "escalate"}:
+        if not args.reason or not args.next_action:
+            return queue_block_payload(
+                "missing_reason_or_next_action",
+                [{"rule": "missing_reason_or_next_action", "message": f"queue-{operation} requires --reason and --next-action"}],
+                base,
+            )
+        planned_task = dict(task)
+        planned_task["status"] = "blocked" if operation == "block" else "escalated"
+        planned_task["reason"] = args.reason
+        planned_task["next_action"] = args.next_action
+        planned_task["updated_at"] = now
+        if evidence:
+            planned_task["evidence_refs"] = sorted(set([*planned_task.get("evidence_refs", []), *evidence]))
+        planned_task.pop("claim", None)
+        result = {**base, "status": "pass", "planned_task": planned_task, "issues": []}
+        new_state_status = planned_task["status"]
+    else:
+        raise ValueError(f"unsupported queue operation: {operation}")
+
+    if dry_run:
+        return 0, result
+    admission_exit, admission = queue_mutation_admission(args, workspace, state_path, state, "adlc-queue", f"{operation}_task", "queue_permission_audit.json")
+    result["admission"] = admission
+    if admission_exit != 0:
+        return queue_block_payload(admission.get("stop_reason") or admission["status"], admission.get("issues", []), result)
+    task.clear()
+    task.update(planned_task)
+    save_work_queue(queue_path, queue)
+    if state:
+        upsert_queue_claim_state(
+            state,
+            queue,
+            queue_path,
+            task,
+            new_state_status,
+            task.get("claim") if isinstance(task.get("claim"), dict) else None,
+            reason=task.get("reason"),
+            next_action=task.get("next_action"),
+            evidence_refs=task.get("evidence_refs") if isinstance(task.get("evidence_refs"), list) else None,
+        )
+        record_local_side_effect(state, "adlc-queue", f"{operation}_task", args.task_id, rel_path(queue_path))
+        state["updated_at"] = utc_now()
+        save_workflow_state(state_path, state)
+        result["state"] = state
+    result["status"] = "committed"
+    result["task"] = task
+    return 0, result
+
+
+def slugify_task_id(task_id: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", task_id.strip()).strip("-").lower()
+    return slug or "task"
+
+
+def default_worktree_root(workspace: Path) -> Path:
+    return workspace.parent / f"{workspace.name}-adlc-worktrees"
+
+
+def worktree_plan(workspace: Path, task: Dict[str, Any], worktree_root_arg: str | None, worktree_path_arg: str | None, base_ref: str | None) -> Dict[str, Any]:
+    task_id = str(task.get("task_id") or "task")
+    slug = slugify_task_id(task_id)
+    branch = f"adlc/{slug}-{stable_hash(task_id)[:8]}"
+    if worktree_path_arg:
+        worktree_path = Path(worktree_path_arg)
+        if not worktree_path.is_absolute():
+            worktree_path = workspace / worktree_path
+    else:
+        root = Path(worktree_root_arg) if worktree_root_arg else default_worktree_root(workspace)
+        if not root.is_absolute():
+            root = workspace / root
+        worktree_path = root / slug
+    return {
+        "branch": branch,
+        "path": str(worktree_path.resolve()),
+        "base_ref": base_ref or "HEAD",
+        "status": "planned",
+        "updated_at": utc_now(),
+    }
+
+
+def worktree_dirty_status(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {"exists": False, "is_git": False, "dirty": False, "reason": "missing_worktree"}
+    status = git_dirty_status(path)
+    status["exists"] = True
+    return status
+
+
+def worktree_prepare_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
+    workspace = resolve_workspace(args.workspace)
+    queue_path = resolve_queue_path(args.queue, workspace)
+    queue = load_work_queue(queue_path)
+    task = find_queue_task(queue, args.task_id)
+    state_path, state = optional_workflow_state(workspace, args.state)
+    dry_run = args.dry_run or not args.allow_mutation
+    dirty = git_dirty_status(workspace)
+    plan = worktree_plan(workspace, task, args.worktree_root, args.worktree_path, args.base_ref)
+    base = {
+        "contract_version": "1.0.0",
+        "dry_run": dry_run,
+        "operation": "prepare",
+        "queue_ref": rel_path(queue_path),
+        "queue_id": queue.get("queue_id"),
+        "task_id": args.task_id,
+        "task_status": task.get("status"),
+        "worktree": plan,
+        "git": dirty,
+    }
+    if task.get("status") not in {"queued", "claimed"}:
+        return queue_block_payload(
+            "task_not_preparable",
+            [{"rule": "task_not_preparable", "message": f"task status is {task.get('status')}"}],
+            base,
+        )
+    if dirty["dirty"]:
+        return queue_block_payload(
+            dirty.get("reason", "dirty_checkout"),
+            [{"rule": dirty.get("reason", "dirty_checkout"), "message": "workspace is not clean", "git": dirty}],
+            base,
+        )
+    overlaps = queue_overlap_issues(queue, task)
+    if overlaps:
+        return queue_block_payload("file_overlap", overlaps, base)
+    result = {**base, "status": "pass", "issues": []}
+    if dry_run:
+        return 0, result
+    admission_exit, admission = queue_mutation_admission(args, workspace, state_path, state, "adlc-worktree", "prepare_worktree", "worktree_permission_audit.json")
+    result["admission"] = admission
+    if admission_exit != 0:
+        return queue_block_payload(admission.get("stop_reason") or admission["status"], admission.get("issues", []), result)
+    worktree_path = Path(plan["path"])
+    worktree_path.parent.mkdir(parents=True, exist_ok=True)
+    command = ["git", "-C", str(workspace), "worktree", "add", "-b", plan["branch"], str(worktree_path), plan["base_ref"]]
+    process = subprocess.run(command, text=True, capture_output=True, check=False)
+    if process.returncode != 0:
+        return queue_block_payload(
+            "worktree_prepare_failed",
+            [{"rule": "worktree_prepare_failed", "message": process.stderr[-2000:], "command": command}],
+            result,
+        )
+    worktree = {**plan, "status": "active", "dirty": False, "cleanup_eligible": False, "updated_at": utc_now()}
+    task["status"] = "running"
+    task["updated_at"] = utc_now()
+    task["worktree"] = worktree
+    claim = task.get("claim") if isinstance(task.get("claim"), dict) else None
+    if claim:
+        claim["status"] = "running"
+        claim["updated_at"] = utc_now()
+        claim["worktree_ref"] = worktree["path"]
+    save_work_queue(queue_path, queue)
+    if state:
+        upsert_queue_claim_state(state, queue, queue_path, task, "running", claim)
+        upsert_worktree_state_ref(state, queue, queue_path, args.task_id, worktree)
+        record_local_side_effect(state, "adlc-worktree", "prepare_worktree", args.task_id, worktree["path"])
+        state["updated_at"] = utc_now()
+        save_workflow_state(state_path, state)
+        result["state"] = state
+    result["status"] = "committed"
+    result["worktree"] = worktree
+    result["task"] = task
+    return 0, result
+
+
+def queue_task_worktree(task: Dict[str, Any], workspace: Path, args: argparse.Namespace) -> Dict[str, Any]:
+    if args.worktree_path:
+        plan = worktree_plan(workspace, task, args.worktree_root, args.worktree_path, args.base_ref)
+        existing = task.get("worktree") if isinstance(task.get("worktree"), dict) else {}
+        return {**plan, **existing, "path": plan["path"]}
+    if isinstance(task.get("worktree"), dict):
+        existing = dict(task["worktree"])
+        if isinstance(existing.get("path"), str):
+            path = Path(existing["path"])
+            if not path.is_absolute():
+                existing["path"] = str((workspace / path).resolve())
+        return existing
+    return worktree_plan(workspace, task, args.worktree_root, None, args.base_ref)
+
+
+def worktree_status_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    workspace = resolve_workspace(args.workspace)
+    queue_path = resolve_queue_path(args.queue, workspace) if args.queue else None
+    queue = load_work_queue(queue_path) if queue_path and queue_path.exists() else {"queue_id": None, "tasks": []}
+    tasks = sorted_queue_tasks(queue)
+    if args.task_id:
+        tasks = [find_queue_task(queue, args.task_id)]
+    worktrees = []
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        if not task.get("worktree") and not args.worktree_path and task.get("status") not in QUEUE_ACTIVE_STATUSES:
+            continue
+        worktree = queue_task_worktree(task, workspace, args)
+        dirty = worktree_dirty_status(Path(worktree["path"]))
+        worktrees.append(
+            {
+                "task_id": task.get("task_id"),
+                "queue_id": queue.get("queue_id"),
+                "task_status": task.get("status"),
+                "worktree": worktree,
+                "dirty_state": dirty,
+                "cleanup_eligible": dirty.get("exists") and not dirty.get("dirty"),
+            }
+        )
+    return {
+        "contract_version": "1.0.0",
+        "workspace": str(workspace),
+        "queue_ref": rel_path(queue_path) if queue_path else None,
+        "queue_id": queue.get("queue_id"),
+        "worktrees": worktrees,
+        "summary": {
+            "total": len(worktrees),
+            "dirty": sum(1 for item in worktrees if item["dirty_state"].get("dirty")),
+            "cleanup_eligible": sum(1 for item in worktrees if item.get("cleanup_eligible")),
+        },
+    }
+
+
+def worktree_cleanup_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
+    workspace = resolve_workspace(args.workspace)
+    queue_path = resolve_queue_path(args.queue, workspace)
+    queue = load_work_queue(queue_path)
+    task = find_queue_task(queue, args.task_id)
+    state_path, state = optional_workflow_state(workspace, args.state)
+    dry_run = args.dry_run or not args.allow_mutation
+    worktree = queue_task_worktree(task, workspace, args)
+    dirty = worktree_dirty_status(Path(worktree["path"]))
+    base = {
+        "contract_version": "1.0.0",
+        "dry_run": dry_run,
+        "operation": "cleanup",
+        "queue_ref": rel_path(queue_path),
+        "queue_id": queue.get("queue_id"),
+        "task_id": args.task_id,
+        "worktree": worktree,
+        "dirty_state": dirty,
+    }
+    if dirty.get("dirty") and not args.force:
+        return queue_block_payload(
+            "dirty_worktree",
+            [{"rule": "dirty_worktree", "message": "worktree has uncommitted changes", "git": dirty}],
+            base,
+        )
+    result = {**base, "status": "pass", "issues": []}
+    if dry_run:
+        return 0, result
+    admission_exit, admission = queue_mutation_admission(args, workspace, state_path, state, "adlc-worktree", "cleanup_worktree", "worktree_permission_audit.json")
+    result["admission"] = admission
+    if admission_exit != 0:
+        return queue_block_payload(admission.get("stop_reason") or admission["status"], admission.get("issues", []), result)
+    if Path(worktree["path"]).exists():
+        command = ["git", "-C", str(workspace), "worktree", "remove"]
+        if args.force:
+            command.append("--force")
+        command.append(worktree["path"])
+        process = subprocess.run(command, text=True, capture_output=True, check=False)
+        if process.returncode != 0:
+            return queue_block_payload(
+                "worktree_cleanup_failed",
+                [{"rule": "worktree_cleanup_failed", "message": process.stderr[-2000:], "command": command}],
+                result,
+            )
+    cleaned = {**worktree, "status": "cleaned", "dirty": False, "cleanup_eligible": False, "updated_at": utc_now()}
+    task["worktree"] = cleaned
+    task["updated_at"] = utc_now()
+    save_work_queue(queue_path, queue)
+    if state:
+        upsert_worktree_state_ref(state, queue, queue_path, args.task_id, cleaned)
+        record_local_side_effect(state, "adlc-worktree", "cleanup_worktree", args.task_id, cleaned["path"])
+        state["updated_at"] = utc_now()
+        save_workflow_state(state_path, state)
+        result["state"] = state
+    result["status"] = "committed"
+    result["worktree"] = cleaned
+    result["task"] = task
+    return 0, result
 
 
 def parse_frontmatter_scalar(value: str) -> Any:
@@ -3626,6 +4396,124 @@ def command_sync_work_item(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def command_queue_status(args: argparse.Namespace) -> int:
+    try:
+        payload = queue_status_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        summary = payload["summary"]
+        print(f"{payload['queue_id']}: {summary['total']} task(s), {summary['active']} active, {summary['blocked']} blocked")
+    return 0
+
+
+def command_queue_claim(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = queue_transition_payload(args, "claim")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['task_id']}: {payload['operation']} {payload['status']}")
+    return exit_code
+
+
+def command_queue_release(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = queue_transition_payload(args, "release")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['task_id']}: {payload['operation']} {payload['status']}")
+    return exit_code
+
+
+def command_queue_complete(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = queue_transition_payload(args, "complete")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['task_id']}: {payload['operation']} {payload['status']}")
+    return exit_code
+
+
+def command_queue_block(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = queue_transition_payload(args, "block")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['task_id']}: {payload['operation']} {payload['status']}")
+    return exit_code
+
+
+def command_queue_escalate(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = queue_transition_payload(args, "escalate")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['task_id']}: {payload['operation']} {payload['status']}")
+    return exit_code
+
+
+def command_worktree_prepare(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = worktree_prepare_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['task_id']}: worktree prepare {payload['status']}")
+    return exit_code
+
+
+def command_worktree_status(args: argparse.Namespace) -> int:
+    try:
+        payload = worktree_status_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['queue_id'] or '-'}: {payload['summary']['total']} worktree ref(s)")
+    return 0
+
+
+def command_worktree_cleanup(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = worktree_cleanup_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['task_id']}: worktree cleanup {payload['status']}")
+    return exit_code
+
+
 def command_slop_gate(args: argparse.Namespace) -> int:
     try:
         brief_path = Path(args.build_brief)
@@ -3809,6 +4697,197 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "dry_run": {"type": "boolean", "default": True},
                     "allow_mutation": {"type": "boolean", "default": False},
                     "provider_command": {"type": "string"},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("queue-status"),
+            "description": command_description("queue-status"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "queue": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("queue-claim"),
+            "description": command_description("queue-claim"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["queue", "task_id"],
+                "properties": {
+                    "queue": {"type": "string", "minLength": 1},
+                    "task_id": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "agent_id": {"type": "string", "minLength": 1},
+                    "worktree_ref": {"type": "string", "minLength": 1},
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("queue-release"),
+            "description": command_description("queue-release"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["queue", "task_id"],
+                "properties": {
+                    "queue": {"type": "string", "minLength": 1},
+                    "task_id": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("queue-complete"),
+            "description": command_description("queue-complete"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["queue", "task_id"],
+                "properties": {
+                    "queue": {"type": "string", "minLength": 1},
+                    "task_id": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("queue-block"),
+            "description": command_description("queue-block"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["queue", "task_id", "reason", "next_action"],
+                "properties": {
+                    "queue": {"type": "string", "minLength": 1},
+                    "task_id": {"type": "string", "minLength": 1},
+                    "reason": {"type": "string", "minLength": 1},
+                    "next_action": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("queue-escalate"),
+            "description": command_description("queue-escalate"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["queue", "task_id", "reason", "next_action"],
+                "properties": {
+                    "queue": {"type": "string", "minLength": 1},
+                    "task_id": {"type": "string", "minLength": 1},
+                    "reason": {"type": "string", "minLength": 1},
+                    "next_action": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("worktree-prepare"),
+            "description": command_description("worktree-prepare"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["queue", "task_id"],
+                "properties": {
+                    "queue": {"type": "string", "minLength": 1},
+                    "task_id": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "worktree_root": {"type": "string", "minLength": 1},
+                    "worktree_path": {"type": "string", "minLength": 1},
+                    "base_ref": {"type": "string", "minLength": 1},
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("worktree-status"),
+            "description": command_description("worktree-status"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "queue": {"type": "string", "minLength": 1},
+                    "task_id": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "worktree_root": {"type": "string", "minLength": 1},
+                    "worktree_path": {"type": "string", "minLength": 1},
+                    "base_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("worktree-cleanup"),
+            "description": command_description("worktree-cleanup"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["queue", "task_id"],
+                "properties": {
+                    "queue": {"type": "string", "minLength": 1},
+                    "task_id": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "worktree_root": {"type": "string", "minLength": 1},
+                    "worktree_path": {"type": "string", "minLength": 1},
+                    "base_ref": {"type": "string", "minLength": 1},
+                    "force": {"type": "boolean", "default": False},
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
                     "tool_registry": {"type": "string", "minLength": 1},
                     "audit_trail": {"type": "string", "minLength": 1},
                     "human_approved": {"type": "boolean", "default": False},
@@ -4039,6 +5118,97 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         )
         exit_code, payload = sync_work_item_payload(args)
         return tool_result(payload, is_error=exit_code != 0)
+    if name == "adlc_queue_status":
+        args = argparse.Namespace(
+            queue=arguments.get("queue"),
+            workspace=arguments.get("workspace"),
+            json=True,
+        )
+        return tool_result(queue_status_payload(args))
+    if name in {"adlc_queue_claim", "adlc_queue_release", "adlc_queue_complete", "adlc_queue_block", "adlc_queue_escalate"}:
+        operation = {
+            "adlc_queue_claim": "claim",
+            "adlc_queue_release": "release",
+            "adlc_queue_complete": "complete",
+            "adlc_queue_block": "block",
+            "adlc_queue_escalate": "escalate",
+        }[name]
+        args = argparse.Namespace(
+            queue=arguments.get("queue"),
+            task_id=arguments.get("task_id"),
+            workspace=arguments.get("workspace"),
+            state=arguments.get("state"),
+            agent_id=arguments.get("agent_id"),
+            worktree_ref=arguments.get("worktree_ref"),
+            reason=arguments.get("reason"),
+            next_action=arguments.get("next_action"),
+            evidence=arguments.get("evidence") if isinstance(arguments.get("evidence"), list) else [],
+            dry_run=arguments.get("dry_run", True),
+            allow_mutation=arguments.get("allow_mutation", False),
+            tool_registry=arguments.get("tool_registry"),
+            audit_trail=arguments.get("audit_trail"),
+            human_approved=arguments.get("human_approved", False),
+            approval_ref=arguments.get("approval_ref"),
+            json=True,
+        )
+        if not isinstance(args.task_id, str):
+            raise ValueError(f"{name} requires string argument: task_id")
+        exit_code, payload = queue_transition_payload(args, operation)
+        return tool_result(payload, is_error=exit_code != 0)
+    if name == "adlc_worktree_prepare":
+        args = argparse.Namespace(
+            queue=arguments.get("queue"),
+            task_id=arguments.get("task_id"),
+            workspace=arguments.get("workspace"),
+            state=arguments.get("state"),
+            worktree_root=arguments.get("worktree_root"),
+            worktree_path=arguments.get("worktree_path"),
+            base_ref=arguments.get("base_ref"),
+            dry_run=arguments.get("dry_run", True),
+            allow_mutation=arguments.get("allow_mutation", False),
+            tool_registry=arguments.get("tool_registry"),
+            audit_trail=arguments.get("audit_trail"),
+            human_approved=arguments.get("human_approved", False),
+            approval_ref=arguments.get("approval_ref"),
+            json=True,
+        )
+        if not isinstance(args.task_id, str):
+            raise ValueError("adlc_worktree_prepare requires string argument: task_id")
+        exit_code, payload = worktree_prepare_payload(args)
+        return tool_result(payload, is_error=exit_code != 0)
+    if name == "adlc_worktree_status":
+        args = argparse.Namespace(
+            queue=arguments.get("queue"),
+            task_id=arguments.get("task_id"),
+            workspace=arguments.get("workspace"),
+            worktree_root=arguments.get("worktree_root"),
+            worktree_path=arguments.get("worktree_path"),
+            base_ref=arguments.get("base_ref"),
+            json=True,
+        )
+        return tool_result(worktree_status_payload(args))
+    if name == "adlc_worktree_cleanup":
+        args = argparse.Namespace(
+            queue=arguments.get("queue"),
+            task_id=arguments.get("task_id"),
+            workspace=arguments.get("workspace"),
+            state=arguments.get("state"),
+            worktree_root=arguments.get("worktree_root"),
+            worktree_path=arguments.get("worktree_path"),
+            base_ref=arguments.get("base_ref"),
+            force=arguments.get("force", False),
+            dry_run=arguments.get("dry_run", True),
+            allow_mutation=arguments.get("allow_mutation", False),
+            tool_registry=arguments.get("tool_registry"),
+            audit_trail=arguments.get("audit_trail"),
+            human_approved=arguments.get("human_approved", False),
+            approval_ref=arguments.get("approval_ref"),
+            json=True,
+        )
+        if not isinstance(args.task_id, str):
+            raise ValueError("adlc_worktree_cleanup requires string argument: task_id")
+        exit_code, payload = worktree_cleanup_payload(args)
+        return tool_result(payload, is_error=exit_code != 0)
     if name == "adlc_slop_gate":
         build_brief = arguments.get("build_brief")
         if not isinstance(build_brief, str):
@@ -4191,6 +5361,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="adlc")
     parser.add_argument("--root", default=str(ROOT), help="ADLC repo root. Defaults to ADLC_ROOT or script parent.")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    def add_queue_base_arguments(command: argparse.ArgumentParser) -> None:
+        command.add_argument("--queue", help="Work Queue JSON path. Defaults to .adlc/work_queue.json under --workspace.")
+        command.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+        command.add_argument("--state", help=f"Workflow state path. Defaults to {DEFAULT_STATE_PATH} under workspace.")
+        command.add_argument("--dry-run", action="store_true", help="Plan operation without mutating queue, state, or worktrees.")
+        command.add_argument("--allow-mutation", action="store_true", help="Permit local queue or worktree mutation after action admission.")
+        command.add_argument("--tool-registry", help="Tool Registry JSON path used by action-admit before mutation.")
+        command.add_argument("--audit-trail", help="Permission Audit Trail JSON path to create or append.")
+        command.add_argument("--human-approved", action="store_true", help="Record that a human approved the requested local mutation.")
+        command.add_argument("--approval-ref", help="Human approval ticket, comment, or transcript reference.")
+        command.add_argument("--json", action="store_true", help="Emit JSON.")
+
+    def add_worktree_plan_arguments(command: argparse.ArgumentParser) -> None:
+        command.add_argument("--worktree-root", help="Directory used for generated worktree paths.")
+        command.add_argument("--worktree-path", help="Explicit worktree path.")
+        command.add_argument("--base-ref", help="Git base ref for new worktrees. Defaults to HEAD.")
 
     list_agents = subparsers.add_parser("list-agents", help=command_description("list-agents"))
     list_agents.add_argument("--json", action="store_true", help="Emit JSON.")
@@ -4359,6 +5546,67 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--approval-ref", help="Human approval ticket, comment, or transcript reference.")
     sync.add_argument("--json", action="store_true", help="Emit JSON.")
     sync.set_defaults(func=command_sync_work_item)
+
+    queue_status = subparsers.add_parser("queue-status", help=command_description("queue-status"))
+    queue_status.add_argument("--queue", help="Work Queue JSON path. Defaults to .adlc/work_queue.json under --workspace.")
+    queue_status.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    queue_status.add_argument("--json", action="store_true", help="Emit JSON.")
+    queue_status.set_defaults(func=command_queue_status)
+
+    queue_claim = subparsers.add_parser("queue-claim", help=command_description("queue-claim"))
+    queue_claim.add_argument("--task-id", required=True, help="Stable queue task ID to claim.")
+    queue_claim.add_argument("--agent-id", help="Agent or harness ID taking the claim.")
+    queue_claim.add_argument("--worktree-ref", help="Optional worktree path/ref to record on the claim.")
+    add_queue_base_arguments(queue_claim)
+    queue_claim.set_defaults(func=command_queue_claim)
+
+    queue_release = subparsers.add_parser("queue-release", help=command_description("queue-release"))
+    queue_release.add_argument("--task-id", required=True, help="Stable queue task ID to release.")
+    add_queue_base_arguments(queue_release)
+    queue_release.set_defaults(func=command_queue_release)
+
+    queue_complete = subparsers.add_parser("queue-complete", help=command_description("queue-complete"))
+    queue_complete.add_argument("--task-id", required=True, help="Stable queue task ID to complete.")
+    queue_complete.add_argument("--evidence", action="append", help="Verifier command, artifact path, or evidence ref proving completion.")
+    add_queue_base_arguments(queue_complete)
+    queue_complete.set_defaults(func=command_queue_complete)
+
+    queue_block = subparsers.add_parser("queue-block", help=command_description("queue-block"))
+    queue_block.add_argument("--task-id", required=True, help="Stable queue task ID to block.")
+    queue_block.add_argument("--reason", required=True, help="Structured block reason.")
+    queue_block.add_argument("--next-action", required=True, help="Next action needed to unblock the task.")
+    queue_block.add_argument("--evidence", action="append", help="Evidence ref for the block.")
+    add_queue_base_arguments(queue_block)
+    queue_block.set_defaults(func=command_queue_block)
+
+    queue_escalate = subparsers.add_parser("queue-escalate", help=command_description("queue-escalate"))
+    queue_escalate.add_argument("--task-id", required=True, help="Stable queue task ID to escalate.")
+    queue_escalate.add_argument("--reason", required=True, help="Structured escalation reason.")
+    queue_escalate.add_argument("--next-action", required=True, help="Human action needed.")
+    queue_escalate.add_argument("--evidence", action="append", help="Evidence ref for the escalation.")
+    add_queue_base_arguments(queue_escalate)
+    queue_escalate.set_defaults(func=command_queue_escalate)
+
+    worktree_prepare = subparsers.add_parser("worktree-prepare", help=command_description("worktree-prepare"))
+    worktree_prepare.add_argument("--task-id", required=True, help="Stable queue task ID to isolate.")
+    add_queue_base_arguments(worktree_prepare)
+    add_worktree_plan_arguments(worktree_prepare)
+    worktree_prepare.set_defaults(func=command_worktree_prepare)
+
+    worktree_status = subparsers.add_parser("worktree-status", help=command_description("worktree-status"))
+    worktree_status.add_argument("--queue", help="Work Queue JSON path.")
+    worktree_status.add_argument("--task-id", help="Optional queue task ID to inspect.")
+    worktree_status.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    add_worktree_plan_arguments(worktree_status)
+    worktree_status.add_argument("--json", action="store_true", help="Emit JSON.")
+    worktree_status.set_defaults(func=command_worktree_status)
+
+    worktree_cleanup = subparsers.add_parser("worktree-cleanup", help=command_description("worktree-cleanup"))
+    worktree_cleanup.add_argument("--task-id", required=True, help="Stable queue task ID whose worktree should be cleaned.")
+    worktree_cleanup.add_argument("--force", action="store_true", help="Force git worktree removal after explicit admission.")
+    add_queue_base_arguments(worktree_cleanup)
+    add_worktree_plan_arguments(worktree_cleanup)
+    worktree_cleanup.set_defaults(func=command_worktree_cleanup)
 
     slop_gate = subparsers.add_parser("slop-gate", help=command_description("slop-gate"))
     slop_gate.add_argument("--build-brief", required=True, help="Build Brief JSON path.")

@@ -21,6 +21,7 @@ SCHEMA_ALIASES = {
     "tool-registry": "docs/schemas/tool-registry.schema.json",
     "token-budget": "docs/schemas/token-budget.schema.json",
     "triage-output": "docs/schemas/triage-output.schema.json",
+    "work-queue": "docs/schemas/work-queue.schema.json",
     "work-item-sync": "docs/schemas/work-item-sync.schema.json",
     "workflow-state": "docs/schemas/workflow-state.schema.json",
 }
@@ -85,6 +86,42 @@ COMMAND_METADATA = {
     "sync-work-item": {
         "mcp_name": "adlc_sync_work_item",
         "description": "Find, create, or append tracker work-item state from ADLC run evidence with guarded provider mutation.",
+    },
+    "queue-status": {
+        "mcp_name": "adlc_queue_status",
+        "description": "Inspect schema-backed ADLC work queue status, active claims, and blocked or completed work.",
+    },
+    "queue-claim": {
+        "mcp_name": "adlc_queue_claim",
+        "description": "Claim an ADLC queued task after deterministic dirty-state and file-overlap checks.",
+    },
+    "queue-release": {
+        "mcp_name": "adlc_queue_release",
+        "description": "Release a claimed ADLC queue task back to queued state with mutation evidence.",
+    },
+    "queue-complete": {
+        "mcp_name": "adlc_queue_complete",
+        "description": "Mark an ADLC queue task done with required verifier or evidence references.",
+    },
+    "queue-block": {
+        "mcp_name": "adlc_queue_block",
+        "description": "Block an ADLC queue task with a structured reason and next action.",
+    },
+    "queue-escalate": {
+        "mcp_name": "adlc_queue_escalate",
+        "description": "Escalate an ADLC queue task to human review with a structured reason and next action.",
+    },
+    "worktree-prepare": {
+        "mcp_name": "adlc_worktree_prepare",
+        "description": "Prepare or dry-run an isolated git worktree for a claimed queue task after safety checks.",
+    },
+    "worktree-status": {
+        "mcp_name": "adlc_worktree_status",
+        "description": "Inspect ADLC-linked git worktrees, queue task refs, dirty state, and cleanup eligibility.",
+    },
+    "worktree-cleanup": {
+        "mcp_name": "adlc_worktree_cleanup",
+        "description": "Remove or dry-run cleanup of an ADLC git worktree, refusing dirty work unless explicitly forced.",
     },
     "compound-context": {
         "mcp_name": "adlc_compound_context",

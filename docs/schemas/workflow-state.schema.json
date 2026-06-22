@@ -613,6 +613,179 @@
         }
       }
     },
+    "queue_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "queue_id",
+          "task_id",
+          "status",
+          "updated_at"
+        ],
+        "properties": {
+          "queue_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "queue_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "claim_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "agent_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "brief_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "run_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "session_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "claimed",
+              "running",
+              "blocked",
+              "done",
+              "escalated",
+              "released",
+              "abandoned"
+            ]
+          },
+          "expected_paths": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "kind"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "file",
+                    "directory",
+                    "glob"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "worktree_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "next_action": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "worktree_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task_id",
+          "branch",
+          "path",
+          "status",
+          "updated_at"
+        ],
+        "properties": {
+          "queue_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "queue_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "branch": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "base_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "prepared",
+              "active",
+              "cleanup_blocked",
+              "cleaned",
+              "abandoned"
+            ]
+          },
+          "dirty": {
+            "type": "boolean"
+          },
+          "cleanup_eligible": {
+            "type": "boolean"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
     "stop_reason": {
       "type": "string"
     },

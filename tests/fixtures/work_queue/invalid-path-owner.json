@@ -1,0 +1,21 @@
+{
+  "contract_version": "1.0.0",
+  "queue_id": "queue:invalid-path-owner",
+  "tasks": [
+    {
+      "expected_paths": [
+        {
+          "kind": "file"
+        }
+      ],
+      "source": {
+        "ref": "invalid",
+        "type": "manual"
+      },
+      "status": "queued",
+      "task_id": "INVALID-PATH",
+      "title": "Invalid path owner"
+    }
+  ],
+  "updated_at": "2026-06-22T00:00:00Z"
+}

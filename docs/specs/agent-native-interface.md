@@ -11,7 +11,7 @@ Define the minimum contract an external agent or orchestrator needs to discover,
 | `skills/manifest.json` | Agent inventory, DAG node ownership, skill bindings, labels, and runtime model map |
 | `WORKFLOW.md` | Runtime backend command templates for `claude`, `codex`, `cursor`, `antigravity`, and `factory` |
 | `WORKFLOW.dot` | Phase ordering and transition shape |
-| `docs/schemas/*.schema.json` | Boundary validation for manifests, Build Briefs, agent outputs, workflow state, permissions, logs, and tool registry |
+| `docs/schemas/*.schema.json` | Boundary validation for manifests, Build Briefs, agent outputs, workflow state, work queues, permissions, logs, and tool registry |
 | `docs/solutions/` | Optional compound engineering learning store consumed as compact `learning_refs` |
 | `tests/smoke/adapters/*.sh` | Runtime-specific `invoke_agent` and `preflight` adapter contracts |
 | `bin/adlc` | Thin local CLI for discovery, workflow inspection, schema validation, workflow state transitions, dry-run/runtime phase execution, emitter payloads, and MCP stdio exposure |
@@ -54,11 +54,19 @@ bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --wor
 bin/adlc emit-work-items --target linear --build-brief .adlc/build_brief.json --dry-run --json
 bin/adlc sync-work-item --build-brief .adlc/build_brief.json --target linear --state .adlc/workflow_state.json --dry-run --json
 bin/adlc sync-work-item --work-item .adlc/work_item_sync.json --state .adlc/workflow_state.json --dry-run --json
+bin/adlc queue-status --queue .adlc/work_queue.json --json
+bin/adlc queue-claim --queue .adlc/work_queue.json --task-id TASK-123 --state .adlc/workflow_state.json --workspace . --dry-run --json
+bin/adlc queue-complete --queue .adlc/work_queue.json --task-id TASK-123 --state .adlc/workflow_state.json --evidence '.adlc/loop_test_result.json' --dry-run --json
+bin/adlc queue-block --queue .adlc/work_queue.json --task-id TASK-123 --reason file_collision --next-action 'split file ownership' --dry-run --json
+bin/adlc queue-escalate --queue .adlc/work_queue.json --task-id TASK-123 --reason human_review_required --next-action 'review architecture boundary' --dry-run --json
+bin/adlc worktree-prepare --queue .adlc/work_queue.json --task-id TASK-123 --workspace . --dry-run --json
+bin/adlc worktree-status --queue .adlc/work_queue.json --workspace . --json
+bin/adlc worktree-cleanup --queue .adlc/work_queue.json --task-id TASK-123 --workspace . --dry-run --json
 bin/adlc mcp-tools --json
 bin/adlc mcp-serve
 ```
 
-`mcp-serve` implements a minimal newline-delimited JSON-RPC stdio server with `initialize`, `tools/list`, and `tools/call` for ADLC discovery, health checks, validation, compound context preflight, tool-registry action admission, loop test selection, loop budget checks, LLM action admission, loop maturity audit, dry-run phase execution, resume inspection, work-item emitter payload generation, and work-item state synchronization. Mutating work-item emission requires explicit `allow_mutation` plus a local `provider_command`. Mutating work-item synchronization also requires `tool_registry` admission evidence before the local provider command can run.
+`mcp-serve` implements a minimal newline-delimited JSON-RPC stdio server with `initialize`, `tools/list`, and `tools/call` for ADLC discovery, health checks, validation, compound context preflight, tool-registry action admission, loop test selection, loop budget checks, LLM action admission, loop maturity audit, dry-run phase execution, resume inspection, work-item emitter payload generation, work-item state synchronization, work queue status and lifecycle actions, and worktree prepare/status/cleanup. Mutating work-item emission requires explicit `allow_mutation` plus a local `provider_command`. Mutating work-item synchronization also requires `tool_registry` admission evidence before the local provider command can run. Mutating queue and worktree operations also require explicit `allow_mutation` and `tool_registry` admission evidence.
 
 ## Current Native Level
 
@@ -74,6 +82,7 @@ ADLC is agent-native at the contract and harness layer:
 - workflow state carries durable `run_id`, `session_id`, `brief_id`, `resume_count`, and `attempt` evidence for resumable self-actioning runs
 - permission audit trails and side-effect ledgers can correlate decisions and mutations back to the same run/session/brief identity
 - workflow state can carry `work_item_links` so tracker items stay correlated with stable ADLC external IDs, run identity, verifier evidence, blockers, and next action across resumes
+- workflow state can carry `queue_claims` and `worktree_refs` so a harness can see claimed, running, blocked, completed, escalated, and isolated work across resumes
 - optional task-level fingerprints in workflow state let `resume-workflow` report completed, skipped, failed, and incomplete executable tasks
 - optional Loop Contract fields in workflow state let `resume-workflow` report progress, no-progress count, pending control events, safe checkpoints, escalation context, and `budget_status`
 - `loop-test-result` artifacts let `loop-test-selection --require-test-results` and `loop-maturity-audit --test-results` distinguish tag-only coverage from executed required-test evidence
@@ -101,5 +110,28 @@ The current thin orchestrator surface exposes:
 | `resume_workflow` | Load workflow state, identify the next runnable phase, and continue |
 | `emit_work_items` | Run a normalized dry-run or mutation against a configured MCP provider |
 | `sync_work_item` | Find, create, or append tracker work-item state from ADLC run evidence and stable external IDs |
+| `queue_status` | Inspect schema-backed queued, claimed, running, blocked, done, and escalated work |
+| `queue_claim` | Claim a queued task after dirty-check and file-overlap gates pass |
+| `queue_complete` | Mark a task done with required verifier or evidence refs |
+| `queue_block` | Block a task with structured reason and next action |
+| `queue_escalate` | Escalate a task to human review with structured reason and next action |
+| `worktree_prepare` | Plan or create an isolated git worktree for a queue task after safety checks |
+| `worktree_status` | Report linked task, branch/path, dirty state, and cleanup eligibility |
+| `worktree_cleanup` | Remove or dry-run removal of an ADLC worktree, refusing dirty work unless explicitly forced |
 
-The next native layer should add deterministic implementations for tool nodes (`scaffold`, `context_assembly`, `qa`, `slop_gate`) and richer provider-specific MCP adapters. The current surface keeps ADLC easy for agents to manage while preserving the repo's existing vendor-neutral runtime adapters and schema-first contracts.
+The next native layer should add deterministic implementations for tool nodes (`scaffold`, `context_assembly`, `qa`, `slop_gate`) and richer provider-specific MCP adapters. The current surface keeps ADLC easy for agents to manage while preserving the repo's existing vendor-neutral runtime adapters, queue/worktree isolation substrate, and schema-first contracts.
+
+## Queue And Worktree Contract
+
+ADLC work queues are JSON artifacts validated by `docs/schemas/work-queue.schema.json`. Each task carries a stable `task_id`, status, source ref, expected path ownership, optional verifier refs, optional tracker external ID, and optional claim/worktree metadata.
+
+The queue substrate is deterministic:
+
+- `queue-claim` requires a queued task, a clean git workspace, and no overlap with active `claimed` or `running` task paths.
+- File ownership is compared through normalized file, directory, and glob path entries.
+- `queue-complete` requires evidence when a task declares verifier refs or `evidence_required`.
+- `queue-block` and `queue-escalate` require structured reasons and next actions.
+- `worktree-prepare` refuses dirty source checkouts and path overlap before planning or creating a git worktree.
+- `worktree-cleanup` refuses dirty target worktrees unless an explicit force path is used.
+
+Dry-run is the default because these commands are designed for harnesses and LLMs to inspect first. Write mode requires `--allow-mutation` and action admission through a tool registry entry such as `adlc-queue` or `adlc-worktree`. Queue/worktree state remains ADLC-owned; tracker items from `work_item_links[]` can mirror task state but are not the source of truth.
