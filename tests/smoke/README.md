@@ -11,7 +11,7 @@ Layer 2 is the opt-in ADLC smoke suite. Unlike `tests/backtest/`, it uses the re
   - `claude`: `ANTHROPIC_API_KEY` or `ADLC_SMOKE_SETTINGS`
   - `codex`: `OPENAI_API_KEY` or `ADLC_SMOKE_SETTINGS_CODEX`
   - `cursor`: `CURSOR_API_KEY`
-  - `antigravity`: `GOOGLE_API_KEY` or `GEMINI_API_KEY`
+  - `antigravity`: native coding-agent session; no provider API key is consumed by ADLC
   - `factory`: `FACTORY_API_KEY`
 - local Python 3 with `unittest`
 - a supported mutation tool if you want the full `test_strength` stage to pass:
@@ -28,7 +28,7 @@ ADLC_RUNTIME=claude       ANTHROPIC_API_KEY=sk-... SMOKE=1 MODEL=claude-sonnet-4
 ADLC_RUNTIME=claude       ADLC_SMOKE_SETTINGS=~/path/to/settings.json SMOKE=1 MODEL=claude-sonnet-4-6 bash tests/smoke/run_smoke.sh
 ADLC_RUNTIME=codex        OPENAI_API_KEY=sk-... SMOKE=1 MODEL=gpt-5-codex bash tests/smoke/run_smoke.sh
 ADLC_RUNTIME=codex        ADLC_SMOKE_SETTINGS_CODEX=~/path/to/config.toml SMOKE=1 MODEL=gpt-5-codex bash tests/smoke/run_smoke.sh
-ADLC_RUNTIME=antigravity  GOOGLE_API_KEY=... SMOKE=1 MODEL=gemini-2.5-pro bash tests/smoke/run_smoke.sh
+ADLC_RUNTIME=antigravity  SMOKE=1 MODEL=inherit bash tests/smoke/run_smoke.sh
 ADLC_RUNTIME=cursor       CURSOR_API_KEY=... SMOKE=1 MODEL=cursor-default bash tests/smoke/run_smoke.sh
 ADLC_RUNTIME=factory      FACTORY_API_KEY=... SMOKE=1 MODEL=factory-default bash tests/smoke/run_smoke.sh
 ```

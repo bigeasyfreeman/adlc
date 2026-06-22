@@ -22,8 +22,7 @@ backends:
   antigravity:
     command: "tests/smoke/adapters/antigravity.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
     env:
-      GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
-      GEMINI_API_KEY: "${GEMINI_API_KEY}"
+      ADLC_RUNTIME_SESSION: "${ADLC_RUNTIME_SESSION}"
   factory:
     command: "tests/smoke/adapters/factory.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
     env:
@@ -145,42 +144,32 @@ surface active; otherwise the runner follows the skip/no-op edge shown in
 ```yaml
 compound_preflight:
   command: |
-    if [ -n "${BUILD_BRIEF:-}" ]; then
-      bin/adlc compound-context --workspace "${WORKSPACE:-.}" --build-brief "$BUILD_BRIEF" --json
-    else
-      bin/adlc compound-context --workspace "${WORKSPACE:-.}" --json
-    fi
-    # Emits compact learning_refs, verifier_refs, task_refs, and explicit no-op reasons.
-    # Missing docs/solutions or graphify-out is reported as a no-op, not a failure.
+    bin/adlc run-phase compound_preflight --workspace "${WORKSPACE:-.}" ${BUILD_BRIEF:+--build-brief "$BUILD_BRIEF"} --json
+    # Emits schema-backed compact learning_refs, verifier_refs, task_refs, and explicit no-op reasons.
 
 scaffold:
   command: |
-    # Read architecture-pattern skill output, generate contracts and implementation guides
-    mkdir -p ${WORKSPACE}/src/domain ${WORKSPACE}/src/adapters ${WORKSPACE}/src/ports
-    # Scaffolding logic from architecture-pattern skill
+    bin/adlc run-phase scaffold --workspace "${WORKSPACE:-.}" --build-brief "${BUILD_BRIEF:?}" --dry-run --json
+    # Write mode requires --allow-mutation, --tool-registry, and action admission.
 
 context_assembly:
   command: |
-    # Assemble per-task prompts with zero-read principle
-    # Inlines: graph evidence, construct maps, paved-road refs, intent, invariants,
-    # research, contracts/guides, tests, schemas, patterns, compatibility constraints,
-    # and context-layer artifacts
+    bin/adlc run-phase context_assembly --workspace "${WORKSPACE:-.}" --build-brief "${BUILD_BRIEF:?}" --json
+    # Emits per-task context packages with queue, worktree, tracker, verifier, and contract refs.
 
 qa:
   command: |
-    # Run linter + test suite
-    ${TEST_COMMAND:-npm test}
-    ${LINT_COMMAND:-npm run lint}
+    bin/adlc run-phase qa --workspace "${WORKSPACE:-.}" --json
+    # Verifier commands come from --verifier, Build Brief verification_spec, or TEST_COMMAND/LINT_COMMAND/BUILD_COMMAND.
 
 slop_gate:
   command: |
-    bin/adlc slop-gate --build-brief ${BUILD_BRIEF:?} --json
+    bin/adlc run-phase slop_gate --workspace "${WORKSPACE:-.}" --build-brief "${BUILD_BRIEF:?}" --json
 
 learning_capture:
   command: |
-    # Run only when pr_prep emits verified reusable learning candidates.
-    # Write or update one docs/solutions entry, then validate with scripts/validate_learning_entry.py.
-    # If no verified reusable learning exists, emit skipped and proceed.
+    bin/adlc run-phase learning_capture --workspace "${WORKSPACE:-.}" ${PR_PREP_OUTPUT:+--input "$PR_PREP_OUTPUT"} --json
+    # Write mode requires verified reusable learning candidates, redaction evidence, action admission, and validation.
 ```
 
 ### Fan-Out Configuration

@@ -123,8 +123,17 @@ done
 assert_auth_missing claude 'smoke auth missing: set ANTHROPIC_API_KEY or ADLC_SMOKE_SETTINGS=/path/to/settings.json'
 assert_auth_missing codex 'codex auth missing: set OPENAI_API_KEY or ADLC_SMOKE_SETTINGS_CODEX=/path/to/config.toml'
 assert_auth_missing cursor 'cursor auth missing: set CURSOR_API_KEY or install the cursor CLI with native auth configured'
-assert_auth_missing antigravity 'antigravity auth missing: set GOOGLE_API_KEY or GEMINI_API_KEY'
 assert_auth_missing factory 'factory auth missing: set FACTORY_API_KEY'
+
+assert_case \
+  "antigravity invoke_agent without native CLI exits 77" \
+  77 \
+  'antigravity CLI not installed; ADLC does not use provider API keys for this runtime' \
+  env -i PATH="/usr/bin:/bin" /bin/bash "$ROOT/tests/smoke/adapters/antigravity.sh" invoke_agent \
+    --agent "$dummy_agent" \
+    --input "$dummy_input" \
+    --output "$dummy_output" \
+    --tools ""
 
 assert_missing_output cursor
 assert_missing_output antigravity
@@ -133,7 +142,6 @@ assert_missing_output factory
 assert_cli_missing claude ANTHROPIC_API_KEY dummy 'claude CLI is not installed'
 assert_cli_missing codex OPENAI_API_KEY dummy 'codex CLI not installed'
 assert_cli_missing cursor CURSOR_API_KEY dummy 'cursor CLI not installed'
-assert_cli_missing antigravity GOOGLE_API_KEY dummy 'antigravity CLI not installed'
 assert_cli_missing factory FACTORY_API_KEY dummy 'factory CLI not installed'
 
 printf 'Results: %s passed, %s failed, %s total\n' "$PASS" "$FAIL" "$TOTAL"

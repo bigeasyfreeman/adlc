@@ -27,9 +27,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",
@@ -64,9 +64,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",
@@ -101,9 +101,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",
@@ -138,9 +138,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",
@@ -180,9 +180,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",
@@ -217,9 +217,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",
@@ -254,9 +254,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",
@@ -292,9 +292,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",
@@ -329,9 +329,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",
@@ -366,9 +366,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",
@@ -403,9 +403,9 @@
           "note": "Cursor does not expose a separate cheap judge tier in this harness; fast_judge inherits the runtime default."
         },
         "antigravity": {
-          "default": "gemini-2.5-pro",
-          "fast_judge": "gemini-2.5-flash",
-          "deep_judge": "gemini-2.5-pro"
+          "default": "inherit",
+          "fast_judge": "inherit",
+          "deep_judge": "inherit"
         },
         "factory": {
           "default": "inherit",

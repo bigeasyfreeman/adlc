@@ -490,8 +490,777 @@ def apply_phase_result(
     return state
 
 
+def phase_arg_path(raw_path: str | None, workspace: Path) -> Path | None:
+    if not raw_path:
+        return None
+    return resolve_input_path(raw_path, workspace)
+
+
+def phase_build_brief_path(args: argparse.Namespace, workspace: Path, state: Dict[str, Any]) -> Path | None:
+    raw_path = (
+        getattr(args, "build_brief", None)
+        or getattr(args, "input", None)
+        or state.get("checkpoint", {}).get("build_brief")
+        or state.get("checkpoint", {}).get("input")
+    )
+    return phase_arg_path(raw_path, workspace)
+
+
+def load_phase_build_brief(args: argparse.Namespace, workspace: Path, state: Dict[str, Any]) -> Tuple[Path, Dict[str, Any]]:
+    brief_path = phase_build_brief_path(args, workspace, state)
+    if not brief_path:
+        raise ValueError("build brief is required for this tool node")
+    if not brief_path.is_file():
+        raise FileNotFoundError(f"build brief not found: {brief_path}")
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path)
+    if not isinstance(brief, dict):
+        raise ValueError(f"build brief must be a JSON object: {brief_path}")
+    return brief_path, brief
+
+
+def build_brief_tasks(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
+    tasks = brief.get("sections", {}).get("8_task_tickets", [])
+    return [task for task in tasks if isinstance(task, dict)]
+
+
+def task_verifier_commands(task: Dict[str, Any]) -> List[str]:
+    commands: List[str] = []
+    verification = task.get("verification_spec")
+    if not isinstance(verification, dict):
+        return commands
+    primary = verification.get("primary_verifier")
+    if isinstance(primary, dict) and isinstance(primary.get("target"), str) and primary["target"].strip():
+        commands.append(primary["target"].strip())
+    secondary = verification.get("secondary_verifiers")
+    if isinstance(secondary, list):
+        for verifier in secondary:
+            if isinstance(verifier, dict) and isinstance(verifier.get("target"), str) and verifier["target"].strip():
+                commands.append(verifier["target"].strip())
+    return commands
+
+
+def verifier_commands_for_phase(args: argparse.Namespace, workspace: Path, state: Dict[str, Any]) -> Tuple[List[str], List[str], List[str]]:
+    commands: List[str] = []
+    evidence_refs: List[str] = []
+    warnings: List[str] = []
+    for value in getattr(args, "verifier", None) or []:
+        if isinstance(value, str) and value.strip():
+            commands.append(value.strip())
+
+    brief_path = phase_build_brief_path(args, workspace, state)
+    if brief_path and brief_path.is_file():
+        try:
+            errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+            if errors:
+                warnings.append("build_brief_schema_invalid")
+            else:
+                brief = read_json(brief_path)
+                for task in build_brief_tasks(brief):
+                    commands.extend(task_verifier_commands(task))
+                evidence_refs.append(rel_path(brief_path))
+        except Exception as exc:
+            warnings.append(f"build_brief_unreadable:{exc}")
+
+    for env_name in ("TEST_COMMAND", "LINT_COMMAND", "BUILD_COMMAND"):
+        value = os.environ.get(env_name)
+        if value and value.strip():
+            commands.append(value.strip())
+
+    return list(dict.fromkeys(commands)), evidence_refs, warnings
+
+
+def tool_node_base_result(
+    phase: str,
+    state: Dict[str, Any],
+    dry_run: bool,
+    status: str,
+    label: str | None = None,
+    inputs: Dict[str, Any] | None = None,
+    outputs: Dict[str, Any] | None = None,
+    evidence_refs: List[str] | None = None,
+    warnings: List[str] | None = None,
+    issues: List[Dict[str, Any]] | None = None,
+    stop_reason: str | None = None,
+    skip_reason: str | None = None,
+    execution: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
+        "contract_version": "1.0.0",
+        "phase": phase,
+        "status": status,
+        "label": label,
+        "run_identity": workflow_identity_payload(state),
+        "dry_run": dry_run,
+        "inputs": inputs or {},
+        "outputs": outputs or {},
+        "evidence_refs": evidence_refs or [],
+        "warnings": warnings or [],
+        "issues": issues or [],
+    }
+    if stop_reason:
+        payload["stop_reason"] = stop_reason
+    if skip_reason:
+        payload["skip_reason"] = skip_reason
+    if execution is not None:
+        payload["execution"] = execution
+    return payload
+
+
+def output_log_path(output_path: Path, command_index: int, stream_name: str) -> Path:
+    return output_path.parent / f"{output_path.stem}.{command_index}.{stream_name}.log"
+
+
+def run_verifier_commands(commands: List[str], workspace: Path, output_path: Path) -> Tuple[List[Dict[str, Any]], List[str]]:
+    results: List[Dict[str, Any]] = []
+    evidence_refs: List[str] = []
+    for index, command in enumerate(commands, start=1):
+        started_at = utc_now()
+        process = subprocess.run(command, cwd=str(workspace), shell=True, text=True, capture_output=True, check=False)
+        ended_at = utc_now()
+        stdout_path = output_log_path(output_path, index, "stdout")
+        stderr_path = output_log_path(output_path, index, "stderr")
+        stdout_path.parent.mkdir(parents=True, exist_ok=True)
+        stdout_path.write_text(process.stdout, encoding="utf-8")
+        stderr_path.write_text(process.stderr, encoding="utf-8")
+        evidence_refs.extend([rel_path(stdout_path), rel_path(stderr_path)])
+        results.append(
+            {
+                "command": command,
+                "exit_code": process.returncode,
+                "status": "pass" if process.returncode == 0 else "fail",
+                "stdout_ref": rel_path(stdout_path),
+                "stderr_ref": rel_path(stderr_path),
+                "stdout_tail": process.stdout[-2000:],
+                "stderr_tail": process.stderr[-2000:],
+                "started_at": started_at,
+                "ended_at": ended_at,
+            }
+        )
+    return results, evidence_refs
+
+
+def scaffold_planned_writes(brief: Dict[str, Any] | None) -> List[Dict[str, Any]]:
+    planned: List[Dict[str, Any]] = []
+    if not brief:
+        return planned
+    for task in build_brief_tasks(brief):
+        task_id = str(task.get("task_id") or "unknown-task")
+        for field_name, operation in (("files_to_create", "create_file"), ("files_to_modify", "inspect_or_update_file")):
+            values = task.get(field_name)
+            if not isinstance(values, list):
+                continue
+            for raw_path in values:
+                if not isinstance(raw_path, str) or not raw_path.strip():
+                    continue
+                planned.append(
+                    {
+                        "task_id": task_id,
+                        "operation": operation,
+                        "path": raw_path.strip(),
+                        "reason": task.get("title") or task_id,
+                    }
+                )
+    return planned
+
+
+def context_packages_for_brief(
+    brief: Dict[str, Any],
+    state: Dict[str, Any],
+    brief_path: Path,
+) -> List[Dict[str, Any]]:
+    packages: List[Dict[str, Any]] = []
+    queue_claims = [item for item in state.get("queue_claims", []) if isinstance(item, dict)]
+    worktree_refs = [item for item in state.get("worktree_refs", []) if isinstance(item, dict)]
+    work_item_links = [item for item in state.get("work_item_links", []) if isinstance(item, dict)]
+    for task in build_brief_tasks(brief):
+        task_id = str(task.get("task_id") or "unknown-task")
+        packages.append(
+            {
+                "task_id": task_id,
+                "title": task.get("title"),
+                "objective": task.get("objective"),
+                "intent_refs": [brief.get("brief_id"), brief.get("prd_id")],
+                "constraints": {
+                    "scope": task.get("scope", []),
+                    "out_of_scope": task.get("out_of_scope", []),
+                    "anti_slop_rules": task.get("anti_slop_rules", []),
+                    "compatibility_contract": task.get("compatibility_contract"),
+                    "implementation_interface_contract": task.get("implementation_interface_contract"),
+                    "productionization_gate": task.get("productionization_gate"),
+                },
+                "target_files": {
+                    "files_to_modify": task.get("files_to_modify", []),
+                    "files_to_create": task.get("files_to_create", []),
+                },
+                "verifier_commands": task_verifier_commands(task),
+                "queue_claims": [claim for claim in queue_claims if claim.get("task_id") == task_id],
+                "worktree_refs": [ref for ref in worktree_refs if ref.get("task_id") == task_id],
+                "work_item_links": [link for link in work_item_links if link.get("task_id") == task_id],
+                "source_refs": [rel_path(brief_path)],
+            }
+        )
+    return packages
+
+
+def learning_candidates_from_args(args: argparse.Namespace, workspace: Path) -> Tuple[List[Dict[str, Any]], List[str]]:
+    warnings: List[str] = []
+    input_path = phase_arg_path(getattr(args, "input", None), workspace)
+    if not input_path:
+        return [], warnings
+    if not input_path.is_file():
+        warnings.append(f"learning_input_missing:{input_path}")
+        return [], warnings
+    payload = read_json(input_path)
+    if not isinstance(payload, dict):
+        warnings.append("learning_input_not_object")
+        return [], warnings
+    candidates = payload.get("learning_candidates", [])
+    if not isinstance(candidates, list):
+        warnings.append("learning_candidates_not_list")
+        return [], warnings
+    return [candidate for candidate in candidates if isinstance(candidate, dict)], warnings
+
+
+def valid_learning_candidate(candidate: Dict[str, Any]) -> List[Dict[str, Any]]:
+    issues: List[Dict[str, Any]] = []
+    required_fields = ("title", "learning", "source_evidence", "verifier_evidence", "stale_conditions", "redaction_status")
+    for field_name in required_fields:
+        if not candidate.get(field_name):
+            issues.append({"rule": "missing_learning_candidate_field", "field": field_name})
+    if str(candidate.get("redaction_status")) not in {"passed", "redacted", "safe"}:
+        issues.append({"rule": "redaction_not_passed", "field": "redaction_status"})
+    return issues
+
+
+def yaml_list(values: List[str]) -> str:
+    return "\n".join(f"  - {json.dumps(value)}" for value in values)
+
+
+def learning_entry_text(candidate: Dict[str, Any], task_id: str) -> str:
+    today = utc_now()[:10]
+    title = str(candidate.get("title") or "Verified ADLC learning").strip()
+    module = str(candidate.get("module") or "workflow").strip()
+    source_evidence = [str(value) for value in candidate.get("source_evidence", []) if str(value).strip()]
+    verifier_evidence = [str(value) for value in candidate.get("verifier_evidence", []) if str(value).strip()]
+    stale_conditions = [str(value) for value in candidate.get("stale_conditions", []) if str(value).strip()]
+    learning = str(candidate.get("learning") or "").strip()
+    applicability = str(candidate.get("applicability") or "Use when the same verified condition appears again.").strip()
+    verifier_command = verifier_evidence[0] if verifier_evidence else "verified evidence unavailable"
+    return f"""---
+title: {json.dumps(title)}
+date: {json.dumps(today)}
+adlc_domain: "workflow"
+problem_type: "workflow"
+module: {json.dumps(module)}
+severity: "low"
+track: "knowledge"
+tags: ["learning-capture", "adlc"]
+related_tasks: [{json.dumps(task_id)}]
+source_evidence:
+{yaml_list(source_evidence or ["learning candidate source evidence"])}
+verifier:
+  type: "command"
+  command: {json.dumps(verifier_command)}
+  expected: "passes"
+redaction_review:
+  status: "passed"
+  reviewer: "adlc-learning-capture"
+stale_conditions:
+{yaml_list(stale_conditions or ["source verifier changes"])}
+---
+
+# {title}
+
+## Context
+
+ADLC captured this learning from a verified workflow closeout candidate.
+
+## Learning
+
+{learning}
+
+## Applicability
+
+{applicability}
+
+## Evidence
+
+{chr(10).join(f"- Source: `{value}`" for value in (source_evidence or ["learning candidate source evidence"]))}
+{chr(10).join(f"- Verifier: `{value}`" for value in (verifier_evidence or ["verified evidence unavailable"]))}
+
+## Stale Conditions
+
+{chr(10).join(f"- {value}" for value in (stale_conditions or ["source verifier changes"]))}
+
+## Guidance
+
+Apply this only when the cited verifier evidence still matches the current code and workflow contract.
+
+## Examples
+
+Use the cited source and verifier refs as the starting point for future scoped refreshes.
+"""
+
+
+def tool_node_mutation_admission(
+    args: argparse.Namespace,
+    state_path: Path,
+    state: Dict[str, Any],
+    phase: str,
+    action: str,
+) -> Tuple[int, Dict[str, Any]]:
+    if not getattr(args, "tool_registry", None):
+        raise ValueError("--tool-registry is required with --allow-mutation")
+    audit_path = cli_input_path(args.audit_trail) if getattr(args, "audit_trail", None) else state_path.parent / "tool_node_permission_audit.json"
+    return action_admit_payload(
+        tool_registry_path=cli_input_path(args.tool_registry),
+        tool_name="adlc-tool-node",
+        action=action,
+        phase=phase,
+        state_path=state_path if state_path.exists() else None,
+        brief_id=state.get("brief_id"),
+        run_id=state.get("run_id"),
+        session_id=state.get("session_id"),
+        allow_mutation=True,
+        human_approved=getattr(args, "human_approved", False),
+        approval_ref=getattr(args, "approval_ref", None),
+        audit_trail_path=audit_path,
+    )
+
+
+def upsert_phase_artifact_state(state: Dict[str, Any], phase: str, artifact_ref: str, result: Dict[str, Any]) -> None:
+    artifacts = [
+        item
+        for item in state.get("phase_artifacts", [])
+        if not (isinstance(item, dict) and item.get("phase") == phase and item.get("artifact_ref") == artifact_ref)
+    ]
+    entry: Dict[str, Any] = {
+        "phase": phase,
+        "artifact_ref": artifact_ref,
+        "status": result.get("status"),
+        "label": result.get("label"),
+        "evidence_refs": result.get("evidence_refs", []),
+        "updated_at": utc_now(),
+    }
+    if result.get("stop_reason"):
+        entry["stop_reason"] = result["stop_reason"]
+    artifacts.append(entry)
+    state["phase_artifacts"] = artifacts
+
+
+def persist_tool_node_result(output_path: Path, result: Dict[str, Any]) -> str:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    result.setdefault("outputs", {})["artifact_ref"] = rel_path(output_path)
+    output_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    errors = validate_artifact(resolve_schema("tool-node-result"), output_path)
+    if errors:
+        raise ValueError("tool-node result failed schema validation: " + "; ".join(errors))
+    return rel_path(output_path)
+
+
+def finish_tool_node_phase(
+    state_path: Path,
+    state: Dict[str, Any],
+    phase: str,
+    plan: Dict[str, Any],
+    result: Dict[str, Any],
+    output_path: Path,
+) -> Tuple[int, Dict[str, Any]]:
+    artifact_ref = persist_tool_node_result(output_path, result)
+    upsert_phase_artifact_state(state, phase, artifact_ref, result)
+    if result["dry_run"]:
+        state["updated_at"] = utc_now()
+        append_history(state, {"phase": phase, "status": result["status"], "dry_run": True, "artifact_ref": artifact_ref, "invocation": plan})
+    elif result["status"] in {"pass", "skipped"}:
+        state = apply_phase_result(
+            state=state,
+            phase=phase,
+            status="completed",
+            label=result.get("label"),
+            plan={**plan, "artifact_ref": artifact_ref},
+            dry_run=False,
+        )
+        upsert_phase_artifact_state(state, phase, artifact_ref, result)
+    else:
+        state["phase"] = phase
+        state["status"] = "failed"
+        state["step"] = "failed"
+        state["updated_at"] = utc_now()
+        state["stop_reason"] = result.get("stop_reason", "tool_node_failed")
+        append_history(state, {"phase": phase, "status": result["status"], "dry_run": False, "artifact_ref": artifact_ref, "invocation": plan})
+    save_workflow_state(state_path, state)
+    exit_code = 0 if result["status"] in {"pass", "skipped", "planned"} else 1
+    return exit_code, {
+        "state_path": rel_path(state_path),
+        "run_identity": workflow_identity_payload(state),
+        "state": state,
+        "plan": plan,
+        "artifact_ref": artifact_ref,
+        "tool_result": result,
+        "dry_run": result["dry_run"],
+    }
+
+
+def execute_compound_preflight_tool(args: argparse.Namespace, workspace: Path, state: Dict[str, Any], phase: str, plan: Dict[str, Any]) -> Dict[str, Any]:
+    dry_run = bool(args.dry_run)
+    inputs = {"workspace": str(workspace), "build_brief": getattr(args, "build_brief", None), "input": getattr(args, "input", None)}
+    if dry_run:
+        return tool_node_base_result(phase, state, True, "planned", inputs=inputs, outputs={"command": "compound-context"})
+    payload = compound_context_payload(
+        argparse.Namespace(
+            workspace=str(workspace),
+            input=getattr(args, "input", None),
+            build_brief=getattr(args, "build_brief", None),
+            max_refs=getattr(args, "max_refs", 8),
+            json=True,
+        )
+    )
+    return tool_node_base_result(
+        phase,
+        state,
+        False,
+        "pass",
+        label="proceed",
+        inputs=inputs,
+        outputs={"compound_context": payload},
+        evidence_refs=[ref["path"] for ref in payload.get("learning_refs", []) if isinstance(ref, dict) and ref.get("path")],
+    )
+
+
+def execute_scaffold_tool(args: argparse.Namespace, workspace: Path, state_path: Path, state: Dict[str, Any], phase: str, plan: Dict[str, Any]) -> Dict[str, Any]:
+    dry_run = bool(args.dry_run)
+    brief = None
+    brief_path = None
+    warnings: List[str] = []
+    try:
+        brief_path, brief = load_phase_build_brief(args, workspace, state)
+    except Exception as exc:
+        warnings.append(f"build_brief_unavailable:{exc}")
+    planned_writes = scaffold_planned_writes(brief)
+    inputs = {"workspace": str(workspace), "build_brief": rel_path(brief_path) if brief_path else None}
+    outputs = {"planned_writes": planned_writes}
+    evidence_refs = [rel_path(brief_path)] if brief_path else []
+    if dry_run:
+        return tool_node_base_result(phase, state, True, "planned", inputs=inputs, outputs=outputs, evidence_refs=evidence_refs, warnings=warnings)
+    if not planned_writes:
+        return tool_node_base_result(
+            phase,
+            state,
+            False,
+            "skipped",
+            label=None,
+            inputs=inputs,
+            outputs=outputs,
+            evidence_refs=evidence_refs,
+            warnings=warnings,
+            skip_reason="no_scaffold_writes",
+        )
+    if not getattr(args, "allow_mutation", False):
+        return tool_node_base_result(
+            phase,
+            state,
+            False,
+            "blocked",
+            inputs=inputs,
+            outputs=outputs,
+            evidence_refs=evidence_refs,
+            warnings=warnings,
+            issues=[{"rule": "action_not_admitted", "message": "scaffold writes require --allow-mutation and --tool-registry"}],
+            stop_reason="action_not_admitted",
+        )
+    admission_exit, admission = tool_node_mutation_admission(args, state_path, state, phase, "scaffold_write")
+    outputs["admission"] = admission
+    if admission_exit != 0:
+        return tool_node_base_result(
+            phase,
+            state,
+            False,
+            "blocked",
+            inputs=inputs,
+            outputs=outputs,
+            evidence_refs=evidence_refs,
+            warnings=warnings,
+            issues=admission.get("issues", []),
+            stop_reason=admission.get("stop_reason") or admission["status"],
+        )
+    written: List[str] = []
+    for item in planned_writes:
+        if item["operation"] != "create_file":
+            continue
+        target = resolve_under_workspace(item["path"], workspace, item["path"])
+        if target.exists():
+            warnings.append(f"scaffold_target_exists:{rel_path(target)}")
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(f"# {item['reason']}\n\nGenerated by ADLC scaffold for {item['task_id']}.\n", encoding="utf-8")
+        written.append(rel_path(target))
+    if written:
+        record_local_side_effect(state, "adlc-tool-node", "scaffold_write", phase, ",".join(written))
+    outputs["written"] = written
+    return tool_node_base_result(phase, state, False, "pass", label=None, inputs=inputs, outputs=outputs, evidence_refs=[*evidence_refs, *written], warnings=warnings)
+
+
+def execute_context_assembly_tool(args: argparse.Namespace, workspace: Path, state: Dict[str, Any], phase: str, plan: Dict[str, Any]) -> Dict[str, Any]:
+    dry_run = bool(args.dry_run)
+    inputs = {"workspace": str(workspace), "build_brief": getattr(args, "build_brief", None) or getattr(args, "input", None)}
+    try:
+        brief_path, brief = load_phase_build_brief(args, workspace, state)
+    except Exception as exc:
+        status = "planned" if dry_run else "blocked"
+        return tool_node_base_result(
+            phase,
+            state,
+            dry_run,
+            status,
+            inputs=inputs,
+            outputs={"context_packages": []},
+            issues=[{"rule": "missing_build_brief", "message": str(exc)}],
+            stop_reason=None if dry_run else "missing_build_brief",
+        )
+    packages = context_packages_for_brief(brief, state, brief_path)
+    return tool_node_base_result(
+        phase,
+        state,
+        dry_run,
+        "planned" if dry_run else "pass",
+        label=None,
+        inputs={"workspace": str(workspace), "build_brief": rel_path(brief_path)},
+        outputs={"context_packages": packages, "package_count": len(packages)},
+        evidence_refs=[rel_path(brief_path)],
+    )
+
+
+def execute_qa_tool(args: argparse.Namespace, workspace: Path, state: Dict[str, Any], phase: str, plan: Dict[str, Any], output_path: Path) -> Dict[str, Any]:
+    dry_run = bool(args.dry_run)
+    commands, evidence_refs, warnings = verifier_commands_for_phase(args, workspace, state)
+    inputs = {"workspace": str(workspace), "commands": commands}
+    if dry_run:
+        return tool_node_base_result(phase, state, True, "planned", inputs=inputs, outputs={"commands": commands}, evidence_refs=evidence_refs, warnings=warnings)
+    if not commands:
+        if getattr(args, "allow_noop", False):
+            return tool_node_base_result(
+                phase,
+                state,
+                False,
+                "skipped",
+                label="skipped",
+                inputs=inputs,
+                outputs={"commands": []},
+                warnings=warnings,
+                skip_reason="no_verifier_commands",
+            )
+        return tool_node_base_result(
+            phase,
+            state,
+            False,
+            "blocked",
+            inputs=inputs,
+            outputs={"commands": []},
+            evidence_refs=evidence_refs,
+            warnings=warnings,
+            issues=[{"rule": "missing_verifier_command", "message": "qa requires --verifier, Build Brief verification_spec, or TEST_COMMAND/LINT_COMMAND/BUILD_COMMAND"}],
+            stop_reason="missing_verifier_command",
+        )
+    results, command_evidence = run_verifier_commands(commands, workspace, output_path)
+    failing = [item for item in results if item["exit_code"] != 0]
+    status = "fail" if failing else "pass"
+    success_label = getattr(args, "label", None) or "pass + overlays inactive"
+    return tool_node_base_result(
+        phase,
+        state,
+        False,
+        status,
+        label="fail" if failing else success_label,
+        inputs=inputs,
+        outputs={"commands": commands, "results": results},
+        evidence_refs=[*evidence_refs, *command_evidence],
+        warnings=warnings,
+        issues=[{"rule": "verifier_failed", "command": item["command"], "exit_code": item["exit_code"]} for item in failing],
+        stop_reason="verifier_failed" if failing else None,
+        execution={"command_count": len(commands), "failed": len(failing)},
+    )
+
+
+def execute_slop_gate_tool(args: argparse.Namespace, workspace: Path, state: Dict[str, Any], phase: str, plan: Dict[str, Any]) -> Dict[str, Any]:
+    dry_run = bool(args.dry_run)
+    brief_path = phase_build_brief_path(args, workspace, state)
+    inputs = {"build_brief": rel_path(brief_path) if brief_path else None}
+    if dry_run:
+        return tool_node_base_result(phase, state, True, "planned", inputs=inputs, outputs={"command": "slop-gate"})
+    if not brief_path:
+        return tool_node_base_result(
+            phase,
+            state,
+            False,
+            "blocked",
+            inputs=inputs,
+            issues=[{"rule": "missing_build_brief", "message": "slop_gate requires a Build Brief"}],
+            stop_reason="missing_build_brief",
+        )
+    payload = slop_gate_payload(brief_path)
+    generated = payload.get("summary", {}).get("generated_output_surfaces", 0)
+    if generated == 0:
+        return tool_node_base_result(
+            phase,
+            state,
+            False,
+            "skipped",
+            label=None,
+            inputs=inputs,
+            outputs={"slop_gate": payload},
+            evidence_refs=[rel_path(brief_path)],
+            skip_reason="generated_output_surface_inactive",
+        )
+    status = "pass" if payload["status"] == "pass" else "fail"
+    return tool_node_base_result(
+        phase,
+        state,
+        False,
+        status,
+        label="pass" if status == "pass" else "fail",
+        inputs=inputs,
+        outputs={"slop_gate": payload},
+        evidence_refs=[rel_path(brief_path)],
+        issues=payload.get("issues", []),
+        stop_reason="slop_gate_failed" if status == "fail" else None,
+    )
+
+
+def execute_learning_capture_tool(args: argparse.Namespace, workspace: Path, state_path: Path, state: Dict[str, Any], phase: str, plan: Dict[str, Any]) -> Dict[str, Any]:
+    dry_run = bool(args.dry_run)
+    candidates, warnings = learning_candidates_from_args(args, workspace)
+    inputs = {"workspace": str(workspace), "candidate_count": len(candidates), "input": getattr(args, "input", None)}
+    if not candidates:
+        return tool_node_base_result(
+            phase,
+            state,
+            dry_run,
+            "planned" if dry_run else "skipped",
+            label=None if dry_run else "skipped",
+            inputs=inputs,
+            outputs={"written": []},
+            warnings=warnings,
+            skip_reason="no_verified_learning_candidates" if not dry_run else None,
+        )
+    issues: List[Dict[str, Any]] = []
+    for index, candidate in enumerate(candidates):
+        issues.extend({**issue, "candidate_index": index} for issue in valid_learning_candidate(candidate))
+    if issues:
+        return tool_node_base_result(
+            phase,
+            state,
+            dry_run,
+            "blocked" if not dry_run else "planned",
+            inputs=inputs,
+            outputs={"candidate_count": len(candidates)},
+            warnings=warnings,
+            issues=issues,
+            stop_reason=None if dry_run else "invalid_learning_candidate",
+        )
+    if dry_run:
+        return tool_node_base_result(phase, state, True, "planned", inputs=inputs, outputs={"candidate_count": len(candidates)}, warnings=warnings)
+    if not getattr(args, "allow_mutation", False):
+        return tool_node_base_result(
+            phase,
+            state,
+            False,
+            "blocked",
+            inputs=inputs,
+            outputs={"candidate_count": len(candidates)},
+            warnings=warnings,
+            issues=[{"rule": "action_not_admitted", "message": "learning capture writes require --allow-mutation and --tool-registry"}],
+            stop_reason="action_not_admitted",
+        )
+    admission_exit, admission = tool_node_mutation_admission(args, state_path, state, phase, "learning_capture_write")
+    if admission_exit != 0:
+        return tool_node_base_result(
+            phase,
+            state,
+            False,
+            "blocked",
+            inputs=inputs,
+            outputs={"admission": admission},
+            warnings=warnings,
+            issues=admission.get("issues", []),
+            stop_reason=admission.get("stop_reason") or admission["status"],
+        )
+    solutions_dir = workspace / "docs" / "solutions"
+    solutions_dir.mkdir(parents=True, exist_ok=True)
+    written: List[str] = []
+    validation_results: List[Dict[str, Any]] = []
+    for candidate in candidates:
+        task_id = str(candidate.get("task_id") or state.get("brief_id") or "ADLC")
+        title_slug = re.sub(r"[^A-Za-z0-9._-]+", "-", str(candidate.get("title") or task_id).strip()).strip("-").lower() or "learning"
+        target = solutions_dir / f"{title_slug}.md"
+        target.write_text(learning_entry_text(candidate, task_id), encoding="utf-8")
+        process = subprocess.run([sys.executable, str(ROOT / "scripts/validate_learning_entry.py"), str(target)], text=True, capture_output=True, check=False)
+        validation_results.append({"path": rel_path(target), "returncode": process.returncode, "stdout": process.stdout[-1000:], "stderr": process.stderr[-1000:]})
+        if process.returncode != 0:
+            return tool_node_base_result(
+                phase,
+                state,
+                False,
+                "fail",
+                inputs=inputs,
+                outputs={"written": written, "validation_results": validation_results, "admission": admission},
+                warnings=warnings,
+                issues=[{"rule": "learning_entry_validation_failed", "path": rel_path(target), "stderr": process.stderr[-2000:]}],
+                stop_reason="learning_entry_validation_failed",
+            )
+        written.append(rel_path(target))
+    if written:
+        record_local_side_effect(state, "adlc-tool-node", "learning_capture_write", phase, ",".join(written))
+    return tool_node_base_result(
+        phase,
+        state,
+        False,
+        "pass",
+        label="pass",
+        inputs=inputs,
+        outputs={"written": written, "validation_results": validation_results, "admission": admission},
+        evidence_refs=written,
+        warnings=warnings,
+    )
+
+
+def execute_tool_node_phase(
+    args: argparse.Namespace,
+    workspace: Path,
+    state_path: Path,
+    state: Dict[str, Any],
+    phase: str,
+    plan: Dict[str, Any],
+) -> Tuple[int, Dict[str, Any]]:
+    output_path = Path(plan["output"])
+    handlers = {
+        "compound_preflight": lambda: execute_compound_preflight_tool(args, workspace, state, phase, plan),
+        "scaffold": lambda: execute_scaffold_tool(args, workspace, state_path, state, phase, plan),
+        "context_assembly": lambda: execute_context_assembly_tool(args, workspace, state, phase, plan),
+        "qa": lambda: execute_qa_tool(args, workspace, state, phase, plan, output_path),
+        "slop_gate": lambda: execute_slop_gate_tool(args, workspace, state, phase, plan),
+        "learning_capture": lambda: execute_learning_capture_tool(args, workspace, state_path, state, phase, plan),
+    }
+    if phase not in handlers:
+        result = tool_node_base_result(
+            phase,
+            state,
+            bool(args.dry_run),
+            "blocked",
+            inputs={"workspace": str(workspace)},
+            issues=[{"rule": "missing_tool_binding", "message": f"no deterministic binding exists for tool node {phase}"}],
+            stop_reason="missing_tool_binding",
+        )
+    else:
+        result = handlers[phase]()
+    return finish_tool_node_phase(state_path, state, phase, plan, result, output_path)
+
+
 def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
     workspace = resolve_workspace(args.workspace)
+    workspace.mkdir(parents=True, exist_ok=True)
     state_path, state = workflow_state_for_args(args, workspace)
     phase = args.phase or state["phase"]
     runtime = args.runtime or os.environ.get("ADLC_RUNTIME", "claude")
@@ -534,7 +1303,10 @@ def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
             "result": "awaiting_approval",
         }
 
-    if args.dry_run or phase == "start" or node_type in {"tool", "fan_out", "workflow", "conditional"}:
+    if node_type == "tool":
+        return execute_tool_node_phase(args, workspace, state_path, state, phase, plan)
+
+    if args.dry_run or phase == "start" or node_type in {"fan_out", "workflow", "conditional"}:
         label = args.label
         state = apply_phase_result(
             state=state,
@@ -982,6 +1754,7 @@ def resume_next_action_payload(state: Dict[str, Any]) -> Dict[str, Any]:
         "work_item_links": state.get("work_item_links", []),
         "queue_claims": state.get("queue_claims", []),
         "worktree_refs": state.get("worktree_refs", []),
+        "phase_artifacts": state.get("phase_artifacts", []),
     }
 
 
@@ -4640,6 +5413,18 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "state": {"type": "string", "minLength": 1},
                     "input": {"type": "string", "minLength": 1},
                     "output": {"type": "string", "minLength": 1},
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "verifier": {
+                        "type": "array",
+                        "items": {"type": "string", "minLength": 1},
+                    },
+                    "allow_noop": {"type": "boolean", "default": False},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                    "max_refs": {"type": "integer", "minimum": 1, "default": 8},
                     "runtime": {"type": "string", "enum": list(SUPPORTED_RUNTIMES)},
                     "tools": {"type": "string"},
                     "schema": {"type": "string"},
@@ -5063,6 +5848,15 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             state=arguments.get("state"),
             input=arguments.get("input"),
             output=arguments.get("output"),
+            build_brief=arguments.get("build_brief"),
+            verifier=arguments.get("verifier") if isinstance(arguments.get("verifier"), list) else [],
+            allow_noop=arguments.get("allow_noop", False),
+            allow_mutation=arguments.get("allow_mutation", False),
+            tool_registry=arguments.get("tool_registry"),
+            audit_trail=arguments.get("audit_trail"),
+            human_approved=arguments.get("human_approved", False),
+            approval_ref=arguments.get("approval_ref"),
+            max_refs=arguments.get("max_refs", 8),
             runtime=arguments.get("runtime"),
             tools=arguments.get("tools"),
             schema=arguments.get("schema"),
@@ -5379,6 +6173,17 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--worktree-path", help="Explicit worktree path.")
         command.add_argument("--base-ref", help="Git base ref for new worktrees. Defaults to HEAD.")
 
+    def add_tool_phase_arguments(command: argparse.ArgumentParser) -> None:
+        command.add_argument("--build-brief", help="Build Brief JSON path for deterministic tool nodes.")
+        command.add_argument("--verifier", action="append", help="Verifier command for the qa tool node. Can be passed multiple times.")
+        command.add_argument("--allow-noop", action="store_true", help="Permit documented no-op execution for tool nodes that otherwise fail closed.")
+        command.add_argument("--allow-mutation", action="store_true", help="Permit local mutating tool-node writes after action admission.")
+        command.add_argument("--tool-registry", help="Tool Registry JSON path used by action-admit before mutating tool-node writes.")
+        command.add_argument("--audit-trail", help="Permission Audit Trail JSON path to create or append for mutating tool-node writes.")
+        command.add_argument("--human-approved", action="store_true", help="Record that a human approved the requested tool-node mutation.")
+        command.add_argument("--approval-ref", help="Human approval ticket, comment, or transcript reference.")
+        command.add_argument("--max-refs", type=int, default=8, help="Maximum compound-context refs for compound_preflight.")
+
     list_agents = subparsers.add_parser("list-agents", help=command_description("list-agents"))
     list_agents.add_argument("--json", action="store_true", help="Emit JSON.")
     list_agents.set_defaults(func=command_list_agents)
@@ -5482,6 +6287,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--schema", help="Schema alias or path for agent output enforcement.")
     run.add_argument("--label", help="Transition label to use after this phase.")
     run.add_argument("--max-phases", type=int, default=1, help="Maximum phases to advance in this invocation.")
+    add_tool_phase_arguments(run)
     run.add_argument("--dry-run", action="store_true", help="Plan and advance state without invoking runtime adapters.")
     run.add_argument("--json", action="store_true", help="Emit JSON.")
     run.set_defaults(func=command_run, phase=None)
@@ -5497,6 +6303,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_phase.add_argument("--tools", help="Runtime tool allowlist CSV for agent phases.")
     run_phase.add_argument("--schema", help="Schema alias or path for agent output enforcement.")
     run_phase.add_argument("--label", help="Transition label to use after this phase.")
+    add_tool_phase_arguments(run_phase)
     run_phase.add_argument("--dry-run", action="store_true", help="Plan and advance state without invoking runtime adapters.")
     run_phase.add_argument("--json", action="store_true", help="Emit JSON.")
     run_phase.set_defaults(func=command_run_phase)

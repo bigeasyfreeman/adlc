@@ -2,17 +2,17 @@
 set -euo pipefail
 
 # Runtime: antigravity
-# Minimum CLI Version: unknown; Gemini/Antigravity CLI is not installed on this machine
-# Auth Env Vars: GOOGLE_API_KEY or GEMINI_API_KEY
+# Minimum CLI Version: unknown; Antigravity CLI is not installed on this machine
+# Auth Env Vars: native coding-agent session only
 # Flag Mapping:
-# - system prompt: unverified; requires a confirmed non-interactive prompt override in the Gemini/Antigravity CLI
+# - system prompt: unverified; requires a confirmed non-interactive prompt override in the Antigravity CLI
 # - tool allowlist: unverified; requires a confirmed non-interactive tool grant surface
 # - settings/isolation: unverified; requires a confirmed isolated config path or ephemeral mode
 # - session persistence: unverified; requires a confirmed no-history or ephemeral mode
 # - JSON output: unverified; requires a confirmed non-interactive raw-text mode
 # - schema enforcement: unverified; rely on tests/smoke/stages/_validate.sh until the CLI surface is confirmed
 # Known Limitations:
-# - This adapter only validates auth and binary presence in the current environment; it exits 66 if a Gemini/Antigravity CLI is installed but the invocation surface is still unverified
+# - This adapter only validates native runtime binary presence in the current environment; it exits 66 if an Antigravity CLI is installed but the invocation surface is still unverified
 
 _adlc_antigravity_emit_error() {
   local stderr_log="$1"
@@ -54,11 +54,6 @@ _adlc_antigravity_parse_args() {
 }
 
 _adlc_antigravity_bin() {
-  if command -v gemini >/dev/null 2>&1; then
-    printf 'gemini\n'
-    return 0
-  fi
-
   if command -v antigravity >/dev/null 2>&1; then
     printf 'antigravity\n'
     return 0
@@ -67,28 +62,16 @@ _adlc_antigravity_bin() {
   return 1
 }
 
-_adlc_antigravity_auth_path() {
-  if [ -n "${GOOGLE_API_KEY:-}" ]; then
-    printf 'env:GOOGLE_API_KEY\n'
-    return 0
-  fi
-
-  if [ -n "${GEMINI_API_KEY:-}" ]; then
-    printf 'env:GEMINI_API_KEY\n'
-    return 0
-  fi
-
-  echo "antigravity auth missing: set GOOGLE_API_KEY or GEMINI_API_KEY" >&2
-  return 65
-}
-
 _adlc_adapter_preflight() {
   if [ "$#" -ne 0 ]; then
     echo "usage: preflight" >&2
     return 64
   fi
 
-  _adlc_antigravity_auth_path
+  if ! _adlc_antigravity_bin >/dev/null 2>&1; then
+    echo "antigravity CLI not installed; ADLC does not use provider API keys for this runtime" >&2
+    return 77
+  fi
 }
 
 _adlc_adapter_invoke_agent() {
@@ -99,14 +82,8 @@ _adlc_adapter_invoke_agent() {
   stderr_log="${_ADLC_OUTPUT_PATH}.stderr.log"
   : > "$stderr_log"
 
-  _adlc_antigravity_auth_path >/dev/null || {
-    status=$?
-    _adlc_antigravity_emit_error "$stderr_log" "antigravity auth missing: set GOOGLE_API_KEY or GEMINI_API_KEY"
-    return "$status"
-  }
-
   if ! _adlc_antigravity_bin >/dev/null 2>&1; then
-    _adlc_antigravity_emit_error "$stderr_log" "antigravity CLI not installed (expected gemini or antigravity)"
+    _adlc_antigravity_emit_error "$stderr_log" "antigravity CLI not installed; ADLC does not use provider API keys for this runtime"
     return 77
   fi
 

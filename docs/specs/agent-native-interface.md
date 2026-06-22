@@ -16,6 +16,7 @@ Define the minimum contract an external agent or orchestrator needs to discover,
 | `tests/smoke/adapters/*.sh` | Runtime-specific `invoke_agent` and `preflight` adapter contracts |
 | `bin/adlc` | Thin local CLI for discovery, workflow inspection, schema validation, workflow state transitions, dry-run/runtime phase execution, emitter payloads, and MCP stdio exposure |
 | `docs/specs/emitter-contract.md` | Normalized work-item and document emitter contract for MCP-backed integrations |
+| `docs/specs/executable-tool-nodes.md` | Deterministic tool-node execution, artifact, and fail-closed mutation contract |
 | `.adlc/` | Per-run workspace state and artifacts such as `test_plan.json`, `loop_test_result.json`, `pre_change_run.txt`, and `test_strength_report.json` |
 
 ## Quick Hook Contract
@@ -43,6 +44,9 @@ bin/adlc ci --json
 bin/adlc validate-artifact --schema build-brief --input .adlc/build_brief.json --json
 bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json
+bin/adlc run-phase context_assembly --build-brief .adlc/build_brief.json --workspace . --json
+bin/adlc run-phase qa --workspace . --verifier 'pytest tests/test_task.py' --json
+bin/adlc run-phase learning_capture --input .adlc/pr_prep_output.json --workspace . --dry-run --json
 bin/adlc resume-workflow --workspace . --json
 bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
 bin/adlc action-admit --tool-registry .adlc/tool_registry.json --tool Read --action read_file --phase research --brief-id BRF-123 --run-id ADLC-RUN-123 --session-id SESSION-123 --json
@@ -66,7 +70,7 @@ bin/adlc mcp-tools --json
 bin/adlc mcp-serve
 ```
 
-`mcp-serve` implements a minimal newline-delimited JSON-RPC stdio server with `initialize`, `tools/list`, and `tools/call` for ADLC discovery, health checks, validation, compound context preflight, tool-registry action admission, loop test selection, loop budget checks, LLM action admission, loop maturity audit, dry-run phase execution, resume inspection, work-item emitter payload generation, work-item state synchronization, work queue status and lifecycle actions, and worktree prepare/status/cleanup. Mutating work-item emission requires explicit `allow_mutation` plus a local `provider_command`. Mutating work-item synchronization also requires `tool_registry` admission evidence before the local provider command can run. Mutating queue and worktree operations also require explicit `allow_mutation` and `tool_registry` admission evidence.
+`mcp-serve` implements a minimal newline-delimited JSON-RPC stdio server with `initialize`, `tools/list`, and `tools/call` for ADLC discovery, health checks, validation, compound context preflight, executable tool-node phase artifacts, tool-registry action admission, loop test selection, loop budget checks, LLM action admission, loop maturity audit, dry-run phase execution, resume inspection, work-item emitter payload generation, work-item state synchronization, work queue status and lifecycle actions, and worktree prepare/status/cleanup. Mutating work-item emission requires explicit `allow_mutation` plus a local `provider_command`. Mutating work-item synchronization also requires `tool_registry` admission evidence before the local provider command can run. Mutating queue, worktree, and tool-node operations also require explicit `allow_mutation` and `tool_registry` admission evidence.
 
 ## Current Native Level
 
@@ -83,13 +87,14 @@ ADLC is agent-native at the contract and harness layer:
 - permission audit trails and side-effect ledgers can correlate decisions and mutations back to the same run/session/brief identity
 - workflow state can carry `work_item_links` so tracker items stay correlated with stable ADLC external IDs, run identity, verifier evidence, blockers, and next action across resumes
 - workflow state can carry `queue_claims` and `worktree_refs` so a harness can see claimed, running, blocked, completed, escalated, and isolated work across resumes
+- workflow state can carry `phase_artifacts` so a harness can inspect deterministic tool-node outputs across resumes
 - optional task-level fingerprints in workflow state let `resume-workflow` report completed, skipped, failed, and incomplete executable tasks
 - optional Loop Contract fields in workflow state let `resume-workflow` report progress, no-progress count, pending control events, safe checkpoints, escalation context, and `budget_status`
 - `loop-test-result` artifacts let `loop-test-selection --require-test-results` and `loop-maturity-audit --test-results` distinguish tag-only coverage from executed required-test evidence
 - `compound-context` keeps prior learnings compact by passing `docs/solutions` paths, summaries, source refs, verifier refs, and stale signals rather than full notes
 - work-item emitter payloads preserve ADLC artifact taxonomy, decision contracts, verifier contracts, compatibility constraints, and evidence responsibilities
 
-ADLC now has a thin workflow orchestration API for `adlc run`, `run-phase`, `resume-workflow`, and `emit-work-items`. It is still intentionally thin: agent execution delegates to existing runtime adapters, deterministic tool nodes only transition state in this slice, and external mutation is only available through an explicit local provider command.
+ADLC now has a thin workflow orchestration API for `adlc run`, `run-phase`, `resume-workflow`, and `emit-work-items`. It is still intentionally thin: agent execution delegates to existing runtime adapters, deterministic tool nodes emit schema-backed phase artifacts, and external mutation is only available through an explicit local provider command.
 
 ## Recommended Thin Orchestrator Surface
 
@@ -106,7 +111,7 @@ The current thin orchestrator surface exposes:
 | `loop_budget_check` | Check projected input/output tokens against `.adlc/token_budget.json`, then emit `budget_status`, `wrap_up`, or stop reason `budget_exhausted` |
 | `loop_action_validate` | Admit, reject, or escalate an LLM-proposed action from allowed tools, required tests, state, and checkpoint evidence |
 | `loop_maturity_audit` | Score loop maturity from Loop Contract, workflow, state, test-plan, executed test-result, action evidence, and budget evidence |
-| `run_phase` | Invoke the configured runtime adapter for a single DAG phase |
+| `run_phase` | Invoke the configured runtime adapter for agent phases or execute deterministic tool nodes with phase artifacts |
 | `resume_workflow` | Load workflow state, identify the next runnable phase, and continue |
 | `emit_work_items` | Run a normalized dry-run or mutation against a configured MCP provider |
 | `sync_work_item` | Find, create, or append tracker work-item state from ADLC run evidence and stable external IDs |
@@ -119,7 +124,20 @@ The current thin orchestrator surface exposes:
 | `worktree_status` | Report linked task, branch/path, dirty state, and cleanup eligibility |
 | `worktree_cleanup` | Remove or dry-run removal of an ADLC worktree, refusing dirty work unless explicitly forced |
 
-The next native layer should add deterministic implementations for tool nodes (`scaffold`, `context_assembly`, `qa`, `slop_gate`) and richer provider-specific MCP adapters. The current surface keeps ADLC easy for agents to manage while preserving the repo's existing vendor-neutral runtime adapters, queue/worktree isolation substrate, and schema-first contracts.
+The next native layer should add richer provider-specific MCP adapters and packaged loop templates. The current surface keeps ADLC easy for agents to manage while preserving the repo's existing vendor-neutral runtime adapters, executable tool-node artifacts, queue/worktree isolation substrate, and schema-first contracts.
+
+## Executable Tool-Node Contract
+
+`run-phase` executes deterministic tool nodes through schema-backed bindings:
+
+- `compound_preflight` writes compact compound context refs.
+- `scaffold` emits planned writes and requires action admission for file creation.
+- `context_assembly` emits per-task context packages from Build Brief, queue, worktree, and tracker state.
+- `qa` runs verifier commands and captures exit codes plus bounded log refs.
+- `slop_gate` reuses the generated-output slop gate.
+- `learning_capture` writes only verified, redacted reusable learning candidates.
+
+Dry-run tool-node execution emits a `planned` result artifact and does not advance the phase. Non-dry-run execution advances only when the deterministic result returns a valid workflow label or unlabeled success route. Tool-node results validate against `tool-node-result` and are referenced from workflow state through `phase_artifacts[]`.
 
 ## Queue And Worktree Contract
 

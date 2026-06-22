@@ -1,0 +1,45 @@
+{
+  "contract_version": "1.0.0",
+  "dry_run": false,
+  "evidence_refs": [
+    ".adlc/outputs/qa.1.stdout.log",
+    ".adlc/outputs/qa.1.stderr.log"
+  ],
+  "inputs": {
+    "commands": [
+      "true"
+    ],
+    "workspace": "."
+  },
+  "issues": [],
+  "label": "pass + overlays inactive",
+  "outputs": {
+    "artifact_ref": ".adlc/outputs/qa.json",
+    "commands": [
+      "true"
+    ],
+    "results": [
+      {
+        "command": "true",
+        "ended_at": "2026-01-01T00:00:01Z",
+        "exit_code": 0,
+        "started_at": "2026-01-01T00:00:00Z",
+        "status": "pass",
+        "stderr_ref": ".adlc/outputs/qa.1.stderr.log",
+        "stderr_tail": "",
+        "stdout_ref": ".adlc/outputs/qa.1.stdout.log",
+        "stdout_tail": ""
+      }
+    ]
+  },
+  "phase": "qa",
+  "run_identity": {
+    "attempt": 1,
+    "brief_id": "TOOL-NODE-SMOKE",
+    "resume_count": 0,
+    "run_id": "adlc-run-tool-node",
+    "session_id": "adlc-tool-node"
+  },
+  "status": "pass",
+  "warnings": []
+}

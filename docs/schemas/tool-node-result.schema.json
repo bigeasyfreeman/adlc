@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/tool-node-result.schema.json",
+  "title": "ADLC Tool Node Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "phase",
+    "status",
+    "run_identity",
+    "dry_run",
+    "inputs",
+    "outputs",
+    "evidence_refs",
+    "warnings",
+    "issues"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "phase": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planned", "pass", "fail", "blocked", "skipped"]
+    },
+    "label": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "run_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["brief_id", "run_id", "session_id"],
+      "properties": {
+        "brief_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resume_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "skip_reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stop_reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "skipped"
+          }
+        }
+      },
+      "then": {
+        "required": ["skip_reason"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": ["blocked", "fail"]
+          }
+        }
+      },
+      "then": {
+        "required": ["stop_reason"]
+      }
+    }
+  ]
+}

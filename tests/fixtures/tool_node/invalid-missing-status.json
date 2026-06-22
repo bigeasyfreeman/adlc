@@ -1,0 +1,25 @@
+{
+  "contract_version": "1.0.0",
+  "dry_run": false,
+  "evidence_refs": [
+    ".adlc/outputs/qa.1.stdout.log"
+  ],
+  "inputs": {
+    "commands": [
+      "true"
+    ],
+    "workspace": "."
+  },
+  "issues": [],
+  "label": "pass + overlays inactive",
+  "outputs": {
+    "artifact_ref": ".adlc/outputs/qa.json"
+  },
+  "phase": "qa",
+  "run_identity": {
+    "brief_id": "TOOL-NODE-SMOKE",
+    "run_id": "adlc-run-tool-node",
+    "session_id": "adlc-tool-node"
+  },
+  "warnings": []
+}

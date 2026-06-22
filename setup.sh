@@ -136,7 +136,7 @@ install_cursor() {
 }
 
 install_antigravity() {
-  echo "→ Antigravity (Google)"
+  echo "→ Antigravity"
 
   # Skills
   sync_skills "$TARGET/.agent/skills"

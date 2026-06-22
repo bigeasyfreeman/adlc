@@ -37,7 +37,7 @@ cd adlc
 ./setup.sh claude ~/my-project       # Claude Code
 ./setup.sh codex ~/my-project        # Codex (OpenAI)
 ./setup.sh cursor ~/my-project       # Cursor
-./setup.sh antigravity ~/my-project  # Antigravity (Google)
+./setup.sh antigravity ~/my-project  # Antigravity
 ./setup.sh factory ~/my-project      # Factory
 ./setup.sh all ~/my-project          # All platforms
 ```
@@ -184,6 +184,8 @@ bin/adlc ci --json
 bin/adlc validate-artifact --schema build-brief --input .adlc/build_brief.json --json
 bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json
+bin/adlc run-phase context_assembly --build-brief .adlc/build_brief.json --workspace . --json
+bin/adlc run-phase qa --workspace . --verifier 'pytest tests/test_task.py' --json
 bin/adlc resume-workflow --workspace . --json
 bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
 bin/adlc action-admit --tool-registry .adlc/tool_registry.json --tool Read --action read_file --phase research --brief-id BRF-123 --run-id ADLC-RUN-123 --session-id SESSION-123 --json
@@ -207,6 +209,8 @@ bin/adlc mcp-serve
 ```
 
 Queue and worktree operations are dry-run first. Mutating queue state or creating/removing worktrees requires `--allow-mutation` plus a tool-registry admission path for `adlc-queue` or `adlc-worktree`. Claims fail closed when the checkout is dirty or when expected file, directory, or glob ownership overlaps an active `claimed` or `running` task.
+
+Deterministic tool nodes emit schema-backed phase artifacts under `.adlc/outputs/` and workflow state records them in `phase_artifacts[]`. Dry-run tool-node calls produce `planned` artifacts without marking the phase complete. Mutating tool-node writes require `--allow-mutation` and `--tool-registry`.
 
 Minimal Loop Contract flow:
 
@@ -313,7 +317,7 @@ Loop Contracts are task/workflow control artifacts, not a required Build Brief s
 |----------|------|------|
 | Claude Code | `sonnet` | `opus` |
 | Codex | `o4-mini` | `o3` |
-| Antigravity | `gemini-2.5-flash` | `gemini-2.5-pro` |
+| Antigravity | `inherit` | `inherit` |
 | Factory | `inherit` | `claude-opus-4-6` |
 
 **Swap integrations.** Work-item emitters (`jira-ticket-creation`, `github-issue-creation`, `linear-ticket-creation`) and document emitters (`confluence-decomposition`, `notion-decomposition`) share the emitter contract in `docs/specs/emitter-contract.md` and are intended to run through locally installed MCP providers.

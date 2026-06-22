@@ -45,6 +45,9 @@ Tool nodes are deterministic command executions.
 - The runner must execute the documented command body instead of inferring behavior from skill names.
 - Tool nodes may consume skill outputs, but the execution mode is still command-based.
 - Missing tool-node command bodies are a hard binding failure.
+- Tool-node outputs must validate against `docs/schemas/tool-node-result.schema.json`.
+- Dry-run tool-node execution emits a `planned` artifact and must not mark the phase complete.
+- Mutating tool-node execution must use action admission before writing project files or learning entries.
 
 ## Consistency Checks
 
@@ -55,6 +58,7 @@ Before execution, runners should verify:
 - every backend named in `ADLC_RUNTIME` exists in frontmatter `backends`
 - every agent path exists on disk
 - every tool node has a command block
+- every executable tool node has a CLI/MCP binding and emits a phase artifact
 - manifest `dag_node` and `dag_nodes` entries agree with workflow bindings
 
 ## Runtime Invocation Sources
