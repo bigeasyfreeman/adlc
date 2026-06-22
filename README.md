@@ -68,6 +68,7 @@ Runtime preflight:
 ```bash
 python3 -m pip install -e .
 bin/adlc health-check --json
+bin/adlc ci --json
 ~/my-project/.adlc/bin/adlc health-check --json
 ```
 
@@ -166,6 +167,7 @@ The repo ships with three verification layers:
 Typical verification flow:
 
 ```bash
+bin/adlc ci --json
 bash tests/test_adlc_contracts.sh
 bash tests/backtest/run_backtest.sh
 ADLC_RUNTIME=codex ADLC_SMOKE_SETTINGS_CODEX=~/path/to/config.toml SMOKE=1 MODEL=gpt-5-codex bash tests/smoke/run_smoke.sh
@@ -177,6 +179,7 @@ Agent-native discovery and validation:
 bin/adlc list-agents --json
 bin/adlc list-phases --json
 bin/adlc health-check --json
+bin/adlc ci --json
 bin/adlc validate-artifact --schema build-brief --input .adlc/build_brief.json --json
 bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json

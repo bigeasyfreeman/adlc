@@ -39,6 +39,7 @@ The local CLI exposes the native hooks directly:
 bin/adlc list-agents --json
 bin/adlc list-phases --json
 bin/adlc health-check --json
+bin/adlc ci --json
 bin/adlc validate-artifact --schema build-brief --input .adlc/build_brief.json --json
 bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json

@@ -117,6 +117,48 @@ assert_workflow_state_accepts_loop_progress_control() {
     jq -e '.valid == true and (.errors | length) == 0' >/dev/null
 }
 
+assert_workflow_state_covers_workflow_nodes() {
+  python3 - "$ROOT" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+schema = json.loads((root / "docs/schemas/workflow-state.schema.json").read_text())
+allowed = set(schema["properties"]["phase"]["enum"])
+nodes = set()
+node_re = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s+\[")
+for line in (root / "WORKFLOW.dot").read_text().splitlines():
+    match = node_re.match(line)
+    if not match:
+        continue
+    node = match.group(1)
+    if node in {"graph", "node", "edge"} or node.startswith("l_"):
+        continue
+    nodes.add(node)
+missing = sorted(nodes - allowed)
+if missing:
+    print("workflow-state phase enum missing: " + ", ".join(missing))
+    sys.exit(1)
+PY
+}
+
+assert_build_brief_1_1_requires_narrative_contract() {
+  local tmp result status
+  tmp="$(mktemp)"
+  result="$(mktemp)"
+  jq '.version = "1.1.0"' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp"
+  status=0
+  if "$ROOT/bin/adlc" validate-artifact --schema build-brief --input "$tmp" --json > "$result" 2>/dev/null; then
+    status=1
+  else
+    jq -e '.valid == false and any(.errors[]; contains("narrative_contract"))' "$result" >/dev/null || status=$?
+  fi
+  rm -f "$tmp" "$result"
+  return "$status"
+}
+
 assert_emit_preserves_slop_quality_gate() {
   local tmp
   tmp="$(mktemp)"
@@ -431,6 +473,7 @@ assert "build-brief schema parses" "jq empty '$ROOT/docs/schemas/build-brief.sch
 assert "learning-entry schema parses" "jq empty '$ROOT/docs/schemas/learning-entry.schema.json' >/dev/null 2>&1"
 assert "workflow-state schema parses" "jq empty '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null 2>&1"
 assert "loop-system schemas parse" "jq empty '$ROOT/docs/schemas/loop-contract.schema.json' '$ROOT/docs/schemas/loop-action.schema.json' '$ROOT/docs/schemas/loop-test-result.schema.json' '$ROOT/docs/schemas/loop-maturity-report.schema.json' '$ROOT/docs/schemas/token-budget.schema.json' >/dev/null 2>&1"
+assert "control-plane schemas parse" "jq empty '$ROOT/docs/schemas/tool-registry.schema.json' '$ROOT/docs/schemas/permission-audit-trail.schema.json' >/dev/null 2>&1"
 assert "skills manifest parses" "jq empty '$ROOT/skills/manifest.json' >/dev/null 2>&1"
 assert "applicability issue set parses" "jq empty '$ROOT/tests/fixtures/applicability-issue-set.json' >/dev/null 2>&1"
 assert "artifact contract case set parses" "jq empty '$ROOT/tests/fixtures/adlc-artifact-contract-cases.json' >/dev/null 2>&1"
@@ -442,6 +485,8 @@ echo "--- Build Brief Contract ---"
 assert "build brief requires applicability_manifest" "jq -e '.required | index(\"applicability_manifest\")' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "build brief requires adlc_mode" "jq -e '. as \$s | (\$s.required | index(\"adlc_mode\")) and (\$s.properties.adlc_mode.enum == [\"prd_only\", \"decompose_only\", \"prd_and_decompose\"])' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "build brief requires enterprise_readiness_contract" "jq -e '. as \$s | (\$s.required | index(\"enterprise_readiness_contract\")) and (\$s.definitions.enterprise_readiness_contract.required | index(\"production_grade_target\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "build brief allows 1.0 briefs without narrative contract" "'$ROOT/bin/adlc' validate-artifact --schema build-brief --input '$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+assert "build brief requires narrative contract at 1.1" "assert_build_brief_1_1_requires_narrative_contract"
 assert "build brief allows prd_only without forced tickets" "jq -e '.properties.sections.properties.\"8_task_tickets\".minItems == 0' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "decomposition modes require task tickets and validation task references" "jq -e '.allOf[] | select(.if.properties.adlc_mode.enum == [\"decompose_only\", \"prd_and_decompose\"]) | .then.properties.sections.properties.\"8_task_tickets\".minItems == 1 and .then.properties.enterprise_readiness_contract.properties.validation_tasks.minItems == 1' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema requires task_classification" "jq -e '.definitions.task.required | index(\"task_classification\")' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
@@ -469,7 +514,8 @@ assert "validation tasks map to build validation and do not block implementation
 assert "task schema keeps failure_modes required" "jq -e '.definitions.task.required | index(\"failure_modes\")' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "change surface includes service_boundary_change" "jq -e '.properties.change_surface.required | index(\"service_boundary_change\")' '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null"
 assert "applicability manifest supports implementation and productionization sections" "jq -e '(.properties.section_policy.items.properties.section_name.enum | index(\"16_implementation_interfaces\")) and (.properties.section_policy.items.properties.section_name.enum | index(\"17_productionization_gates\"))' '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null"
-assert "workflow-state supports compound phases and task fingerprints" "jq -e '(.properties.phase.enum | index(\"compound_preflight\")) and (.properties.phase.enum | index(\"learning_capture\")) and .properties.task_fingerprints.items.properties.input_hash.type == \"string\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
+assert "workflow-state supports compound phases and task fingerprints" "jq -e '(.properties.phase.enum | index(\"compound_preflight\")) and (.properties.phase.enum | index(\"intent_validation\")) and (.properties.phase.enum | index(\"learning_capture\")) and .properties.task_fingerprints.items.properties.input_hash.type == \"string\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
+assert "workflow-state phase enum covers WORKFLOW.dot nodes" "assert_workflow_state_covers_workflow_nodes"
 assert "workflow-state supports loop progress and control channel" "jq -e '.properties.loop_progress.properties.last_progress_signal.type == \"string\" and (.properties.control_events.items.properties.event_type.enum | index(\"steer\")) and (.properties.control_events.items.properties.event_type.enum | index(\"abort\")) and .properties.safe_checkpoint.properties.idempotent.type == \"boolean\" and .properties.escalation_context.properties.no_progress_after.type == \"integer\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
 assert "loop schemas support budget guard evidence" "jq -e '.properties.budget_guard[\"\$ref\"] == \"#/definitions/budget_guard\" and (.definitions.budget_guard.required | index(\"token_budget_ref\")) and (.definitions.budget_guard.required | index(\"hard_stop_behavior\"))' '$ROOT/docs/schemas/loop-contract.schema.json' >/dev/null && jq -e '.properties.budget_estimate.required | index(\"projected_total_tokens\")' '$ROOT/docs/schemas/loop-action.schema.json' >/dev/null && jq -e '.properties.budget_status[\"\$ref\"] == \"#/definitions/budget_status\" and (.definitions.budget_status.properties.status.enum | index(\"missing\")) and (.definitions.budget_status.properties.status.enum | index(\"stale\"))' '$ROOT/docs/schemas/loop-maturity-report.schema.json' >/dev/null"
 assert "workflow-state supports loop budget status" "jq -e '(.properties.budget_status.properties.status.enum | index(\"healthy\")) and (.properties.budget_status.properties.decision.enum | index(\"wrap_up\")) and (.properties.budget_status.properties.stop_reason.enum | index(\"budget_exhausted\"))' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
@@ -788,6 +834,8 @@ assert "agent-native interface names machine-readable anchors" "rg -q 'skills/ma
 assert "agent-native interface documents quick hook contract" "rg -q 'Quick Hook Contract|ADLC_RUNTIME|validate.*schema|local MCP provider' '$ROOT/docs/specs/agent-native-interface.md'"
 assert "agent-native interface documents workflow runner and emitter hooks" "rg -q 'adlc run|run-phase|resume-workflow|emit-work-items|allow_mutation|provider_command' '$ROOT/docs/specs/agent-native-interface.md'"
 assert "workflow-state schema supports DAG node phases" "jq -e '.properties.phase.enum | index(\"start\") and index(\"triage\") and index(\"research\") and index(\"engineer_review\") and index(\"done\")' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
+assert "runtime schema aliases include control-plane schemas" "PYTHONPATH='$ROOT/scripts' python3 -c 'from adlc_runtime.metadata import SCHEMA_ALIASES; assert SCHEMA_ALIASES[\"tool-registry\"].endswith(\"tool-registry.schema.json\"); assert SCHEMA_ALIASES[\"permission-audit-trail\"].endswith(\"permission-audit-trail.schema.json\")'"
+assert "README lists canonical ADLC CI command" "rg -q 'bin/adlc ci --json' '$ROOT/README.md'"
 assert "README lists stateful ADLC CLI commands" "rg -q 'run --brief-id|run-phase triage|resume-workflow|emit-work-items' '$ROOT/README.md'"
 assert "README lists compound workflow commands" "rg -q 'Compound Preflight|learning_capture|compound-context|docs/solutions' '$ROOT/README.md'"
 assert "WORKFLOW.dot routes compound preflight before research" "rg -q 'triage -> compound_preflight.*label=\"proceed\"' '$ROOT/WORKFLOW.dot' && rg -q 'compound_preflight -> research.*label=\"proceed\"' '$ROOT/WORKFLOW.dot'"

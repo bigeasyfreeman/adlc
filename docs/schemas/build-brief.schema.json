@@ -9,7 +9,6 @@
     "adlc_mode",
     "brief_id",
     "prd_id",
-    "narrative_contract",
     "applicability_manifest",
     "enterprise_readiness_contract",
     "sections"
@@ -267,6 +266,32 @@
                 "minItems": 1
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "version": {
+            "pattern": "^(?:1\\.(?:[1-9]\\d*)\\.(?:0|[1-9]\\d*)|(?:[2-9]|[1-9]\\d{1,})\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*))$"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "narrative_contract"
+        ],
+        "properties": {
+          "narrative_contract": {
+            "required": [
+              "product_feature",
+              "feature",
+              "value",
+              "why",
+              "goal",
+              "human_validated_at"
+            ]
           }
         }
       }

@@ -14,9 +14,11 @@ SCHEMA_ALIASES = {
     "loop-contract": "docs/schemas/loop-contract.schema.json",
     "loop-maturity-report": "docs/schemas/loop-maturity-report.schema.json",
     "loop-test-result": "docs/schemas/loop-test-result.schema.json",
+    "permission-audit-trail": "docs/schemas/permission-audit-trail.schema.json",
     "session-state": "docs/schemas/session-state.schema.json",
     "test-author-output": "docs/schemas/test-author-output.schema.json",
     "test-strength-output": "docs/schemas/test-strength-output.schema.json",
+    "tool-registry": "docs/schemas/tool-registry.schema.json",
     "token-budget": "docs/schemas/token-budget.schema.json",
     "triage-output": "docs/schemas/triage-output.schema.json",
     "workflow-state": "docs/schemas/workflow-state.schema.json",
@@ -58,6 +60,10 @@ COMMAND_METADATA = {
     "health-check": {
         "mcp_name": "adlc_health_check",
         "description": "Check deterministic ADLC runtime dependencies, schema aliases, and CLI wrapper availability.",
+    },
+    "ci": {
+        "mcp_name": "adlc_ci",
+        "description": "Run the canonical local ADLC verification suite and emit a structured summary.",
     },
     "run-phase": {
         "mcp_name": "adlc_run_phase",

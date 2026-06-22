@@ -32,6 +32,7 @@
         "research",
         "plan",
         "plan_review",
+        "intent_validation",
         "scaffold",
         "gen_tests",
         "context_assembly",

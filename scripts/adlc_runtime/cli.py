@@ -21,6 +21,7 @@ import uuid
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
+from time import monotonic
 from typing import Any, Dict, Iterable, List, Tuple
 
 from adlc_runtime.metadata import (
@@ -663,6 +664,22 @@ def module_available(module_name: str) -> bool:
         return False
 
 
+def workflow_state_phase_parity_issues() -> List[str]:
+    try:
+        nodes, _ = workflow_nodes_and_edges()
+        schema = read_json(resolve_schema("workflow-state"))
+        phase_schema = schema.get("properties", {}).get("phase", {})
+        allowed = set(phase_schema.get("enum", []))
+    except Exception as exc:
+        return [f"unable to compute workflow/state phase parity: {exc}"]
+
+    workflow_phases = {node["id"] for node in nodes}
+    missing = sorted(workflow_phases - allowed)
+    if missing:
+        return ["workflow nodes missing from workflow-state phase enum: " + ", ".join(missing)]
+    return []
+
+
 def health_check_payload(include_optional: bool = False) -> Dict[str, Any]:
     checks = []
 
@@ -691,6 +708,15 @@ def health_check_payload(include_optional: bool = False) -> Dict[str, Any]:
         "schemas",
         "pass" if not missing_schemas else "fail",
         "all schema aliases resolve" if not missing_schemas else "missing: " + ", ".join(missing_schemas),
+    )
+
+    phase_parity_issues = workflow_state_phase_parity_issues()
+    add(
+        "workflow-state-phase-parity",
+        "pass" if not phase_parity_issues else "fail",
+        "all WORKFLOW.dot nodes are valid workflow-state phases"
+        if not phase_parity_issues
+        else "; ".join(phase_parity_issues),
     )
 
     optional_checks = {
@@ -731,6 +757,104 @@ def command_health_check(args: argparse.Namespace) -> int:
         for check in payload["checks"]:
             print(f"{check['status']}\t{check['name']}\t{check['detail']}")
     return 0 if payload["summary"]["failed_required"] == 0 else 1
+
+
+CI_SUITES = {
+    "health-check": {
+        "description": "ADLC runtime preflight",
+        "command": ["bin/adlc", "health-check", "--json"],
+    },
+    "cli": {
+        "description": "Agent-native CLI and MCP contract tests",
+        "command": ["bash", "tests/test_adlc_cli.sh"],
+    },
+    "contracts": {
+        "description": "Prompt, schema, runtime, and fixture contract tests",
+        "command": ["bash", "tests/test_adlc_contracts.sh"],
+    },
+    "setup": {
+        "description": "Target install/setup contract tests",
+        "command": ["bash", "tests/test_setup.sh"],
+    },
+    "backtest": {
+        "description": "Deterministic evaluator backtest",
+        "command": ["bash", "tests/backtest/run_backtest.sh"],
+    },
+    "py-compile": {
+        "description": "Python syntax compilation over scripts/",
+        "command": [],
+    },
+}
+
+DEFAULT_CI_SUITE_ORDER = ("health-check", "cli", "contracts", "setup", "backtest", "py-compile")
+
+
+def ci_command_for_suite(suite_name: str) -> List[str]:
+    if suite_name == "py-compile":
+        script_paths = sorted(str(path.relative_to(ROOT)) for path in (ROOT / "scripts").rglob("*.py"))
+        return ["python3", "-m", "py_compile", *script_paths]
+    return list(CI_SUITES[suite_name]["command"])
+
+
+def run_ci_suite(suite_name: str) -> Dict[str, Any]:
+    command = ci_command_for_suite(suite_name)
+    started = monotonic()
+    result = subprocess.run(
+        command,
+        cwd=str(ROOT),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    duration_ms = int((monotonic() - started) * 1000)
+    return {
+        "name": suite_name,
+        "description": CI_SUITES[suite_name]["description"],
+        "command": command,
+        "status": "pass" if result.returncode == 0 else "fail",
+        "returncode": result.returncode,
+        "duration_ms": duration_ms,
+        "stdout": result.stdout[-4000:],
+        "stderr": result.stderr[-4000:],
+    }
+
+
+def ci_payload(suites: List[str] | None = None) -> Tuple[int, Dict[str, Any]]:
+    requested = suites or list(DEFAULT_CI_SUITE_ORDER)
+    unknown = sorted(set(requested) - set(CI_SUITES))
+    if unknown:
+        raise ValueError("unknown CI suite(s): " + ", ".join(unknown))
+
+    results = [run_ci_suite(suite_name) for suite_name in requested]
+    failures = [result for result in results if result["status"] != "pass"]
+    payload = {
+        "contract_version": "1.0.0",
+        "status": "fail" if failures else "pass",
+        "root": str(ROOT),
+        "suites": results,
+        "summary": {
+            "total": len(results),
+            "passed": len(results) - len(failures),
+            "failed": len(failures),
+            "suite_order": requested,
+        },
+    }
+    return (1 if failures else 0), payload
+
+
+def command_ci(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = ci_payload(args.suite)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"ADLC CI: {payload['status']}")
+        for result in payload["suites"]:
+            print(f"{result['status']}\t{result['name']}\t{' '.join(result['command'])}")
+    return exit_code
 
 
 def stable_hash(value: str) -> str:
@@ -2576,6 +2700,20 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("ci"),
+            "description": command_description("ci"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "suite": {
+                        "type": "array",
+                        "items": {"type": "string", "enum": list(DEFAULT_CI_SUITE_ORDER)},
+                    },
+                },
+            },
+        },
+        {
             "name": command_mcp_name("run-phase"),
             "description": command_description("run-phase"),
             "inputSchema": {
@@ -2761,6 +2899,11 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     if name == "adlc_health_check":
         payload = health_check_payload(include_optional=bool(arguments.get("include_optional", False)))
         return tool_result(payload, is_error=payload["summary"]["failed_required"] != 0)
+    if name == "adlc_ci":
+        suites_arg = arguments.get("suite")
+        suites = suites_arg if isinstance(suites_arg, list) else None
+        exit_code, payload = ci_payload(suites)
+        return tool_result(payload, is_error=exit_code != 0)
     if name == "adlc_run_phase":
         args = argparse.Namespace(
             phase=arguments.get("phase"),
@@ -2984,6 +3127,16 @@ def build_parser() -> argparse.ArgumentParser:
     health.add_argument("--include-optional", action="store_true", help="Include optional audit and PDF tooling checks.")
     health.add_argument("--json", action="store_true", help="Emit JSON.")
     health.set_defaults(func=command_health_check)
+
+    ci = subparsers.add_parser("ci", help=command_description("ci"))
+    ci.add_argument(
+        "--suite",
+        action="append",
+        choices=DEFAULT_CI_SUITE_ORDER,
+        help="Run only the named suite. Can be passed multiple times. Defaults to the full canonical suite.",
+    )
+    ci.add_argument("--json", action="store_true", help="Emit JSON.")
+    ci.set_defaults(func=command_ci)
 
     loop_tests = subparsers.add_parser("loop-test-selection", help=command_description("loop-test-selection"))
     loop_tests.add_argument("--loop-contract", required=True, help="Loop Contract JSON path.")
