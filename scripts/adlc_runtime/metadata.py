@@ -21,6 +21,7 @@ SCHEMA_ALIASES = {
     "tool-registry": "docs/schemas/tool-registry.schema.json",
     "token-budget": "docs/schemas/token-budget.schema.json",
     "triage-output": "docs/schemas/triage-output.schema.json",
+    "work-item-sync": "docs/schemas/work-item-sync.schema.json",
     "workflow-state": "docs/schemas/workflow-state.schema.json",
 }
 
@@ -80,6 +81,10 @@ COMMAND_METADATA = {
     "emit-work-items": {
         "mcp_name": "adlc_emit_work_items",
         "description": "Create a normalized ADLC work-item emitter payload, with explicit opt-in local provider mutation.",
+    },
+    "sync-work-item": {
+        "mcp_name": "adlc_sync_work_item",
+        "description": "Find, create, or append tracker work-item state from ADLC run evidence with guarded provider mutation.",
     },
     "compound-context": {
         "mcp_name": "adlc_compound_context",

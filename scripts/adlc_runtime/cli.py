@@ -978,6 +978,7 @@ def resume_next_action_payload(state: Dict[str, Any]) -> Dict[str, Any]:
         "safe_checkpoint": state.get("safe_checkpoint"),
         "escalation_context": state.get("escalation_context"),
         "budget_status": state.get("budget_status"),
+        "work_item_links": state.get("work_item_links", []),
     }
 
 
@@ -1829,6 +1830,548 @@ def provider_result_has_failed_items(provider_result: Dict[str, Any] | None) -> 
         item.get("status") == "failed"
         for item in provider_results_by_idempotency_key(provider_result).values()
     )
+
+
+def load_existing_work_items(path_arg: str | None, target: str) -> Dict[str, Dict[str, Any]]:
+    if not path_arg:
+        return {}
+    path = cli_input_path(path_arg)
+    payload = read_json(path)
+    if isinstance(payload, list):
+        items = payload
+    elif isinstance(payload, dict):
+        items = (
+            payload.get("work_items")
+            or payload.get("artifacts")
+            or payload.get("items")
+            or payload.get("issues")
+            or payload.get("tickets")
+            or []
+        )
+    else:
+        items = []
+
+    by_external_id: Dict[str, Dict[str, Any]] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_target = item.get("target")
+        if isinstance(item_target, str) and item_target != target:
+            continue
+        external_id = first_nonempty_text(item, ("external_id", "idempotency_key", "adlc_external_id"))
+        if not external_id:
+            continue
+        by_external_id[external_id] = item
+    return by_external_id
+
+
+def state_work_item_links_by_external_id(state: Dict[str, Any] | None, target: str) -> Dict[str, Dict[str, Any]]:
+    if not state:
+        return {}
+    links: Dict[str, Dict[str, Any]] = {}
+    for item in state.get("work_item_links", []):
+        if not isinstance(item, dict) or item.get("target") != target:
+            continue
+        external_id = item.get("external_id")
+        if isinstance(external_id, str) and external_id.strip():
+            links[external_id.strip()] = item
+    return links
+
+
+def emitted_work_items_by_external_id(state: Dict[str, Any] | None, target: str) -> Dict[str, Dict[str, Any]]:
+    if not state:
+        return {}
+    tool_name = f"{target}-work-item-emitter"
+    emitted: Dict[str, Dict[str, Any]] = {}
+    for item in state.get("side_effects", []):
+        if not isinstance(item, dict) or item.get("tool_name") != tool_name:
+            continue
+        if item.get("operation") != "upsert_artifact" or item.get("status") not in {"completed", "deduplicated"}:
+            continue
+        external_id = item.get("idempotency_key")
+        if isinstance(external_id, str) and external_id.strip():
+            emitted[external_id.strip()] = item
+    return emitted
+
+
+def work_item_from_artifact(artifact: Dict[str, Any], target: str, build_brief_id: str) -> Dict[str, Any]:
+    external_id = artifact["idempotency_key"]
+    item = {
+        "external_id": external_id,
+        "idempotency_key": external_id,
+        "build_brief_id": build_brief_id,
+        "task_id": artifact["id"],
+        "title": artifact.get("title") or artifact["id"],
+        "url": artifact.get("url") or f"dry-run://{target}/{build_brief_id}/{artifact['id']}",
+        "artifact_type": artifact.get("artifact_type", "work_item"),
+        "labels": artifact.get("labels", []),
+    }
+    if artifact.get("artifact_id"):
+        item["artifact_id"] = artifact["artifact_id"]
+    if artifact.get("artifact_ref"):
+        item["artifact_ref"] = artifact["artifact_ref"]
+    return item
+
+
+def verifier_results_from_state(state: Dict[str, Any] | None) -> List[Dict[str, Any]]:
+    if not state:
+        return []
+    results: List[Dict[str, Any]] = []
+    for item in state.get("task_fingerprints", []):
+        if not isinstance(item, dict):
+            continue
+        verifier = item.get("primary_verifier")
+        if not isinstance(verifier, str) or not verifier.strip():
+            continue
+        post_status = item.get("post_change_status")
+        if post_status == "passed":
+            status = "pass"
+        elif post_status == "failed" or item.get("status") == "failed":
+            status = "fail"
+        else:
+            status = "not_run"
+        evidence = item.get("evidence") if isinstance(item.get("evidence"), list) else []
+        if not evidence:
+            evidence = [f"workflow-state task_fingerprints:{item.get('task_id', 'unknown')}"]
+        results.append(
+            {
+                "name": verifier,
+                "status": status,
+                "summary": str(item.get("status") or status),
+                "evidence_refs": [str(value) for value in evidence if str(value).strip()],
+            }
+        )
+    return results
+
+
+def status_update_from_state(
+    state: Dict[str, Any] | None,
+    state_path: Path | None,
+    build_brief_path: Path | None = None,
+) -> Dict[str, Any]:
+    now = utc_now()
+    if not state:
+        refs = [rel_path(build_brief_path)] if build_brief_path else ["adlc:sync-work-item"]
+        return {
+            "status": "planned",
+            "phase": "pr_prep",
+            "evidence_refs": refs,
+            "next_action": "review emitted work item payload",
+            "updated_at": now,
+        }
+
+    status = str(state.get("status") or "planned")
+    if status == "awaiting_approval":
+        sync_status = "needs_human"
+    elif status in {"planned", "executing", "waiting_on_external", "completed", "failed"}:
+        sync_status = status
+    else:
+        sync_status = "planned"
+    evidence_refs = []
+    if state_path:
+        evidence_refs.append(rel_path(state_path))
+    if build_brief_path:
+        evidence_refs.append(rel_path(build_brief_path))
+    if not evidence_refs:
+        evidence_refs.append("adlc:workflow-state")
+
+    blockers = []
+    stop_reason = state.get("stop_reason")
+    if isinstance(stop_reason, str) and stop_reason.strip():
+        blockers.append(
+            {
+                "code": stop_reason,
+                "summary": f"ADLC run is stopped on {stop_reason}",
+                "evidence_refs": evidence_refs,
+            }
+        )
+
+    next_action = state.get("checkpoint", {}).get("next_action")
+    if isinstance(next_action, dict):
+        next_action_text = str(next_action.get("phase") or next_action.get("status") or "resume workflow")
+    elif isinstance(next_action, str) and next_action.strip():
+        next_action_text = next_action
+    elif state.get("status") == "completed":
+        next_action_text = "human review final evidence"
+    else:
+        next_action_text = f"continue ADLC phase {state.get('phase', 'unknown')}"
+
+    update = {
+        "status": sync_status,
+        "phase": str(state.get("phase") or "pr_prep"),
+        "blockers": blockers,
+        "verifier_results": verifier_results_from_state(state),
+        "next_action": next_action_text,
+        "evidence_refs": evidence_refs,
+        "updated_at": now,
+    }
+    if isinstance(stop_reason, str) and stop_reason.strip():
+        update["stop_reason"] = stop_reason
+    return update
+
+
+def normalize_sync_update(update: Dict[str, Any], external_id: str, run_identity: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(update)
+    normalized.setdefault("updated_at", utc_now())
+    normalized.setdefault("blockers", [])
+    normalized.setdefault("verifier_results", [])
+    normalized.setdefault("evidence_refs", ["adlc:sync-work-item"])
+    normalized.setdefault("next_action", "review ADLC sync state")
+    normalized.setdefault("phase", "pr_prep")
+    normalized.setdefault("status", "planned")
+    if "update_id" not in normalized:
+        normalized["update_id"] = "sync-update-" + stable_hash(
+            "|".join(
+                [
+                    external_id,
+                    str(run_identity.get("brief_id", "")),
+                    str(run_identity.get("run_id", "")),
+                    str(run_identity.get("session_id", "")),
+                    str(normalized.get("phase", "")),
+                    str(normalized.get("status", "")),
+                    json.dumps(normalized.get("evidence_refs", []), sort_keys=True),
+                    str(normalized.get("sequence", "")),
+                ]
+            )
+        )
+    return normalized
+
+
+def sync_item_from_payload(payload: Dict[str, Any], state: Dict[str, Any] | None) -> Dict[str, Any]:
+    target = payload["target"]
+    work_item = dict(payload["work_item"])
+    run_identity = dict(payload["run_identity"])
+    if state:
+        identity = workflow_identity_payload(state) or {}
+        for key in ("brief_id", "run_id", "session_id", "resume_count", "attempt"):
+            if key in identity:
+                run_identity.setdefault(key, identity[key])
+    status_update = normalize_sync_update(payload["status_update"], work_item["external_id"], run_identity)
+    return {
+        "target": target,
+        "work_item": work_item,
+        "run_identity": run_identity,
+        "status_update": status_update,
+    }
+
+
+def sync_items_from_build_brief(
+    brief_path: Path,
+    target: str,
+    state: Dict[str, Any] | None,
+    state_path: Path | None,
+) -> List[Dict[str, Any]]:
+    payload = normalized_work_item_payload(brief_path, target, state)
+    run_identity = workflow_identity_payload(state) if state else None
+    if not run_identity:
+        run_identity = {
+            "brief_id": payload["build_brief_id"],
+            "run_id": new_run_id(),
+            "session_id": new_session_id(),
+            "resume_count": 0,
+            "attempt": 1,
+        }
+    status_update = status_update_from_state(state, state_path, brief_path)
+    items = []
+    for artifact in payload.get("artifacts", []):
+        work_item = work_item_from_artifact(artifact, target, payload["build_brief_id"])
+        item_update = normalize_sync_update(dict(status_update), work_item["external_id"], run_identity)
+        generated = {
+            "contract_version": "1.0.0",
+            "target": target,
+            "work_item": work_item,
+            "run_identity": run_identity,
+            "status_update": item_update,
+        }
+        errors = validate_artifact_payload(resolve_schema("work-item-sync"), generated)
+        if errors:
+            raise ValueError("generated work item sync failed schema validation: " + "; ".join(errors))
+        items.append(
+            {
+                "target": target,
+                "work_item": work_item,
+                "run_identity": run_identity,
+                "status_update": item_update,
+            }
+        )
+    return items
+
+
+def existing_work_item_for(
+    external_id: str,
+    state_links: Dict[str, Dict[str, Any]],
+    emitted_items: Dict[str, Dict[str, Any]],
+    existing_items: Dict[str, Dict[str, Any]],
+) -> Tuple[str | None, Dict[str, Any] | None]:
+    if external_id in state_links:
+        return "state_work_item_links", state_links[external_id]
+    if external_id in emitted_items:
+        return "side_effects", emitted_items[external_id]
+    if external_id in existing_items:
+        return "existing_work_items", existing_items[external_id]
+    return None, None
+
+
+def operation_for_sync_item(
+    item: Dict[str, Any],
+    state_links: Dict[str, Dict[str, Any]],
+    emitted_items: Dict[str, Dict[str, Any]],
+    existing_items: Dict[str, Dict[str, Any]],
+) -> Dict[str, Any]:
+    target = item["target"]
+    work_item = item["work_item"]
+    run_identity = item["run_identity"]
+    status_update = item["status_update"]
+    external_id = work_item["external_id"]
+    source, existing = existing_work_item_for(external_id, state_links, emitted_items, existing_items)
+    operation = "append" if existing else "create"
+    reason = f"matched_{source}" if existing else "no_existing_external_id"
+    if existing:
+        for key in ("artifact_id", "artifact_ref"):
+            value = first_nonempty_text(existing, (key, "id", "key", "identifier", "number", "url"))
+            if value and key not in work_item:
+                work_item[key] = value
+    sync_idempotency_key = f"{external_id}:sync:{status_update['update_id']}"
+    return {
+        "target": target,
+        "operation": operation,
+        "reason": reason,
+        "external_id": external_id,
+        "idempotency_key": work_item["idempotency_key"],
+        "sync_idempotency_key": sync_idempotency_key,
+        "work_item": work_item,
+        "run_identity": run_identity,
+        "status_update": status_update,
+        "existing_work_item": existing,
+    }
+
+
+def sync_summary(operations: List[Dict[str, Any]]) -> Dict[str, Any]:
+    counts: Dict[str, int] = {}
+    for operation in operations:
+        key = operation["operation"]
+        counts[key] = counts.get(key, 0) + 1
+    return {
+        "total": len(operations),
+        "operations": counts,
+    }
+
+
+def record_sync_side_effects(
+    state: Dict[str, Any],
+    target: str,
+    operations: List[Dict[str, Any]],
+    status: str,
+    provider_result: Dict[str, Any] | None = None,
+) -> None:
+    provider_by_key = provider_results_by_idempotency_key(provider_result)
+    existing_terminal = {
+        item.get("idempotency_key")
+        for item in state.get("side_effects", [])
+        if item.get("status") in {"completed", "deduplicated"}
+    }
+    links_by_external_id = state_work_item_links_by_external_id(state, target)
+    now = utc_now()
+    for operation in operations:
+        sync_key = operation["sync_idempotency_key"]
+        provider_item = provider_by_key.get(sync_key)
+        side_effect_status = "deduplicated" if sync_key in existing_terminal else normalized_side_effect_status(
+            provider_item.get("status") if provider_item else None,
+            status,
+        )
+        artifact_id = first_nonempty_text(
+            provider_item,
+            ("artifact_id", "key", "identifier", "number", "id"),
+        ) or operation["work_item"].get("artifact_id") or operation["work_item"].get("task_id") or operation["external_id"]
+        artifact_ref = first_nonempty_text(
+            provider_item,
+            ("artifact_ref", "url", "html_url", "web_url"),
+        ) or operation["work_item"].get("artifact_ref") or operation["work_item"].get("url")
+        state.setdefault("side_effects", []).append(
+            {
+                "idempotency_key": sync_key,
+                "brief_id": state.get("brief_id"),
+                "run_id": state.get("run_id"),
+                "session_id": state.get("session_id"),
+                "tool_name": f"{target}-work-item-sync",
+                "operation": f"{operation['operation']}_work_item_status",
+                "status": side_effect_status,
+                "artifact_id": artifact_id,
+                "artifact_ref": artifact_ref,
+                "timestamp": now,
+                **({"error": provider_item.get("error")} if provider_item and provider_item.get("error") else {}),
+            }
+        )
+        link_status = {
+            "create": "created",
+            "update": "updated",
+            "append": "appended",
+            "noop": "deduplicated",
+            "escalate": "blocked",
+            "find": "deduplicated",
+        }.get(operation["operation"], "updated")
+        if side_effect_status == "failed":
+            link_status = "failed"
+        link = {
+            "target": target,
+            "external_id": operation["external_id"],
+            "idempotency_key": operation["idempotency_key"],
+            "brief_id": state.get("brief_id"),
+            "run_id": state.get("run_id"),
+            "session_id": state.get("session_id"),
+            "build_brief_id": operation["work_item"].get("build_brief_id"),
+            "task_id": operation["work_item"].get("task_id"),
+            "artifact_id": artifact_id,
+            "artifact_ref": artifact_ref,
+            "title": operation["work_item"].get("title"),
+            "operation": operation["operation"],
+            "status": link_status,
+            "last_sync_idempotency_key": sync_key,
+            "status_update": operation["status_update"],
+            "evidence_refs": operation["status_update"].get("evidence_refs", []),
+            "updated_at": now,
+        }
+        links_by_external_id[operation["external_id"]] = {k: v for k, v in link.items() if v is not None}
+    state["work_item_links"] = list(links_by_external_id.values())
+
+
+def sync_work_item_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
+    if not args.work_item and not args.build_brief:
+        raise ValueError("one of --work-item or --build-brief is required")
+    if args.work_item and args.build_brief:
+        raise ValueError("--work-item and --build-brief are mutually exclusive")
+
+    workspace = resolve_workspace(args.workspace)
+    state_path = resolve_under_workspace(args.state, workspace, DEFAULT_STATE_PATH)
+    state = ensure_workflow_identity(load_workflow_state(state_path)) if state_path.exists() else None
+
+    if args.work_item:
+        work_item_path = cli_input_path(args.work_item)
+        errors = validate_artifact(resolve_schema("work-item-sync"), work_item_path)
+        if errors:
+            raise ValueError("work item sync failed schema validation: " + "; ".join(errors))
+        request_payload = read_json(work_item_path)
+        target = request_payload["target"]
+        items = [sync_item_from_payload(request_payload, state)]
+    else:
+        target = args.target
+        if target not in WORK_ITEM_TARGETS:
+            raise ValueError("--target is required with --build-brief")
+        brief_path = cli_input_path(args.build_brief)
+        items = sync_items_from_build_brief(brief_path, target, state, state_path if state_path.exists() else None)
+
+    if target not in WORK_ITEM_TARGETS:
+        raise ValueError(f"unsupported work-item target: {target}")
+
+    state_links = state_work_item_links_by_external_id(state, target)
+    emitted_items = emitted_work_items_by_external_id(state, target)
+    existing_items = load_existing_work_items(args.existing_work_items, target)
+    operations = [
+        operation_for_sync_item(item, state_links, emitted_items, existing_items)
+        for item in items
+    ]
+
+    dry_run = args.dry_run or not args.allow_mutation
+    provider_payload = {
+        "contract_version": "1.0.0",
+        "target": target,
+        "operation": "sync_work_items",
+        "operations": operations,
+        "summary": sync_summary(operations),
+    }
+    run_identity = items[0]["run_identity"] if items else workflow_identity_payload(state)
+    result: Dict[str, Any] = {
+        "contract_version": "1.0.0",
+        "dry_run": dry_run,
+        "target": target,
+        "state_path": rel_path(state_path),
+        "run_identity": run_identity,
+        "operations": operations,
+        "summary": provider_payload["summary"],
+        "provider_status": {
+            "status": "dry_run_only" if dry_run else "pending",
+            "reason": "provider_command_not_supplied" if dry_run and not args.provider_command else "provider_not_called",
+        },
+    }
+    if args.existing_work_items:
+        result["existing_work_items_ref"] = rel_path(cli_input_path(args.existing_work_items))
+    if dry_run:
+        return 0, result
+
+    if not args.provider_command:
+        raise ValueError("--provider-command is required with --allow-mutation")
+    if not args.tool_registry:
+        raise ValueError("--tool-registry is required with --allow-mutation")
+    if state is None:
+        first_identity = items[0]["run_identity"]
+        state = new_workflow_state(
+            brief_id=str(first_identity["brief_id"]),
+            workspace=workspace,
+            phase="pr_prep",
+        )
+        state["run_id"] = str(first_identity["run_id"])
+        state["session_id"] = str(first_identity["session_id"])
+
+    audit_path = cli_input_path(args.audit_trail) if args.audit_trail else workspace / ".adlc" / "work_item_sync_permission_audit.json"
+    admission_exit, admission = action_admit_payload(
+        tool_registry_path=cli_input_path(args.tool_registry),
+        tool_name=f"{target}-work-item-sync",
+        action="sync_work_item",
+        phase=state.get("phase", "pr_prep"),
+        state_path=state_path if state_path.exists() else None,
+        brief_id=state.get("brief_id"),
+        run_id=state.get("run_id"),
+        session_id=state.get("session_id"),
+        allow_mutation=True,
+        human_approved=args.human_approved,
+        approval_ref=args.approval_ref,
+        audit_trail_path=audit_path,
+    )
+    result["admission"] = admission
+    if admission_exit != 0:
+        result["provider_status"] = {"status": "blocked", "reason": admission.get("stop_reason") or admission["status"]}
+        return 1, result
+
+    append_permission_log(
+        workspace,
+        {
+            "tool": f"{target}-work-item-sync",
+            "brief_id": state.get("brief_id"),
+            "run_id": state.get("run_id"),
+            "session_id": state.get("session_id"),
+            "provider": args.provider_command,
+            "action": "sync_work_item",
+            "tier": admission.get("permission_tier"),
+            "decision": "approved",
+            "decided_by": "action-admit",
+            "timestamp": utc_now(),
+            "rationale": "ADLC sync-work-item mutation admitted by action-admit.",
+        },
+    )
+    provider_result = invoke_provider_command(args.provider_command, provider_payload, workspace)
+    provider_failed = provider_result.get("status") == "failed"
+    partial_failure = not provider_failed and provider_result_has_failed_items(provider_result)
+    default_side_effect_status = "failed" if provider_failed else "completed"
+    record_sync_side_effects(state, target, operations, default_side_effect_status, provider_result)
+    if partial_failure:
+        provider_result["status"] = "failed"
+        provider_result["stop_reason"] = "external_mutation_partial"
+    elif provider_failed and provider_result_has_failed_items(provider_result):
+        provider_result.setdefault("stop_reason", "external_mutation_partial")
+    state["updated_at"] = utc_now()
+    state.setdefault("checkpoint", {})["last_work_item_sync"] = {
+        "target": target,
+        "summary": sync_summary(operations),
+        "provider_result": provider_result,
+    }
+    save_workflow_state(state_path, state)
+    result["provider_result"] = provider_result
+    result["provider_status"] = {
+        "status": provider_result.get("status", "completed"),
+        "reason": provider_result.get("stop_reason") or provider_result.get("error"),
+    }
+    result["state"] = state
+    return (1 if provider_failed or partial_failure else 0), result
 
 
 def record_emitter_side_effects(
@@ -3069,6 +3612,20 @@ def command_emit_work_items(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def command_sync_work_item(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = sync_work_item_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        mode = "dry-run" if payload["dry_run"] else "mutated"
+        print(f"{payload['target']}: {payload['summary']['total']} work item sync operation(s) ({mode})")
+    return exit_code
+
+
 def command_slop_gate(args: argparse.Namespace) -> int:
     try:
         brief_path = Path(args.build_brief)
@@ -3233,6 +3790,29 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "require_ready": {"type": "boolean", "default": False},
                     "phase_project_map": {"type": "string"},
                     "bypass_readiness_check": {"type": "boolean", "default": False},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("sync-work-item"),
+            "description": command_description("sync-work-item"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "work_item": {"type": "string", "minLength": 1},
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "target": {"type": "string", "enum": list(WORK_ITEM_TARGETS)},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "existing_work_items": {"type": "string", "minLength": 1},
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "provider_command": {"type": "string"},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
                 },
             },
         },
@@ -3439,6 +4019,25 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             json=True,
         )
         exit_code, payload = emit_work_items_payload(args)
+        return tool_result(payload, is_error=exit_code != 0)
+    if name == "adlc_sync_work_item":
+        args = argparse.Namespace(
+            work_item=arguments.get("work_item"),
+            build_brief=arguments.get("build_brief"),
+            target=arguments.get("target"),
+            workspace=arguments.get("workspace"),
+            state=arguments.get("state"),
+            existing_work_items=arguments.get("existing_work_items"),
+            dry_run=arguments.get("dry_run", True),
+            allow_mutation=arguments.get("allow_mutation", False),
+            provider_command=arguments.get("provider_command"),
+            tool_registry=arguments.get("tool_registry"),
+            audit_trail=arguments.get("audit_trail"),
+            human_approved=arguments.get("human_approved", False),
+            approval_ref=arguments.get("approval_ref"),
+            json=True,
+        )
+        exit_code, payload = sync_work_item_payload(args)
         return tool_result(payload, is_error=exit_code != 0)
     if name == "adlc_slop_gate":
         build_brief = arguments.get("build_brief")
@@ -3742,6 +4341,24 @@ def build_parser() -> argparse.ArgumentParser:
     emit.add_argument("--bypass-readiness-check", action="store_true", help="Force mutation even if readiness is blocked.")
     emit.add_argument("--json", action="store_true", help="Emit JSON.")
     emit.set_defaults(func=command_emit_work_items)
+
+    sync = subparsers.add_parser("sync-work-item", help=command_description("sync-work-item"))
+    sync_input = sync.add_mutually_exclusive_group(required=True)
+    sync_input.add_argument("--work-item", help="Work Item Sync JSON path.")
+    sync_input.add_argument("--build-brief", help="Build Brief JSON path used to derive work-item sync operations.")
+    sync.add_argument("--target", choices=WORK_ITEM_TARGETS, help="Work-item target. Required with --build-brief.")
+    sync.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    sync.add_argument("--state", help=f"Workflow state path. Defaults to {DEFAULT_STATE_PATH} under workspace.")
+    sync.add_argument("--existing-work-items", help="Optional read-only tracker audit JSON used for stable-ID lookup.")
+    sync.add_argument("--dry-run", action="store_true", help="Plan sync operations without external mutation.")
+    sync.add_argument("--allow-mutation", action="store_true", help="Permit local provider mutation after action admission.")
+    sync.add_argument("--provider-command", help="Local provider command that accepts the sync payload on stdin.")
+    sync.add_argument("--tool-registry", help="Tool Registry JSON path used by action-admit before mutation.")
+    sync.add_argument("--audit-trail", help="Permission Audit Trail JSON path to create or append.")
+    sync.add_argument("--human-approved", action="store_true", help="Record that a human approved the requested sync mutation.")
+    sync.add_argument("--approval-ref", help="Human approval ticket, comment, or transcript reference.")
+    sync.add_argument("--json", action="store_true", help="Emit JSON.")
+    sync.set_defaults(func=command_sync_work_item)
 
     slop_gate = subparsers.add_parser("slop-gate", help=command_description("slop-gate"))
     slop_gate.add_argument("--build-brief", required=True, help="Build Brief JSON path.")

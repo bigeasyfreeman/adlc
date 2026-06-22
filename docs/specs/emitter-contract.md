@@ -104,6 +104,51 @@ Repo configuration binds ADLC's logical emitter capabilities to whatever tool na
 }
 ```
 
+## Work-Item State Sync Contract
+
+`emit-work-items` creates the normalized work-item payload from a Build Brief. `sync-work-item` keeps the existing tracker item aligned with the current ADLC run state after a run has findings, blockers, verifier results, or a next action to report.
+
+The sync input is schema-backed by `docs/schemas/work-item-sync.schema.json`:
+
+```json
+{
+  "contract_version": "1.0.0",
+  "target": "linear",
+  "work_item": {
+    "external_id": "BRF-123:linear:TASK-001:upsert",
+    "idempotency_key": "BRF-123:linear:TASK-001:upsert",
+    "title": "Implement the task"
+  },
+  "run_identity": {
+    "brief_id": "BRF-123",
+    "run_id": "adlc-run-123",
+    "session_id": "adlc-session-123"
+  },
+  "status_update": {
+    "status": "blocked",
+    "phase": "qa",
+    "blockers": [{"code": "verifier_failed", "summary": "Primary verifier failed"}],
+    "verifier_results": [{"name": "pytest tests/test_task.py", "status": "fail", "evidence_refs": ["artifacts/qa.log"]}],
+    "next_action": "repair the failing assertion and rerun pytest",
+    "evidence_refs": ["artifacts/qa.log"]
+  }
+}
+```
+
+`sync-work-item` supports two input modes:
+
+- `--build-brief`: derive stable work-item identities from the existing normalized emitter payload and mirror the supplied workflow state.
+- `--work-item`: sync one explicit work-item update payload.
+
+Dry-run mode returns planned `create` or `append` operations. Mutation mode requires all of these:
+
+- `--allow-mutation`
+- `--provider-command`
+- `--tool-registry`
+- action-admission approval for `<target>-work-item-sync`
+
+ADLC records successful sync mutations in workflow state under `work_item_links[]` and records provider side effects with `tool_name=<target>-work-item-sync`. The tracker mirrors ADLC state; it does not become the source of truth for run execution.
+
 ## Shared Document Output Contract
 
 ```json
@@ -220,6 +265,7 @@ Platform-specific config may extend the shared contract, but it must not redefin
 6. Emit permission logging entries before and after every mutating external action.
 7. Return created artifact metadata and dedupe status in a structured response.
 8. Surface structured stop reasons on contract mismatch, permission denial, provider capability gaps, or dependency failure.
+9. For status synchronization, find existing work items by stable external ID before creating, append run evidence to existing items, and fail closed when provider mutation lacks action-admission evidence.
 
 ## Idempotency and Permission Logging
 

@@ -1,0 +1,13 @@
+{
+  "target": "linear",
+  "work_items": [
+    {
+      "target": "linear",
+      "external_id": "SMOKE-BRIEF-FEATURE-BUGFIX:linear:SMOKE_BUGFIX_AVERAGE:upsert",
+      "idempotency_key": "SMOKE-BRIEF-FEATURE-BUGFIX:linear:SMOKE_BUGFIX_AVERAGE:upsert",
+      "artifact_id": "LIN-SMOKE_BUGFIX_AVERAGE",
+      "artifact_ref": "linear://LIN-SMOKE_BUGFIX_AVERAGE",
+      "title": "Fix average_score off-by-one behavior"
+    }
+  ]
+}

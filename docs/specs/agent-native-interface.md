@@ -52,11 +52,13 @@ bin/adlc loop-budget-check --token-budget .adlc/token_budget.json --estimated-in
 bin/adlc loop-action-validate --loop-contract docs/loop-contracts/task.json --action .adlc/loop_action.json --state .adlc/workflow_state.json --token-budget .adlc/token_budget.json --json
 bin/adlc loop-maturity-audit --loop-contract docs/loop-contracts/task.json --workflow WORKFLOW.dot --state .adlc/workflow_state.json --test-plan .adlc/test_plan.json --test-results .adlc/loop_test_result.json --token-budget .adlc/token_budget.json --json
 bin/adlc emit-work-items --target linear --build-brief .adlc/build_brief.json --dry-run --json
+bin/adlc sync-work-item --build-brief .adlc/build_brief.json --target linear --state .adlc/workflow_state.json --dry-run --json
+bin/adlc sync-work-item --work-item .adlc/work_item_sync.json --state .adlc/workflow_state.json --dry-run --json
 bin/adlc mcp-tools --json
 bin/adlc mcp-serve
 ```
 
-`mcp-serve` implements a minimal newline-delimited JSON-RPC stdio server with `initialize`, `tools/list`, and `tools/call` for ADLC discovery, health checks, validation, compound context preflight, tool-registry action admission, loop test selection, loop budget checks, LLM action admission, loop maturity audit, dry-run phase execution, resume inspection, and work-item emitter payload generation. Mutating work-item emission requires explicit `allow_mutation` plus a local `provider_command`.
+`mcp-serve` implements a minimal newline-delimited JSON-RPC stdio server with `initialize`, `tools/list`, and `tools/call` for ADLC discovery, health checks, validation, compound context preflight, tool-registry action admission, loop test selection, loop budget checks, LLM action admission, loop maturity audit, dry-run phase execution, resume inspection, work-item emitter payload generation, and work-item state synchronization. Mutating work-item emission requires explicit `allow_mutation` plus a local `provider_command`. Mutating work-item synchronization also requires `tool_registry` admission evidence before the local provider command can run.
 
 ## Current Native Level
 
@@ -71,6 +73,7 @@ ADLC is agent-native at the contract and harness layer:
 - workflow state is persisted under `.adlc/workflow_state.json` and validated against `docs/schemas/workflow-state.schema.json`
 - workflow state carries durable `run_id`, `session_id`, `brief_id`, `resume_count`, and `attempt` evidence for resumable self-actioning runs
 - permission audit trails and side-effect ledgers can correlate decisions and mutations back to the same run/session/brief identity
+- workflow state can carry `work_item_links` so tracker items stay correlated with stable ADLC external IDs, run identity, verifier evidence, blockers, and next action across resumes
 - optional task-level fingerprints in workflow state let `resume-workflow` report completed, skipped, failed, and incomplete executable tasks
 - optional Loop Contract fields in workflow state let `resume-workflow` report progress, no-progress count, pending control events, safe checkpoints, escalation context, and `budget_status`
 - `loop-test-result` artifacts let `loop-test-selection --require-test-results` and `loop-maturity-audit --test-results` distinguish tag-only coverage from executed required-test evidence
@@ -97,5 +100,6 @@ The current thin orchestrator surface exposes:
 | `run_phase` | Invoke the configured runtime adapter for a single DAG phase |
 | `resume_workflow` | Load workflow state, identify the next runnable phase, and continue |
 | `emit_work_items` | Run a normalized dry-run or mutation against a configured MCP provider |
+| `sync_work_item` | Find, create, or append tracker work-item state from ADLC run evidence and stable external IDs |
 
 The next native layer should add deterministic implementations for tool nodes (`scaffold`, `context_assembly`, `qa`, `slop_gate`) and richer provider-specific MCP adapters. The current surface keeps ADLC easy for agents to manage while preserving the repo's existing vendor-neutral runtime adapters and schema-first contracts.

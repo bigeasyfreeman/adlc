@@ -143,6 +143,19 @@ JSON
   return "$status"
 }
 
+assert_workflow_state_accepts_work_item_links() {
+  local tmp
+  tmp="$(mktemp)"
+  cat > "$tmp" <<'JSON'
+{"brief_id":"SMOKE","run_id":"adlc-run-contract","session_id":"adlc-contract","phase":"pr_prep","status":"planned","step":"ready","started_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z","resume_count":1,"attempt":2,"checkpoint":{"workspace":"/tmp","history":[]},"side_effects":[{"idempotency_key":"SMOKE:linear:SMOKE-001:upsert:sync:sync-update-001","brief_id":"SMOKE","run_id":"adlc-run-contract","session_id":"adlc-contract","tool_name":"linear-work-item-sync","operation":"append_work_item_status","status":"completed","artifact_id":"LIN-1","artifact_ref":"linear://LIN-1","timestamp":"2026-01-01T00:02:00Z"}],"work_item_links":[{"target":"linear","external_id":"SMOKE:linear:SMOKE-001:upsert","idempotency_key":"SMOKE:linear:SMOKE-001:upsert","brief_id":"SMOKE","run_id":"adlc-run-contract","session_id":"adlc-contract","build_brief_id":"SMOKE","task_id":"SMOKE-001","artifact_id":"LIN-1","artifact_ref":"linear://LIN-1","title":"Smoke task","operation":"append","status":"appended","last_sync_idempotency_key":"SMOKE:linear:SMOKE-001:upsert:sync:sync-update-001","status_update":{"status":"blocked","phase":"qa","next_action":"rerun verifier","evidence_refs":["pytest tests/test_smoke.py"]},"evidence_refs":["pytest tests/test_smoke.py"],"updated_at":"2026-01-01T00:02:00Z"}]}
+JSON
+  local status=0
+  "$ROOT/bin/adlc" validate-artifact --schema workflow-state --input "$tmp" --json |
+    jq -e '.valid == true and (.errors | length) == 0' >/dev/null || status=$?
+  rm -f "$tmp"
+  return "$status"
+}
+
 assert_workflow_state_covers_workflow_nodes() {
   python3 - "$ROOT" <<'PY'
 import json
@@ -543,6 +556,8 @@ assert "applicability manifest supports implementation and productionization sec
 assert "workflow-state supports compound phases and task fingerprints" "jq -e '(.properties.phase.enum | index(\"compound_preflight\")) and (.properties.phase.enum | index(\"intent_validation\")) and (.properties.phase.enum | index(\"learning_capture\")) and .properties.task_fingerprints.items.properties.input_hash.type == \"string\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
 assert "workflow-state phase enum covers WORKFLOW.dot nodes" "assert_workflow_state_covers_workflow_nodes"
 assert "workflow-state supports durable run identity" "jq -e '.properties.run_id.type == \"string\" and .properties.attempt.minimum == 1 and .properties.last_resumed_at.format == \"date-time\" and .properties.side_effects.items.properties.run_id.type == \"string\" and .properties.side_effects.items.properties.session_id.type == \"string\" and .properties.side_effects.items.properties.brief_id.type == \"string\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
+assert "workflow-state supports work item links" "jq -e '.properties.work_item_links.items.properties.external_id.type == \"string\" and (.properties.work_item_links.items.properties.operation.enum | index(\"append\")) and (.properties.work_item_links.items.properties.status.enum | index(\"appended\")) and .properties.work_item_links.items.properties.last_sync_idempotency_key.type == \"string\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
+assert "work-item sync schema requires stable identity and update evidence" "jq -e '.required == [\"contract_version\",\"target\",\"work_item\",\"run_identity\",\"status_update\"] and (.properties.work_item.required | index(\"external_id\")) and (.properties.work_item.required | index(\"idempotency_key\")) and (.properties.run_identity.required | index(\"run_id\")) and (.properties.run_identity.required | index(\"session_id\")) and (.properties.status_update.required | index(\"evidence_refs\")) and (.properties.status_update.required | index(\"next_action\"))' '$ROOT/docs/schemas/work-item-sync.schema.json' >/dev/null"
 assert "workflow-state supports loop progress and control channel" "jq -e '.properties.loop_progress.properties.last_progress_signal.type == \"string\" and (.properties.control_events.items.properties.event_type.enum | index(\"steer\")) and (.properties.control_events.items.properties.event_type.enum | index(\"abort\")) and .properties.safe_checkpoint.properties.idempotent.type == \"boolean\" and .properties.escalation_context.properties.no_progress_after.type == \"integer\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
 assert "loop schemas support budget guard evidence" "jq -e '.properties.budget_guard[\"\$ref\"] == \"#/definitions/budget_guard\" and (.definitions.budget_guard.required | index(\"token_budget_ref\")) and (.definitions.budget_guard.required | index(\"hard_stop_behavior\"))' '$ROOT/docs/schemas/loop-contract.schema.json' >/dev/null && jq -e '.properties.budget_estimate.required | index(\"projected_total_tokens\")' '$ROOT/docs/schemas/loop-action.schema.json' >/dev/null && jq -e '.properties.budget_status[\"\$ref\"] == \"#/definitions/budget_status\" and (.definitions.budget_status.properties.status.enum | index(\"missing\")) and (.definitions.budget_status.properties.status.enum | index(\"stale\"))' '$ROOT/docs/schemas/loop-maturity-report.schema.json' >/dev/null"
 assert "workflow-state supports loop budget status" "jq -e '(.properties.budget_status.properties.status.enum | index(\"healthy\")) and (.properties.budget_status.properties.decision.enum | index(\"wrap_up\")) and (.properties.budget_status.properties.stop_reason.enum | index(\"budget_exhausted\"))' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
@@ -556,6 +571,7 @@ assert "workflow-state validates task fingerprints" "assert_workflow_state_accep
 assert "workflow-state validates interface and productionization statuses" "assert_workflow_state_accepts_interface_and_productionization_status"
 assert "workflow-state validates loop progress and control fixture" "assert_workflow_state_accepts_loop_progress_control"
 assert "workflow-state validates run identity side effects" "assert_workflow_state_accepts_run_identity_side_effects"
+assert "workflow-state validates work item links" "assert_workflow_state_accepts_work_item_links"
 assert "permission audit trail validates run identity evidence" "assert_permission_audit_trail_accepts_run_identity"
 
 echo ""
@@ -570,6 +586,7 @@ assert "scalable AI code primitives spec exists" "[ -f '$ROOT/docs/specs/scalabl
 assert "slop eval loop spec exists" "[ -f '$ROOT/docs/specs/slop-eval-loop.md' ] && rg -q 'Benchmark Contract|Pre-Ship Regression|Delivery Guard|Post-Ship Sampling|Case Promotion' '$ROOT/docs/specs/slop-eval-loop.md'"
 assert "loop-system maturity spec exists" "[ -f '$ROOT/docs/specs/loop-system-maturity-audit.md' ] && rg -q 'Loop Contract|LLM Action Envelope|mandatory_floor|additive_agent_tests|self_autonomous' '$ROOT/docs/specs/loop-system-maturity-audit.md'"
 assert "loop-system maturity spec documents budget guard no-overclaim" "rg -q 'budget_guard|budget_status|budget_exhausted|budget_stale|self_autonomous' '$ROOT/docs/specs/loop-system-maturity-audit.md'"
+assert "agent-native and emitter specs document work item sync" "rg -q 'sync-work-item|work_item_links|work-item state synchronization' '$ROOT/docs/specs/agent-native-interface.md' && rg -q 'Work-Item State Sync Contract|sync-work-item|action-admission' '$ROOT/docs/specs/emitter-contract.md' && rg -q 'sync-work-item|work_item_links|side_effects' '$ROOT/docs/specs/work-item-reconciliation.md'"
 assert "token and pre-turn specs document loop budget guards" "rg -q 'budget_guard|budget_status|self_autonomous' '$ROOT/docs/specs/token-budgets.md' && rg -q 'loop-budget-check|budget_exhausted|budget_status|self_autonomous' '$ROOT/docs/specs/pre-turn-check.md'"
 assert "compound learning store spec and template exist" "[ -f '$ROOT/docs/specs/compound-engineering-learning-store.md' ] && [ -f '$ROOT/docs/solutions/README.md' ] && [ -f '$ROOT/docs/solutions/_template.md' ] && rg -q 'docs/solutions|learning_refs|learning_capture|learning_refresh|redaction' '$ROOT/docs/specs/compound-engineering-learning-store.md'"
 assert "compound learning store captures loop maturity reports" "rg -q 'loop_contract_path|loop_maturity_report_path|maturity_verdict' '$ROOT/docs/specs/compound-engineering-learning-store.md'"

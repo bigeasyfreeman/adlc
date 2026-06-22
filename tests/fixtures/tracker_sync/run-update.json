@@ -1,0 +1,57 @@
+{
+  "contract_version": "1.0.0",
+  "target": "linear",
+  "work_item": {
+    "external_id": "SMOKE-BRIEF-FEATURE-BUGFIX:linear:SMOKE_BUGFIX_AVERAGE:upsert",
+    "idempotency_key": "SMOKE-BRIEF-FEATURE-BUGFIX:linear:SMOKE_BUGFIX_AVERAGE:upsert",
+    "build_brief_id": "SMOKE-BRIEF-FEATURE-BUGFIX",
+    "task_id": "SMOKE_BUGFIX_AVERAGE",
+    "artifact_id": "LIN-SMOKE_BUGFIX_AVERAGE",
+    "artifact_ref": "linear://LIN-SMOKE_BUGFIX_AVERAGE",
+    "title": "Fix average_score off-by-one behavior",
+    "artifact_type": "implementation_task",
+    "labels": [
+      "smoke",
+      "adlc"
+    ]
+  },
+  "run_identity": {
+    "brief_id": "SMOKE-BRIEF-FEATURE-BUGFIX",
+    "run_id": "adlc-run-tracker-sync",
+    "session_id": "adlc-tracker-sync",
+    "resume_count": 1,
+    "attempt": 2
+  },
+  "status_update": {
+    "update_id": "sync-update-smoke-average-001",
+    "status": "blocked",
+    "phase": "qa",
+    "blockers": [
+      {
+        "code": "verifier_failed",
+        "summary": "Primary verifier still fails after the latest run.",
+        "evidence_refs": [
+          "tests/smoke/fixtures/feature_bugfix/tests/test_average_score.py"
+        ]
+      }
+    ],
+    "verifier_results": [
+      {
+        "name": "pytest tests/test_average_score.py",
+        "status": "fail",
+        "summary": "average_score assertion failed",
+        "evidence_refs": [
+          "tests/smoke/fixtures/feature_bugfix/tests/test_average_score.py"
+        ]
+      }
+    ],
+    "next_action": "repair average_score and rerun pytest tests/test_average_score.py",
+    "stop_reason": "verifier_failed",
+    "evidence_refs": [
+      "tests/fixtures/tracker_sync/run-update.json",
+      "tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json"
+    ],
+    "sequence": 1,
+    "updated_at": "2026-06-22T00:00:00Z"
+  }
+}

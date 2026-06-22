@@ -506,6 +506,113 @@
         }
       }
     },
+    "work_item_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target",
+          "external_id",
+          "idempotency_key",
+          "operation",
+          "status",
+          "updated_at"
+        ],
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": [
+              "github",
+              "jira",
+              "linear"
+            ]
+          },
+          "external_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "brief_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "run_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "session_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "build_brief_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifact_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "find",
+              "create",
+              "update",
+              "append",
+              "noop",
+              "escalate"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "created",
+              "updated",
+              "appended",
+              "deduplicated",
+              "failed",
+              "blocked"
+            ]
+          },
+          "last_sync_idempotency_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status_update": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
     "stop_reason": {
       "type": "string"
     },

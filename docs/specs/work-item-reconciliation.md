@@ -18,7 +18,8 @@ This contract applies to JIRA, GitHub Issues, Linear, and any future work-item t
    - task ID
    - stored external ref
 4. Produce a reconciliation report for human review.
-5. Mutate the tracker only after explicit approval and only through a configured local provider.
+5. Use `bin/adlc sync-work-item --dry-run` to plan create, update, or append operations against stable external IDs.
+6. Mutate the tracker only after explicit approval, action-admission evidence, and a configured local provider.
 
 Dry-run and audit commands are evidence. They are not permission to mutate.
 
@@ -41,6 +42,8 @@ The report must include:
 - Never encode one product's tracker conventions in `skills/linear-ticket-creation`, `skills/jira-ticket-creation`, or `skills/github-issue-creation`.
 - Stop before mutation when the readiness report is blocked.
 - Preserve ticket history; update in place only when idempotency metadata proves identity.
+- Append run findings, blocker state, verifier results, and next action through `sync-work-item`; do not recreate tickets to report status changes.
+- Keep ADLC workflow state as the source of truth. Tracker state is a mirrored reporting surface.
 
 ## Output Shape
 
@@ -63,3 +66,13 @@ The report must include:
 ```
 
 `proposed_mutations` must stay empty until the operator approves a follow-up mutating run.
+
+## Sync Evidence
+
+After a sync mutation, ADLC workflow state records:
+
+- `work_item_links[]` with target, stable external ID, artifact metadata, last sync idempotency key, status update, and run identity.
+- `side_effects[]` entries where `tool_name` is `<target>-work-item-sync` and `operation` is the planned sync operation.
+- permission audit evidence for the `sync_work_item` action when mutation is requested.
+
+This lets later runs append to the correct existing work item without fuzzy-title matching or duplicate ticket creation.

@@ -21,6 +21,10 @@ Prevent duplicate side effects when ADLC phases or skills retry after timeout, c
 - CI/CD Pipeline: `{brief_id}:cicd:{pipeline_name}`
 - Slack Orchestration: `{brief_id}:slack:{event_type}:{target}`
 - Git operations: `{brief_id}:git:{operation}:{ref}`
+- Work-item emitter stable external ID: `{brief_id}:{target}:{task_id}:upsert`
+- Work-item status sync: `{brief_id}:{target}:{task_id}:upsert:sync:{update_id}`
+
+For work-item synchronization, the `:upsert` key identifies the tracker item and prevents duplicate ticket creation. The `:sync:{update_id}` key identifies a specific status/evidence append so repeated provider calls can dedupe the same update without preventing later run updates from appending to the same ticket.
 
 ## Required Behavior
 1. Compute key before any external mutation.

@@ -1,0 +1,20 @@
+{
+  "contract_version": "1.0.0",
+  "target": "linear",
+  "work_item": {
+    "external_id": "SMOKE-BRIEF-FEATURE-BUGFIX:linear:SMOKE_BUGFIX_AVERAGE:upsert",
+    "idempotency_key": "SMOKE-BRIEF-FEATURE-BUGFIX:linear:SMOKE_BUGFIX_AVERAGE:upsert",
+    "title": "Fix average_score off-by-one behavior"
+  },
+  "run_identity": {
+    "brief_id": "SMOKE-BRIEF-FEATURE-BUGFIX"
+  },
+  "status_update": {
+    "status": "blocked",
+    "phase": "qa",
+    "evidence_refs": [
+      "tests/fixtures/tracker_sync/invalid-missing-run-identity.json"
+    ],
+    "next_action": "repair average_score"
+  }
+}
