@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/champion-holdout-report.schema.json",
+  "title": "ADLC Champion Holdout Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "evaluation_id",
+    "artifact_type",
+    "status",
+    "decision",
+    "champion",
+    "challenger",
+    "promotion_margin",
+    "working_set",
+    "holdout_set",
+    "must_pass",
+    "issues",
+    "summary"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "evaluation_id": {"type": "string", "minLength": 1},
+    "artifact_type": {"type": "string", "enum": ["prompt", "skill"]},
+    "status": {"type": "string", "enum": ["promote", "reject"]},
+    "decision": {"type": "string", "enum": ["promote_challenger", "keep_champion"]},
+    "promotion_margin": {"type": "number", "minimum": 0},
+    "champion": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "working_average", "holdout_average"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "working_average": {"type": "number"},
+        "holdout_average": {"type": "number"}
+      }
+    },
+    "challenger": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "working_average", "holdout_average"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "working_average": {"type": "number"},
+        "holdout_average": {"type": "number"}
+      }
+    },
+    "working_set": {"$ref": "#/definitions/score_set"},
+    "holdout_set": {"$ref": "#/definitions/score_set"},
+    "must_pass": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "status"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "status": {"type": "string", "enum": ["pass", "fail"]}
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["rule", "message"],
+        "properties": {
+          "rule": {"type": "string", "minLength": 1},
+          "message": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["working_delta", "holdout_delta", "must_pass_failures"],
+      "properties": {
+        "working_delta": {"type": "number"},
+        "holdout_delta": {"type": "number"},
+        "must_pass_failures": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "definitions": {
+    "score_set": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["count", "champion_average", "challenger_average", "delta"],
+      "properties": {
+        "count": {"type": "integer", "minimum": 0},
+        "champion_average": {"type": "number"},
+        "challenger_average": {"type": "number"},
+        "delta": {"type": "number"}
+      }
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/memory-health-report.schema.json",
+  "title": "ADLC Memory Health Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "status",
+    "workspace",
+    "learning_store",
+    "architecture_memory",
+    "stale_refs",
+    "overclaim_issues",
+    "duplicate_primitive_issues",
+    "issues",
+    "summary"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "stale", "blocked"]
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1
+    },
+    "learning_store": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["path", "present", "entries"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "present": {"type": "boolean"},
+        "entries": {"type": "integer", "minimum": 0}
+      }
+    },
+    "architecture_memory": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["path", "present", "entries"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "present": {"type": "boolean"},
+        "entries": {"type": "integer", "minimum": 0}
+      }
+    },
+    "stale_refs": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/issue"}
+    },
+    "overclaim_issues": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/issue"}
+    },
+    "duplicate_primitive_issues": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/issue"}
+    },
+    "issues": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/issue"}
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["learning_entries", "architecture_entries", "stale_refs", "overclaim_issues", "duplicate_primitive_issues"],
+      "properties": {
+        "learning_entries": {"type": "integer", "minimum": 0},
+        "architecture_entries": {"type": "integer", "minimum": 0},
+        "stale_refs": {"type": "integer", "minimum": 0},
+        "overclaim_issues": {"type": "integer", "minimum": 0},
+        "duplicate_primitive_issues": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "definitions": {
+    "issue": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["rule", "message", "severity", "path"],
+      "properties": {
+        "rule": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1},
+        "severity": {"type": "string", "enum": ["warning", "blocking"]},
+        "path": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

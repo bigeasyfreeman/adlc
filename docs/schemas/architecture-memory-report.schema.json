@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/architecture-memory-report.schema.json",
+  "title": "ADLC Architecture Memory Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "status",
+    "dry_run",
+    "workspace",
+    "architecture_memory",
+    "candidates",
+    "issues",
+    "summary",
+    "evidence_refs"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planned", "pass", "blocked", "fail"]
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1
+    },
+    "architecture_memory": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["path", "present"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "present": {"type": "boolean"},
+        "entries": {"type": "integer", "minimum": 0}
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["decision_id", "title", "status", "result"],
+        "properties": {
+          "decision_id": {"type": "string", "minLength": 1},
+          "title": {"type": "string", "minLength": 1},
+          "status": {"type": "string", "minLength": 1},
+          "result": {"type": "string", "enum": ["planned", "written", "blocked"]},
+          "target_path": {"type": "string"},
+          "source_evidence": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          },
+          "verifier_evidence": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          },
+          "stale_conditions": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          },
+          "no_overclaim": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["rule", "message"],
+        "properties": {
+          "rule": {"type": "string", "minLength": 1},
+          "message": {"type": "string", "minLength": 1},
+          "severity": {"type": "string"}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["candidates", "written", "issues"],
+      "properties": {
+        "candidates": {"type": "integer", "minimum": 0},
+        "written": {"type": "integer", "minimum": 0},
+        "issues": {"type": "integer", "minimum": 0}
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

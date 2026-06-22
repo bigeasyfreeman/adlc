@@ -83,6 +83,7 @@ The shipped framework layers are:
 | Layer | What It Gives ADLC | How It Is Used |
 |---|---|---|
 | Compound engineering | Prior verified work, task refs, verifier refs, resume context, and graph status as compact context | `bin/adlc compound-context` before research |
+| Learning and Architecture Memory | Evidence-backed learning refs, architecture decision memory, stale/overclaim checks, duplicate primitive checks, and champion/holdout promotion gates | `architecture-memory`, `memory-health`, and `champion-holdout` before reuse or prompt/skill promotion |
 | Scalable code primitives | Construct refs, paved-road reuse, intent contracts, production invariants, and verifiability | Build Brief task fields and Eval Council checks |
 | Implementation Interface | Task-scoped contract for what a change reuses, consumes, emits, preserves, integrates with, and validates | Active when a task touches repo boundaries, schemas, emitters, providers, workflow state, CLI contracts, or reusable framework surfaces |
 | Productionization Gate | Bounded production claim with Coverage State, evidence, rollback/observability/security posture, reliability risks, and No-Overclaim boundaries | Active when a task claims production support or production readiness |
@@ -101,6 +102,7 @@ What is automatic today:
 - deterministic `loop-budget-check` CLI/MCP budget guard for LLM-backed Loop Actions
 - strict Loop Contract required-test proof through `docs/schemas/loop-test-result.schema.json` and `loop-test-selection --require-test-results`
 - schema-backed work queue status, task claims, completion/block/escalation state, dirty-checks, file-overlap checks, and worktree prepare/status/cleanup dry-runs
+- evidence-backed architecture memory writes, memory-health stale/overclaim/duplicate primitive checks, and champion/holdout promotion gates for prompt or skill changes
 - runtime preflight through `bin/adlc health-check --json`
 - resume summaries for task fingerprints, loop progress, no-progress count, control events, safe checkpoints, and escalation context
 
@@ -188,6 +190,9 @@ bin/adlc run-phase context_assembly --build-brief .adlc/build_brief.json --works
 bin/adlc run-phase qa --workspace . --verifier 'pytest tests/test_task.py' --json
 bin/adlc resume-workflow --workspace . --json
 bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
+bin/adlc architecture-memory --input .adlc/architecture_decisions.json --workspace . --dry-run --json
+bin/adlc memory-health --workspace . --changed-path scripts/adlc_runtime/cli.py --primitive-proposals .adlc/primitive_proposals.json --json
+bin/adlc champion-holdout --input .adlc/champion_holdout.json --json
 bin/adlc control-plane-drift-loop --workspace . --verifier 'python3 -m py_compile scripts/adlc_runtime/metadata.py' --dry-run --json
 bin/adlc action-admit --tool-registry .adlc/tool_registry.json --tool Read --action read_file --phase research --brief-id BRF-123 --run-id ADLC-RUN-123 --session-id SESSION-123 --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
@@ -214,6 +219,8 @@ Queue and worktree operations are dry-run first. Mutating queue state or creatin
 Deterministic tool nodes emit schema-backed phase artifacts under `.adlc/outputs/` and workflow state records them in `phase_artifacts[]`. Dry-run tool-node calls produce `planned` artifacts without marking the phase complete. Mutating tool-node writes require `--allow-mutation` and `--tool-registry`.
 
 The first dogfood loop is `control-plane-drift-loop`. It detects schema-alias drift, creates a stable work-item sync payload, validates a proposed repair action, optionally applies the bounded `metadata.py` repair through action admission, reruns verifiers, and stops for human review.
+
+Goal 8 memory commands keep ADLC's outer loop from compounding stale or overfit knowledge. `architecture-memory` records accepted architecture boundaries only from evidence-backed candidates and writes through action admission. `memory-health` audits `docs/solutions` and `docs/architecture/decisions` for stale refs, overclaim, and duplicate primitive proposals. `champion-holdout` promotes prompt or skill challengers only when holdout data beats the current champion by the configured margin and all must-pass rules pass.
 
 Minimal Loop Contract flow:
 

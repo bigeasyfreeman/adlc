@@ -27,6 +27,7 @@ from time import monotonic
 from typing import Any, Dict, Iterable, List, Tuple
 
 from adlc_runtime.metadata import (
+    COMMAND_METADATA,
     DEFAULT_PHASE_TOOLS,
     DEFAULT_STATE_PATH,
     DEFAULT_SUCCESS_LABELS,
@@ -2775,6 +2776,663 @@ def command_compound_context(args: argparse.Namespace) -> int:
             f"{payload['summary']['task_refs']} task refs, {payload['summary']['no_ops']} no-ops"
         )
     return 0
+
+
+def string_list(value: Any) -> List[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
+def architecture_memory_dir(workspace: Path) -> Path:
+    return workspace / "docs" / "architecture" / "decisions"
+
+
+def architecture_memory_store_payload(workspace: Path) -> Dict[str, Any]:
+    memory_dir = architecture_memory_dir(workspace)
+    entries = [path for path in sorted(memory_dir.glob("*.md")) if path.is_file()] if memory_dir.is_dir() else []
+    return {
+        "path": workspace_rel_path(memory_dir, workspace),
+        "present": memory_dir.is_dir(),
+        "entries": len(entries),
+    }
+
+
+def learning_store_payload(workspace: Path) -> Dict[str, Any]:
+    solutions_dir = workspace / "docs" / "solutions"
+    entries = [
+        path
+        for path in sorted(solutions_dir.glob("*.md"))
+        if path.name not in {"README.md", "_template.md"} and path.is_file()
+    ] if solutions_dir.is_dir() else []
+    return {
+        "path": workspace_rel_path(solutions_dir, workspace),
+        "present": solutions_dir.is_dir(),
+        "entries": len(entries),
+    }
+
+
+def architecture_decisions_from_input(path: Path) -> List[Dict[str, Any]]:
+    payload = read_json(path)
+    if isinstance(payload, dict) and isinstance(payload.get("decisions"), list):
+        return [item for item in payload["decisions"] if isinstance(item, dict)]
+    if isinstance(payload, dict) and payload.get("decision_id"):
+        return [payload]
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    raise ValueError("architecture memory input must be an object with decisions[], a single decision object, or an array")
+
+
+def architecture_decision_issues(candidate: Dict[str, Any], index: int) -> List[Dict[str, Any]]:
+    issues: List[Dict[str, Any]] = []
+    required_strings = ("decision_id", "title", "status", "context", "decision", "architecture_boundary")
+    required_lists = ("affected_paths", "source_evidence", "verifier_evidence", "stale_conditions", "no_overclaim")
+    for field_name in required_strings:
+        if not isinstance(candidate.get(field_name), str) or not candidate.get(field_name, "").strip():
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "missing_architecture_decision_field",
+                    "field": field_name,
+                    "candidate_index": index,
+                    "message": f"architecture decision candidate is missing {field_name}",
+                }
+            )
+    if candidate.get("status") not in {"proposed", "accepted", "superseded", "deprecated"}:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "unsupported_architecture_decision_status",
+                "field": "status",
+                "candidate_index": index,
+                "message": "architecture decision status must be proposed, accepted, superseded, or deprecated",
+            }
+        )
+    for field_name in required_lists:
+        if not string_list(candidate.get(field_name)):
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "missing_architecture_decision_field",
+                    "field": field_name,
+                    "candidate_index": index,
+                    "message": f"architecture decision candidate is missing {field_name}",
+                }
+            )
+    return issues
+
+
+def architecture_decision_slug(decision_id: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", decision_id.strip()).strip("-").lower()
+    return slug or "architecture-decision"
+
+
+def architecture_decision_text(candidate: Dict[str, Any]) -> str:
+    today = utc_now()[:10]
+    decision_id = str(candidate["decision_id"]).strip()
+    title = str(candidate["title"]).strip()
+    affected_paths = string_list(candidate.get("affected_paths"))
+    source_evidence = string_list(candidate.get("source_evidence"))
+    verifier_evidence = string_list(candidate.get("verifier_evidence"))
+    stale_conditions = string_list(candidate.get("stale_conditions"))
+    no_overclaim = string_list(candidate.get("no_overclaim"))
+    consequences = str(candidate.get("consequences") or "Review after the stale conditions change.").strip()
+    return f"""---
+decision_id: {json.dumps(decision_id)}
+title: {json.dumps(title)}
+status: {json.dumps(str(candidate["status"]).strip())}
+date: {json.dumps(today)}
+architecture_boundary: {json.dumps(str(candidate["architecture_boundary"]).strip())}
+affected_paths:
+{yaml_list(affected_paths)}
+source_evidence:
+{yaml_list(source_evidence)}
+verifier_evidence:
+{yaml_list(verifier_evidence)}
+stale_conditions:
+{yaml_list(stale_conditions)}
+no_overclaim:
+{yaml_list(no_overclaim)}
+---
+
+# {title}
+
+## Context
+
+{str(candidate["context"]).strip()}
+
+## Decision
+
+{str(candidate["decision"]).strip()}
+
+## Architecture Boundary
+
+{str(candidate["architecture_boundary"]).strip()}
+
+## Consequences
+
+{consequences}
+
+## Evidence
+
+{chr(10).join(f"- Source: `{value}`" for value in source_evidence)}
+{chr(10).join(f"- Verifier: `{value}`" for value in verifier_evidence)}
+
+## Stale Conditions
+
+{chr(10).join(f"- {value}" for value in stale_conditions)}
+
+## No-Overclaim
+
+{chr(10).join(f"- {value}" for value in no_overclaim)}
+"""
+
+
+def architecture_memory_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
+    workspace = resolve_workspace(args.workspace)
+    memory_dir = architecture_memory_dir(workspace)
+    output_path = resolve_under_workspace(args.output, workspace, ".adlc/outputs/architecture_memory_report.json")
+    candidates = architecture_decisions_from_input(cli_input_path(args.input)) if args.input else []
+    dry_run = bool(args.dry_run or not args.allow_mutation)
+    issues: List[Dict[str, Any]] = []
+    planned = []
+    written: List[str] = []
+    for index, candidate in enumerate(candidates):
+        issues.extend(architecture_decision_issues(candidate, index))
+        decision_id = str(candidate.get("decision_id") or f"candidate-{index}")
+        target = memory_dir / f"{architecture_decision_slug(decision_id)}.md"
+        planned.append(
+            {
+                "decision_id": decision_id,
+                "title": str(candidate.get("title") or decision_id),
+                "status": str(candidate.get("status") or "unknown"),
+                "result": "blocked" if issues else ("planned" if dry_run else "written"),
+                "target_path": workspace_rel_path(target, workspace),
+                "source_evidence": string_list(candidate.get("source_evidence")),
+                "verifier_evidence": string_list(candidate.get("verifier_evidence")),
+                "stale_conditions": string_list(candidate.get("stale_conditions")),
+                "no_overclaim": string_list(candidate.get("no_overclaim")),
+            }
+        )
+
+    report: Dict[str, Any] = {
+        "contract_version": "1.0.0",
+        "status": "blocked" if issues else ("planned" if dry_run else "pass"),
+        "dry_run": dry_run,
+        "workspace": str(workspace),
+        "architecture_memory": architecture_memory_store_payload(workspace),
+        "candidates": planned,
+        "issues": issues,
+        "summary": {
+            "candidates": len(candidates),
+            "written": 0,
+            "issues": len(issues),
+        },
+        "evidence_refs": [workspace_rel_path(output_path, workspace)],
+    }
+    if issues:
+        write_artifact(output_path, report, "architecture-memory-report")
+        return 1, report
+    if not candidates:
+        report["status"] = "pass"
+        write_artifact(output_path, report, "architecture-memory-report")
+        return 0, report
+    if dry_run:
+        write_artifact(output_path, report, "architecture-memory-report")
+        return 0, report
+    if not args.tool_registry:
+        report["status"] = "blocked"
+        report["issues"] = [
+            {
+                "severity": "blocking",
+                "rule": "action_not_admitted",
+                "message": "architecture memory writes require --tool-registry with --allow-mutation",
+            }
+        ]
+        report["summary"]["issues"] = len(report["issues"])
+        write_artifact(output_path, report, "architecture-memory-report")
+        return 1, report
+
+    audit_path = cli_input_path(args.audit_trail) if args.audit_trail else workspace / ".adlc" / "architecture_memory_permission_audit.json"
+    state_path, state = optional_workflow_state(workspace, args.state)
+    admission_exit, admission = action_admit_payload(
+        tool_registry_path=cli_input_path(args.tool_registry),
+        tool_name="adlc-memory",
+        action="write_architecture_memory",
+        phase="learning_capture",
+        state_path=state_path if state_path.exists() else None,
+        brief_id=(state or {}).get("brief_id") or args.brief_id,
+        run_id=(state or {}).get("run_id"),
+        session_id=(state or {}).get("session_id"),
+        allow_mutation=True,
+        human_approved=args.human_approved,
+        approval_ref=args.approval_ref,
+        audit_trail_path=audit_path,
+    )
+    report["admission"] = admission
+    if admission_exit != 0:
+        report["status"] = "blocked"
+        report["issues"] = admission.get("issues", [])
+        report["summary"]["issues"] = len(report["issues"])
+        write_artifact(output_path, report, "architecture-memory-report")
+        return 1, report
+
+    memory_dir.mkdir(parents=True, exist_ok=True)
+    for candidate in candidates:
+        target = memory_dir / f"{architecture_decision_slug(str(candidate['decision_id']))}.md"
+        target.write_text(architecture_decision_text(candidate), encoding="utf-8")
+        written.append(workspace_rel_path(target, workspace))
+    for item in report["candidates"]:
+        item["result"] = "written"
+    report["summary"]["written"] = len(written)
+    report["written"] = written
+    report["evidence_refs"] = [*written, workspace_rel_path(output_path, workspace)]
+    report["architecture_memory"] = architecture_memory_store_payload(workspace)
+    if state:
+        record_local_side_effect(state, "adlc-memory", "write_architecture_memory", args.brief_id or "ADLC-GOAL-8", ",".join(written))
+        state["updated_at"] = utc_now()
+        save_workflow_state(state_path, state)
+        report["state_path"] = workspace_rel_path(state_path, workspace)
+    write_artifact(output_path, report, "architecture-memory-report")
+    return 0, report
+
+
+def command_architecture_memory(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = architecture_memory_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"architecture memory: {payload['status']} ({payload['summary']['candidates']} candidate(s))")
+    return exit_code
+
+
+def local_ref_exists(workspace: Path, ref: str) -> bool | None:
+    if not ref or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", ref):
+        return None
+    if ref.startswith("adlc:") or ref.startswith("learning:"):
+        return None
+    if ref.startswith("command:"):
+        return None
+    first = shlex.split(ref)[0] if ref.strip() else ""
+    if first in {"bash", "python", "python3", "bin/adlc", "git", "jq", "rg"}:
+        return None
+    if "/" not in ref and "." not in ref:
+        return None
+    candidate = workspace / ref
+    return candidate.exists()
+
+
+def changed_path_matches(changed_paths: List[str], values: Iterable[str]) -> bool:
+    normalized_changed = [normalize_owned_path(path) for path in changed_paths]
+    normalized_values = [normalize_owned_path(str(value)) for value in values if str(value).strip()]
+    for changed in normalized_changed:
+        for value in normalized_values:
+            if changed == value or changed.startswith(value + "/") or value.startswith(changed + "/"):
+                return True
+            if changed in value or value in changed:
+                return True
+    return False
+
+
+def learning_health_issues(workspace: Path, changed_paths: List[str]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], int]:
+    solutions_dir = workspace / "docs" / "solutions"
+    stale_refs: List[Dict[str, Any]] = []
+    overclaim_issues: List[Dict[str, Any]] = []
+    entries = [
+        path
+        for path in sorted(solutions_dir.glob("*.md"))
+        if path.name not in {"README.md", "_template.md"} and path.is_file()
+    ] if solutions_dir.is_dir() else []
+    for path in entries:
+        raw = path.read_text(encoding="utf-8")
+        frontmatter, _ = parse_markdown_frontmatter(raw)
+        process = subprocess.run([sys.executable, str(ROOT / "scripts/validate_learning_entry.py"), str(path)], text=True, capture_output=True, check=False)
+        rel = workspace_rel_path(path, workspace)
+        if process.returncode != 0:
+            overclaim_issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "invalid_learning_entry",
+                    "path": rel,
+                    "message": process.stderr[-1000:] or "learning entry failed validation",
+                }
+            )
+        redaction = frontmatter.get("redaction_review")
+        if not isinstance(redaction, dict) or redaction.get("status") != "passed":
+            overclaim_issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "learning_redaction_not_passed",
+                    "path": rel,
+                    "message": "learning entry redaction_review.status must be passed before reuse",
+                }
+            )
+        stale_values = [
+            str(frontmatter.get("module") or ""),
+            *string_list(frontmatter.get("source_evidence")),
+            *string_list(frontmatter.get("stale_conditions")),
+        ]
+        verifier = frontmatter.get("verifier") if isinstance(frontmatter.get("verifier"), dict) else {}
+        if verifier.get("command"):
+            stale_values.append(str(verifier["command"]))
+        if changed_paths and changed_path_matches(changed_paths, stale_values):
+            stale_refs.append(
+                {
+                    "severity": "warning",
+                    "rule": "learning_stale_condition_matched",
+                    "path": rel,
+                    "message": "changed path intersects learning module, source evidence, verifier, or stale conditions",
+                    "changed_paths": changed_paths,
+                }
+            )
+        for ref in string_list(frontmatter.get("source_evidence")):
+            exists = local_ref_exists(workspace, ref)
+            if exists is False:
+                stale_refs.append(
+                    {
+                        "severity": "warning",
+                        "rule": "learning_source_ref_missing",
+                        "path": rel,
+                        "message": f"source evidence ref no longer exists: {ref}",
+                    }
+                )
+    return stale_refs, overclaim_issues, len(entries)
+
+
+def architecture_entry_health_issues(workspace: Path, changed_paths: List[str]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], int]:
+    memory_dir = architecture_memory_dir(workspace)
+    stale_refs: List[Dict[str, Any]] = []
+    overclaim_issues: List[Dict[str, Any]] = []
+    entries = [path for path in sorted(memory_dir.glob("*.md")) if path.is_file()] if memory_dir.is_dir() else []
+    for path in entries:
+        frontmatter, _ = parse_markdown_frontmatter(path.read_text(encoding="utf-8"))
+        rel = workspace_rel_path(path, workspace)
+        status = str(frontmatter.get("status") or "")
+        required_lists = {
+            "affected_paths": string_list(frontmatter.get("affected_paths")),
+            "source_evidence": string_list(frontmatter.get("source_evidence")),
+            "verifier_evidence": string_list(frontmatter.get("verifier_evidence")),
+            "stale_conditions": string_list(frontmatter.get("stale_conditions")),
+            "no_overclaim": string_list(frontmatter.get("no_overclaim")),
+        }
+        if status == "accepted":
+            if not frontmatter.get("architecture_boundary"):
+                overclaim_issues.append(
+                    {
+                        "severity": "blocking",
+                        "rule": "architecture_boundary_missing",
+                        "path": rel,
+                        "message": "accepted architecture memory requires architecture_boundary",
+                    }
+                )
+            for field_name, values in required_lists.items():
+                if not values:
+                    overclaim_issues.append(
+                        {
+                            "severity": "blocking",
+                            "rule": "architecture_memory_overclaim",
+                            "path": rel,
+                            "message": f"accepted architecture memory is missing {field_name}",
+                            "field": field_name,
+                        }
+                    )
+        stale_values = [
+            str(frontmatter.get("architecture_boundary") or ""),
+            *required_lists["affected_paths"],
+            *required_lists["source_evidence"],
+            *required_lists["stale_conditions"],
+        ]
+        if changed_paths and changed_path_matches(changed_paths, stale_values):
+            stale_refs.append(
+                {
+                    "severity": "warning",
+                    "rule": "architecture_memory_stale_condition_matched",
+                    "path": rel,
+                    "message": "changed path intersects architecture memory boundary, affected paths, evidence, or stale conditions",
+                    "changed_paths": changed_paths,
+                }
+            )
+        for ref in required_lists["source_evidence"]:
+            exists = local_ref_exists(workspace, ref)
+            if exists is False:
+                stale_refs.append(
+                    {
+                        "severity": "warning",
+                        "rule": "architecture_source_ref_missing",
+                        "path": rel,
+                        "message": f"architecture source evidence ref no longer exists: {ref}",
+                    }
+                )
+    return stale_refs, overclaim_issues, len(entries)
+
+
+def primitive_exists(workspace: Path, name: str, kind: str, proposed_path: str | None) -> Tuple[bool, List[str]]:
+    refs: List[str] = []
+    normalized = architecture_decision_slug(name)
+    candidate_paths = []
+    if proposed_path:
+        candidate_paths.append(proposed_path)
+    if kind == "skill":
+        candidate_paths.append(f"skills/{normalized}/SKILL.md")
+    elif kind == "schema":
+        candidate_paths.append(f"docs/schemas/{normalized}.schema.json")
+    elif kind == "spec":
+        candidate_paths.append(f"docs/specs/{normalized}.md")
+    elif kind == "command":
+        if name in COMMAND_METADATA or normalized in COMMAND_METADATA:
+            refs.append(f"command:{name}")
+    elif kind == "loop":
+        candidate_paths.extend([f"docs/specs/{normalized}.md", f"docs/specs/{normalized}-loop.md"])
+        if name in COMMAND_METADATA or normalized in COMMAND_METADATA:
+            refs.append(f"command:{name}")
+    for raw_path in candidate_paths:
+        if raw_path and (workspace / raw_path).exists():
+            refs.append(raw_path)
+    return bool(refs), refs
+
+
+def duplicate_primitive_issues(workspace: Path, proposal_path: str | None) -> List[Dict[str, Any]]:
+    if not proposal_path:
+        return []
+    proposal = read_json(cli_input_path(proposal_path))
+    proposals = proposal.get("proposals", []) if isinstance(proposal, dict) else proposal
+    if not isinstance(proposals, list):
+        raise ValueError("primitive proposal input must contain proposals[] or be an array")
+    issues: List[Dict[str, Any]] = []
+    for index, item in enumerate(proposals):
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        kind = str(item.get("kind") or "").strip()
+        reuse_refs = string_list(item.get("reuse_refs"))
+        if not name or not kind:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "invalid_primitive_proposal",
+                    "path": proposal_path,
+                    "message": f"primitive proposal {index} must include name and kind",
+                }
+            )
+            continue
+        exists, refs = primitive_exists(workspace, name, kind, item.get("proposed_path"))
+        if exists and not reuse_refs:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "duplicate_primitive_without_reuse_ref",
+                    "path": proposal_path,
+                    "message": f"{kind} primitive '{name}' already exists and proposal does not cite reuse_refs",
+                    "existing_refs": refs,
+                    "proposal_index": index,
+                }
+            )
+    return issues
+
+
+def memory_health_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
+    workspace = resolve_workspace(args.workspace)
+    changed_paths = [normalize_owned_path(path) for path in (args.changed_path or [])]
+    learning_stale, learning_overclaim, learning_count = learning_health_issues(workspace, changed_paths)
+    architecture_stale, architecture_overclaim, architecture_count = architecture_entry_health_issues(workspace, changed_paths)
+    duplicate_issues = duplicate_primitive_issues(workspace, args.primitive_proposals)
+    stale_refs = learning_stale + architecture_stale
+    overclaim_issues = learning_overclaim + architecture_overclaim
+    issues = overclaim_issues + duplicate_issues
+    status = "blocked" if issues else ("stale" if stale_refs else "pass")
+    payload = {
+        "contract_version": "1.0.0",
+        "status": status,
+        "workspace": str(workspace),
+        "changed_paths": changed_paths,
+        "learning_store": {**learning_store_payload(workspace), "entries": learning_count},
+        "architecture_memory": {**architecture_memory_store_payload(workspace), "entries": architecture_count},
+        "stale_refs": stale_refs,
+        "overclaim_issues": overclaim_issues,
+        "duplicate_primitive_issues": duplicate_issues,
+        "issues": issues,
+        "summary": {
+            "learning_entries": learning_count,
+            "architecture_entries": architecture_count,
+            "stale_refs": len(stale_refs),
+            "overclaim_issues": len(overclaim_issues),
+            "duplicate_primitive_issues": len(duplicate_issues),
+        },
+    }
+    if args.output:
+        write_artifact(resolve_under_workspace(args.output, workspace, ".adlc/outputs/memory_health_report.json"), payload, "memory-health-report")
+    return (1 if status == "blocked" else 0), payload
+
+
+def command_memory_health(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = memory_health_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"memory health: {payload['status']}")
+    return exit_code
+
+
+def score_average(items: List[Dict[str, Any]], key: str) -> float:
+    scores = []
+    for item in items:
+        value = item.get(key)
+        if isinstance(value, (int, float)):
+            scores.append(float(value))
+    if not scores:
+        return 0.0
+    return sum(scores) / len(scores)
+
+
+def score_set_payload(items: List[Dict[str, Any]]) -> Dict[str, Any]:
+    champion_average = score_average(items, "champion_score")
+    challenger_average = score_average(items, "challenger_score")
+    return {
+        "count": len(items),
+        "champion_average": champion_average,
+        "challenger_average": challenger_average,
+        "delta": challenger_average - champion_average,
+    }
+
+
+def champion_holdout_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
+    payload = read_json(cli_input_path(args.input))
+    if not isinstance(payload, dict):
+        raise ValueError("champion holdout input must be a JSON object")
+    champion = payload.get("champion") if isinstance(payload.get("champion"), dict) else {}
+    challenger = payload.get("challenger") if isinstance(payload.get("challenger"), dict) else {}
+    working_items = [item for item in payload.get("working_set", []) if isinstance(item, dict)]
+    holdout_items = [item for item in payload.get("holdout_set", []) if isinstance(item, dict)]
+    must_pass = [item for item in payload.get("must_pass_rules", []) if isinstance(item, dict)]
+    margin = float(payload.get("promotion_margin", 0))
+    working = score_set_payload(working_items)
+    holdout = score_set_payload(holdout_items)
+    must_pass_failures = [item for item in must_pass if item.get("status") != "pass"]
+    issues: List[Dict[str, Any]] = []
+    if not holdout_items:
+        issues.append({"rule": "missing_holdout_set", "message": "challenger promotion requires at least one holdout case"})
+    if holdout["delta"] < margin:
+        issues.append(
+            {
+                "rule": "holdout_margin_not_met",
+                "message": "challenger did not beat champion on holdout by the configured margin",
+                "holdout_delta": holdout["delta"],
+                "promotion_margin": margin,
+            }
+        )
+    if working["delta"] >= margin and holdout["delta"] < margin:
+        issues.append(
+            {
+                "rule": "working_set_only_improvement",
+                "message": "challenger improved on the working set but failed the holdout promotion gate",
+            }
+        )
+    for item in must_pass_failures:
+        issues.append(
+            {
+                "rule": "must_pass_failed",
+                "message": f"must-pass rule failed: {item.get('id', '<unknown>')}",
+                "rule_id": item.get("id"),
+            }
+        )
+    promote = not issues
+    report = {
+        "contract_version": "1.0.0",
+        "evaluation_id": str(payload.get("evaluation_id") or payload.get("id") or "champion-holdout"),
+        "artifact_type": str(payload.get("artifact_type") or "prompt"),
+        "status": "promote" if promote else "reject",
+        "decision": "promote_challenger" if promote else "keep_champion",
+        "promotion_margin": margin,
+        "champion": {
+            "id": str(champion.get("id") or "champion"),
+            "working_average": working["champion_average"],
+            "holdout_average": holdout["champion_average"],
+        },
+        "challenger": {
+            "id": str(challenger.get("id") or "challenger"),
+            "working_average": working["challenger_average"],
+            "holdout_average": holdout["challenger_average"],
+        },
+        "working_set": working,
+        "holdout_set": holdout,
+        "must_pass": [
+            {"id": str(item.get("id") or "rule"), "status": "pass" if item.get("status") == "pass" else "fail"}
+            for item in must_pass
+        ],
+        "issues": issues,
+        "summary": {
+            "working_delta": working["delta"],
+            "holdout_delta": holdout["delta"],
+            "must_pass_failures": len(must_pass_failures),
+        },
+    }
+    errors = validate_artifact_payload(resolve_schema("champion-holdout-report"), report)
+    if errors:
+        raise ValueError("champion holdout report failed schema validation: " + "; ".join(errors))
+    if args.output:
+        write_artifact(resolve_under_workspace(args.output, resolve_workspace(args.workspace), ".adlc/outputs/champion_holdout_report.json"), report, "champion-holdout-report")
+    return (0 if promote else 1), report
+
+
+def command_champion_holdout(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = champion_holdout_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"champion holdout: {payload['status']}")
+    return exit_code
 
 
 def load_phase_project_map(value: str | None) -> Dict[str, str] | None:
@@ -6228,6 +6886,55 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("architecture-memory"),
+            "description": command_description("architecture-memory"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                    "brief_id": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("memory-health"),
+            "description": command_description("memory-health"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "changed_path": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "primitive_proposals": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("champion-holdout"),
+            "description": command_description("champion-holdout"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["input"],
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("control-plane-drift-loop"),
             "description": command_description("control-plane-drift-loop"),
             "inputSchema": {
@@ -6436,6 +7143,44 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             json=True,
         )
         return tool_result(compound_context_payload(args))
+    if name == "adlc_architecture_memory":
+        args = argparse.Namespace(
+            input=arguments.get("input"),
+            brief_id=arguments.get("brief_id"),
+            workspace=arguments.get("workspace"),
+            state=arguments.get("state"),
+            output=arguments.get("output"),
+            dry_run=arguments.get("dry_run", True),
+            allow_mutation=arguments.get("allow_mutation", False),
+            tool_registry=arguments.get("tool_registry"),
+            audit_trail=arguments.get("audit_trail"),
+            human_approved=arguments.get("human_approved", False),
+            approval_ref=arguments.get("approval_ref"),
+            json=True,
+        )
+        exit_code, payload = architecture_memory_payload(args)
+        return tool_result(payload, is_error=exit_code != 0)
+    if name == "adlc_memory_health":
+        args = argparse.Namespace(
+            workspace=arguments.get("workspace"),
+            changed_path=arguments.get("changed_path") if isinstance(arguments.get("changed_path"), list) else [],
+            primitive_proposals=arguments.get("primitive_proposals"),
+            output=arguments.get("output"),
+            json=True,
+        )
+        exit_code, payload = memory_health_payload(args)
+        return tool_result(payload, is_error=exit_code != 0)
+    if name == "adlc_champion_holdout":
+        if not isinstance(arguments.get("input"), str):
+            raise ValueError("adlc_champion_holdout requires string argument: input")
+        args = argparse.Namespace(
+            input=arguments.get("input"),
+            workspace=arguments.get("workspace"),
+            output=arguments.get("output"),
+            json=True,
+        )
+        exit_code, payload = champion_holdout_payload(args)
+        return tool_result(payload, is_error=exit_code != 0)
     if name == "adlc_control_plane_drift_loop":
         args = argparse.Namespace(
             brief_id=arguments.get("brief_id"),
@@ -6899,6 +7644,36 @@ def build_parser() -> argparse.ArgumentParser:
     compound.add_argument("--max-refs", type=int, default=8, help="Maximum learning refs to return.")
     compound.add_argument("--json", action="store_true", help="Emit JSON.")
     compound.set_defaults(func=command_compound_context)
+
+    architecture_memory = subparsers.add_parser("architecture-memory", help=command_description("architecture-memory"))
+    architecture_memory.add_argument("--input", help="Architecture decision candidate JSON path.")
+    architecture_memory.add_argument("--brief-id", help="Brief/run identity for permission audit evidence.")
+    architecture_memory.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    architecture_memory.add_argument("--state", help=f"Workflow state path. Defaults to {DEFAULT_STATE_PATH} under workspace.")
+    architecture_memory.add_argument("--output", help="Architecture memory report path. Defaults to .adlc/outputs/architecture_memory_report.json under workspace.")
+    architecture_memory.add_argument("--dry-run", action="store_true", help="Plan architecture memory writes without mutating docs/architecture.")
+    architecture_memory.add_argument("--allow-mutation", action="store_true", help="Permit architecture memory writes after action admission.")
+    architecture_memory.add_argument("--tool-registry", help="Tool Registry JSON path used by action-admit before mutation.")
+    architecture_memory.add_argument("--audit-trail", help="Permission Audit Trail JSON path to create or append.")
+    architecture_memory.add_argument("--human-approved", action="store_true", help="Record that a human approved the requested architecture memory write.")
+    architecture_memory.add_argument("--approval-ref", help="Human approval ticket, comment, or transcript reference.")
+    architecture_memory.add_argument("--json", action="store_true", help="Emit JSON.")
+    architecture_memory.set_defaults(func=command_architecture_memory)
+
+    memory_health = subparsers.add_parser("memory-health", help=command_description("memory-health"))
+    memory_health.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    memory_health.add_argument("--changed-path", action="append", help="Changed path used to detect stale learning or architecture refs. May be repeated.")
+    memory_health.add_argument("--primitive-proposals", help="Primitive proposal JSON used to detect duplicate commands, skills, schemas, specs, or loops.")
+    memory_health.add_argument("--output", help="Optional memory-health report path.")
+    memory_health.add_argument("--json", action="store_true", help="Emit JSON.")
+    memory_health.set_defaults(func=command_memory_health)
+
+    champion_holdout = subparsers.add_parser("champion-holdout", help=command_description("champion-holdout"))
+    champion_holdout.add_argument("--input", required=True, help="Champion/holdout evaluation JSON path.")
+    champion_holdout.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    champion_holdout.add_argument("--output", help="Optional champion/holdout report path.")
+    champion_holdout.add_argument("--json", action="store_true", help="Emit JSON.")
+    champion_holdout.set_defaults(func=command_champion_holdout)
 
     control_drift = subparsers.add_parser("control-plane-drift-loop", help=command_description("control-plane-drift-loop"))
     control_drift.add_argument("--brief-id", help="Brief/run identity for the dogfood loop state.")

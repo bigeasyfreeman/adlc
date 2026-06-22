@@ -7,7 +7,9 @@ from typing import Dict
 
 SCHEMA_ALIASES = {
     "applicability-manifest": "docs/schemas/applicability-manifest.schema.json",
+    "architecture-memory-report": "docs/schemas/architecture-memory-report.schema.json",
     "build-brief": "docs/schemas/build-brief.schema.json",
+    "champion-holdout-report": "docs/schemas/champion-holdout-report.schema.json",
     "coder-output": "docs/schemas/coder-output.schema.json",
     "control-plane-drift-report": "docs/schemas/control-plane-drift-report.schema.json",
     "council-verdict": "docs/schemas/council-verdict-output.schema.json",
@@ -17,6 +19,7 @@ SCHEMA_ALIASES = {
     "loop-contract": "docs/schemas/loop-contract.schema.json",
     "loop-maturity-report": "docs/schemas/loop-maturity-report.schema.json",
     "loop-test-result": "docs/schemas/loop-test-result.schema.json",
+    "memory-health-report": "docs/schemas/memory-health-report.schema.json",
     "permission-audit-trail": "docs/schemas/permission-audit-trail.schema.json",
     "prd-template": "docs/schemas/prd-template.schema.json",
     "repo-map": "docs/schemas/repo-map.schema.json",
@@ -139,6 +142,18 @@ COMMAND_METADATA = {
     "compound-context": {
         "mcp_name": "adlc_compound_context",
         "description": "Compute compact compound engineering context from docs/solutions, Graphify status, and optional Build Brief tasks.",
+    },
+    "architecture-memory": {
+        "mcp_name": "adlc_architecture_memory",
+        "description": "Validate and optionally write evidence-backed architecture decision memory entries.",
+    },
+    "memory-health": {
+        "mcp_name": "adlc_memory_health",
+        "description": "Audit learning and architecture memory for stale evidence, overclaim, and duplicate primitive risks.",
+    },
+    "champion-holdout": {
+        "mcp_name": "adlc_champion_holdout",
+        "description": "Evaluate a prompt or skill challenger against champion and holdout scores before promotion.",
     },
     "control-plane-drift-loop": {
         "mcp_name": "adlc_control_plane_drift_loop",

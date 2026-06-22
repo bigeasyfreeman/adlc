@@ -132,6 +132,87 @@ assert "control-plane drift report validates after repair" "'$ROOT/bin/adlc' val
 assert "control-plane drift loop rerun reports no drift" "'$ROOT/bin/adlc' control-plane-drift-loop --brief-id ADLC-G7-TEST --workspace '$dogfood_repo' --verifier 'python3 -m py_compile scripts/adlc_runtime/metadata.py' --dry-run --json >'$tmp_dir/control-plane-clean.json' && jq -e '.status == \"no_drift\" and .drift.detected == false and .human_review_required == true' '$tmp_dir/control-plane-clean.json' >/dev/null"
 
 echo ""
+echo "--- Learning And Architecture Memory ---"
+memory_repo="$tmp_dir/memory-repo"
+mkdir -p "$memory_repo/docs/specs" "$memory_repo/.adlc"
+printf '# Compound Engineering Learning Store\n' > "$memory_repo/docs/specs/compound-engineering-learning-store.md"
+cat > "$tmp_dir/architecture-memory-candidate.json" <<'JSON'
+{
+  "contract_version": "1.0.0",
+  "decisions": [
+    {
+      "decision_id": "ADR-G8-001",
+      "title": "Preserve architecture memory as evidence-backed repo entries",
+      "status": "accepted",
+      "context": "ADLC needs architecture constraints to survive across loop runs.",
+      "decision": "Store architecture memory in docs/architecture/decisions with evidence and stale conditions.",
+      "architecture_boundary": "ADLC memory captures boundaries, not approval to rewrite architecture.",
+      "affected_paths": ["docs/architecture/decisions"],
+      "source_evidence": ["docs/specs/compound-engineering-learning-store.md"],
+      "verifier_evidence": ["python3 -m py_compile scripts/adlc_runtime/cli.py"],
+      "stale_conditions": ["docs/specs/compound-engineering-learning-store.md"],
+      "no_overclaim": ["Does not prove future architecture decisions remain correct without memory-health refresh."]
+    }
+  ]
+}
+JSON
+cat > "$tmp_dir/memory-tool-registry.json" <<'JSON'
+{"version":"1.0.0","default_policy":"deny","tools":[{"name":"adlc-memory","description":"ADLC memory writes","inputSchema":{},"side_effect_profile":"mutating","permission_tier":"unrestricted","available_phases":["learning_capture"]}]}
+JSON
+assert "architecture-memory dry-run plans evidence-backed decision write" "'$ROOT/bin/adlc' architecture-memory --input '$tmp_dir/architecture-memory-candidate.json' --workspace '$memory_repo' --dry-run --json | jq -e '.status == \"planned\" and .summary.candidates == 1 and .candidates[0].result == \"planned\" and (.candidates[0].no_overclaim | length) == 1' >/dev/null"
+assert "architecture-memory admitted write records report evidence" "'$ROOT/bin/adlc' architecture-memory --input '$tmp_dir/architecture-memory-candidate.json' --workspace '$memory_repo' --allow-mutation --tool-registry '$tmp_dir/memory-tool-registry.json' --json >'$tmp_dir/architecture-memory-write.json' && jq -e '.status == \"pass\" and .summary.written == 1 and .admission.status == \"admitted\" and (.written[0] | contains(\"docs/architecture/decisions/adr-g8-001.md\"))' '$tmp_dir/architecture-memory-write.json' >/dev/null"
+assert "architecture memory report validates" "'$ROOT/bin/adlc' validate-artifact --schema architecture-memory-report --input '$memory_repo/.adlc/outputs/architecture_memory_report.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+assert "memory-health flags stale architecture memory from changed path" "'$ROOT/bin/adlc' memory-health --workspace '$memory_repo' --changed-path docs/specs/compound-engineering-learning-store.md --output '$tmp_dir/memory-health-stale.json' --json | jq -e '.status == \"stale\" and (.stale_refs | length) >= 1 and .summary.architecture_entries == 1' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema memory-health-report --input '$tmp_dir/memory-health-stale.json' --json | jq -e '.valid == true' >/dev/null"
+cat > "$tmp_dir/primitive-proposals.json" <<'JSON'
+{
+  "proposals": [
+    {
+      "name": "learning-capture",
+      "kind": "skill",
+      "proposed_path": "skills/learning-capture/SKILL.md",
+      "reuse_refs": []
+    }
+  ]
+}
+JSON
+assert "memory-health blocks duplicate primitive proposals without reuse refs" "if '$ROOT/bin/adlc' memory-health --workspace '$ROOT' --primitive-proposals '$tmp_dir/primitive-proposals.json' --json >'$tmp_dir/memory-health-duplicate.json'; then false; else jq -e '.status == \"blocked\" and any(.duplicate_primitive_issues[]; .rule == \"duplicate_primitive_without_reuse_ref\")' '$tmp_dir/memory-health-duplicate.json' >/dev/null; fi"
+cat > "$tmp_dir/champion-holdout-pass.json" <<'JSON'
+{
+  "evaluation_id": "g8-skill-loop",
+  "artifact_type": "skill",
+  "promotion_margin": 0.05,
+  "champion": {"id": "current"},
+  "challenger": {"id": "candidate"},
+  "working_set": [
+    {"id": "w1", "champion_score": 0.70, "challenger_score": 0.82},
+    {"id": "w2", "champion_score": 0.72, "challenger_score": 0.84}
+  ],
+  "holdout_set": [
+    {"id": "h1", "champion_score": 0.70, "challenger_score": 0.78},
+    {"id": "h2", "champion_score": 0.71, "challenger_score": 0.79}
+  ],
+  "must_pass_rules": [
+    {"id": "redaction", "status": "pass"},
+    {"id": "format", "status": "pass"}
+  ]
+}
+JSON
+assert "champion-holdout promotes only on holdout margin and must-pass rules" "'$ROOT/bin/adlc' champion-holdout --input '$tmp_dir/champion-holdout-pass.json' --output '$tmp_dir/champion-holdout-report.json' --json | jq -e '.status == \"promote\" and .decision == \"promote_challenger\" and .summary.holdout_delta >= 0.05' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema champion-holdout-report --input '$tmp_dir/champion-holdout-report.json' --json | jq -e '.valid == true' >/dev/null"
+cat > "$tmp_dir/champion-holdout-fail.json" <<'JSON'
+{
+  "evaluation_id": "g8-prompt-loop",
+  "artifact_type": "prompt",
+  "promotion_margin": 0.05,
+  "champion": {"id": "current"},
+  "challenger": {"id": "candidate"},
+  "working_set": [{"id": "w1", "champion_score": 0.60, "challenger_score": 0.80}],
+  "holdout_set": [{"id": "h1", "champion_score": 0.70, "challenger_score": 0.71}],
+  "must_pass_rules": [{"id": "redaction", "status": "pass"}]
+}
+JSON
+assert "champion-holdout rejects working-set-only improvement" "if '$ROOT/bin/adlc' champion-holdout --input '$tmp_dir/champion-holdout-fail.json' --json >'$tmp_dir/champion-holdout-fail-report.json'; then false; else jq -e '.status == \"reject\" and .decision == \"keep_champion\" and any(.issues[]; .rule == \"working_set_only_improvement\")' '$tmp_dir/champion-holdout-fail-report.json' >/dev/null; fi"
+
+echo ""
 echo "--- Work Queue And Worktrees ---"
 queue_repo="$tmp_dir/queue-repo"
 dirty_queue_repo="$tmp_dir/dirty-queue-repo"
@@ -353,12 +434,41 @@ assert "sync-work-item validates mutated workflow state" "'$ROOT/bin/adlc' valid
 
 echo ""
 echo "--- MCP Wrapper ---"
-assert "mcp-tools emits MCP tool declarations" "'$ROOT/bin/adlc' mcp-tools --json | jq -e '(.tools | length) >= 24 and any(.tools[]; .name == \"adlc_validate_artifact\" and (.inputSchema.required | index(\"schema\"))) and any(.tools[]; .name == \"adlc_health_check\") and any(.tools[]; .name == \"adlc_ci\" and .inputSchema.properties.suite.type == \"array\") and any(.tools[]; .name == \"adlc_action_admit\" and (.inputSchema.required | index(\"tool_registry\")) and .inputSchema.properties.allow_mutation.type == \"boolean\" and .inputSchema.properties.run_id.type == \"string\") and any(.tools[]; .name == \"adlc_run_phase\") and any(.tools[]; .name == \"adlc_emit_work_items\") and any(.tools[]; .name == \"adlc_sync_work_item\" and .inputSchema.properties.allow_mutation.type == \"boolean\" and .inputSchema.properties.tool_registry.type == \"string\") and any(.tools[]; .name == \"adlc_queue_status\") and any(.tools[]; .name == \"adlc_queue_claim\" and .inputSchema.properties.tool_registry.type == \"string\") and any(.tools[]; .name == \"adlc_queue_complete\" and .inputSchema.properties.evidence.type == \"array\") and any(.tools[]; .name == \"adlc_queue_block\") and any(.tools[]; .name == \"adlc_queue_escalate\") and any(.tools[]; .name == \"adlc_worktree_prepare\" and .inputSchema.properties.worktree_root.type == \"string\") and any(.tools[]; .name == \"adlc_worktree_status\") and any(.tools[]; .name == \"adlc_worktree_cleanup\" and .inputSchema.properties.force.type == \"boolean\") and any(.tools[]; .name == \"adlc_compound_context\") and any(.tools[]; .name == \"adlc_loop_test_selection\" and .inputSchema.properties.require_test_results.type == \"boolean\") and any(.tools[]; .name == \"adlc_loop_budget_check\" and (.inputSchema.required | index(\"token_budget\")) and .inputSchema.properties.estimated_input_tokens.type == \"integer\") and any(.tools[]; .name == \"adlc_loop_action_validate\" and .inputSchema.properties.token_budget.type == \"string\") and any(.tools[]; .name == \"adlc_loop_maturity_audit\" and .inputSchema.properties.test_results.type == \"string\" and .inputSchema.properties.token_budget.type == \"string\" and (.inputSchema.properties | has(\"build_brief\") | not))' >/dev/null"
+cat > "$tmp_dir/mcp-tools-filter.jq" <<'JQ'
+(.tools | length) >= 27
+and any(.tools[]; .name == "adlc_validate_artifact" and (.inputSchema.required | index("schema")))
+and any(.tools[]; .name == "adlc_health_check")
+and any(.tools[]; .name == "adlc_ci" and .inputSchema.properties.suite.type == "array")
+and any(.tools[]; .name == "adlc_action_admit" and (.inputSchema.required | index("tool_registry")) and .inputSchema.properties.allow_mutation.type == "boolean" and .inputSchema.properties.run_id.type == "string")
+and any(.tools[]; .name == "adlc_run_phase")
+and any(.tools[]; .name == "adlc_emit_work_items")
+and any(.tools[]; .name == "adlc_sync_work_item" and .inputSchema.properties.allow_mutation.type == "boolean" and .inputSchema.properties.tool_registry.type == "string")
+and any(.tools[]; .name == "adlc_queue_status")
+and any(.tools[]; .name == "adlc_queue_claim" and .inputSchema.properties.tool_registry.type == "string")
+and any(.tools[]; .name == "adlc_queue_complete" and .inputSchema.properties.evidence.type == "array")
+and any(.tools[]; .name == "adlc_queue_block")
+and any(.tools[]; .name == "adlc_queue_escalate")
+and any(.tools[]; .name == "adlc_worktree_prepare" and .inputSchema.properties.worktree_root.type == "string")
+and any(.tools[]; .name == "adlc_worktree_status")
+and any(.tools[]; .name == "adlc_worktree_cleanup" and .inputSchema.properties.force.type == "boolean")
+and any(.tools[]; .name == "adlc_compound_context")
+and any(.tools[]; .name == "adlc_architecture_memory" and .inputSchema.properties.tool_registry.type == "string")
+and any(.tools[]; .name == "adlc_memory_health" and .inputSchema.properties.primitive_proposals.type == "string")
+and any(.tools[]; .name == "adlc_champion_holdout" and (.inputSchema.required | index("input")))
+and any(.tools[]; .name == "adlc_loop_test_selection" and .inputSchema.properties.require_test_results.type == "boolean")
+and any(.tools[]; .name == "adlc_loop_budget_check" and (.inputSchema.required | index("token_budget")) and .inputSchema.properties.estimated_input_tokens.type == "integer")
+and any(.tools[]; .name == "adlc_loop_action_validate" and .inputSchema.properties.token_budget.type == "string")
+and any(.tools[]; .name == "adlc_loop_maturity_audit" and .inputSchema.properties.test_results.type == "string" and .inputSchema.properties.token_budget.type == "string" and (.inputSchema.properties | has("build_brief") | not))
+JQ
+assert "mcp-tools emits MCP tool declarations" "'$ROOT/bin/adlc' mcp-tools --json | jq -e -f '$tmp_dir/mcp-tools-filter.jq' >/dev/null"
 assert "mcp-serve handles initialize and tools/list" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"0\"}}}' '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' | '$ROOT/bin/adlc' mcp-serve | jq -s -e '.[0].result.capabilities.tools.listChanged == false and any(.[1].result.tools[]; .name == \"adlc_list_agents\")' >/dev/null"
 assert "mcp-serve calls adlc_list_agents" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_list_agents\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.count >= 11' >/dev/null"
 assert "mcp-serve calls health check" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_health_check\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"
 assert "mcp-serve calls selectable ci suites" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_ci\",\"arguments\":{\"suite\":[\"health-check\",\"py-compile\"]}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and .result.structuredContent.summary.total == 2' >/dev/null"
 assert "mcp-serve calls action admission" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_action_admit\",\"arguments\":{\"tool_registry\":\"'$tmp_dir'/action-tool-registry.json\",\"tool\":\"Read\",\"action\":\"read_file\",\"phase\":\"research\",\"brief_id\":\"BRF-ACTION\",\"run_id\":\"RUN-ACTION\",\"session_id\":\"SESSION-ACTION\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"admitted\" and .result.structuredContent.run_identity.run_id == \"RUN-ACTION\" and .result.structuredContent.audit_trail.entries[0].decision == \"approved\" and .result.structuredContent.audit_trail.entries[0].run_id == \"RUN-ACTION\"' >/dev/null"
+assert "mcp-serve calls architecture memory dry-run" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_architecture_memory\",\"arguments\":{\"input\":\"'$tmp_dir'/architecture-memory-candidate.json\",\"workspace\":\"'$memory_repo'\",\"dry_run\":true}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"planned\" and .result.structuredContent.summary.candidates == 1' >/dev/null"
+assert "mcp-serve calls memory health audit" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_memory_health\",\"arguments\":{\"workspace\":\"'$memory_repo'\",\"changed_path\":[\"docs/specs/compound-engineering-learning-store.md\"]}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"stale\" and .result.structuredContent.summary.architecture_entries == 1' >/dev/null"
+assert "mcp-serve calls champion holdout evaluation" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_champion_holdout\",\"arguments\":{\"input\":\"'$tmp_dir'/champion-holdout-pass.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"promote\" and .result.structuredContent.decision == \"promote_challenger\"' >/dev/null"
 assert "mcp-serve calls work item sync dry-run" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_sync_work_item\",\"arguments\":{\"work_item\":\"tests/fixtures/tracker_sync/run-update.json\",\"existing_work_items\":\"tests/fixtures/tracker_sync/existing-work-items.json\",\"dry_run\":true}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.operations[0].operation == \"append\" and .result.structuredContent.operations[0].reason == \"matched_existing_work_items\"' >/dev/null"
 assert "mcp-serve calls queue status" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_queue_status\",\"arguments\":{\"queue\":\"tests/fixtures/work_queue/valid-queue.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.summary.counts.queued == 3 and .result.structuredContent.summary.active == 2' >/dev/null"
 assert "mcp-serve calls queue claim dry-run" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_queue_claim\",\"arguments\":{\"queue\":\"tests/fixtures/work_queue/valid-queue.json\",\"task_id\":\"ADLC-G5-CLAIMABLE\",\"workspace\":\"'$queue_repo'\",\"dry_run\":true}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and .result.structuredContent.planned_task.status == \"claimed\"' >/dev/null"
