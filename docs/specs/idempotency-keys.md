@@ -8,6 +8,8 @@ Prevent duplicate side effects when ADLC phases or skills retry after timeout, c
 {brief_id}:{skill_name}:{task_id}:{operation}
 ```
 
+`run_id` is not part of the idempotency key. A resume must reuse the same work-item keys even when `resume_count` or `attempt` changes. Store `run_id`, `session_id`, and `brief_id` beside the side-effect record for correlation.
+
 ## Skill-Specific Keys
 - JIRA Ticket Creation: `{brief_id}:jira:{task_id}`
 - GitHub Issue Creation: `{brief_id}:github:{task_id}`
@@ -25,12 +27,15 @@ Prevent duplicate side effects when ADLC phases or skills retry after timeout, c
 2. Check durable store by `idempotency_key`.
 3. If key exists and status is `completed` or `deduplicated`, return existing artifact metadata.
 4. If key exists with `failed`, retry only if operation is marked retryable.
-5. Record result in `workflow-state.side_effects[]`.
+5. Record result in `workflow-state.side_effects[]` with `run_id`, `session_id`, and `brief_id`.
 
 ## Response Contract
 ```json
 {
   "idempotency_key": "BRF-123:jira:TASK-7:create",
+  "run_id": "ADLC-RUN-001",
+  "session_id": "S-001",
+  "brief_id": "BRF-123",
   "status": "deduplicated",
   "artifact_id": "ENG-781",
   "artifact_ref": "https://jira/.../ENG-781"

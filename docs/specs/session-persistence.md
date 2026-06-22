@@ -12,6 +12,8 @@ Persist session state after:
 - every Eval Council verdict
 
 ## Stored State
+- run identity (`run_id`, `session_id`, `brief_id`)
+- resume and attempt counters
 - conversation history
 - token usage totals
 - permission decision log
@@ -23,9 +25,12 @@ Persist session state after:
 **Output:**
 ```json
 {
+  "run_id": "ADLC-RUN-001",
   "session_id": "S-001",
   "status": "active",
   "restored_phase": "phase_6_parallel_codegen",
+  "resume_count": 2,
+  "attempt": 3,
   "restored_permissions": 23,
   "restored_token_usage": 412340
 }

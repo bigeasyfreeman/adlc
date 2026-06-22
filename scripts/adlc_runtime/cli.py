@@ -247,6 +247,42 @@ def infer_brief_id(input_arg: str | None) -> str | None:
     return brief_id if isinstance(brief_id, str) and brief_id else None
 
 
+def new_run_id() -> str:
+    return f"adlc-run-{uuid.uuid4().hex[:12]}"
+
+
+def new_session_id() -> str:
+    return f"adlc-{uuid.uuid4().hex[:12]}"
+
+
+def ensure_workflow_identity(state: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(state.get("run_id"), str) or not state["run_id"].strip():
+        state["run_id"] = new_run_id()
+    if not isinstance(state.get("session_id"), str) or not state["session_id"].strip():
+        state["session_id"] = new_session_id()
+    try:
+        resume_count = int(state.get("resume_count", 0))
+    except (TypeError, ValueError):
+        resume_count = 0
+    state["resume_count"] = max(0, resume_count)
+    try:
+        attempt = int(state.get("attempt", state["resume_count"] + 1))
+    except (TypeError, ValueError):
+        attempt = state["resume_count"] + 1
+    state["attempt"] = max(1, attempt)
+    return state
+
+
+def workflow_identity_payload(state: Dict[str, Any] | None) -> Dict[str, Any] | None:
+    if not isinstance(state, dict):
+        return None
+    identity: Dict[str, Any] = {}
+    for key in ("brief_id", "run_id", "session_id", "resume_count", "attempt"):
+        if key in state:
+            identity[key] = state[key]
+    return identity or None
+
+
 def new_workflow_state(
     brief_id: str,
     workspace: Path,
@@ -262,7 +298,8 @@ def new_workflow_state(
         checkpoint["input"] = input_path
     return {
         "brief_id": brief_id,
-        "session_id": f"adlc-{uuid.uuid4().hex[:12]}",
+        "run_id": new_run_id(),
+        "session_id": new_session_id(),
         "phase": phase,
         "step": "ready",
         "status": "planned",
@@ -271,6 +308,7 @@ def new_workflow_state(
         "checkpoint": checkpoint,
         "side_effects": [],
         "resume_count": 0,
+        "attempt": 1,
     }
 
 
@@ -284,6 +322,7 @@ def load_workflow_state(path: Path) -> Dict[str, Any]:
 
 
 def save_workflow_state(path: Path, state: Dict[str, Any]) -> None:
+    ensure_workflow_identity(state)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     errors = validate_artifact(resolve_schema("workflow-state"), path)
@@ -294,7 +333,7 @@ def save_workflow_state(path: Path, state: Dict[str, Any]) -> None:
 def workflow_state_for_args(args: argparse.Namespace, workspace: Path) -> Tuple[Path, Dict[str, Any]]:
     state_path = resolve_under_workspace(getattr(args, "state", None), workspace, DEFAULT_STATE_PATH)
     if state_path.exists():
-        return state_path, load_workflow_state(state_path)
+        return state_path, ensure_workflow_identity(load_workflow_state(state_path))
 
     brief_id = getattr(args, "brief_id", None) or infer_brief_id(getattr(args, "input", None))
     if not brief_id:
@@ -474,7 +513,12 @@ def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
         state["status"] = "completed"
         state["updated_at"] = utc_now()
         save_workflow_state(state_path, state)
-        return 0, {"state_path": rel_path(state_path), "state": state, "result": "terminal"}
+        return 0, {
+            "state_path": rel_path(state_path),
+            "run_identity": workflow_identity_payload(state),
+            "state": state,
+            "result": "terminal",
+        }
 
     if node_type == "human_gate":
         state["status"] = "awaiting_approval"
@@ -482,7 +526,12 @@ def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
         state["updated_at"] = utc_now()
         append_history(state, {"phase": phase, "status": "awaiting_approval", "dry_run": args.dry_run})
         save_workflow_state(state_path, state)
-        return 0, {"state_path": rel_path(state_path), "state": state, "result": "awaiting_approval"}
+        return 0, {
+            "state_path": rel_path(state_path),
+            "run_identity": workflow_identity_payload(state),
+            "state": state,
+            "result": "awaiting_approval",
+        }
 
     if args.dry_run or phase == "start" or node_type in {"tool", "fan_out", "workflow", "conditional"}:
         label = args.label
@@ -495,7 +544,13 @@ def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
             dry_run=True,
         )
         save_workflow_state(state_path, state)
-        return 0, {"state_path": rel_path(state_path), "state": state, "plan": plan, "dry_run": True}
+        return 0, {
+            "state_path": rel_path(state_path),
+            "run_identity": workflow_identity_payload(state),
+            "state": state,
+            "plan": plan,
+            "dry_run": True,
+        }
 
     result = invoke_agent_phase(plan, workspace)
     label = args.label or read_output_label(plan["output"])
@@ -512,6 +567,7 @@ def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
     save_workflow_state(state_path, state)
     payload = {
         "state_path": rel_path(state_path),
+        "run_identity": workflow_identity_payload(state),
         "state": state,
         "plan": plan,
         "returncode": result.returncode,
@@ -545,7 +601,12 @@ def command_run(args: argparse.Namespace) -> int:
             if exit_code != 0 or state["status"] in {"failed", "awaiting_approval", "completed"}:
                 break
             args.phase = None
-        final_payload = {"runs": payloads, "state": payloads[-1]["state"] if payloads else None}
+        final_state = payloads[-1]["state"] if payloads else None
+        final_payload = {
+            "runs": payloads,
+            "run_identity": workflow_identity_payload(final_state),
+            "state": final_state,
+        }
     except Exception as exc:
         print(str(exc), file=sys.stderr)
         return 2
@@ -557,20 +618,33 @@ def command_run(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def resume_workflow_payload(workspace_arg: str | None, state_arg: str | None) -> Dict[str, Any]:
+    workspace = resolve_workspace(workspace_arg)
+    state_path = resolve_under_workspace(state_arg, workspace, DEFAULT_STATE_PATH)
+    state = ensure_workflow_identity(load_workflow_state(state_path))
+    state["resume_count"] = int(state.get("resume_count", 0)) + 1
+    state["attempt"] = int(state.get("attempt", 1)) + 1
+    resumed_at = utc_now()
+    state["last_resumed_at"] = resumed_at
+    state["updated_at"] = resumed_at
+    next_action = resume_next_action_payload(state)
+    state.setdefault("checkpoint", {})["next_action"] = next_action
+    save_workflow_state(state_path, state)
+    return {
+        "state_path": rel_path(state_path),
+        "run_identity": workflow_identity_payload(state),
+        "state": state,
+        "next_action": next_action,
+    }
+
+
 def command_resume_workflow(args: argparse.Namespace) -> int:
-    workspace = resolve_workspace(args.workspace)
-    state_path = resolve_under_workspace(args.state, workspace, DEFAULT_STATE_PATH)
     try:
-        state = load_workflow_state(state_path)
-        state["resume_count"] = int(state.get("resume_count", 0)) + 1
-        state["updated_at"] = utc_now()
-        next_action = resume_next_action_payload(state)
-        state.setdefault("checkpoint", {})["next_action"] = next_action
-        save_workflow_state(state_path, state)
+        payload = resume_workflow_payload(args.workspace, args.state)
+        state = payload["state"]
     except Exception as exc:
         print(str(exc), file=sys.stderr)
         return 2
-    payload = {"state_path": rel_path(state_path), "state": state, "next_action": next_action}
     if args.json:
         write_json(payload)
     else:
@@ -891,8 +965,10 @@ def task_fingerprint_summary(state: Dict[str, Any]) -> Dict[str, Any]:
 def resume_next_action_payload(state: Dict[str, Any]) -> Dict[str, Any]:
     node_by_id, _ = workflow_maps()
     return {
+        "run_identity": workflow_identity_payload(state),
         "phase": state["phase"],
         "status": state["status"],
+        "stop_reason": state.get("stop_reason"),
         "node": node_by_id.get(state["phase"]),
         "runnable": state["status"] == "planned" and state["phase"] not in {"done", "escalate"},
         "task_resume_status": task_fingerprint_summary(state),
@@ -1684,7 +1760,7 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
                 raise ValueError(f"unresolved_dependency_alias: {task['task_id']} depends on {dependency}")
             dependency_links.append({"from": dependency, "to": task["task_id"], "type": "blocks"})
 
-    return {
+    result = {
         "contract_version": "1.0.0",
         "target": target,
         "build_brief_id": brief_id,
@@ -1700,6 +1776,10 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
         "applicability_manifest": brief.get("applicability_manifest"),
         "summary": f"{len(artifacts)} ADLC work items prepared for {target}.",
     }
+    identity = workflow_identity_payload(state)
+    if identity:
+        result["run_identity"] = identity
+    return result
 
 
 def append_permission_log(workspace: Path, entry: Dict[str, Any]) -> None:
@@ -1785,6 +1865,9 @@ def record_emitter_side_effects(
         state.setdefault("side_effects", []).append(
             {
                 "idempotency_key": idempotency_key,
+                "brief_id": state.get("brief_id"),
+                "run_id": state.get("run_id"),
+                "session_id": state.get("session_id"),
                 "tool_name": f"{target}-work-item-emitter",
                 "operation": "upsert_artifact",
                 "status": side_effect_status,
@@ -1830,7 +1913,7 @@ def emit_work_items_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, An
     if not brief_path.is_absolute():
         brief_path = Path.cwd() / brief_path
     state_path = resolve_under_workspace(args.state, workspace, DEFAULT_STATE_PATH)
-    state = load_workflow_state(state_path) if state_path.exists() else None
+    state = ensure_workflow_identity(load_workflow_state(state_path)) if state_path.exists() else None
 
     phase_project_map = load_phase_project_map(getattr(args, "phase_project_map", None))
 
@@ -1875,11 +1958,16 @@ def emit_work_items_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, An
     if state is None:
         brief_id = payload["build_brief_id"]
         state = new_workflow_state(brief_id=brief_id, workspace=workspace, phase="pr_prep")
+        payload["run_identity"] = workflow_identity_payload(state)
+        result["run_identity"] = payload["run_identity"]
 
     append_permission_log(
         workspace,
         {
             "tool": f"{args.target}-work-item-emitter",
+            "brief_id": state.get("brief_id"),
+            "run_id": state.get("run_id"),
+            "session_id": state.get("session_id"),
             "provider": args.provider_command,
             "action": "upsert_artifacts",
             "tier": "requires_approval",
@@ -2227,11 +2315,12 @@ def phase_candidates(phase: str) -> List[str]:
 def permission_audit_trail_for_entry(
     session_id: str,
     brief_id: str,
+    run_id: str | None,
     entry: Dict[str, Any],
     patterns: Iterable[str],
 ) -> Dict[str, Any]:
     pattern_list = sorted(set(pattern for pattern in patterns if pattern))
-    return {
+    trail = {
         "session_id": session_id,
         "brief_id": brief_id,
         "entries": [entry],
@@ -2240,6 +2329,9 @@ def permission_audit_trail_for_entry(
             "patterns": pattern_list,
         },
     }
+    if run_id:
+        trail["run_id"] = run_id
+    return trail
 
 
 def merged_permission_audit_trail(path: Path, new_trail: Dict[str, Any]) -> Dict[str, Any]:
@@ -2251,10 +2343,14 @@ def merged_permission_audit_trail(path: Path, new_trail: Dict[str, Any]) -> Dict
     existing = read_json(path)
     if existing.get("session_id") != new_trail["session_id"] or existing.get("brief_id") != new_trail["brief_id"]:
         raise ValueError("permission audit trail session_id and brief_id must match appended entry")
+    existing_run_id = existing.get("run_id")
+    new_run_id = new_trail.get("run_id")
+    if existing_run_id and new_run_id and existing_run_id != new_run_id:
+        raise ValueError("permission audit trail run_id must match appended entry")
     entries = [*existing.get("entries", []), *new_trail["entries"]]
     patterns = set(existing.get("denial_summary", {}).get("patterns", []))
     patterns.update(new_trail.get("denial_summary", {}).get("patterns", []))
-    return {
+    merged = {
         "session_id": new_trail["session_id"],
         "brief_id": new_trail["brief_id"],
         "entries": entries,
@@ -2263,6 +2359,9 @@ def merged_permission_audit_trail(path: Path, new_trail: Dict[str, Any]) -> Dict
             "patterns": sorted(patterns),
         },
     }
+    if existing_run_id or new_run_id:
+        merged["run_id"] = existing_run_id or new_run_id
+    return merged
 
 
 def write_permission_audit_trail(path: Path, trail: Dict[str, Any]) -> None:
@@ -2273,6 +2372,18 @@ def write_permission_audit_trail(path: Path, trail: Dict[str, Any]) -> None:
         raise ValueError("permission audit trail failed schema validation: " + "; ".join(errors))
 
 
+def action_stop_reason(status: str, issues: List[Dict[str, Any]]) -> str | None:
+    if status == "admitted":
+        return None
+    for issue in issues:
+        rule = issue.get("rule")
+        if rule in {"budget_exhausted", "budget_stale", "budget_missing"}:
+            return str(rule)
+    if status == "escalate":
+        return "permission_requires_escalation"
+    return "permission_denied"
+
+
 def action_admit_payload(
     tool_registry_path: Path,
     tool_name: str,
@@ -2281,6 +2392,7 @@ def action_admit_payload(
     state_path: Path | None = None,
     brief_id: str | None = None,
     session_id: str | None = None,
+    run_id: str | None = None,
     allow_mutation: bool = False,
     human_approved: bool = False,
     approval_ref: str | None = None,
@@ -2302,6 +2414,7 @@ def action_admit_payload(
     effective_phase = effective_phase.strip()
     effective_brief_id = brief_id or state.get("brief_id") or "UNKNOWN-BRIEF"
     effective_session_id = session_id or state.get("session_id") or "UNKNOWN-SESSION"
+    effective_run_id = run_id or state.get("run_id")
 
     tools = {
         tool.get("name"): tool
@@ -2411,8 +2524,9 @@ def action_admit_payload(
         else "; ".join(issue["rule"] for issue in issues)
     )
     decision = {"admitted": "approved", "denied": "denied", "escalate": "escalated"}[status]
+    stop_reason = action_stop_reason(status, issues)
     entry: Dict[str, Any] = {
-        "decision_id": "decision:" + stable_hash("|".join([effective_session_id, effective_brief_id, tool_name, action, effective_phase, timestamp])),
+        "decision_id": "decision:" + stable_hash("|".join([effective_session_id, effective_brief_id, effective_run_id or "", tool_name, action, effective_phase, timestamp])),
         "tool_name": tool_name,
         "action": action,
         "tier": permission_tier,
@@ -2426,6 +2540,10 @@ def action_admit_payload(
         "side_effect_profile": side_effect_profile,
         "policy_ref": rel_path(tool_registry_path),
     }
+    if effective_run_id:
+        entry["run_id"] = effective_run_id
+    if stop_reason:
+        entry["stop_reason"] = stop_reason
     if approval_ref:
         entry["human_approval_ref"] = approval_ref
     if budget_status and budget_status.get("token_budget_ref"):
@@ -2434,6 +2552,7 @@ def action_admit_payload(
     trail = permission_audit_trail_for_entry(
         effective_session_id,
         effective_brief_id,
+        effective_run_id,
         entry,
         (issue["rule"] for issue in issues),
     )
@@ -2441,9 +2560,17 @@ def action_admit_payload(
         trail = merged_permission_audit_trail(audit_trail_path, trail)
         write_permission_audit_trail(audit_trail_path, trail)
 
+    run_identity = {
+        "brief_id": effective_brief_id,
+        "session_id": effective_session_id,
+    }
+    if effective_run_id:
+        run_identity["run_id"] = effective_run_id
+
     payload: Dict[str, Any] = {
         "contract_version": "1.0.0",
         "status": status,
+        "run_identity": run_identity,
         "tool_name": tool_name,
         "action": action,
         "phase": effective_phase,
@@ -2455,6 +2582,7 @@ def action_admit_payload(
         "issues": issues,
         "budget_check": budget_check,
         "budget_status": budget_status,
+        "stop_reason": stop_reason,
         "audit_trail": trail,
     }
     if audit_trail_path:
@@ -2482,6 +2610,7 @@ def command_action_admit(args: argparse.Namespace) -> int:
             state_path=state_path,
             brief_id=args.brief_id,
             session_id=args.session_id,
+            run_id=args.run_id,
             allow_mutation=args.allow_mutation,
             human_approved=args.human_approved,
             approval_ref=args.approval_ref,
@@ -3040,6 +3169,7 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "phase": {"type": "string", "minLength": 1},
                     "state": {"type": "string", "minLength": 1},
                     "brief_id": {"type": "string", "minLength": 1},
+                    "run_id": {"type": "string", "minLength": 1},
                     "session_id": {"type": "string", "minLength": 1},
                     "allow_mutation": {"type": "boolean", "default": False},
                     "human_approved": {"type": "boolean", "default": False},
@@ -3255,6 +3385,7 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             state_path=cli_input_path(arguments["state"], ROOT) if isinstance(arguments.get("state"), str) else None,
             brief_id=arguments.get("brief_id") if isinstance(arguments.get("brief_id"), str) else None,
             session_id=arguments.get("session_id") if isinstance(arguments.get("session_id"), str) else None,
+            run_id=arguments.get("run_id") if isinstance(arguments.get("run_id"), str) else None,
             allow_mutation=bool(arguments.get("allow_mutation", False)),
             human_approved=bool(arguments.get("human_approved", False)),
             approval_ref=arguments.get("approval_ref") if isinstance(arguments.get("approval_ref"), str) else None,
@@ -3283,15 +3414,7 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         exit_code, payload = run_phase_payload(args)
         return tool_result(payload, is_error=exit_code != 0)
     if name == "adlc_resume_workflow":
-        workspace = resolve_workspace(arguments.get("workspace"))
-        state_path = resolve_under_workspace(arguments.get("state"), workspace, DEFAULT_STATE_PATH)
-        state = load_workflow_state(state_path)
-        state["resume_count"] = int(state.get("resume_count", 0)) + 1
-        state["updated_at"] = utc_now()
-        next_action = resume_next_action_payload(state)
-        state.setdefault("checkpoint", {})["next_action"] = next_action
-        save_workflow_state(state_path, state)
-        return tool_result({"state_path": rel_path(state_path), "state": state, "next_action": next_action})
+        return tool_result(resume_workflow_payload(arguments.get("workspace"), arguments.get("state")))
     if name == "adlc_compound_context":
         args = argparse.Namespace(
             workspace=arguments.get("workspace"),
@@ -3506,6 +3629,7 @@ def build_parser() -> argparse.ArgumentParser:
     action_admit.add_argument("--phase", help="Current ADLC workflow phase. Defaults to --state phase when present.")
     action_admit.add_argument("--state", help="Workflow state path used for phase, session, brief, and budget context.")
     action_admit.add_argument("--brief-id", help="Build Brief id for the permission audit trail.")
+    action_admit.add_argument("--run-id", help="Durable ADLC run id for the permission audit trail when --state is not supplied.")
     action_admit.add_argument("--session-id", help="Session id for the permission audit trail.")
     action_admit.add_argument("--allow-mutation", action="store_true", help="Explicitly allow mutating or destructive tool classes.")
     action_admit.add_argument("--human-approved", action="store_true", help="Record that a human approved the requested action.")

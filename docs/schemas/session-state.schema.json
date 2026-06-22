@@ -19,6 +19,10 @@
       "type": "string",
       "minLength": 1
     },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
     "brief_id": {
       "type": "string",
       "minLength": 1
@@ -86,6 +90,18 @@
         "properties": {
           "tool": {
             "type": "string"
+          },
+          "run_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "session_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "brief_id": {
+            "type": "string",
+            "minLength": 1
           },
           "action": {
             "type": "string"

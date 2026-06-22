@@ -117,6 +117,32 @@ assert_workflow_state_accepts_loop_progress_control() {
     jq -e '.valid == true and (.errors | length) == 0' >/dev/null
 }
 
+assert_workflow_state_accepts_run_identity_side_effects() {
+  local tmp
+  tmp="$(mktemp)"
+  cat > "$tmp" <<'JSON'
+{"brief_id":"SMOKE","run_id":"adlc-run-contract","session_id":"adlc-contract","phase":"pr_prep","status":"planned","step":"ready","started_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z","resume_count":1,"attempt":2,"last_resumed_at":"2026-01-01T00:01:00Z","checkpoint":{"workspace":"/tmp","history":[]},"side_effects":[{"idempotency_key":"SMOKE:linear:SMOKE-001:upsert","brief_id":"SMOKE","run_id":"adlc-run-contract","session_id":"adlc-contract","tool_name":"linear-work-item-emitter","operation":"upsert_artifact","status":"completed","artifact_id":"LIN-1","artifact_ref":"linear://LIN-1","timestamp":"2026-01-01T00:02:00Z"}]}
+JSON
+  local status=0
+  "$ROOT/bin/adlc" validate-artifact --schema workflow-state --input "$tmp" --json |
+    jq -e '.valid == true and (.errors | length) == 0' >/dev/null || status=$?
+  rm -f "$tmp"
+  return "$status"
+}
+
+assert_permission_audit_trail_accepts_run_identity() {
+  local tmp
+  tmp="$(mktemp)"
+  cat > "$tmp" <<'JSON'
+{"session_id":"adlc-contract","brief_id":"SMOKE","run_id":"adlc-run-contract","entries":[{"decision_id":"decision-1","tool_name":"Write","action":"edit_file","tier":"requires_approval","decision":"denied","reason":"permission_requires_human_approval","decided_by":"policy","timestamp":"2026-01-01T00:00:00Z","session_id":"adlc-contract","brief_id":"SMOKE","run_id":"adlc-run-contract","stop_reason":"permission_denied"}],"denial_summary":{"count":1,"patterns":["permission_requires_human_approval"]}}
+JSON
+  local status=0
+  "$ROOT/bin/adlc" validate-artifact --schema permission-audit-trail --input "$tmp" --json |
+    jq -e '.valid == true and (.errors | length) == 0' >/dev/null || status=$?
+  rm -f "$tmp"
+  return "$status"
+}
+
 assert_workflow_state_covers_workflow_nodes() {
   python3 - "$ROOT" <<'PY'
 import json
@@ -516,16 +542,21 @@ assert "change surface includes service_boundary_change" "jq -e '.properties.cha
 assert "applicability manifest supports implementation and productionization sections" "jq -e '(.properties.section_policy.items.properties.section_name.enum | index(\"16_implementation_interfaces\")) and (.properties.section_policy.items.properties.section_name.enum | index(\"17_productionization_gates\"))' '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null"
 assert "workflow-state supports compound phases and task fingerprints" "jq -e '(.properties.phase.enum | index(\"compound_preflight\")) and (.properties.phase.enum | index(\"intent_validation\")) and (.properties.phase.enum | index(\"learning_capture\")) and .properties.task_fingerprints.items.properties.input_hash.type == \"string\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
 assert "workflow-state phase enum covers WORKFLOW.dot nodes" "assert_workflow_state_covers_workflow_nodes"
+assert "workflow-state supports durable run identity" "jq -e '.properties.run_id.type == \"string\" and .properties.attempt.minimum == 1 and .properties.last_resumed_at.format == \"date-time\" and .properties.side_effects.items.properties.run_id.type == \"string\" and .properties.side_effects.items.properties.session_id.type == \"string\" and .properties.side_effects.items.properties.brief_id.type == \"string\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
 assert "workflow-state supports loop progress and control channel" "jq -e '.properties.loop_progress.properties.last_progress_signal.type == \"string\" and (.properties.control_events.items.properties.event_type.enum | index(\"steer\")) and (.properties.control_events.items.properties.event_type.enum | index(\"abort\")) and .properties.safe_checkpoint.properties.idempotent.type == \"boolean\" and .properties.escalation_context.properties.no_progress_after.type == \"integer\"' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
 assert "loop schemas support budget guard evidence" "jq -e '.properties.budget_guard[\"\$ref\"] == \"#/definitions/budget_guard\" and (.definitions.budget_guard.required | index(\"token_budget_ref\")) and (.definitions.budget_guard.required | index(\"hard_stop_behavior\"))' '$ROOT/docs/schemas/loop-contract.schema.json' >/dev/null && jq -e '.properties.budget_estimate.required | index(\"projected_total_tokens\")' '$ROOT/docs/schemas/loop-action.schema.json' >/dev/null && jq -e '.properties.budget_status[\"\$ref\"] == \"#/definitions/budget_status\" and (.definitions.budget_status.properties.status.enum | index(\"missing\")) and (.definitions.budget_status.properties.status.enum | index(\"stale\"))' '$ROOT/docs/schemas/loop-maturity-report.schema.json' >/dev/null"
 assert "workflow-state supports loop budget status" "jq -e '(.properties.budget_status.properties.status.enum | index(\"healthy\")) and (.properties.budget_status.properties.decision.enum | index(\"wrap_up\")) and (.properties.budget_status.properties.stop_reason.enum | index(\"budget_exhausted\"))' '$ROOT/docs/schemas/workflow-state.schema.json' >/dev/null"
 assert "token-budget schema supports stale status" "jq -e '.properties.status.enum | index(\"stale\")' '$ROOT/docs/schemas/token-budget.schema.json' >/dev/null"
 assert "tool registry supports workflow DAG and legacy phases" "jq -e '(.definitions.phase.enum | index(\"research\")) and (.definitions.phase.enum | index(\"code\")) and (.definitions.phase.enum | index(\"pr_prep\")) and (.definitions.phase.enum | index(\"phase_9_codegen_execution\"))' '$ROOT/docs/schemas/tool-registry.schema.json' >/dev/null"
 assert "permission audit trail supports escalation runtime evidence" "jq -e '(.properties.entries.items.properties.decision.enum | index(\"escalated\")) and .properties.entries.items.properties.phase.type == \"string\" and (.properties.entries.items.properties.side_effect_profile.enum | index(\"mutating\")) and .properties.entries.items.properties.policy_ref.type == \"string\"' '$ROOT/docs/schemas/permission-audit-trail.schema.json' >/dev/null"
+assert "permission audit trail supports run identity and stop reasons" "jq -e '.properties.run_id.type == \"string\" and .properties.entries.items.properties.run_id.type == \"string\" and .properties.entries.items.properties.stop_reason.type == \"string\"' '$ROOT/docs/schemas/permission-audit-trail.schema.json' >/dev/null"
+assert "session-state schema supports run identity on permission decisions" "jq -e '.properties.run_id.type == \"string\" and .properties.permission_decisions.items.properties.run_id.type == \"string\" and .properties.permission_decisions.items.properties.session_id.type == \"string\" and .properties.permission_decisions.items.properties.brief_id.type == \"string\"' '$ROOT/docs/schemas/session-state.schema.json' >/dev/null"
 assert "test-author output supports loop coverage and result refs" "jq -e '.properties.generated_tests.items.properties.coverage_tags.type == \"array\" and .properties.generated_tests.items.properties.covers_required_tests.type == \"array\" and .properties.generated_tests.items.properties.execution_evidence_refs.type == \"array\" and .properties.test_result_refs.type == \"array\"' '$ROOT/docs/schemas/test-author-output.schema.json' >/dev/null"
 assert "workflow-state validates task fingerprints" "assert_workflow_state_accepts_task_fingerprints"
 assert "workflow-state validates interface and productionization statuses" "assert_workflow_state_accepts_interface_and_productionization_status"
 assert "workflow-state validates loop progress and control fixture" "assert_workflow_state_accepts_loop_progress_control"
+assert "workflow-state validates run identity side effects" "assert_workflow_state_accepts_run_identity_side_effects"
+assert "permission audit trail validates run identity evidence" "assert_permission_audit_trail_accepts_run_identity"
 
 echo ""
 echo "--- Artifact Contract Cases ---"

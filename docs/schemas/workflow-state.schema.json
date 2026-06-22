@@ -19,6 +19,10 @@
       "type": "string",
       "minLength": 1
     },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
     "session_id": {
       "type": "string",
       "minLength": 1
@@ -110,6 +114,18 @@
             "type": "string",
             "minLength": 1
           },
+          "brief_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "run_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "session_id": {
+            "type": "string",
+            "minLength": 1
+          },
           "tool_name": {
             "type": "string",
             "minLength": 1
@@ -146,6 +162,14 @@
     "resume_count": {
       "type": "integer",
       "minimum": 0
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "last_resumed_at": {
+      "type": "string",
+      "format": "date-time"
     },
     "task_fingerprints": {
       "type": "array",
