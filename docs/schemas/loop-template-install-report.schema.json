@@ -1,0 +1,212 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/loop-template-install-report.schema.json",
+  "title": "ADLC Loop Template Install Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "status",
+    "dry_run",
+    "template_id",
+    "workspace",
+    "output_dir",
+    "artifacts",
+    "install_plan",
+    "issues",
+    "summary",
+    "evidence_refs"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planned", "pass", "blocked"]
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "template_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1
+    },
+    "output_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/artifact"
+      }
+    },
+    "install_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_skills",
+        "connectors",
+        "required_adlc_commands",
+        "required_schemas",
+        "gates",
+        "human_approval_points",
+        "runbook",
+        "no_overclaim"
+      ],
+      "properties": {
+        "required_skills": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "connectors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_adlc_commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_schemas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "gates": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "human_approval_points": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "runbook": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "no_overclaim": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "admission": {
+      "type": "object"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["rule", "message"],
+        "properties": {
+          "severity": {
+            "type": "string"
+          },
+          "rule": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifacts", "written", "planned", "unchanged", "issues"],
+      "properties": {
+        "artifacts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "written": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "planned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unchanged": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "issues": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "state_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "definitions": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_type", "path", "status", "valid", "errors"],
+      "properties": {
+        "artifact_type": {
+          "type": "string",
+          "enum": ["loop_contract", "tool_registry", "work_queue_seed", "token_budget", "runbook", "install_report"]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_alias": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": ["planned", "written", "unchanged", "blocked"]
+        },
+        "valid": {
+          "type": "boolean"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

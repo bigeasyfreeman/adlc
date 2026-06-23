@@ -3435,6 +3435,537 @@ def command_champion_holdout(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def default_loop_catalog_path() -> Path:
+    return ROOT / "docs" / "loop-library" / "catalog.json"
+
+
+def resolve_loop_catalog_path(raw_path: str | None) -> Path:
+    if not raw_path:
+        return default_loop_catalog_path()
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    cwd_path = (Path.cwd() / path).resolve()
+    if cwd_path.exists():
+        return cwd_path
+    return (ROOT / path).resolve()
+
+
+def load_loop_template_catalog(path: Path) -> Dict[str, Any]:
+    if not path.is_file():
+        raise FileNotFoundError(f"loop template catalog not found: {path}")
+    errors = validate_artifact(resolve_schema("loop-template-catalog"), path)
+    if errors:
+        raise ValueError("loop template catalog failed schema validation: " + "; ".join(errors))
+    catalog = read_json(path)
+    if not isinstance(catalog, dict):
+        raise ValueError("loop template catalog must be a JSON object")
+    seen: set[str] = set()
+    duplicates: List[str] = []
+    for template in catalog.get("templates", []):
+        template_id = str(template.get("template_id") or "")
+        if template_id in seen:
+            duplicates.append(template_id)
+        seen.add(template_id)
+    if duplicates:
+        raise ValueError("loop template catalog has duplicate template_id values: " + ", ".join(sorted(duplicates)))
+    return catalog
+
+
+def find_loop_template(catalog: Dict[str, Any], template_id: str) -> Dict[str, Any]:
+    for template in catalog.get("templates", []):
+        if isinstance(template, dict) and template.get("template_id") == template_id:
+            return template
+    raise ValueError(f"loop template not found: {template_id}")
+
+
+def loop_template_summary(template: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "template_id": template["template_id"],
+        "title": template["title"],
+        "category": template["category"],
+        "autonomy_claim": template["autonomy_claim"],
+        "summary": template["summary"],
+        "task_signals": template["task_signals"],
+        "connectors": template["connectors"],
+        "required_skills": [item["name"] for item in template["required_skills"]],
+        "required_adlc_commands": template["required_adlc_commands"],
+        "required_schemas": template["required_schemas"],
+        "gate_count": len(template["gates"]),
+        "human_approval_points": template["human_approval_points"],
+        "exit_gate": template["exit_gate"],
+    }
+
+
+def template_install_plan(template: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "required_skills": template["required_skills"],
+        "connectors": template["connectors"],
+        "required_adlc_commands": template["required_adlc_commands"],
+        "required_schemas": template["required_schemas"],
+        "gates": template["gates"],
+        "human_approval_points": template["human_approval_points"],
+        "runbook": template["runbook"],
+        "no_overclaim": template["no_overclaim"],
+    }
+
+
+def loop_contract_from_template(template: Dict[str, Any]) -> Dict[str, Any]:
+    deterministic_checks = [
+        gate["command"]
+        for gate in template.get("gates", [])
+        if isinstance(gate, dict) and gate.get("type") != "human_review" and isinstance(gate.get("command"), str)
+    ]
+    payload: Dict[str, Any] = {
+        "contract_version": "1.0.0",
+        "contract_id": f"adlc-loop-template:{template['template_id']}",
+        "autonomy_claim": template["autonomy_claim"],
+        "job_win_condition": {
+            "job": template["job"],
+            "done_when": template["exit_gate"],
+            "deterministic_checks": deterministic_checks or [template["gates"][0]["command"]],
+        },
+        "allowed_tools": [
+            {
+                "name": tool["name"],
+                "actions": tool["actions"],
+            }
+            for tool in template["tools"]
+        ],
+        "feedback_channels": template["feedback_channels"],
+        "stop_escalate_rules": template["stop_escalate_rules"],
+        "test_selection": {
+            "mandatory_floor": template["mandatory_floor"],
+            "required_from_task_signals": template["required_from_task_signals"],
+            "additive_agent_tests": True,
+        },
+        "safe_bail_state": template["safe_bail_state"],
+        "progress_signal": template["progress_signal"],
+        "control_channel": template["control_channel"],
+        "independent_truth": template["independent_truth"],
+        "redaction_posture": template["redaction_posture"],
+    }
+    if template.get("semantic_intent_check"):
+        payload["job_win_condition"]["semantic_intent_check"] = template["semantic_intent_check"]
+    if isinstance(template.get("budget_guard"), dict):
+        budget_guard = dict(template["budget_guard"])
+        budget_guard["token_budget_ref"] = "token_budget.json"
+        payload["budget_guard"] = budget_guard
+    return payload
+
+
+def tool_registry_from_template(template: Dict[str, Any]) -> Dict[str, Any]:
+    tools = []
+    for tool in template["tools"]:
+        entry = {
+            "name": tool["name"],
+            "description": tool["description"],
+            "inputSchema": {},
+            "side_effect_profile": tool["side_effect_profile"],
+            "permission_tier": tool["permission_tier"],
+            "available_phases": tool["available_phases"],
+        }
+        if tool.get("outputs"):
+            entry["outputs"] = tool["outputs"]
+        tools.append(entry)
+    return {
+        "version": "1.0.0",
+        "default_policy": "deny",
+        "tools": tools,
+    }
+
+
+def work_queue_from_template(template: Dict[str, Any], timestamp: str) -> Dict[str, Any]:
+    tasks = []
+    for seed in template["queue_seed_tasks"]:
+        tasks.append(
+            {
+                "task_id": seed["task_id"],
+                "title": seed["title"],
+                "status": "queued",
+                "source": {
+                    "type": "signal",
+                    "ref": seed["source_ref"],
+                },
+                "priority": 50,
+                "expected_paths": seed["expected_paths"],
+                "verifier_refs": seed["verifier_refs"],
+                "evidence_required": seed["evidence_required"],
+                "created_at": timestamp,
+                "updated_at": timestamp,
+            }
+        )
+    return {
+        "contract_version": "1.0.0",
+        "queue_id": f"loop-template:{template['template_id']}",
+        "updated_at": timestamp,
+        "tasks": tasks,
+    }
+
+
+def token_budget_from_template(template: Dict[str, Any], timestamp: str) -> Dict[str, Any]:
+    return {
+        "session_id": f"loop-template:{template['template_id']}",
+        "brief_id": f"ADLC-LOOP-{str(template['template_id']).upper()}",
+        "budget_limit": 200000,
+        "tokens_used": 0,
+        "tokens_by_phase": {},
+        "tokens_by_skill": {},
+        "cost_estimate": {
+            "currency": "USD",
+            "total": 0,
+            "by_model": {},
+        },
+        "thresholds": {
+            "warn_at": 0.5,
+            "alert_at": 0.8,
+            "hard_stop_at": 1.0,
+        },
+        "status": "healthy",
+        "updated_at": timestamp,
+    }
+
+
+def runbook_from_template(template: Dict[str, Any]) -> str:
+    lines = [
+        f"# {template['title']}",
+        "",
+        template["summary"],
+        "",
+        "## Exit Gate",
+        "",
+        template["exit_gate"],
+        "",
+        "## Required Gates",
+        "",
+    ]
+    for gate in template["gates"]:
+        lines.append(f"- `{gate['gate_id']}` ({gate['type']}): {gate['command']}")
+    lines.extend(["", "## Runbook", ""])
+    for index, step in enumerate(template["runbook"], start=1):
+        lines.append(f"{index}. {step}")
+    lines.extend(["", "## Human Approval Points", ""])
+    for point in template["human_approval_points"]:
+        lines.append(f"- {point}")
+    lines.extend(["", "## No-Overclaim", ""])
+    for item in template["no_overclaim"]:
+        lines.append(f"- {item}")
+    return "\n".join(lines) + "\n"
+
+
+def artifact_payloads_for_template(template: Dict[str, Any], timestamp: str) -> List[Dict[str, Any]]:
+    return [
+        {
+            "artifact_type": "loop_contract",
+            "filename": "loop_contract.json",
+            "schema_alias": "loop-contract",
+            "payload": loop_contract_from_template(template),
+        },
+        {
+            "artifact_type": "tool_registry",
+            "filename": "tool_registry.json",
+            "schema_alias": "tool-registry",
+            "payload": tool_registry_from_template(template),
+        },
+        {
+            "artifact_type": "work_queue_seed",
+            "filename": "work_queue_seed.json",
+            "schema_alias": "work-queue",
+            "payload": work_queue_from_template(template, timestamp),
+        },
+        {
+            "artifact_type": "token_budget",
+            "filename": "token_budget.json",
+            "schema_alias": "token-budget",
+            "payload": token_budget_from_template(template, timestamp),
+        },
+        {
+            "artifact_type": "runbook",
+            "filename": "README.md",
+            "schema_alias": None,
+            "text": runbook_from_template(template),
+        },
+    ]
+
+
+def validate_template_generated_artifacts(template: Dict[str, Any], timestamp: str | None = None) -> Dict[str, Any]:
+    validation = []
+    for spec in artifact_payloads_for_template(template, timestamp or utc_now()):
+        schema_alias = spec.get("schema_alias")
+        if schema_alias:
+            errors = validate_artifact_payload(resolve_schema(str(schema_alias)), spec["payload"])
+        else:
+            errors = []
+        validation.append(
+            {
+                "artifact_type": spec["artifact_type"],
+                "schema_alias": schema_alias,
+                "valid": not errors,
+                "errors": errors,
+            }
+        )
+    return {
+        "valid": all(item["valid"] for item in validation),
+        "artifacts": validation,
+    }
+
+
+def loop_library_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    catalog_path = resolve_loop_catalog_path(args.catalog)
+    catalog = load_loop_template_catalog(catalog_path)
+    if args.template_id:
+        template = find_loop_template(catalog, args.template_id)
+        validation = validate_template_generated_artifacts(template)
+        return {
+            "contract_version": catalog["contract_version"],
+            "catalog_id": catalog["catalog_id"],
+            "catalog_ref": rel_path(catalog_path),
+            "count": 1,
+            "template": template,
+            "summary": loop_template_summary(template),
+            "install_plan": template_install_plan(template),
+            "generated_artifact_validation": validation,
+        }
+    summaries = [loop_template_summary(template) for template in catalog.get("templates", [])]
+    return {
+        "contract_version": catalog["contract_version"],
+        "catalog_id": catalog["catalog_id"],
+        "catalog_ref": rel_path(catalog_path),
+        "count": len(summaries),
+        "templates": summaries,
+    }
+
+
+def command_loop_library(args: argparse.Namespace) -> int:
+    try:
+        payload = loop_library_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    elif args.template_id:
+        summary = payload["summary"]
+        print(f"{summary['template_id']}\t{summary['category']}\t{summary['title']}")
+        print(summary["exit_gate"])
+    else:
+        for template in payload["templates"]:
+            print(f"{template['template_id']}\t{template['category']}\t{template['title']}")
+    return 0
+
+
+def loop_template_output_dir(args: argparse.Namespace, workspace: Path, template_id: str) -> Path:
+    raw_output_dir = args.output_dir or f".adlc/loops/{template_id}"
+    path = Path(raw_output_dir)
+    if path.is_absolute():
+        return path.resolve()
+    return (workspace / path).resolve()
+
+
+def same_file_content(path: Path, content: str) -> bool:
+    try:
+        return path.read_text(encoding="utf-8") == content
+    except FileNotFoundError:
+        return False
+
+
+def mark_unwritten_artifacts_blocked(report: Dict[str, Any]) -> None:
+    for artifact in report.get("artifacts", []):
+        if isinstance(artifact, dict) and artifact.get("status") in {"written", "planned"}:
+            artifact["status"] = "blocked"
+    report["summary"] = {
+        "artifacts": len(report.get("artifacts", [])),
+        "written": sum(1 for item in report.get("artifacts", []) if isinstance(item, dict) and item.get("status") == "written"),
+        "planned": sum(1 for item in report.get("artifacts", []) if isinstance(item, dict) and item.get("status") == "planned"),
+        "unchanged": sum(1 for item in report.get("artifacts", []) if isinstance(item, dict) and item.get("status") == "unchanged"),
+        "issues": len(report.get("issues", [])),
+    }
+
+
+def loop_template_install_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
+    catalog_path = resolve_loop_catalog_path(args.catalog)
+    catalog = load_loop_template_catalog(catalog_path)
+    template = find_loop_template(catalog, args.template_id)
+    workspace = resolve_workspace(args.workspace)
+    output_dir = loop_template_output_dir(args, workspace, template["template_id"])
+    timestamp = utc_now()
+    dry_run = bool(args.dry_run or not args.allow_mutation)
+    specs = artifact_payloads_for_template(template, timestamp)
+    report_path = output_dir / "install_report.json"
+    artifact_entries: List[Dict[str, Any]] = []
+    issues: List[Dict[str, Any]] = []
+
+    for spec in specs:
+        target = output_dir / spec["filename"]
+        schema_alias = spec.get("schema_alias")
+        if schema_alias:
+            errors = validate_artifact_payload(resolve_schema(str(schema_alias)), spec["payload"])
+            content = json.dumps(spec["payload"], indent=2, sort_keys=True) + "\n"
+        else:
+            errors = []
+            content = str(spec["text"])
+        if errors:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "generated_artifact_invalid",
+                    "message": f"generated {spec['artifact_type']} failed schema validation",
+                    "path": workspace_rel_path(target, workspace),
+                    "errors": errors,
+                }
+            )
+        exists = target.exists()
+        unchanged = exists and same_file_content(target, content)
+        blocked = exists and not unchanged and not args.force
+        if blocked:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "existing_artifact_differs",
+                    "message": "existing loop template artifact differs; pass --force to replace it",
+                    "path": workspace_rel_path(target, workspace),
+                }
+            )
+        status = "blocked" if errors or blocked else ("unchanged" if unchanged else ("planned" if dry_run else "written"))
+        entry = {
+            "artifact_type": spec["artifact_type"],
+            "path": workspace_rel_path(target, workspace),
+            "status": status,
+            "valid": not errors,
+            "errors": errors,
+        }
+        if schema_alias:
+            entry["schema_alias"] = str(schema_alias)
+        artifact_entries.append(entry)
+
+    install_report_entry = {
+        "artifact_type": "install_report",
+        "path": workspace_rel_path(report_path, workspace),
+        "schema_alias": "loop-template-install-report",
+        "status": "blocked" if issues else ("planned" if dry_run else "written"),
+        "valid": True,
+        "errors": [],
+    }
+    artifact_entries.append(install_report_entry)
+
+    report: Dict[str, Any] = {
+        "contract_version": "1.0.0",
+        "status": "blocked" if issues else ("planned" if dry_run else "pass"),
+        "dry_run": dry_run,
+        "template_id": template["template_id"],
+        "workspace": str(workspace),
+        "output_dir": workspace_rel_path(output_dir, workspace),
+        "artifacts": artifact_entries,
+        "install_plan": template_install_plan(template),
+        "issues": issues,
+        "summary": {
+            "artifacts": len(artifact_entries),
+            "written": sum(1 for item in artifact_entries if item["status"] == "written"),
+            "planned": sum(1 for item in artifact_entries if item["status"] == "planned"),
+            "unchanged": sum(1 for item in artifact_entries if item["status"] == "unchanged"),
+            "issues": len(issues),
+        },
+        "evidence_refs": [workspace_rel_path(catalog_path, workspace)],
+    }
+    report_errors = validate_artifact_payload(resolve_schema("loop-template-install-report"), report)
+    if report_errors:
+        raise ValueError("generated loop template install report failed schema validation: " + "; ".join(report_errors))
+    if issues:
+        return 1, report
+    if dry_run:
+        return 0, report
+    if not args.tool_registry:
+        report["status"] = "blocked"
+        report["issues"] = [
+            {
+                "severity": "blocking",
+                "rule": "action_not_admitted",
+                "message": "loop template installation requires --tool-registry with --allow-mutation",
+            }
+        ]
+        mark_unwritten_artifacts_blocked(report)
+        report["summary"]["issues"] = len(report["issues"])
+        report["artifacts"][-1]["status"] = "blocked"
+        return 1, report
+
+    state_path, state = optional_workflow_state(workspace, args.state)
+    audit_path = cli_input_path(args.audit_trail) if args.audit_trail else workspace / ".adlc" / "loop_template_install_permission_audit.json"
+    admission_exit, admission = action_admit_payload(
+        tool_registry_path=cli_input_path(args.tool_registry),
+        tool_name="adlc-loop-library",
+        action="install_loop_template",
+        phase=(state or {}).get("phase", "learning_capture"),
+        state_path=state_path if state_path.exists() else None,
+        brief_id=(state or {}).get("brief_id") or args.brief_id or f"ADLC-LOOP-{template['template_id'].upper()}",
+        run_id=(state or {}).get("run_id"),
+        session_id=(state or {}).get("session_id"),
+        allow_mutation=True,
+        human_approved=args.human_approved,
+        approval_ref=args.approval_ref,
+        audit_trail_path=audit_path,
+    )
+    report["admission"] = admission
+    if admission_exit != 0:
+        report["status"] = "blocked"
+        report["issues"] = admission.get("issues", [])
+        mark_unwritten_artifacts_blocked(report)
+        report["summary"]["issues"] = len(report["issues"])
+        report["artifacts"][-1]["status"] = "blocked"
+        return 1, report
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for spec, entry in zip(specs, artifact_entries):
+        if entry["status"] == "unchanged":
+            continue
+        target = output_dir / spec["filename"]
+        if spec.get("schema_alias"):
+            target.write_text(json.dumps(spec["payload"], indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            errors = validate_artifact(resolve_schema(str(spec["schema_alias"])), target)
+            if errors:
+                raise ValueError(f"{entry['artifact_type']} failed schema validation after write: " + "; ".join(errors))
+        else:
+            target.write_text(str(spec["text"]), encoding="utf-8")
+    report["evidence_refs"] = [
+        workspace_rel_path(output_dir / "loop_contract.json", workspace),
+        workspace_rel_path(output_dir / "tool_registry.json", workspace),
+        workspace_rel_path(output_dir / "work_queue_seed.json", workspace),
+        workspace_rel_path(report_path, workspace),
+    ]
+    if state:
+        record_local_side_effect(
+            state,
+            "adlc-loop-library",
+            "install_loop_template",
+            template["template_id"],
+            workspace_rel_path(output_dir, workspace),
+        )
+        state["updated_at"] = utc_now()
+        save_workflow_state(state_path, state)
+        report["state_path"] = workspace_rel_path(state_path, workspace)
+    report["summary"] = {
+        "artifacts": len(artifact_entries),
+        "written": sum(1 for item in artifact_entries if item["status"] == "written"),
+        "planned": sum(1 for item in artifact_entries if item["status"] == "planned"),
+        "unchanged": sum(1 for item in artifact_entries if item["status"] == "unchanged"),
+        "issues": len(report["issues"]),
+    }
+    write_artifact(report_path, report, "loop-template-install-report")
+    return 0, report
+
+
+def command_loop_template_install(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = loop_template_install_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"loop template {payload['template_id']}: {payload['status']} -> {payload['output_dir']}")
+    return exit_code
+
+
 def load_phase_project_map(value: str | None) -> Dict[str, str] | None:
     if not value:
         return None
@@ -6935,6 +7466,42 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("loop-library"),
+            "description": command_description("loop-library"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "catalog": {"type": "string", "minLength": 1},
+                    "template_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("loop-template-install"),
+            "description": command_description("loop-template-install"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["template_id"],
+                "properties": {
+                    "template_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+                    "catalog": {"type": "string", "minLength": 1},
+                    "brief_id": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "output_dir": {"type": "string", "minLength": 1},
+                    "dry_run": {"type": "boolean", "default": True},
+                    "allow_mutation": {"type": "boolean", "default": False},
+                    "force": {"type": "boolean", "default": False},
+                    "tool_registry": {"type": "string", "minLength": 1},
+                    "audit_trail": {"type": "string", "minLength": 1},
+                    "human_approved": {"type": "boolean", "default": False},
+                    "approval_ref": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("control-plane-drift-loop"),
             "description": command_description("control-plane-drift-loop"),
             "inputSchema": {
@@ -7180,6 +7747,34 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             json=True,
         )
         exit_code, payload = champion_holdout_payload(args)
+        return tool_result(payload, is_error=exit_code != 0)
+    if name == "adlc_loop_library":
+        args = argparse.Namespace(
+            catalog=arguments.get("catalog"),
+            template_id=arguments.get("template_id"),
+            json=True,
+        )
+        return tool_result(loop_library_payload(args))
+    if name == "adlc_loop_template_install":
+        if not isinstance(arguments.get("template_id"), str):
+            raise ValueError("adlc_loop_template_install requires string argument: template_id")
+        args = argparse.Namespace(
+            template_id=arguments.get("template_id"),
+            catalog=arguments.get("catalog"),
+            brief_id=arguments.get("brief_id"),
+            workspace=arguments.get("workspace"),
+            state=arguments.get("state"),
+            output_dir=arguments.get("output_dir"),
+            dry_run=arguments.get("dry_run", True),
+            allow_mutation=arguments.get("allow_mutation", False),
+            force=arguments.get("force", False),
+            tool_registry=arguments.get("tool_registry"),
+            audit_trail=arguments.get("audit_trail"),
+            human_approved=arguments.get("human_approved", False),
+            approval_ref=arguments.get("approval_ref"),
+            json=True,
+        )
+        exit_code, payload = loop_template_install_payload(args)
         return tool_result(payload, is_error=exit_code != 0)
     if name == "adlc_control_plane_drift_loop":
         args = argparse.Namespace(
@@ -7674,6 +8269,29 @@ def build_parser() -> argparse.ArgumentParser:
     champion_holdout.add_argument("--output", help="Optional champion/holdout report path.")
     champion_holdout.add_argument("--json", action="store_true", help="Emit JSON.")
     champion_holdout.set_defaults(func=command_champion_holdout)
+
+    loop_library = subparsers.add_parser("loop-library", help=command_description("loop-library"))
+    loop_library.add_argument("--catalog", help="Loop template catalog JSON path. Defaults to docs/loop-library/catalog.json.")
+    loop_library.add_argument("--template-id", help="Optional template id to inspect.")
+    loop_library.add_argument("--json", action="store_true", help="Emit JSON.")
+    loop_library.set_defaults(func=command_loop_library)
+
+    loop_template_install = subparsers.add_parser("loop-template-install", help=command_description("loop-template-install"))
+    loop_template_install.add_argument("--template-id", required=True, help="Loop template id to install.")
+    loop_template_install.add_argument("--catalog", help="Loop template catalog JSON path. Defaults to docs/loop-library/catalog.json.")
+    loop_template_install.add_argument("--brief-id", help="Brief/run identity for permission audit evidence.")
+    loop_template_install.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    loop_template_install.add_argument("--state", help=f"Workflow state path. Defaults to {DEFAULT_STATE_PATH} under workspace when present.")
+    loop_template_install.add_argument("--output-dir", help="Install directory. Defaults to .adlc/loops/<template_id> under workspace.")
+    loop_template_install.add_argument("--dry-run", action="store_true", help="Plan installation without writing loop artifacts.")
+    loop_template_install.add_argument("--allow-mutation", action="store_true", help="Permit writing loop artifacts after action admission.")
+    loop_template_install.add_argument("--force", action="store_true", help="Replace existing loop artifacts that differ from generated content.")
+    loop_template_install.add_argument("--tool-registry", help="Tool Registry JSON path used by action-admit before mutation.")
+    loop_template_install.add_argument("--audit-trail", help="Permission Audit Trail JSON path to create or append.")
+    loop_template_install.add_argument("--human-approved", action="store_true", help="Record that a human approved the requested loop installation.")
+    loop_template_install.add_argument("--approval-ref", help="Human approval ticket, comment, or transcript reference.")
+    loop_template_install.add_argument("--json", action="store_true", help="Emit JSON.")
+    loop_template_install.set_defaults(func=command_loop_template_install)
 
     control_drift = subparsers.add_parser("control-plane-drift-loop", help=command_description("control-plane-drift-loop"))
     control_drift.add_argument("--brief-id", help="Brief/run identity for the dogfood loop state.")

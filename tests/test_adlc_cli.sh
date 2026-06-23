@@ -51,6 +51,7 @@ assert "validate-artifact accepts budgeted loop maturity report fixture" "'$ROOT
 assert "validate-artifact accepts work queue fixture" "'$ROOT/bin/adlc' validate-artifact --schema work-queue --input '$ROOT/tests/fixtures/work_queue/valid-queue.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
 assert "validate-artifact accepts work-item sync fixture" "'$ROOT/bin/adlc' validate-artifact --schema work-item-sync --input '$ROOT/tests/fixtures/tracker_sync/run-update.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
 assert "validate-artifact accepts tool-node result fixture" "'$ROOT/bin/adlc' validate-artifact --schema tool-node-result --input '$ROOT/tests/fixtures/tool_node/valid-qa-result.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+assert "validate-artifact accepts loop template catalog" "'$ROOT/bin/adlc' validate-artifact --schema loop-template-catalog --input '$ROOT/docs/loop-library/catalog.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
 assert "schema aliases include control-plane drift report" "'$ROOT/bin/adlc' health-check --json | jq -e '.status == \"pass\" and any(.checks[]; .name == \"schemas\" and .status == \"pass\")' >/dev/null"
 cat > "$tmp_dir/tool-registry.json" <<'JSON'
 {"version":"1.0.0","default_policy":"deny","tools":[{"name":"Read","description":"Read files","inputSchema":{},"side_effect_profile":"read_only","permission_tier":"unrestricted","available_phases":["phase_0_codebase_research"]}]}
@@ -211,6 +212,37 @@ cat > "$tmp_dir/champion-holdout-fail.json" <<'JSON'
 }
 JSON
 assert "champion-holdout rejects working-set-only improvement" "if '$ROOT/bin/adlc' champion-holdout --input '$tmp_dir/champion-holdout-fail.json' --json >'$tmp_dir/champion-holdout-fail-report.json'; then false; else jq -e '.status == \"reject\" and .decision == \"keep_champion\" and any(.issues[]; .rule == \"working_set_only_improvement\")' '$tmp_dir/champion-holdout-fail-report.json' >/dev/null; fi"
+
+echo ""
+echo "--- Packaged Loop Library ---"
+loop_install_workspace="$tmp_dir/loop-install-workspace"
+mkdir -p "$loop_install_workspace"
+cat > "$tmp_dir/loop-library-tool-registry.json" <<'JSON'
+{
+  "version": "1.0.0",
+  "default_policy": "deny",
+  "tools": [
+    {
+      "name": "adlc-loop-library",
+      "description": "Install ADLC loop templates",
+      "inputSchema": {},
+      "side_effect_profile": "mutating",
+      "permission_tier": "unrestricted",
+      "available_phases": ["learning_capture"]
+    }
+  ]
+}
+JSON
+assert "loop-library lists the seven packaged templates" "'$ROOT/bin/adlc' loop-library --json | jq -e '.count == 7 and any(.templates[]; .template_id == \"ci-triage\") and any(.templates[]; .template_id == \"skill-champion\")' >/dev/null"
+assert "loop-library inspect validates generated artifacts" "'$ROOT/bin/adlc' loop-library --template-id ci-triage --json | jq -e '.summary.template_id == \"ci-triage\" and .generated_artifact_validation.valid == true and any(.install_plan.gates[]; .gate_id == \"ci-local-verifier\")' >/dev/null"
+assert "loop-template-install dry-run plans schema-backed artifacts" "'$ROOT/bin/adlc' loop-template-install --template-id ci-triage --workspace '$loop_install_workspace' --dry-run --json >'$tmp_dir/loop-install-dry.json' && jq -e '.status == \"planned\" and .dry_run == true and .summary.planned == 6 and any(.artifacts[]; .artifact_type == \"loop_contract\" and .valid == true) and any(.artifacts[]; .artifact_type == \"token_budget\" and .valid == true)' '$tmp_dir/loop-install-dry.json' >/dev/null"
+assert "loop-template-install mutation requires action admission" "if '$ROOT/bin/adlc' loop-template-install --template-id ci-triage --workspace '$loop_install_workspace' --allow-mutation --json >'$tmp_dir/loop-install-blocked.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and .summary.written == 0 and any(.issues[]; .rule == \"action_not_admitted\")' '$tmp_dir/loop-install-blocked.json' >/dev/null; fi"
+assert "loop-template-install writes admitted loop contracts" "'$ROOT/bin/adlc' loop-template-install --template-id ci-triage --workspace '$loop_install_workspace' --allow-mutation --tool-registry '$tmp_dir/loop-library-tool-registry.json' --json >'$tmp_dir/loop-install-pass.json' && jq -e '.status == \"pass\" and .admission.status == \"admitted\" and .summary.written == 6' '$tmp_dir/loop-install-pass.json' >/dev/null"
+assert "installed loop contract validates" "'$ROOT/bin/adlc' validate-artifact --schema loop-contract --input '$loop_install_workspace/.adlc/loops/ci-triage/loop_contract.json' --json | jq -e '.valid == true' >/dev/null"
+assert "installed loop tool registry validates" "'$ROOT/bin/adlc' validate-artifact --schema tool-registry --input '$loop_install_workspace/.adlc/loops/ci-triage/tool_registry.json' --json | jq -e '.valid == true' >/dev/null"
+assert "installed loop work queue seed validates" "'$ROOT/bin/adlc' validate-artifact --schema work-queue --input '$loop_install_workspace/.adlc/loops/ci-triage/work_queue_seed.json' --json | jq -e '.valid == true' >/dev/null"
+assert "installed loop token budget validates" "'$ROOT/bin/adlc' validate-artifact --schema token-budget --input '$loop_install_workspace/.adlc/loops/ci-triage/token_budget.json' --json | jq -e '.valid == true' >/dev/null"
+assert "installed loop report validates" "'$ROOT/bin/adlc' validate-artifact --schema loop-template-install-report --input '$loop_install_workspace/.adlc/loops/ci-triage/install_report.json' --json | jq -e '.valid == true' >/dev/null"
 
 echo ""
 echo "--- Work Queue And Worktrees ---"
@@ -435,7 +467,7 @@ assert "sync-work-item validates mutated workflow state" "'$ROOT/bin/adlc' valid
 echo ""
 echo "--- MCP Wrapper ---"
 cat > "$tmp_dir/mcp-tools-filter.jq" <<'JQ'
-(.tools | length) >= 27
+(.tools | length) >= 29
 and any(.tools[]; .name == "adlc_validate_artifact" and (.inputSchema.required | index("schema")))
 and any(.tools[]; .name == "adlc_health_check")
 and any(.tools[]; .name == "adlc_ci" and .inputSchema.properties.suite.type == "array")
@@ -455,6 +487,8 @@ and any(.tools[]; .name == "adlc_compound_context")
 and any(.tools[]; .name == "adlc_architecture_memory" and .inputSchema.properties.tool_registry.type == "string")
 and any(.tools[]; .name == "adlc_memory_health" and .inputSchema.properties.primitive_proposals.type == "string")
 and any(.tools[]; .name == "adlc_champion_holdout" and (.inputSchema.required | index("input")))
+and any(.tools[]; .name == "adlc_loop_library" and .inputSchema.properties.template_id.pattern == "^[a-z0-9][a-z0-9-]*$")
+and any(.tools[]; .name == "adlc_loop_template_install" and (.inputSchema.required | index("template_id")) and .inputSchema.properties.tool_registry.type == "string")
 and any(.tools[]; .name == "adlc_loop_test_selection" and .inputSchema.properties.require_test_results.type == "boolean")
 and any(.tools[]; .name == "adlc_loop_budget_check" and (.inputSchema.required | index("token_budget")) and .inputSchema.properties.estimated_input_tokens.type == "integer")
 and any(.tools[]; .name == "adlc_loop_action_validate" and .inputSchema.properties.token_budget.type == "string")
@@ -469,6 +503,8 @@ assert "mcp-serve calls action admission" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\
 assert "mcp-serve calls architecture memory dry-run" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_architecture_memory\",\"arguments\":{\"input\":\"'$tmp_dir'/architecture-memory-candidate.json\",\"workspace\":\"'$memory_repo'\",\"dry_run\":true}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"planned\" and .result.structuredContent.summary.candidates == 1' >/dev/null"
 assert "mcp-serve calls memory health audit" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_memory_health\",\"arguments\":{\"workspace\":\"'$memory_repo'\",\"changed_path\":[\"docs/specs/compound-engineering-learning-store.md\"]}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"stale\" and .result.structuredContent.summary.architecture_entries == 1' >/dev/null"
 assert "mcp-serve calls champion holdout evaluation" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_champion_holdout\",\"arguments\":{\"input\":\"'$tmp_dir'/champion-holdout-pass.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"promote\" and .result.structuredContent.decision == \"promote_challenger\"' >/dev/null"
+assert "mcp-serve calls loop library inspect" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_library\",\"arguments\":{\"template_id\":\"ci-triage\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.summary.template_id == \"ci-triage\" and .result.structuredContent.generated_artifact_validation.valid == true' >/dev/null"
+assert "mcp-serve calls loop template install dry-run" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_template_install\",\"arguments\":{\"template_id\":\"ci-triage\",\"workspace\":\"'$tmp_dir'/mcp-loop-install\",\"dry_run\":true}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"planned\" and .result.structuredContent.summary.planned == 6' >/dev/null"
 assert "mcp-serve calls work item sync dry-run" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_sync_work_item\",\"arguments\":{\"work_item\":\"tests/fixtures/tracker_sync/run-update.json\",\"existing_work_items\":\"tests/fixtures/tracker_sync/existing-work-items.json\",\"dry_run\":true}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.operations[0].operation == \"append\" and .result.structuredContent.operations[0].reason == \"matched_existing_work_items\"' >/dev/null"
 assert "mcp-serve calls queue status" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_queue_status\",\"arguments\":{\"queue\":\"tests/fixtures/work_queue/valid-queue.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.summary.counts.queued == 3 and .result.structuredContent.summary.active == 2' >/dev/null"
 assert "mcp-serve calls queue claim dry-run" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_queue_claim\",\"arguments\":{\"queue\":\"tests/fixtures/work_queue/valid-queue.json\",\"task_id\":\"ADLC-G5-CLAIMABLE\",\"workspace\":\"'$queue_repo'\",\"dry_run\":true}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and .result.structuredContent.planned_task.status == \"claimed\"' >/dev/null"

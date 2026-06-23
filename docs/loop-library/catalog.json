@@ -1,0 +1,1015 @@
+{
+  "contract_version": "1.0.0",
+  "catalog_id": "adlc-packaged-loop-library",
+  "updated_at": "2026-06-22T00:00:00Z",
+  "templates": [
+    {
+      "template_id": "ci-triage",
+      "title": "CI Triage Loop",
+      "summary": "Classify failing CI runs, group repeated signatures, draft bounded fixes for deterministic failures, and escalate infra or unclear failures.",
+      "category": "ci",
+      "autonomy_claim": "assisted_loop",
+      "job": "Inspect failed CI signal, classify the root cause, draft a safe fix when the failure is deterministic, and update the tracker with evidence.",
+      "exit_gate": "The loop stops when failing CI has a classification, verifier evidence, and either a draft fix or a human escalation.",
+      "semantic_intent_check": "The proposed fix must address the failing signal without weakening tests, disabling checks, or changing unrelated behavior.",
+      "task_signals": ["workflow_run_failed", "nightly_ci_triage", "blocked_pr_ci"],
+      "required_skills": [
+        {
+          "name": "systematic-debugging",
+          "path": "skills/systematic-debugging/SKILL.md",
+          "purpose": "Classify deterministic failures and avoid speculative fixes."
+        },
+        {
+          "name": "ci-cd-pipeline",
+          "path": "skills/ci-cd-pipeline/SKILL.md",
+          "purpose": "Understand CI provider conventions and safe escalation boundaries."
+        }
+      ],
+      "connectors": ["github", "linear", "slack"],
+      "required_adlc_commands": ["sync-work-item", "queue-claim", "worktree-prepare", "run-phase qa", "queue-complete", "queue-escalate"],
+      "required_schemas": ["loop-contract", "tool-registry", "work-queue", "work-item-sync", "loop-template-install-report", "token-budget"],
+      "tools": [
+        {
+          "name": "github-ci",
+          "description": "Read CI checks and post PR status comments.",
+          "actions": ["observe", "run_tool", "escalate"],
+          "side_effect_profile": "mutating",
+          "permission_tier": "requires_approval",
+          "available_phases": ["research", "qa", "pr_prep"],
+          "outputs": ["ci_failure_signature", "pr_comment"]
+        },
+        {
+          "name": "adlc-verifier",
+          "description": "Run deterministic CI-equivalent verifier commands.",
+          "actions": ["run_tests", "observe"],
+          "side_effect_profile": "read_only",
+          "permission_tier": "unrestricted",
+          "available_phases": ["qa"],
+          "outputs": ["loop-test-result"]
+        },
+        {
+          "name": "adlc-sync",
+          "description": "Append CI triage status and evidence to the stable work item.",
+          "actions": ["run_tool", "escalate"],
+          "side_effect_profile": "mutating",
+          "permission_tier": "requires_approval",
+          "available_phases": ["pr_prep", "engineer_review"],
+          "outputs": ["work-item-sync"]
+        }
+      ],
+      "feedback_channels": [
+        {
+          "after_action": "after CI classification or fix attempt",
+          "observes": ["ci exit code", "failure signature", "rerun result", "tracker update"]
+        }
+      ],
+      "stop_escalate_rules": {
+        "max_iterations": 3,
+        "no_progress_after": 1,
+        "escalate_when": ["failure is not reproducible locally", "fix requires CI config or secrets", "same test fails with multiple unrelated signatures"]
+      },
+      "mandatory_floor": [
+        {
+          "id": "ci:required-local-verifier",
+          "command": "bin/adlc run-phase qa --workspace . --verifier '<project ci-equivalent command>' --json",
+          "coverage_tags": ["ci", "deterministic_verifier"]
+        }
+      ],
+      "required_from_task_signals": [
+        {
+          "id": "ci:sync-current-status",
+          "command": "bin/adlc sync-work-item --work-item .adlc/ci_triage_update.json --dry-run --json",
+          "coverage_tags": ["tracker", "evidence"]
+        }
+      ],
+      "safe_bail_state": {
+        "state": "CI failure classified with evidence and no merge/deploy mutation performed.",
+        "rollback": "Revert only the draft branch or abandon the queue claim.",
+        "idempotency": "Stable failure signature and work-item external id prevent duplicate tickets."
+      },
+      "progress_signal": {
+        "signals": ["new classification", "local reproduction found", "verifier result changed", "draft PR created"],
+        "no_progress_rule": "Escalate after one fix attempt that does not change the failing signature."
+      },
+      "control_channel": {
+        "supports": ["steer", "abort", "escalate"],
+        "safe_checkpoint_required": true
+      },
+      "independent_truth": {
+        "type": "external_command",
+        "evidence": ["CI provider check result", "local verifier exit code"]
+      },
+      "redaction_posture": "Do not copy secrets, CI tokens, or full environment dumps into tracker updates.",
+      "budget_guard": {
+        "token_budget_ref": ".adlc/token_budget.json",
+        "hard_stop_behavior": "escalate",
+        "required_for": ["llm_action", "agent_loop"],
+        "budget_exhausted_stop_reason": "budget_exhausted",
+        "evidence_refs": ["operator supplies token budget before unattended CI triage"]
+      },
+      "gates": [
+        {
+          "gate_id": "ci-loop-contract-valid",
+          "type": "schema_validation",
+          "command": "bin/adlc validate-artifact --schema loop-contract --input .adlc/loops/ci-triage/loop_contract.json --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "ci-local-verifier",
+          "type": "deterministic_verifier",
+          "command": "bin/adlc run-phase qa --workspace . --verifier '<project ci-equivalent command>' --json",
+          "failure_action": "retry_once"
+        },
+        {
+          "gate_id": "ci-human-review",
+          "type": "human_review",
+          "command": "human reviews diff before merge, CI config edits, or test changes",
+          "failure_action": "human_review"
+        }
+      ],
+      "human_approval_points": ["merge", "CI configuration change", "test disablement", "secret or runner configuration"],
+      "queue_seed_tasks": [
+        {
+          "task_id": "CI-TRIAGE-001",
+          "title": "Classify current CI failures and draft safe fixes",
+          "source_ref": "signal:workflow_run_failed",
+          "expected_paths": [
+            {
+              "path": ".github/workflows",
+              "kind": "directory",
+              "reason": "CI evidence source only; edits require human approval"
+            },
+            {
+              "path": "tests",
+              "kind": "directory",
+              "reason": "Verifier evidence and possible failing-test reproduction"
+            }
+          ],
+          "verifier_refs": ["<project ci-equivalent command>"],
+          "evidence_required": true
+        }
+      ],
+      "runbook": [
+        "Install the template, replace placeholder verifier commands, and bind the CI provider connector.",
+        "Run queue-claim and worktree-prepare before a fix attempt.",
+        "Run the CI-equivalent verifier and sync the tracker with classification and evidence.",
+        "Stop at human review before merge or CI configuration changes."
+      ],
+      "no_overclaim": ["Does not prove production correctness beyond the configured verifier.", "Does not permit automatic merges."]
+    },
+    {
+      "template_id": "pr-babysitter",
+      "title": "PR Babysitter Loop",
+      "summary": "Watch labeled pull requests, rebase or repair one deterministic failure, update the PR, and stop when CI is green or a human is needed.",
+      "category": "pr",
+      "autonomy_claim": "assisted_loop",
+      "job": "Monitor PRs labeled for agent watch and perform only bounded maintenance actions with clear evidence.",
+      "exit_gate": "The PR is green, updated with a blocker, or escalated after the attempt budget is exhausted.",
+      "semantic_intent_check": "Maintenance changes must preserve the PR author intent and must not expand feature scope.",
+      "task_signals": ["pr_labeled_agent_watch", "pr_ci_red", "main_branch_moved"],
+      "required_skills": [
+        {
+          "name": "definition-of-done",
+          "path": "skills/definition-of-done/SKILL.md",
+          "purpose": "Keep PR readiness checks explicit."
+        },
+        {
+          "name": "systematic-debugging",
+          "path": "skills/systematic-debugging/SKILL.md",
+          "purpose": "Limit repair attempts to deterministic causes."
+        }
+      ],
+      "connectors": ["github", "linear"],
+      "required_adlc_commands": ["queue-claim", "worktree-prepare", "run-phase qa", "sync-work-item", "queue-complete", "queue-block"],
+      "required_schemas": ["loop-contract", "tool-registry", "work-queue", "work-item-sync", "loop-template-install-report", "token-budget"],
+      "tools": [
+        {
+          "name": "github-pr",
+          "description": "Read PR metadata, rebase, and post status updates.",
+          "actions": ["observe", "run_tool", "escalate"],
+          "side_effect_profile": "mutating",
+          "permission_tier": "requires_approval",
+          "available_phases": ["research", "code", "pr_prep"],
+          "outputs": ["pr_status_update"]
+        },
+        {
+          "name": "adlc-verifier",
+          "description": "Run PR-scoped deterministic tests.",
+          "actions": ["run_tests", "observe"],
+          "side_effect_profile": "read_only",
+          "permission_tier": "unrestricted",
+          "available_phases": ["qa"],
+          "outputs": ["loop-test-result"]
+        }
+      ],
+      "feedback_channels": [
+        {
+          "after_action": "after rebase or one repair attempt",
+          "observes": ["PR mergeability", "CI result", "changed file set", "review comments"]
+        }
+      ],
+      "stop_escalate_rules": {
+        "max_iterations": 2,
+        "no_progress_after": 1,
+        "escalate_when": ["merge conflict touches product logic", "review requested changes are ambiguous", "more than ten files would change"]
+      },
+      "mandatory_floor": [
+        {
+          "id": "pr:ci-green-or-blocked",
+          "command": "bin/adlc run-phase qa --workspace . --verifier '<project pr verifier>' --json",
+          "coverage_tags": ["pr", "ci"]
+        }
+      ],
+      "required_from_task_signals": [
+        {
+          "id": "pr:status-sync",
+          "command": "bin/adlc sync-work-item --work-item .adlc/pr_watch_update.json --dry-run --json",
+          "coverage_tags": ["tracker", "pr_status"]
+        }
+      ],
+      "safe_bail_state": {
+        "state": "PR is left with a clear status comment and no unreviewed merge.",
+        "rollback": "Reset or abandon the watcher worktree branch only.",
+        "idempotency": "Stable PR number and queue task id prevent duplicate watcher runs."
+      },
+      "progress_signal": {
+        "signals": ["CI moves from red to green", "main rebase succeeds", "blocker identified"],
+        "no_progress_rule": "Escalate after one repair attempt or unresolved merge conflict."
+      },
+      "control_channel": {
+        "supports": ["steer", "abort", "interrupt", "escalate"],
+        "safe_checkpoint_required": true
+      },
+      "independent_truth": {
+        "type": "external_command",
+        "evidence": ["PR check suite", "local verifier exit code"]
+      },
+      "redaction_posture": "Do not include private review discussion beyond actionable status and evidence links.",
+      "budget_guard": {
+        "token_budget_ref": ".adlc/token_budget.json",
+        "hard_stop_behavior": "escalate",
+        "required_for": ["llm_action", "agent_loop"],
+        "budget_exhausted_stop_reason": "budget_exhausted",
+        "evidence_refs": ["operator supplies PR watcher token budget"]
+      },
+      "gates": [
+        {
+          "gate_id": "pr-loop-contract-valid",
+          "type": "schema_validation",
+          "command": "bin/adlc validate-artifact --schema loop-contract --input .adlc/loops/pr-babysitter/loop_contract.json --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "pr-verifier",
+          "type": "deterministic_verifier",
+          "command": "bin/adlc run-phase qa --workspace . --verifier '<project pr verifier>' --json",
+          "failure_action": "retry_once"
+        },
+        {
+          "gate_id": "pr-human-review",
+          "type": "human_review",
+          "command": "human reviews changed files before merge or requested-change resolution",
+          "failure_action": "human_review"
+        }
+      ],
+      "human_approval_points": ["merge", "requested changes resolution", "scope expansion", "conflict resolution in product code"],
+      "queue_seed_tasks": [
+        {
+          "task_id": "PR-WATCH-001",
+          "title": "Watch labeled PR and perform one safe maintenance attempt",
+          "source_ref": "signal:pr_labeled_agent_watch",
+          "expected_paths": [
+            {
+              "path": ".",
+              "kind": "directory",
+              "reason": "Actual ownership must be narrowed to the PR changed files before claim"
+            }
+          ],
+          "verifier_refs": ["<project pr verifier>"],
+          "evidence_required": true
+        }
+      ],
+      "runbook": [
+        "Bind the PR label source and narrow expected_paths to the PR file set before claiming.",
+        "Perform at most one rebase or deterministic fix attempt.",
+        "Update the PR or linked work item with evidence and stop at human review."
+      ],
+      "no_overclaim": ["Does not replace code review.", "Does not auto-merge or approve its own PR."]
+    },
+    {
+      "template_id": "dependency-bump",
+      "title": "Dependency Bump Loop",
+      "summary": "Detect dependency updates, create a bounded bump branch, run compatibility gates, and open or update a review item.",
+      "category": "dependency",
+      "autonomy_claim": "assisted_loop",
+      "job": "Propose dependency updates only when compatibility checks and audit gates pass.",
+      "exit_gate": "A bump candidate has verifier evidence and either a draft PR or a human escalation with risk notes.",
+      "semantic_intent_check": "The update must preserve compatibility and must not hide security or breaking-change risk.",
+      "task_signals": ["weekly_dependency_scan", "security_advisory", "package_manager_update_available"],
+      "required_skills": [
+        {
+          "name": "reuse-analysis",
+          "path": "skills/reuse-analysis/SKILL.md",
+          "purpose": "Identify package ownership and compatibility blast radius."
+        },
+        {
+          "name": "security-review",
+          "path": "skills/security-review/SKILL.md",
+          "purpose": "Assess advisory and dependency risk."
+        }
+      ],
+      "connectors": ["github", "linear"],
+      "required_adlc_commands": ["queue-claim", "worktree-prepare", "run-phase qa", "sync-work-item", "memory-health"],
+      "required_schemas": ["loop-contract", "tool-registry", "work-queue", "work-item-sync", "memory-health-report", "loop-template-install-report", "token-budget"],
+      "tools": [
+        {
+          "name": "package-manager",
+          "description": "Read and update lockfiles in a bounded worktree.",
+          "actions": ["observe", "run_tool", "repair", "escalate"],
+          "side_effect_profile": "mutating",
+          "permission_tier": "requires_approval",
+          "available_phases": ["research", "code", "qa"],
+          "outputs": ["dependency_diff"]
+        },
+        {
+          "name": "adlc-verifier",
+          "description": "Run compatibility and security verifier commands.",
+          "actions": ["run_tests", "observe"],
+          "side_effect_profile": "read_only",
+          "permission_tier": "unrestricted",
+          "available_phases": ["qa", "security"],
+          "outputs": ["loop-test-result", "security-assessment"]
+        }
+      ],
+      "feedback_channels": [
+        {
+          "after_action": "after dependency update or compatibility check",
+          "observes": ["lockfile diff", "test result", "audit result", "release note risk"]
+        }
+      ],
+      "stop_escalate_rules": {
+        "max_iterations": 2,
+        "no_progress_after": 1,
+        "escalate_when": ["major version bump", "audit output is inconclusive", "lockfile churn touches unrelated package families"]
+      },
+      "mandatory_floor": [
+        {
+          "id": "deps:compatibility",
+          "command": "bin/adlc run-phase qa --workspace . --verifier '<project dependency verifier>' --json",
+          "coverage_tags": ["dependency", "compatibility"]
+        }
+      ],
+      "required_from_task_signals": [
+        {
+          "id": "deps:memory-health",
+          "command": "bin/adlc memory-health --workspace . --changed-path '<changed dependency file>' --json",
+          "coverage_tags": ["learning", "stale_memory"]
+        }
+      ],
+      "safe_bail_state": {
+        "state": "Dependency candidate is captured with audit and compatibility evidence.",
+        "rollback": "Discard the bump worktree branch.",
+        "idempotency": "Package name, source version, target version, and ecosystem form the stable task key."
+      },
+      "progress_signal": {
+        "signals": ["lockfile update completes", "compatibility verifier passes", "advisory status resolved"],
+        "no_progress_rule": "Escalate after one failed compatibility fix attempt."
+      },
+      "control_channel": {
+        "supports": ["steer", "abort", "escalate"],
+        "safe_checkpoint_required": true
+      },
+      "independent_truth": {
+        "type": "external_command",
+        "evidence": ["package manager check", "project verifier", "dependency audit"]
+      },
+      "redaction_posture": "Do not include private registry tokens or package manager auth config in logs.",
+      "budget_guard": {
+        "token_budget_ref": ".adlc/token_budget.json",
+        "hard_stop_behavior": "escalate",
+        "required_for": ["llm_action", "agent_loop"],
+        "budget_exhausted_stop_reason": "budget_exhausted",
+        "evidence_refs": ["operator supplies dependency loop token budget"]
+      },
+      "gates": [
+        {
+          "gate_id": "deps-loop-contract-valid",
+          "type": "schema_validation",
+          "command": "bin/adlc validate-artifact --schema loop-contract --input .adlc/loops/dependency-bump/loop_contract.json --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "deps-compatibility",
+          "type": "deterministic_verifier",
+          "command": "bin/adlc run-phase qa --workspace . --verifier '<project dependency verifier>' --json",
+          "failure_action": "retry_once"
+        },
+        {
+          "gate_id": "deps-human-review",
+          "type": "human_review",
+          "command": "human reviews dependency risk, release notes, and lockfile diff before merge",
+          "failure_action": "human_review"
+        }
+      ],
+      "human_approval_points": ["major version bump", "security advisory triage", "merge", "package manager config change"],
+      "queue_seed_tasks": [
+        {
+          "task_id": "DEPS-BUMP-001",
+          "title": "Evaluate and verify dependency update candidate",
+          "source_ref": "signal:weekly_dependency_scan",
+          "expected_paths": [
+            {
+              "path": "package.json",
+              "kind": "file",
+              "reason": "Example dependency manifest; replace with project manifest"
+            },
+            {
+              "path": "package-lock.json",
+              "kind": "file",
+              "reason": "Example lockfile; replace with project lockfile"
+            }
+          ],
+          "verifier_refs": ["<project dependency verifier>", "<project dependency audit>"],
+          "evidence_required": true
+        }
+      ],
+      "runbook": [
+        "Replace manifest and lockfile paths with the project ecosystem.",
+        "Run the compatibility verifier and dependency audit before opening a PR.",
+        "Escalate major bumps and inconclusive advisories."
+      ],
+      "no_overclaim": ["Does not certify all transitive runtime behavior.", "Does not bypass human review for dependency risk."]
+    },
+    {
+      "template_id": "ticket-hygiene",
+      "title": "Ticket Hygiene Loop",
+      "summary": "Audit tracker items, append current run evidence, deduplicate stable IDs, and escalate stale or ambiguous tickets.",
+      "category": "tracker",
+      "autonomy_claim": "assisted_loop",
+      "job": "Keep tracker state synchronized with ADLC run evidence without creating duplicate work.",
+      "exit_gate": "Each candidate ticket has a stable ID, current status, evidence refs, next action, or a dedupe/escalation result.",
+      "semantic_intent_check": "Tracker updates must reflect evidence from ADLC state and must not invent completed work.",
+      "task_signals": ["daily_ticket_hygiene", "stale_ticket", "run_state_updated"],
+      "required_skills": [
+        {
+          "name": "linear-ticket-creation",
+          "path": "skills/linear-ticket-creation/SKILL.md",
+          "purpose": "Map normalized ADLC work-item sync payloads into tracker state."
+        },
+        {
+          "name": "definition-of-done",
+          "path": "skills/definition-of-done/SKILL.md",
+          "purpose": "Keep status updates tied to evidence and next actions."
+        }
+      ],
+      "connectors": ["linear", "jira", "github"],
+      "required_adlc_commands": ["sync-work-item", "resume-workflow", "queue-status", "queue-block", "queue-escalate"],
+      "required_schemas": ["work-item-sync", "workflow-state", "work-queue", "loop-contract", "tool-registry", "loop-template-install-report", "token-budget"],
+      "tools": [
+        {
+          "name": "tracker",
+          "description": "Read existing tracker items and append ADLC status updates.",
+          "actions": ["observe", "run_tool", "escalate"],
+          "side_effect_profile": "mutating",
+          "permission_tier": "requires_approval",
+          "available_phases": ["research", "pr_prep", "engineer_review"],
+          "outputs": ["work-item-sync"]
+        },
+        {
+          "name": "adlc-state",
+          "description": "Read ADLC workflow state and queue status.",
+          "actions": ["observe", "run_tool"],
+          "side_effect_profile": "read_only",
+          "permission_tier": "unrestricted",
+          "available_phases": ["research", "engineer_review"],
+          "outputs": ["workflow_state_summary", "queue_status"]
+        }
+      ],
+      "feedback_channels": [
+        {
+          "after_action": "after each tracker sync plan",
+          "observes": ["stable id match", "duplicate candidates", "status update", "next action"]
+        }
+      ],
+      "stop_escalate_rules": {
+        "max_iterations": 2,
+        "no_progress_after": 1,
+        "escalate_when": ["multiple tracker items match the same stable id", "status conflicts with verifier evidence", "ticket ownership is unclear"]
+      },
+      "mandatory_floor": [
+        {
+          "id": "ticket:sync-dry-run",
+          "command": "bin/adlc sync-work-item --work-item .adlc/ticket_hygiene_update.json --dry-run --json",
+          "coverage_tags": ["tracker", "stable_id"]
+        }
+      ],
+      "required_from_task_signals": [
+        {
+          "id": "ticket:state-current",
+          "command": "bin/adlc resume-workflow --workspace . --json",
+          "coverage_tags": ["workflow_state", "evidence"]
+        }
+      ],
+      "safe_bail_state": {
+        "state": "Tracker updates are planned or appended with evidence and no duplicate ticket creation.",
+        "rollback": "Append a corrective tracker comment if a status update is wrong.",
+        "idempotency": "Use work-item external id and sync idempotency key for every mutation."
+      },
+      "progress_signal": {
+        "signals": ["duplicate resolved", "status update appended", "next action assigned"],
+        "no_progress_rule": "Escalate if a stable id cannot be resolved after one audit pass."
+      },
+      "control_channel": {
+        "supports": ["steer", "abort", "escalate"],
+        "safe_checkpoint_required": true
+      },
+      "independent_truth": {
+        "type": "schema",
+        "evidence": ["work-item-sync schema", "workflow-state schema"]
+      },
+      "redaction_posture": "Tracker updates must omit secrets, private logs, and unredacted customer data.",
+      "budget_guard": {
+        "token_budget_ref": ".adlc/token_budget.json",
+        "hard_stop_behavior": "escalate",
+        "required_for": ["llm_action", "agent_loop"],
+        "budget_exhausted_stop_reason": "budget_exhausted",
+        "evidence_refs": ["operator supplies ticket hygiene token budget"]
+      },
+      "gates": [
+        {
+          "gate_id": "ticket-loop-contract-valid",
+          "type": "schema_validation",
+          "command": "bin/adlc validate-artifact --schema loop-contract --input .adlc/loops/ticket-hygiene/loop_contract.json --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "ticket-sync-dry-run",
+          "type": "schema_validation",
+          "command": "bin/adlc sync-work-item --work-item .adlc/ticket_hygiene_update.json --dry-run --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "ticket-human-review",
+          "type": "human_review",
+          "command": "human reviews duplicate resolution and irreversible ticket closure",
+          "failure_action": "human_review"
+        }
+      ],
+      "human_approval_points": ["ticket closure", "duplicate merge", "status conflict", "external tracker mutation"],
+      "queue_seed_tasks": [
+        {
+          "task_id": "TICKET-HYGIENE-001",
+          "title": "Audit tracker state against ADLC run evidence",
+          "source_ref": "signal:daily_ticket_hygiene",
+          "expected_paths": [
+            {
+              "path": ".adlc",
+              "kind": "directory",
+              "reason": "Workflow state and sync payloads"
+            }
+          ],
+          "verifier_refs": ["bin/adlc sync-work-item --work-item .adlc/ticket_hygiene_update.json --dry-run --json"],
+          "evidence_required": true
+        }
+      ],
+      "runbook": [
+        "Load workflow state and existing tracker audit before planning mutations.",
+        "Use stable IDs to match existing work items before creating anything new.",
+        "Append evidence and next action; escalate ambiguous duplicates."
+      ],
+      "no_overclaim": ["Does not close tickets without human approval.", "Does not create duplicate tickets when stable IDs match."]
+    },
+    {
+      "template_id": "architecture-debt-discovery",
+      "title": "Architecture Debt Discovery Loop",
+      "summary": "Inspect graph and repo signals for architecture drift, create evidence-backed findings, and stop before design decisions.",
+      "category": "architecture",
+      "autonomy_claim": "assisted_loop",
+      "job": "Find architecture debt candidates with graph evidence and convert verified findings into reviewable work.",
+      "exit_gate": "Each candidate has graph or repo evidence, affected paths, verifier gaps, and a human review action.",
+      "semantic_intent_check": "The loop may discover and package debt, but must not approve architecture changes or rewrite boundaries.",
+      "task_signals": ["weekly_architecture_scan", "graph_drift_detected", "memory_health_stale"],
+      "required_skills": [
+        {
+          "name": "graph-research",
+          "path": "skills/graph-research/SKILL.md",
+          "purpose": "Ground architecture findings in Graphify and codebase relationships."
+        },
+        {
+          "name": "architecture-pattern",
+          "path": "skills/architecture-pattern/SKILL.md",
+          "purpose": "Frame architecture boundaries and decision records."
+        }
+      ],
+      "connectors": ["github", "linear"],
+      "required_adlc_commands": ["compound-context", "memory-health", "architecture-memory", "sync-work-item", "queue-escalate"],
+      "required_schemas": ["architecture-memory-report", "memory-health-report", "work-item-sync", "loop-contract", "tool-registry", "loop-template-install-report", "token-budget"],
+      "tools": [
+        {
+          "name": "graphify",
+          "description": "Read the project graph and explain affected relationships.",
+          "actions": ["observe", "run_tool"],
+          "side_effect_profile": "read_only",
+          "permission_tier": "unrestricted",
+          "available_phases": ["research", "plan_review"],
+          "outputs": ["graph_evidence"]
+        },
+        {
+          "name": "adlc-memory",
+          "description": "Write architecture memory only after explicit approval.",
+          "actions": ["run_tool", "escalate"],
+          "side_effect_profile": "mutating",
+          "permission_tier": "requires_approval",
+          "available_phases": ["learning_capture", "engineer_review"],
+          "outputs": ["architecture-memory-report"]
+        }
+      ],
+      "feedback_channels": [
+        {
+          "after_action": "after each architecture finding",
+          "observes": ["graph path", "affected files", "memory-health status", "human decision needed"]
+        }
+      ],
+      "stop_escalate_rules": {
+        "max_iterations": 2,
+        "no_progress_after": 1,
+        "escalate_when": ["finding requires architecture choice", "graph evidence is stale", "affected boundary is owned by another team"]
+      },
+      "mandatory_floor": [
+        {
+          "id": "arch:memory-health",
+          "command": "bin/adlc memory-health --workspace . --json",
+          "coverage_tags": ["architecture", "memory"]
+        }
+      ],
+      "required_from_task_signals": [
+        {
+          "id": "arch:graph-refresh",
+          "command": "graphify update .",
+          "coverage_tags": ["graph", "freshness"]
+        }
+      ],
+      "safe_bail_state": {
+        "state": "Architecture finding is documented with evidence and no architecture mutation performed.",
+        "rollback": "Remove the candidate finding or tracker update if evidence is invalid.",
+        "idempotency": "Finding stable id is derived from affected boundary and graph evidence."
+      },
+      "progress_signal": {
+        "signals": ["new graph-backed finding", "stale memory identified", "human review item created"],
+        "no_progress_rule": "Stop after one scan with no new evidence."
+      },
+      "control_channel": {
+        "supports": ["steer", "abort", "escalate"],
+        "safe_checkpoint_required": true
+      },
+      "independent_truth": {
+        "type": "external_command",
+        "evidence": ["graphify update .", "bin/adlc memory-health --workspace . --json"]
+      },
+      "redaction_posture": "Do not include proprietary diagrams or private incident details unless they are already approved repo evidence.",
+      "budget_guard": {
+        "token_budget_ref": ".adlc/token_budget.json",
+        "hard_stop_behavior": "escalate",
+        "required_for": ["llm_action", "agent_loop"],
+        "budget_exhausted_stop_reason": "budget_exhausted",
+        "evidence_refs": ["operator supplies architecture scan token budget"]
+      },
+      "gates": [
+        {
+          "gate_id": "arch-loop-contract-valid",
+          "type": "schema_validation",
+          "command": "bin/adlc validate-artifact --schema loop-contract --input .adlc/loops/architecture-debt-discovery/loop_contract.json --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "arch-memory-health",
+          "type": "memory_health",
+          "command": "bin/adlc memory-health --workspace . --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "arch-human-review",
+          "type": "human_review",
+          "command": "human reviews every architecture finding before implementation",
+          "failure_action": "human_review"
+        }
+      ],
+      "human_approval_points": ["architecture decision", "boundary change", "architecture memory write", "tracker escalation closure"],
+      "queue_seed_tasks": [
+        {
+          "task_id": "ARCH-DEBT-001",
+          "title": "Discover architecture debt candidates with graph evidence",
+          "source_ref": "signal:weekly_architecture_scan",
+          "expected_paths": [
+            {
+              "path": "docs/architecture",
+              "kind": "directory",
+              "reason": "Architecture memory and decision records"
+            },
+            {
+              "path": "graphify-out",
+              "kind": "directory",
+              "reason": "Graph evidence source"
+            }
+          ],
+          "verifier_refs": ["bin/adlc memory-health --workspace . --json", "graphify update ."],
+          "evidence_required": true
+        }
+      ],
+      "runbook": [
+        "Refresh Graphify before scanning architecture relationships.",
+        "Run memory-health and package findings as review items.",
+        "Stop before architecture implementation or approval."
+      ],
+      "no_overclaim": ["Does not approve architecture direction.", "Does not rewrite system boundaries."]
+    },
+    {
+      "template_id": "feedback-sweep",
+      "title": "Feedback Sweep Loop",
+      "summary": "Collect human feedback, cluster repeated complaints, and feed scored candidates into learning or champion-holdout gates.",
+      "category": "feedback",
+      "autonomy_claim": "assisted_loop",
+      "job": "Convert repeated human feedback into ranked, evidence-backed improvement candidates.",
+      "exit_gate": "Feedback clusters are ranked, deduped, tied to workflows, and either queued for improvement or escalated.",
+      "semantic_intent_check": "Feedback synthesis must preserve user wording and must not fabricate frequency or severity.",
+      "task_signals": ["daily_feedback_sweep", "human_correction", "review_comment_cluster"],
+      "required_skills": [
+        {
+          "name": "feedback-loop",
+          "path": "skills/feedback-loop/SKILL.md",
+          "purpose": "Promote repeated human edits into learning candidates."
+        },
+        {
+          "name": "learning-capture",
+          "path": "skills/learning-capture/SKILL.md",
+          "purpose": "Capture verified reusable lessons without overclaim."
+        }
+      ],
+      "connectors": ["slack", "github", "linear"],
+      "required_adlc_commands": ["compound-context", "memory-health", "sync-work-item", "queue-claim", "queue-complete"],
+      "required_schemas": ["learning-entry", "memory-health-report", "work-item-sync", "loop-contract", "tool-registry", "loop-template-install-report", "token-budget"],
+      "tools": [
+        {
+          "name": "feedback-source",
+          "description": "Read approved feedback channels and produce normalized feedback clusters.",
+          "actions": ["observe", "run_tool", "escalate"],
+          "side_effect_profile": "read_only",
+          "permission_tier": "unrestricted",
+          "available_phases": ["research", "learning_capture"],
+          "outputs": ["feedback_clusters"]
+        },
+        {
+          "name": "adlc-sync",
+          "description": "Queue or update follow-up work from feedback clusters.",
+          "actions": ["run_tool", "escalate"],
+          "side_effect_profile": "mutating",
+          "permission_tier": "requires_approval",
+          "available_phases": ["pr_prep", "engineer_review"],
+          "outputs": ["work-item-sync"]
+        }
+      ],
+      "feedback_channels": [
+        {
+          "after_action": "after cluster ranking",
+          "observes": ["source refs", "frequency", "workflow owner", "candidate next action"]
+        }
+      ],
+      "stop_escalate_rules": {
+        "max_iterations": 2,
+        "no_progress_after": 1,
+        "escalate_when": ["feedback contains private data", "cluster ownership is unclear", "candidate requires product judgment"]
+      },
+      "mandatory_floor": [
+        {
+          "id": "feedback:memory-health",
+          "command": "bin/adlc memory-health --workspace . --json",
+          "coverage_tags": ["learning", "overclaim"]
+        }
+      ],
+      "required_from_task_signals": [
+        {
+          "id": "feedback:sync-dry-run",
+          "command": "bin/adlc sync-work-item --work-item .adlc/feedback_sweep_update.json --dry-run --json",
+          "coverage_tags": ["tracker", "feedback"]
+        }
+      ],
+      "safe_bail_state": {
+        "state": "Feedback is clustered and ranked with source refs, with no prompt or skill promotion yet.",
+        "rollback": "Discard the proposed cluster or queue update.",
+        "idempotency": "Cluster id is derived from workflow, normalized complaint, and source refs."
+      },
+      "progress_signal": {
+        "signals": ["new repeated feedback cluster", "candidate linked to workflow", "work item updated"],
+        "no_progress_rule": "Stop after one sweep with no clusters above threshold."
+      },
+      "control_channel": {
+        "supports": ["steer", "abort", "escalate"],
+        "safe_checkpoint_required": true
+      },
+      "independent_truth": {
+        "type": "schema",
+        "evidence": ["learning-entry schema", "work-item-sync schema"]
+      },
+      "redaction_posture": "Feedback clusters must redact private user data and secrets before tracker or learning writes.",
+      "budget_guard": {
+        "token_budget_ref": ".adlc/token_budget.json",
+        "hard_stop_behavior": "escalate",
+        "required_for": ["llm_action", "agent_loop"],
+        "budget_exhausted_stop_reason": "budget_exhausted",
+        "evidence_refs": ["operator supplies feedback sweep token budget"]
+      },
+      "gates": [
+        {
+          "gate_id": "feedback-loop-contract-valid",
+          "type": "schema_validation",
+          "command": "bin/adlc validate-artifact --schema loop-contract --input .adlc/loops/feedback-sweep/loop_contract.json --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "feedback-memory-health",
+          "type": "memory_health",
+          "command": "bin/adlc memory-health --workspace . --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "feedback-human-review",
+          "type": "human_review",
+          "command": "human reviews feedback clusters before prompt, skill, or product changes",
+          "failure_action": "human_review"
+        }
+      ],
+      "human_approval_points": ["new learning entry", "prompt change", "skill change", "product prioritization"],
+      "queue_seed_tasks": [
+        {
+          "task_id": "FEEDBACK-SWEEP-001",
+          "title": "Cluster feedback and queue verified improvement candidates",
+          "source_ref": "signal:daily_feedback_sweep",
+          "expected_paths": [
+            {
+              "path": "docs/solutions",
+              "kind": "directory",
+              "reason": "Learning candidates and reuse evidence"
+            },
+            {
+              "path": ".adlc/feedback",
+              "kind": "directory",
+              "reason": "Normalized feedback cluster artifacts"
+            }
+          ],
+          "verifier_refs": ["bin/adlc memory-health --workspace . --json"],
+          "evidence_required": true
+        }
+      ],
+      "runbook": [
+        "Read only approved feedback channels and preserve source refs.",
+        "Cluster repeated feedback by workflow and rank by frequency and severity.",
+        "Queue improvement candidates; use champion-holdout before prompt or skill promotion."
+      ],
+      "no_overclaim": ["Does not decide product priority.", "Does not promote prompt or skill changes without holdout proof."]
+    },
+    {
+      "template_id": "skill-champion",
+      "title": "Skill Champion Loop",
+      "summary": "Evaluate prompt or skill challengers against a champion, working set, holdout set, and must-pass rules before promotion.",
+      "category": "learning",
+      "autonomy_claim": "assisted_loop",
+      "job": "Improve skills or prompts only when a challenger beats the champion on holdout data without breaking must-pass rules.",
+      "exit_gate": "The challenger is promoted by champion-holdout or rejected with evidence and the champion remains unchanged.",
+      "semantic_intent_check": "Promotion must be based on holdout evidence, not working-set-only improvement or subjective preference.",
+      "task_signals": ["feedback_cluster_ready", "prompt_regression", "skill_improvement_candidate"],
+      "required_skills": [
+        {
+          "name": "feedback-loop",
+          "path": "skills/feedback-loop/SKILL.md",
+          "purpose": "Provide feedback-derived candidates for challenger evaluation."
+        },
+        {
+          "name": "learning-refresh",
+          "path": "skills/learning-refresh/SKILL.md",
+          "purpose": "Refresh stale learning before reuse."
+        }
+      ],
+      "connectors": ["github", "linear"],
+      "required_adlc_commands": ["champion-holdout", "memory-health", "sync-work-item", "queue-complete", "queue-escalate"],
+      "required_schemas": ["champion-holdout-report", "memory-health-report", "loop-contract", "tool-registry", "work-queue", "loop-template-install-report", "token-budget"],
+      "tools": [
+        {
+          "name": "adlc-champion",
+          "description": "Run champion-holdout evaluation from scored examples.",
+          "actions": ["run_tests", "observe", "escalate"],
+          "side_effect_profile": "read_only",
+          "permission_tier": "unrestricted",
+          "available_phases": ["qa", "learning_capture"],
+          "outputs": ["champion-holdout-report"]
+        },
+        {
+          "name": "skill-writer",
+          "description": "Write a skill or prompt challenger only after approval.",
+          "actions": ["run_tool", "repair", "escalate"],
+          "side_effect_profile": "mutating",
+          "permission_tier": "requires_approval",
+          "available_phases": ["code", "learning_capture"],
+          "outputs": ["skill_diff", "prompt_diff"]
+        }
+      ],
+      "feedback_channels": [
+        {
+          "after_action": "after challenger scoring",
+          "observes": ["working delta", "holdout delta", "must-pass results", "promotion decision"]
+        }
+      ],
+      "stop_escalate_rules": {
+        "max_iterations": 3,
+        "no_progress_after": 2,
+        "escalate_when": ["holdout set is missing", "must-pass rule fails", "two rounds produce no holdout improvement"]
+      },
+      "mandatory_floor": [
+        {
+          "id": "skill:champion-holdout",
+          "command": "bin/adlc champion-holdout --input .adlc/champion_holdout.json --json",
+          "coverage_tags": ["holdout", "promotion"]
+        }
+      ],
+      "required_from_task_signals": [
+        {
+          "id": "skill:memory-health",
+          "command": "bin/adlc memory-health --workspace . --changed-path '<skill or prompt path>' --json",
+          "coverage_tags": ["learning", "stale_memory"]
+        }
+      ],
+      "safe_bail_state": {
+        "state": "Champion remains unchanged unless holdout promotion passes.",
+        "rollback": "Keep current champion and discard challenger patch.",
+        "idempotency": "Evaluation id plus challenger id identifies each attempt."
+      },
+      "progress_signal": {
+        "signals": ["holdout delta improves", "must-pass issue resolved", "challenger rejected with evidence"],
+        "no_progress_rule": "Stop after two rounds without holdout improvement."
+      },
+      "control_channel": {
+        "supports": ["steer", "abort", "escalate"],
+        "safe_checkpoint_required": true
+      },
+      "independent_truth": {
+        "type": "schema",
+        "evidence": ["champion-holdout-report schema", "must-pass rule outcomes"]
+      },
+      "redaction_posture": "Evaluation examples must be redacted before they enter prompt or skill artifacts.",
+      "budget_guard": {
+        "token_budget_ref": ".adlc/token_budget.json",
+        "hard_stop_behavior": "escalate",
+        "required_for": ["llm_action", "agent_loop", "maturity_claim"],
+        "budget_exhausted_stop_reason": "budget_exhausted",
+        "evidence_refs": ["operator supplies skill champion token budget"]
+      },
+      "gates": [
+        {
+          "gate_id": "skill-loop-contract-valid",
+          "type": "schema_validation",
+          "command": "bin/adlc validate-artifact --schema loop-contract --input .adlc/loops/skill-champion/loop_contract.json --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "skill-holdout-promotion",
+          "type": "holdout_promotion",
+          "command": "bin/adlc champion-holdout --input .adlc/champion_holdout.json --json",
+          "failure_action": "block"
+        },
+        {
+          "gate_id": "skill-human-review",
+          "type": "human_review",
+          "command": "human reviews promoted skill or prompt diff before merge",
+          "failure_action": "human_review"
+        }
+      ],
+      "human_approval_points": ["champion promotion", "skill file change", "prompt artifact change", "example dataset update"],
+      "queue_seed_tasks": [
+        {
+          "task_id": "SKILL-CHAMPION-001",
+          "title": "Evaluate challenger against champion and holdout set",
+          "source_ref": "signal:skill_improvement_candidate",
+          "expected_paths": [
+            {
+              "path": "skills",
+              "kind": "directory",
+              "reason": "Skill challenger source"
+            },
+            {
+              "path": ".adlc/evals",
+              "kind": "directory",
+              "reason": "Working and holdout examples"
+            }
+          ],
+          "verifier_refs": ["bin/adlc champion-holdout --input .adlc/champion_holdout.json --json"],
+          "evidence_required": true
+        }
+      ],
+      "runbook": [
+        "Freeze champion and holdout set before editing.",
+        "Change one thing in the challenger.",
+        "Promote only if champion-holdout passes; otherwise keep the champion and record the reason."
+      ],
+      "no_overclaim": ["Does not promote on working-set-only improvement.", "Does not prove future prompts remain correct without refresh."]
+    }
+  ]
+}

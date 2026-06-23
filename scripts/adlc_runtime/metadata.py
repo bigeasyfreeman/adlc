@@ -18,6 +18,8 @@ SCHEMA_ALIASES = {
     "loop-action": "docs/schemas/loop-action.schema.json",
     "loop-contract": "docs/schemas/loop-contract.schema.json",
     "loop-maturity-report": "docs/schemas/loop-maturity-report.schema.json",
+    "loop-template-catalog": "docs/schemas/loop-template-catalog.schema.json",
+    "loop-template-install-report": "docs/schemas/loop-template-install-report.schema.json",
     "loop-test-result": "docs/schemas/loop-test-result.schema.json",
     "memory-health-report": "docs/schemas/memory-health-report.schema.json",
     "permission-audit-trail": "docs/schemas/permission-audit-trail.schema.json",
@@ -154,6 +156,14 @@ COMMAND_METADATA = {
     "champion-holdout": {
         "mcp_name": "adlc_champion_holdout",
         "description": "Evaluate a prompt or skill challenger against champion and holdout scores before promotion.",
+    },
+    "loop-library": {
+        "mcp_name": "adlc_loop_library",
+        "description": "List or inspect packaged ADLC loop templates with required skills, gates, schemas, and installable contracts.",
+    },
+    "loop-template-install": {
+        "mcp_name": "adlc_loop_template_install",
+        "description": "Dry-run or install a packaged ADLC loop template into a workspace with schema-backed contracts and action admission.",
     },
     "control-plane-drift-loop": {
         "mcp_name": "adlc_control_plane_drift_loop",

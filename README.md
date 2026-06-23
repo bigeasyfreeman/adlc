@@ -84,6 +84,7 @@ The shipped framework layers are:
 |---|---|---|
 | Compound engineering | Prior verified work, task refs, verifier refs, resume context, and graph status as compact context | `bin/adlc compound-context` before research |
 | Learning and Architecture Memory | Evidence-backed learning refs, architecture decision memory, stale/overclaim checks, duplicate primitive checks, and champion/holdout promotion gates | `architecture-memory`, `memory-health`, and `champion-holdout` before reuse or prompt/skill promotion |
+| Packaged Loop Library | Assisted-loop templates with required skills, connectors, ADLC commands, schemas, gates, approval points, generated Loop Contracts, Tool Registries, and Work Queue seeds | `loop-library` and `loop-template-install` before a harness runs a known loop |
 | Scalable code primitives | Construct refs, paved-road reuse, intent contracts, production invariants, and verifiability | Build Brief task fields and Eval Council checks |
 | Implementation Interface | Task-scoped contract for what a change reuses, consumes, emits, preserves, integrates with, and validates | Active when a task touches repo boundaries, schemas, emitters, providers, workflow state, CLI contracts, or reusable framework surfaces |
 | Productionization Gate | Bounded production claim with Coverage State, evidence, rollback/observability/security posture, reliability risks, and No-Overclaim boundaries | Active when a task claims production support or production readiness |
@@ -103,6 +104,7 @@ What is automatic today:
 - strict Loop Contract required-test proof through `docs/schemas/loop-test-result.schema.json` and `loop-test-selection --require-test-results`
 - schema-backed work queue status, task claims, completion/block/escalation state, dirty-checks, file-overlap checks, and worktree prepare/status/cleanup dry-runs
 - evidence-backed architecture memory writes, memory-health stale/overclaim/duplicate primitive checks, and champion/holdout promotion gates for prompt or skill changes
+- packaged assisted-loop template inspection and install plans through `loop-library` and `loop-template-install`
 - runtime preflight through `bin/adlc health-check --json`
 - resume summaries for task fingerprints, loop progress, no-progress count, control events, safe checkpoints, and escalation context
 
@@ -193,6 +195,9 @@ bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --j
 bin/adlc architecture-memory --input .adlc/architecture_decisions.json --workspace . --dry-run --json
 bin/adlc memory-health --workspace . --changed-path scripts/adlc_runtime/cli.py --primitive-proposals .adlc/primitive_proposals.json --json
 bin/adlc champion-holdout --input .adlc/champion_holdout.json --json
+bin/adlc loop-library --json
+bin/adlc loop-library --template-id ci-triage --json
+bin/adlc loop-template-install --template-id ci-triage --workspace . --dry-run --json
 bin/adlc control-plane-drift-loop --workspace . --verifier 'python3 -m py_compile scripts/adlc_runtime/metadata.py' --dry-run --json
 bin/adlc action-admit --tool-registry .adlc/tool_registry.json --tool Read --action read_file --phase research --brief-id BRF-123 --run-id ADLC-RUN-123 --session-id SESSION-123 --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
@@ -221,6 +226,8 @@ Deterministic tool nodes emit schema-backed phase artifacts under `.adlc/outputs
 The first dogfood loop is `control-plane-drift-loop`. It detects schema-alias drift, creates a stable work-item sync payload, validates a proposed repair action, optionally applies the bounded `metadata.py` repair through action admission, reruns verifiers, and stops for human review.
 
 Goal 8 memory commands keep ADLC's outer loop from compounding stale or overfit knowledge. `architecture-memory` records accepted architecture boundaries only from evidence-backed candidates and writes through action admission. `memory-health` audits `docs/solutions` and `docs/architecture/decisions` for stale refs, overclaim, and duplicate primitive proposals. `champion-holdout` promotes prompt or skill challengers only when holdout data beats the current champion by the configured margin and all must-pass rules pass.
+
+Goal 9 packages known assisted loops for harnesses. `loop-library` lists or inspects templates such as `ci-triage`, `pr-babysitter`, `dependency-bump`, `ticket-hygiene`, `architecture-debt-discovery`, `feedback-sweep`, and `skill-champion`. `loop-template-install` dry-runs by default and, after `adlc-loop-library:install_loop_template` action admission, writes `.adlc/loops/<template_id>/loop_contract.json`, `tool_registry.json`, `work_queue_seed.json`, `token_budget.json`, `README.md`, and `install_report.json`. It does not schedule jobs, dispatch agents, choose work, merge code, or make architecture decisions; those remain outside Goal 9.
 
 Minimal Loop Contract flow:
 
@@ -344,6 +351,7 @@ adlc/
 ├── platform/               # CLAUDE.md, AGENTS.md, agents-antigravity.md
 ├── examples/               # Example PRD
 ├── docs/                   # build-briefs/, schemas/, specs/, tests/, adlc-v2-spec, tickets
+├── docs/loop-library/      # Packaged assisted-loop templates for harness installation
 ├── docs/solutions/         # Schema-validated compound engineering learning store
 ├── tests/                  # contract checks, backtests, smoke harness
 └── scripts/                # stable CLI entrypoint, adlc_runtime package, and validation utilities
@@ -373,6 +381,7 @@ adlc/
 - [`docs/specs/loop-system-maturity-audit.md`](docs/specs/loop-system-maturity-audit.md) — Loop Contract, LLM Action Envelope, non-gameable test selection, control channel, and maturity audit contract
 - [`docs/specs/slop-eval-loop.md`](docs/specs/slop-eval-loop.md) — Output-side slop benchmark, threshold, regression, and case-promotion contract
 - [`docs/specs/compound-engineering-learning-store.md`](docs/specs/compound-engineering-learning-store.md) — `docs/solutions` learning-entry schema, capture, refresh, and preflight contract
+- [`docs/specs/packaged-loop-library.md`](docs/specs/packaged-loop-library.md) — Packaged assisted-loop catalog, install artifacts, and action-admitted install flow
 - [`docs/adlc-v2-tickets.md`](docs/adlc-v2-tickets.md) — 58-ticket implementation roadmap
 
 ## Acknowledgments
