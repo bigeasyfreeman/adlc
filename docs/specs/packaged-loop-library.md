@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Goal 9 makes ADLC loops reusable without jumping to the full self-actioning meta-harness. A packaged loop template is a machine-readable contract bundle that a harness can inspect, install, validate, and then run through existing ADLC primitives.
+The packaged loop library makes ADLC loops reusable without jumping directly to full self-actioning orchestration. A packaged loop template is a machine-readable contract bundle that a harness can inspect, install, validate, and then run through existing ADLC primitives.
 
 The library answers one question: "Which known loop should I install, and what gates must be true before it can run?"
 
-It does not schedule jobs, poll trackers, dispatch agents, merge code, or choose work on its own. Those behaviors belong to Goal 10.
+It does not schedule jobs, poll trackers, dispatch agents, merge code, or choose work on its own. Those behaviors belong to the bounded meta-harness layer and remain gated by existing ADLC commands.
 
 ## Catalog
 
@@ -108,7 +108,7 @@ Existing artifacts that differ from generated content block installation unless 
 
 ## Non-Goals
 
-Goal 9 does not:
+The packaged loop library does not:
 
 - pick tasks from a repo or ticket tracker
 - rank task value, risk, or verifiability
@@ -118,4 +118,4 @@ Goal 9 does not:
 - open pull requests
 - merge, deploy, or approve architecture changes
 
-The packaged loop library is a reusable contract source for a harness. Goal 10 is where ADLC decides work candidates and orchestrates them.
+The packaged loop library is a reusable contract source for a harness. The bounded meta-harness planner is where ADLC ranks work candidates and returns the next executable command plan.

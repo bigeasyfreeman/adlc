@@ -2,23 +2,26 @@
 
 Agentic Development Lifecycle.
 
-ADLC is a graph-driven framework for turning scoped work into reviewed code. The source tree contains agent configs, skill definitions, deterministic evaluators, and runtime adapter targets. `setup.sh` derives install counts from the repository so the shipped inventory stays truthful as the framework changes.
+ADLC is an agent control plane for AI-assisted engineering. It packages skills, agents, schemas, verifiers, queue/worktree primitives, loop templates, learning memory, and a bounded meta-harness planner so an LLM or external harness can turn repo, ticket, and signal input into reviewed work without relying on ad hoc prompt chains.
+
+The shipped framework is intentionally evidence-bound: ADLC can propose, plan, queue, isolate, verify, synchronize, and learn from work, but mutation, merge, deploy, architecture decisions, and irreversible external actions stay behind deterministic gates and human approval.
 
 ```
-Build Loop:  PRD → Compound Preflight → Graph Research → Brief (Loop Contract + Implementation Interface + Productionization Gate) → Council → Scaffold → LDD → TDD → Code → Comprehension Gate → PR → Learning Capture → You
-Fix Loop:    Capture → Confirm → Investigate → Fix → Prove → Council → PR
-Feedback:    Human edits → Diff capture → Pattern distill → Skill update
+Signal Loop: repo/ticket/signal → candidate ranking → loop template → queue/worktree → verifier → human review
+Build Loop:  PRD → compound preflight → graph research → brief → council → scaffold → tests → code → QA → PR
+Fix Loop:    capture → confirm → investigate → fix → prove → council → PR
+Feedback:    human edits → diff capture → pattern distill → skill or memory update
 ```
 
 Works with Claude Code, Codex, Cursor, Antigravity, and Factory.
 
 ## Why This Exists
 
-Most AI coding is either "write me a function" or manually shuttling context between agents and praying they figure out the order. One is too dumb. The other is you doing the orchestration by hand, which defeats the point.
+AI coding stops scaling when the human remains the inner prompter. ADLC moves the leverage point to the control plane: what work is admissible, which loop should run, what context is allowed, which tools may act, how evidence is checked, where state is recorded, and when a human must decide.
 
-ADLC is a directed graph. Agents emit labels (`lgtm`, `revise`, `escalate`). Edges route to the next step. Independent tasks fan out in parallel. Lint, test, and scaffold/planning nodes burn zero tokens. Every review loop caps out so nothing spins forever.
+ADLC is a directed graph plus a schema-backed CLI/MCP runtime. Agents emit labels (`lgtm`, `revise`, `escalate`). Edges route to the next step. Independent work can be queued and isolated in worktrees. Lint, test, scaffold, readiness, budget, and contract checks burn zero model tokens. Every review loop has a cap so nothing spins forever.
 
-The whole thing is markdown. Skills are injectable knowledge. Agents are thin configs. Swap any piece without touching the rest.
+The framework stays composable. Skills are injectable knowledge, agents are thin configs, contracts are Markdown plus JSON, and deterministic tool nodes fail closed before a harness can mutate state.
 
 ### Governing Philosophy
 
@@ -228,11 +231,11 @@ Deterministic tool nodes emit schema-backed phase artifacts under `.adlc/outputs
 
 The first dogfood loop is `control-plane-drift-loop`. It detects schema-alias drift, creates a stable work-item sync payload, validates a proposed repair action, optionally applies the bounded `metadata.py` repair through action admission, reruns verifiers, and stops for human review.
 
-Goal 8 memory commands keep ADLC's outer loop from compounding stale or overfit knowledge. `architecture-memory` records accepted architecture boundaries only from evidence-backed candidates and writes through action admission. `memory-health` audits `docs/solutions` and `docs/architecture/decisions` for stale refs, overclaim, and duplicate primitive proposals. `champion-holdout` promotes prompt or skill challengers only when holdout data beats the current champion by the configured margin and all must-pass rules pass.
+Learning and architecture memory keeps ADLC's outer loop from compounding stale or overfit knowledge. `architecture-memory` records accepted architecture boundaries only from evidence-backed candidates and writes through action admission. `memory-health` audits `docs/solutions` and `docs/architecture/decisions` for stale refs, overclaim, and duplicate primitive proposals. `champion-holdout` promotes prompt or skill challengers only when holdout data beats the current champion by the configured margin and all must-pass rules pass.
 
-Goal 9 packages known assisted loops for harnesses. `loop-library` lists or inspects templates such as `ci-triage`, `pr-babysitter`, `dependency-bump`, `ticket-hygiene`, `architecture-debt-discovery`, `feedback-sweep`, and `skill-champion`. `loop-template-install` dry-runs by default and, after `adlc-loop-library:install_loop_template` action admission, writes `.adlc/loops/<template_id>/loop_contract.json`, `tool_registry.json`, `work_queue_seed.json`, `token_budget.json`, `README.md`, and `install_report.json`. It does not schedule jobs, dispatch agents, choose work, merge code, or make architecture decisions; those remain outside Goal 9.
+The packaged loop library makes known assisted loops reusable by harnesses. `loop-library` lists or inspects templates such as `ci-triage`, `pr-babysitter`, `dependency-bump`, `ticket-hygiene`, `architecture-debt-discovery`, `feedback-sweep`, and `skill-champion`. `loop-template-install` dry-runs by default and, after `adlc-loop-library:install_loop_template` action admission, writes `.adlc/loops/<template_id>/loop_contract.json`, `tool_registry.json`, `work_queue_seed.json`, `token_budget.json`, `README.md`, and `install_report.json`. It does not schedule jobs, dispatch agents, choose work, merge code, or make architecture decisions; those remain outside the library contract.
 
-Goal 10 ships the bounded self-actioning meta-harness planner. `meta-harness-plan` reads repo, ticket, Build Brief, queue, and signal candidates; ranks them by value, risk, verifiability, repeatability, and urgency; chooses a packaged loop template; emits schema-backed Work Queue seed and Work Item Sync payloads; and returns the exact ADLC commands a harness should run next. It does not claim tasks, create worktrees, update trackers, dispatch agents, merge, deploy, or decide architecture. Those steps remain behind existing action-admitted commands and human approval gates.
+The bounded self-actioning meta-harness planner lets ADLC decide candidate work without bypassing the control plane. `meta-harness-plan` reads repo, ticket, Build Brief, queue, and signal candidates; ranks them by value, risk, verifiability, repeatability, and urgency; chooses a packaged loop template; emits schema-backed Work Queue seed and Work Item Sync payloads; and returns the exact ADLC commands a harness should run next. It does not claim tasks, create worktrees, update trackers, dispatch agents, merge, deploy, or decide architecture. Those steps remain behind existing action-admitted commands and human approval gates.
 
 Minimal Loop Contract flow:
 
@@ -387,7 +390,7 @@ adlc/
 - [`docs/specs/slop-eval-loop.md`](docs/specs/slop-eval-loop.md) — Output-side slop benchmark, threshold, regression, and case-promotion contract
 - [`docs/specs/compound-engineering-learning-store.md`](docs/specs/compound-engineering-learning-store.md) — `docs/solutions` learning-entry schema, capture, refresh, and preflight contract
 - [`docs/specs/packaged-loop-library.md`](docs/specs/packaged-loop-library.md) — Packaged assisted-loop catalog, install artifacts, and action-admitted install flow
-- [`docs/specs/self-actioning-meta-harness.md`](docs/specs/self-actioning-meta-harness.md) — Bounded Goal 10 candidate ranking, packaged-loop selection, queue seed, tracker-sync, and planned-command contract
+- [`docs/specs/self-actioning-meta-harness.md`](docs/specs/self-actioning-meta-harness.md) — Bounded candidate ranking, packaged-loop selection, queue seed, tracker-sync, and planned-command contract
 - [`docs/adlc-v2-tickets.md`](docs/adlc-v2-tickets.md) — 58-ticket implementation roadmap
 
 ## Acknowledgments

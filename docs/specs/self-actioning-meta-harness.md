@@ -1,6 +1,6 @@
 # Self-Actioning Meta-Harness
 
-Goal 10 makes ADLC consumable by an LLM or external harness as a self-actioning control plane without skipping the gates built in Goals 1-9.
+The self-actioning meta-harness makes ADLC consumable by an LLM or external harness as a bounded control plane without skipping the framework's admission, queue, verifier, memory, and human-approval gates.
 
 The shipped scope is `meta-harness-plan`: a deterministic planner that reads repo, ticket, or signal candidates, ranks them by value, risk, verifiability, repeatability, and urgency, chooses a packaged loop template, emits queue and tracker-sync seed artifacts, and stops before mutation.
 
@@ -72,4 +72,4 @@ A consuming harness should:
 5. Require `action-admit` and human approval before any mutation.
 6. Stop at human review before merge, deploy, architecture decisions, or irreversible side effects.
 
-Goal 10 therefore gives ADLC task selection and execution planning, while preserving the earlier control-plane constraints.
+The meta-harness therefore gives ADLC task selection and execution planning, while preserving the earlier control-plane constraints.

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Goal 8 makes ADLC memory useful to loops without letting memory become an unchecked architecture override. Learning and architecture memory are prior-art signals. They can make a future run cheaper and safer, but they do not prove current behavior by themselves.
+This contract makes ADLC memory useful to loops without letting memory become an unchecked architecture override. Learning and architecture memory are prior-art signals. They can make a future run cheaper and safer, but they do not prove current behavior by themselves.
 
 ## Runtime Surfaces
 
@@ -63,5 +63,4 @@ Working-set improvement alone is rejected with `working_set_only_improvement`. T
 
 ## Non-Goals
 
-Goal 8 does not auto-merge prompt or skill changes, choose architecture direction, run provider-specific embedding search, or claim self-autonomy. It provides the memory, health, and promotion gates needed before broader loop-library and meta-harness work.
-
+Learning and architecture memory does not auto-merge prompt or skill changes, choose architecture direction, run provider-specific embedding search, or claim self-autonomy. It provides the memory, health, and promotion gates needed before broader loop-library and meta-harness work.

@@ -1598,7 +1598,7 @@
           "docs/specs/agent-native-interface.md"
         ],
         "files_to_create": [],
-        "reference_impl": "ADLC_LOOP_SYSTEM_MATURITY_PRODUCTIONIZATION_GOAL_PROMPT.md",
+        "reference_impl": "docs/specs/loop-system-maturity-audit.md",
         "work_item_metadata": {
           "area": "loop-budget",
           "area_label": "area:loop-budget",

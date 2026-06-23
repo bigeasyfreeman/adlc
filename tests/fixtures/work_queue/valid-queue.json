@@ -19,7 +19,7 @@
       "run_id": "adlc-run-goal5",
       "session_id": "adlc-session-goal5",
       "source": {
-        "ref": "ADLC_GOAL_5_WORKTREE_QUEUE_SUBSTRATE_GOAL_PROMPT.md",
+        "ref": "docs/specs/agent-native-interface.md",
         "type": "manual"
       },
       "status": "queued",
@@ -162,7 +162,7 @@
           "reason": "requires human architecture review"
         }
       ],
-      "next_action": "human decides whether skill wording changes belong in Goal 5",
+      "next_action": "human decides whether skill wording changes belong in the queue substrate scope",
       "priority": 60,
       "reason": "architecture_scope_boundary",
       "source": {
