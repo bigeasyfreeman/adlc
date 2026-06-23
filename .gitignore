@@ -28,6 +28,7 @@ venv/
 # ADLC workspace artifacts
 .adlc/
 graphify-out/
+ADLC_GOAL_*_GOAL_PROMPT.md
 *.workspace/
 !tests/smoke/fixtures/
 !tests/smoke/fixtures/feature_bugfix/

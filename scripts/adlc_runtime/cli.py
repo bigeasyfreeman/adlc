@@ -3966,6 +3966,725 @@ def command_loop_template_install(args: argparse.Namespace) -> int:
     return exit_code
 
 
+SENSITIVE_META_HARNESS_TERMS = (
+    "auth",
+    "authentication",
+    "authorization",
+    "billing",
+    "payment",
+    "payments",
+    "secret",
+    "secrets",
+    "credential",
+    "credentials",
+    "deploy",
+    "deployment",
+    "production",
+    "architecture",
+)
+
+
+def coerce_score(value: Any, default: int) -> int:
+    if isinstance(value, bool):
+        return 100 if value else 0
+    if isinstance(value, (int, float)):
+        return max(0, min(100, int(round(value))))
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        named = {
+            "none": 0,
+            "low": 25,
+            "medium": 50,
+            "med": 50,
+            "high": 75,
+            "critical": 95,
+            "urgent": 90,
+            "blocker": 95,
+        }
+        if normalized in named:
+            return named[normalized]
+        try:
+            return max(0, min(100, int(round(float(normalized)))))
+        except ValueError:
+            return default
+    return default
+
+
+def first_present_score(candidate: Dict[str, Any], names: Iterable[str], default: int) -> int:
+    for name in names:
+        if name in candidate:
+            return coerce_score(candidate.get(name), default)
+    return default
+
+
+def string_list(value: Any) -> List[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
+
+
+def meta_candidate_text(candidate: Dict[str, Any]) -> str:
+    fields = [
+        candidate.get("candidate_id"),
+        candidate.get("task_id"),
+        candidate.get("signal_id"),
+        candidate.get("title"),
+        candidate.get("summary"),
+        candidate.get("description"),
+        candidate.get("objective"),
+        candidate.get("kind"),
+        candidate.get("category"),
+        " ".join(string_list(candidate.get("labels"))),
+        " ".join(string_list(candidate.get("tags"))),
+        " ".join(string_list(candidate.get("task_signals"))),
+    ]
+    return " ".join(str(value).lower() for value in fields if value)
+
+
+def normalize_expected_path(value: Any, reason: str) -> Dict[str, Any] | None:
+    if isinstance(value, str) and value.strip():
+        raw_path = value.strip()
+        kind = "glob" if any(char in raw_path for char in "*?[") else ("directory" if raw_path.endswith("/") else "file")
+        return {"path": raw_path.rstrip("/") if kind == "directory" else raw_path, "kind": kind, "reason": reason}
+    if isinstance(value, dict) and isinstance(value.get("path"), str) and value["path"].strip():
+        raw_path = value["path"].strip()
+        raw_kind = str(value.get("kind") or "").strip()
+        kind = raw_kind if raw_kind in {"file", "directory", "glob"} else ("glob" if any(char in raw_path for char in "*?[") else "file")
+        entry = {"path": raw_path, "kind": kind}
+        if isinstance(value.get("reason"), str) and value["reason"].strip():
+            entry["reason"] = value["reason"].strip()
+        else:
+            entry["reason"] = reason
+        return entry
+    return None
+
+
+def meta_candidate_paths(candidate: Dict[str, Any]) -> List[Dict[str, Any]]:
+    paths: List[Dict[str, Any]] = []
+    for field_name in ("expected_paths", "target_paths", "paths", "files_to_modify", "files_to_create"):
+        value = candidate.get(field_name)
+        values = value if isinstance(value, list) else ([value] if value else [])
+        for raw_path in values:
+            entry = normalize_expected_path(raw_path, f"derived from {field_name}")
+            if entry:
+                paths.append(entry)
+    seen: set[Tuple[str, str]] = set()
+    unique: List[Dict[str, Any]] = []
+    for entry in paths:
+        key = (entry["path"], entry["kind"])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(entry)
+    return unique
+
+
+def meta_candidate_verifiers(candidate: Dict[str, Any]) -> List[str]:
+    commands: List[str] = []
+    for field_name in ("verifier_refs", "verifiers", "verifier_commands", "required_verifiers"):
+        commands.extend(string_list(candidate.get(field_name)))
+    verification = candidate.get("verification_spec")
+    if isinstance(verification, dict):
+        primary = verification.get("primary_verifier")
+        if isinstance(primary, dict) and isinstance(primary.get("target"), str):
+            commands.append(primary["target"])
+        secondary = verification.get("secondary_verifiers")
+        if isinstance(secondary, list):
+            for verifier in secondary:
+                if isinstance(verifier, dict) and isinstance(verifier.get("target"), str):
+                    commands.append(verifier["target"])
+    return list(dict.fromkeys(command.strip() for command in commands if command.strip()))
+
+
+def meta_source_ref(path: Path, workspace: Path, suffix: str | None = None) -> str:
+    ref = workspace_rel_path(path, workspace)
+    return f"{ref}#{suffix}" if suffix else ref
+
+
+def normalize_meta_candidate(
+    raw_candidate: Dict[str, Any],
+    source_type: str,
+    source_ref: str,
+    fallback_id: str,
+) -> Dict[str, Any]:
+    raw_id = (
+        raw_candidate.get("candidate_id")
+        or raw_candidate.get("signal_id")
+        or raw_candidate.get("task_id")
+        or raw_candidate.get("id")
+        or fallback_id
+    )
+    candidate_id = slugify_task_id(str(raw_id))
+    title = str(raw_candidate.get("title") or raw_candidate.get("summary") or raw_candidate.get("objective") or candidate_id).strip()
+    source = raw_candidate.get("source") if isinstance(raw_candidate.get("source"), dict) else {}
+    normalized = dict(raw_candidate)
+    normalized["candidate_id"] = candidate_id
+    normalized["title"] = title
+    normalized["summary"] = str(raw_candidate.get("summary") or raw_candidate.get("description") or raw_candidate.get("objective") or title).strip()
+    normalized["source"] = {
+        "type": str(source.get("type") or source_type),
+        "ref": str(source.get("ref") or source_ref),
+    }
+    normalized["queue_source_type"] = str(raw_candidate.get("queue_source_type") or source_type)
+    normalized["expected_paths"] = meta_candidate_paths(raw_candidate)
+    normalized["verifier_refs"] = meta_candidate_verifiers(raw_candidate)
+    return normalized
+
+
+def read_meta_candidate_items(payload: Any) -> List[Dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        for key in ("candidates", "signals", "items", "tasks"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+        return [payload]
+    return []
+
+
+def signal_candidates_from_file(path_arg: str, workspace: Path) -> Tuple[List[Dict[str, Any]], List[str]]:
+    path = resolve_input_path(path_arg, workspace)
+    payload = read_json(path)
+    items = read_meta_candidate_items(payload)
+    ref = workspace_rel_path(path, workspace)
+    candidates = [
+        normalize_meta_candidate(item, "signal", meta_source_ref(path, workspace, str(index)), f"signal-{index}")
+        for index, item in enumerate(items, start=1)
+    ]
+    return candidates, [ref]
+
+
+def build_brief_meta_candidates(path_arg: str, workspace: Path) -> Tuple[List[Dict[str, Any]], List[str]]:
+    path = resolve_input_path(path_arg, workspace)
+    errors = validate_artifact(resolve_schema("build-brief"), path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(path)
+    candidates: List[Dict[str, Any]] = []
+    for task in build_brief_tasks(brief):
+        task_id = str(task.get("task_id") or f"task-{len(candidates) + 1}")
+        raw = {
+            "candidate_id": task_id,
+            "title": task.get("title") or task_id,
+            "summary": task.get("objective") or task.get("description") or task.get("title") or task_id,
+            "files_to_modify": task.get("files_to_modify", []),
+            "files_to_create": task.get("files_to_create", []),
+            "verification_spec": task.get("verification_spec"),
+            "task_classification": task.get("task_classification"),
+            "value_score": 65,
+            "repeatability_score": 55,
+        }
+        candidates.append(normalize_meta_candidate(raw, "build_brief", meta_source_ref(path, workspace, task_id), task_id))
+    return candidates, [workspace_rel_path(path, workspace)]
+
+
+def queue_meta_candidates(path_arg: str, workspace: Path) -> Tuple[List[Dict[str, Any]], List[str]]:
+    path = resolve_queue_path(path_arg, workspace)
+    queue = load_work_queue(path)
+    candidates: List[Dict[str, Any]] = []
+    for task in sorted_queue_tasks(queue):
+        if task.get("status") in QUEUE_FINAL_STATUSES or task.get("status") in QUEUE_ACTIVE_STATUSES:
+            continue
+        task_id = str(task.get("task_id") or f"queue-{len(candidates) + 1}")
+        raw = {
+            "candidate_id": task_id,
+            "title": task.get("title") or task_id,
+            "summary": task.get("next_action") or task.get("reason") or task.get("title") or task_id,
+            "expected_paths": task.get("expected_paths", []),
+            "verifier_refs": task.get("verifier_refs", []),
+            "priority": task.get("priority"),
+            "work_item_external_id": task.get("work_item_external_id"),
+            "queue_source_type": "workflow_state",
+            "value_score": 100 - min(max(int(task.get("priority", 50)), 0), 100) if isinstance(task.get("priority"), int) else 55,
+        }
+        candidates.append(normalize_meta_candidate(raw, "workflow_state", meta_source_ref(path, workspace, task_id), task_id))
+    return candidates, [workspace_rel_path(path, workspace)]
+
+
+def template_keywords(template: Dict[str, Any]) -> set[str]:
+    text = " ".join(
+        [
+            str(template.get("template_id") or ""),
+            str(template.get("title") or ""),
+            str(template.get("summary") or ""),
+            str(template.get("category") or ""),
+            " ".join(string_list(template.get("task_signals"))),
+        ]
+    ).lower()
+    return {token for token in re.split(r"[^a-z0-9]+", text) if len(token) > 2}
+
+
+def choose_meta_template(candidate: Dict[str, Any], catalog: Dict[str, Any]) -> Dict[str, Any]:
+    requested = candidate.get("template_id") or candidate.get("suggested_template_id") or candidate.get("loop_template_id")
+    if isinstance(requested, str) and requested.strip():
+        try:
+            return find_loop_template(catalog, requested.strip())
+        except ValueError:
+            pass
+
+    text = meta_candidate_text(candidate)
+    keyword_hints = {
+        "ci-triage": ("ci", "workflow", "check", "test", "build", "failure", "failed"),
+        "pr-babysitter": ("pr", "pull", "review", "merge", "branch"),
+        "dependency-bump": ("dependency", "dependencies", "bump", "package", "version", "upgrade"),
+        "ticket-hygiene": ("ticket", "linear", "jira", "tracker", "stale", "status"),
+        "architecture-debt-discovery": ("architecture", "debt", "duplicate", "boundary", "primitive"),
+        "feedback-sweep": ("feedback", "comment", "complaint", "support", "customer"),
+        "skill-champion": ("skill", "prompt", "champion", "holdout", "eval"),
+    }
+    template_by_id = {template["template_id"]: template for template in catalog.get("templates", []) if isinstance(template, dict)}
+    scored: List[Tuple[int, str, Dict[str, Any]]] = []
+    text_tokens = {token for token in re.split(r"[^a-z0-9]+", text) if len(token) > 2}
+    for template in template_by_id.values():
+        keywords = template_keywords(template)
+        score = len(text_tokens & keywords)
+        score += sum(3 for hint in keyword_hints.get(template["template_id"], ()) if hint in text)
+        scored.append((score, template["template_id"], template))
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    if scored and scored[0][0] > 0:
+        return scored[0][2]
+    return template_by_id.get("ticket-hygiene") or next(iter(template_by_id.values()))
+
+
+def inferred_risk_score(candidate: Dict[str, Any]) -> int:
+    explicit = first_present_score(candidate, ("risk_score", "risk"), -1)
+    if explicit >= 0:
+        return explicit
+    text = meta_candidate_text(candidate)
+    paths = " ".join(entry["path"].lower() for entry in meta_candidate_paths(candidate))
+    if any(term in text or term in paths for term in SENSITIVE_META_HARNESS_TERMS):
+        return 85
+    return 35
+
+
+def meta_candidate_scores(candidate: Dict[str, Any]) -> Dict[str, Any]:
+    verifiers = meta_candidate_verifiers(candidate)
+    text = meta_candidate_text(candidate)
+    value = first_present_score(candidate, ("value_score", "value", "impact"), 50)
+    if isinstance(candidate.get("priority"), int):
+        value = max(value, 100 - min(max(int(candidate["priority"]), 0), 100))
+    verifiability = first_present_score(candidate, ("verifiability_score", "verifiability"), 85 if verifiers else 25)
+    if any(term in text for term in ("test", "lint", "build", "ci", "verifier")):
+        verifiability = max(verifiability, 75)
+    repeatability = first_present_score(candidate, ("repeatability_score", "repeatability"), 40)
+    if any(term in text for term in ("weekly", "daily", "nightly", "recurring", "loop", "ci", "dependency", "ticket")):
+        repeatability = max(repeatability, 75)
+    urgency = first_present_score(candidate, ("urgency_score", "urgency"), 50)
+    if any(term in text for term in ("urgent", "blocker", "failed", "broken", "outage")):
+        urgency = max(urgency, 85)
+    risk = inferred_risk_score(candidate)
+    total = int(round((value * 0.30) + (verifiability * 0.30) + (repeatability * 0.20) + (urgency * 0.10) + ((100 - risk) * 0.10)))
+    return {
+        "value": value,
+        "risk": risk,
+        "verifiability": verifiability,
+        "repeatability": repeatability,
+        "urgency": urgency,
+        "total": max(0, min(100, total)),
+    }
+
+
+def meta_candidate_decision(candidate: Dict[str, Any], scores: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]], List[str]]:
+    blockers: List[Dict[str, Any]] = []
+    reasons = [
+        f"value={scores['value']}",
+        f"verifiability={scores['verifiability']}",
+        f"repeatability={scores['repeatability']}",
+        f"risk={scores['risk']}",
+    ]
+    if not meta_candidate_verifiers(candidate):
+        blockers.append(
+            {
+                "code": "missing_automated_verifier",
+                "summary": "No test, lint, build, CI, or verifier ref can reject bad output.",
+            }
+        )
+    if scores["risk"] >= 80:
+        blockers.append(
+            {
+                "code": "human_approval_required_for_high_risk",
+                "summary": "Candidate touches high-risk or architecture-sensitive territory.",
+            }
+        )
+    if scores["total"] < 35:
+        blockers.append(
+            {
+                "code": "low_expected_return",
+                "summary": "Candidate score is below the meta-harness admission floor.",
+            }
+        )
+    if blockers:
+        return "needs_human", blockers, reasons
+    return "admit_to_queue", blockers, reasons
+
+
+def meta_queue_source_type(source_type: str) -> str:
+    if source_type in {"build_brief", "work_item", "manual", "signal", "workflow_state"}:
+        return source_type
+    return "signal"
+
+
+def queue_task_from_meta_candidate(candidate: Dict[str, Any], timestamp: str) -> Dict[str, Any]:
+    priority = max(0, min(100, 100 - int(candidate["scores"]["total"])))
+    source = candidate.get("source", {})
+    return {
+        "task_id": candidate["queue_task_id"],
+        "title": candidate["title"],
+        "status": "queued",
+        "source": {
+            "type": meta_queue_source_type(str(candidate.get("queue_source_type") or source.get("type") or "signal")),
+            "ref": str(source.get("ref") or candidate["candidate_id"]),
+        },
+        "priority": priority,
+        "expected_paths": candidate["expected_paths"],
+        "verifier_refs": candidate["verifier_refs"],
+        "evidence_required": True,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+
+
+def work_item_sync_from_meta_candidate(
+    candidate: Dict[str, Any],
+    target: str,
+    identity: Dict[str, Any],
+    timestamp: str,
+    evidence_refs: List[str],
+    sequence: int,
+) -> Dict[str, Any]:
+    external_id = str(candidate.get("work_item_external_id") or f"adlc-meta-harness:{candidate['candidate_id']}")
+    blockers = [
+        {
+            "code": blocker["code"],
+            "summary": blocker["summary"],
+            "evidence_refs": evidence_refs,
+        }
+        for blocker in candidate["blockers"]
+    ]
+    return {
+        "contract_version": "1.0.0",
+        "target": target,
+        "work_item": {
+            "external_id": external_id,
+            "idempotency_key": "meta-harness:" + stable_hash(external_id),
+            "task_id": candidate["queue_task_id"],
+            "artifact_type": "meta_harness_candidate",
+            "artifact_ref": candidate["source"]["ref"],
+            "title": candidate["title"],
+            "labels": ["adlc", "meta-harness", candidate["selected_template_id"]],
+        },
+        "run_identity": identity,
+        "status_update": {
+            "update_id": "meta-harness:" + stable_hash(f"{external_id}:{timestamp}"),
+            "status": "planned" if candidate["decision"] == "admit_to_queue" else "needs_human",
+            "phase": "triage",
+            "blockers": blockers,
+            "verifier_results": [
+                {
+                    "name": "meta-harness-admission",
+                    "status": "not_run",
+                    "summary": "Planner selected candidate; execution verifier has not run.",
+                    "evidence_refs": evidence_refs,
+                }
+            ],
+            "next_action": "claim queue task and prepare worktree" if candidate["decision"] == "admit_to_queue" else "human reviews blockers before execution",
+            "stop_reason": "human_gate" if candidate["decision"] != "admit_to_queue" else "planned_dispatch_not_executed",
+            "evidence_refs": evidence_refs,
+            "sequence": sequence,
+            "updated_at": timestamp,
+        },
+    }
+
+
+def planned_actions_for_meta_candidate(candidate: Dict[str, Any], target: str) -> List[Dict[str, Any]]:
+    task_id = candidate["queue_task_id"]
+    template_id = candidate["selected_template_id"]
+    sync_path = f".adlc/meta_harness/{candidate['candidate_id']}.work_item_sync.json"
+    queue_path = ".adlc/meta_harness/work_queue_seed.json"
+    verifier = candidate["verifier_refs"][0] if candidate["verifier_refs"] else "<project verifier command>"
+    return [
+        {
+            "action_id": f"{task_id}:install-loop-template",
+            "candidate_id": candidate["candidate_id"],
+            "template_id": template_id,
+            "type": "loop_template_install",
+            "command": f"bin/adlc loop-template-install --template-id {template_id} --workspace . --dry-run --json",
+            "requires_admission": False,
+            "human_gate": False,
+            "status": "planned",
+        },
+        {
+            "action_id": f"{task_id}:sync-work-item",
+            "candidate_id": candidate["candidate_id"],
+            "template_id": template_id,
+            "type": "work_item_sync",
+            "command": f"bin/adlc sync-work-item --work-item {sync_path} --target {target} --dry-run --json",
+            "requires_admission": False,
+            "human_gate": False,
+            "status": "planned",
+        },
+        {
+            "action_id": f"{task_id}:claim-queue",
+            "candidate_id": candidate["candidate_id"],
+            "template_id": template_id,
+            "type": "queue_claim",
+            "command": f"bin/adlc queue-claim --queue {queue_path} --task-id {task_id} --workspace . --dry-run --json",
+            "requires_admission": False,
+            "human_gate": False,
+            "status": "planned",
+        },
+        {
+            "action_id": f"{task_id}:prepare-worktree",
+            "candidate_id": candidate["candidate_id"],
+            "template_id": template_id,
+            "type": "worktree_prepare",
+            "command": f"bin/adlc worktree-prepare --queue {queue_path} --task-id {task_id} --workspace . --dry-run --json",
+            "requires_admission": False,
+            "human_gate": False,
+            "status": "planned",
+        },
+        {
+            "action_id": f"{task_id}:verify",
+            "candidate_id": candidate["candidate_id"],
+            "template_id": template_id,
+            "type": "deterministic_verifier",
+            "command": f"bin/adlc run-phase qa --workspace . --verifier {shlex.quote(verifier)} --json",
+            "requires_admission": False,
+            "human_gate": False,
+            "status": "planned",
+        },
+        {
+            "action_id": f"{task_id}:human-review",
+            "candidate_id": candidate["candidate_id"],
+            "template_id": template_id,
+            "type": "human_review",
+            "command": "human reviews intent, architecture boundary, verifier evidence, and final diff before merge/deploy",
+            "requires_admission": True,
+            "human_gate": True,
+            "status": "planned",
+        },
+    ]
+
+
+def meta_run_identity(args: argparse.Namespace, workspace: Path) -> Tuple[Path, Dict[str, Any] | None, Dict[str, Any]]:
+    state_path, state = optional_workflow_state(workspace, args.state)
+    if state:
+        identity = workflow_identity_payload(state) or {}
+    else:
+        identity = workflow_identity_payload(new_workflow_state(args.brief_id or "ADLC-META-HARNESS", workspace, phase="triage")) or {}
+    identity.setdefault("brief_id", args.brief_id or "ADLC-META-HARNESS")
+    identity.setdefault("run_id", new_run_id())
+    identity.setdefault("session_id", new_session_id())
+    identity.setdefault("resume_count", 0)
+    identity.setdefault("attempt", 1)
+    return state_path, state, identity
+
+
+def meta_harness_plan_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
+    workspace = resolve_workspace(args.workspace)
+    catalog_path = resolve_loop_catalog_path(args.catalog)
+    catalog = load_loop_template_catalog(catalog_path)
+    timestamp = utc_now()
+    _, state, identity = meta_run_identity(args, workspace)
+    target = args.target or "linear"
+    max_candidates = max(1, int(args.max_candidates or 3))
+    candidates: List[Dict[str, Any]] = []
+    evidence_refs = [workspace_rel_path(catalog_path, workspace)]
+    issues: List[Dict[str, Any]] = []
+    sources: List[Dict[str, Any]] = [{"type": "loop_catalog", "ref": workspace_rel_path(catalog_path, workspace)}]
+
+    for signal_path in getattr(args, "signals", None) or []:
+        loaded, refs = signal_candidates_from_file(signal_path, workspace)
+        candidates.extend(loaded)
+        evidence_refs.extend(refs)
+        sources.append({"type": "signal_file", "ref": refs[0]})
+    if getattr(args, "build_brief", None):
+        loaded, refs = build_brief_meta_candidates(args.build_brief, workspace)
+        candidates.extend(loaded)
+        evidence_refs.extend(refs)
+        sources.append({"type": "build_brief", "ref": refs[0]})
+    if getattr(args, "queue", None):
+        loaded, refs = queue_meta_candidates(args.queue, workspace)
+        candidates.extend(loaded)
+        evidence_refs.extend(refs)
+        sources.append({"type": "work_queue", "ref": refs[0]})
+
+    if not candidates:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "no_task_candidates",
+                "message": "meta-harness-plan requires --signals, --build-brief, or --queue with at least one candidate",
+            }
+        )
+
+    enriched: List[Dict[str, Any]] = []
+    for candidate in candidates:
+        template = choose_meta_template(candidate, catalog)
+        scores = meta_candidate_scores(candidate)
+        decision, blockers, reasons = meta_candidate_decision(candidate, scores)
+        queue_task_id = f"META-{stable_hash(candidate['candidate_id'])}"
+        entry = {
+            "candidate_id": candidate["candidate_id"],
+            "queue_task_id": queue_task_id,
+            "title": candidate["title"],
+            "summary": candidate["summary"],
+            "source": candidate["source"],
+            "queue_source_type": candidate.get("queue_source_type", "signal"),
+            "selected_template_id": template["template_id"],
+            "selected_template_title": template["title"],
+            "decision": decision,
+            "scores": scores,
+            "reasons": reasons,
+            "blockers": blockers,
+            "expected_paths": candidate["expected_paths"],
+            "verifier_refs": candidate["verifier_refs"],
+        }
+        if candidate.get("work_item_external_id"):
+            entry["work_item_external_id"] = str(candidate["work_item_external_id"])
+        enriched.append(entry)
+
+    enriched.sort(key=lambda item: (-item["scores"]["total"], item["candidate_id"]))
+    selected = enriched[:max_candidates]
+    admitted = [candidate for candidate in selected if candidate["decision"] == "admit_to_queue"]
+    queue_seed = {
+        "contract_version": "1.0.0",
+        "queue_id": "meta-harness-plan:" + stable_hash("|".join(candidate["candidate_id"] for candidate in selected) or "empty"),
+        "brief_id": identity["brief_id"],
+        "run_id": identity["run_id"],
+        "session_id": identity["session_id"],
+        "updated_at": timestamp,
+        "tasks": [queue_task_from_meta_candidate(candidate, timestamp) for candidate in admitted],
+    }
+    work_item_syncs = [
+        work_item_sync_from_meta_candidate(candidate, target, identity, timestamp, evidence_refs, index)
+        for index, candidate in enumerate(selected, start=1)
+    ]
+    validation = [
+        {
+            "artifact_type": "work_queue_seed",
+            "schema_alias": "work-queue",
+            "valid": not validate_artifact_payload(resolve_schema("work-queue"), queue_seed),
+            "errors": validate_artifact_payload(resolve_schema("work-queue"), queue_seed),
+        }
+    ]
+    for index, sync_payload in enumerate(work_item_syncs, start=1):
+        sync_errors = validate_artifact_payload(resolve_schema("work-item-sync"), sync_payload)
+        validation.append(
+            {
+                "artifact_type": "work_item_sync",
+                "schema_alias": "work-item-sync",
+                "index": index,
+                "valid": not sync_errors,
+                "errors": sync_errors,
+            }
+        )
+    for artifact in validation:
+        if not artifact["valid"]:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "generated_artifact_invalid",
+                    "message": f"generated {artifact['artifact_type']} failed schema validation",
+                }
+            )
+
+    planned_actions: List[Dict[str, Any]] = []
+    for candidate in admitted:
+        planned_actions.extend(planned_actions_for_meta_candidate(candidate, target))
+    for candidate in selected:
+        if candidate["decision"] != "admit_to_queue":
+            planned_actions.append(
+                {
+                    "action_id": f"{candidate['queue_task_id']}:human-review",
+                    "candidate_id": candidate["candidate_id"],
+                    "template_id": candidate["selected_template_id"],
+                    "type": "human_review",
+                    "command": "human reviews blockers before ADLC queues or dispatches the task",
+                    "requires_admission": True,
+                    "human_gate": True,
+                    "status": "planned",
+                }
+            )
+
+    report: Dict[str, Any] = {
+        "contract_version": "1.0.0",
+        "status": "blocked" if any(issue.get("severity") == "blocking" for issue in issues) else "planned",
+        "dry_run": True,
+        "autonomy_claim": "bounded_meta_harness_plan",
+        "workspace": str(workspace),
+        "run_identity": identity,
+        "sources": sources,
+        "candidates": enriched,
+        "selected": selected,
+        "planned_actions": planned_actions,
+        "generated_artifacts": {
+            "work_queue_seed": queue_seed,
+            "work_item_syncs": work_item_syncs,
+            "validation": validation,
+        },
+        "boundary": {
+            "does_not": [
+                "dispatch agents",
+                "claim queue tasks",
+                "create worktrees",
+                "create or update external tickets",
+                "merge code",
+                "deploy code",
+                "make architecture decisions",
+            ],
+            "requires_human_approval": [
+                "intent changes",
+                "architecture decisions",
+                "irreversible side effects",
+                "merge",
+                "deploy",
+                "high-risk domains",
+            ],
+            "execution_contract": "A harness must run the planned ADLC commands and their action-admission gates before any mutation.",
+        },
+        "summary": {
+            "candidate_count": len(enriched),
+            "selected_count": len(selected),
+            "admitted_count": len(admitted),
+            "needs_human_count": sum(1 for candidate in selected if candidate["decision"] == "needs_human"),
+            "planned_action_count": len(planned_actions),
+            "issues": len(issues),
+        },
+        "issues": issues,
+        "evidence_refs": list(dict.fromkeys(evidence_refs)),
+    }
+    report_errors = validate_artifact_payload(resolve_schema("meta-harness-plan-report"), report)
+    if report_errors:
+        raise ValueError("generated meta-harness plan report failed schema validation: " + "; ".join(report_errors))
+    if args.output:
+        output_path = resolve_under_workspace(args.output, workspace, ".adlc/outputs/meta_harness_plan.json")
+        report["output_ref"] = write_artifact(output_path, report, "meta-harness-plan-report")
+    if state:
+        report["state_path"] = workspace_rel_path(resolve_under_workspace(args.state, workspace, DEFAULT_STATE_PATH), workspace)
+    return (1 if report["status"] == "blocked" else 0), report
+
+
+def command_meta_harness_plan(args: argparse.Namespace) -> int:
+    try:
+        exit_code, payload = meta_harness_plan_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        summary = payload["summary"]
+        print(
+            f"meta-harness plan: {payload['status']} "
+            f"({summary['selected_count']} selected, {summary['admitted_count']} admitted)"
+        )
+    return exit_code
+
+
 def load_phase_project_map(value: str | None) -> Dict[str, str] | None:
     if not value:
         return None
@@ -7502,6 +8221,29 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("meta-harness-plan"),
+            "description": command_description("meta-harness-plan"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "signals": {
+                        "type": "array",
+                        "items": {"type": "string", "minLength": 1},
+                    },
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "queue": {"type": "string", "minLength": 1},
+                    "catalog": {"type": "string", "minLength": 1},
+                    "target": {"type": "string", "enum": list(WORK_ITEM_TARGETS), "default": "linear"},
+                    "brief_id": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "max_candidates": {"type": "integer", "minimum": 1, "default": 3},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("control-plane-drift-loop"),
             "description": command_description("control-plane-drift-loop"),
             "inputSchema": {
@@ -7775,6 +8517,22 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             json=True,
         )
         exit_code, payload = loop_template_install_payload(args)
+        return tool_result(payload, is_error=exit_code != 0)
+    if name == "adlc_meta_harness_plan":
+        args = argparse.Namespace(
+            signals=arguments.get("signals") if isinstance(arguments.get("signals"), list) else [],
+            build_brief=arguments.get("build_brief"),
+            queue=arguments.get("queue"),
+            catalog=arguments.get("catalog"),
+            target=arguments.get("target") or "linear",
+            brief_id=arguments.get("brief_id"),
+            workspace=arguments.get("workspace"),
+            state=arguments.get("state"),
+            max_candidates=arguments.get("max_candidates", 3),
+            output=arguments.get("output"),
+            json=True,
+        )
+        exit_code, payload = meta_harness_plan_payload(args)
         return tool_result(payload, is_error=exit_code != 0)
     if name == "adlc_control_plane_drift_loop":
         args = argparse.Namespace(
@@ -8292,6 +9050,20 @@ def build_parser() -> argparse.ArgumentParser:
     loop_template_install.add_argument("--approval-ref", help="Human approval ticket, comment, or transcript reference.")
     loop_template_install.add_argument("--json", action="store_true", help="Emit JSON.")
     loop_template_install.set_defaults(func=command_loop_template_install)
+
+    meta_harness = subparsers.add_parser("meta-harness-plan", help=command_description("meta-harness-plan"))
+    meta_harness.add_argument("--signals", action="append", help="JSON signal/candidate file. May be passed multiple times.")
+    meta_harness.add_argument("--build-brief", help="Build Brief JSON path to derive task candidates.")
+    meta_harness.add_argument("--queue", help="Work Queue JSON path to derive queued or blocked candidates.")
+    meta_harness.add_argument("--catalog", help="Loop template catalog JSON path. Defaults to docs/loop-library/catalog.json.")
+    meta_harness.add_argument("--target", choices=WORK_ITEM_TARGETS, default="linear", help="Work-item target used for generated sync payloads.")
+    meta_harness.add_argument("--brief-id", help="Brief/run identity for generated plan evidence.")
+    meta_harness.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    meta_harness.add_argument("--state", help=f"Workflow state path. Defaults to {DEFAULT_STATE_PATH} under workspace when present.")
+    meta_harness.add_argument("--max-candidates", type=int, default=3, help="Maximum ranked candidates to include in the selected plan.")
+    meta_harness.add_argument("--output", help="Optional meta-harness plan report path. Defaults under .adlc/outputs when relative.")
+    meta_harness.add_argument("--json", action="store_true", help="Emit JSON.")
+    meta_harness.set_defaults(func=command_meta_harness_plan)
 
     control_drift = subparsers.add_parser("control-plane-drift-loop", help=command_description("control-plane-drift-loop"))
     control_drift.add_argument("--brief-id", help="Brief/run identity for the dogfood loop state.")

@@ -245,6 +245,41 @@ assert "installed loop token budget validates" "'$ROOT/bin/adlc' validate-artifa
 assert "installed loop report validates" "'$ROOT/bin/adlc' validate-artifact --schema loop-template-install-report --input '$loop_install_workspace/.adlc/loops/ci-triage/install_report.json' --json | jq -e '.valid == true' >/dev/null"
 
 echo ""
+echo "--- Self-Actioning Meta-Harness ---"
+cat > "$tmp_dir/meta-signals.json" <<'JSON'
+{
+  "signals": [
+    {
+      "signal_id": "ci-auth-failure",
+      "title": "Nightly CI failure in auth middleware",
+      "labels": ["workflow_run_failed", "ci"],
+      "expected_paths": [{"path": "src/auth/middleware.py", "kind": "file", "reason": "failing test scope"}],
+      "verifier_refs": ["pytest tests/auth"],
+      "value_score": 85,
+      "risk_score": 30,
+      "repeatability_score": 85,
+      "urgency_score": 80
+    },
+    {
+      "signal_id": "billing-architecture-rewrite",
+      "title": "Rewrite billing architecture",
+      "labels": ["architecture", "billing"],
+      "expected_paths": [{"path": "src/billing", "kind": "directory", "reason": "high-risk domain"}],
+      "verifier_refs": ["pytest tests/billing"],
+      "value_score": 90,
+      "risk_score": 95,
+      "repeatability_score": 30,
+      "urgency_score": 40
+    }
+  ]
+}
+JSON
+assert "meta-harness-plan ranks signals and stops before dispatch" "'$ROOT/bin/adlc' meta-harness-plan --signals '$tmp_dir/meta-signals.json' --max-candidates 2 --output '$tmp_dir/meta-plan-report.json' --json >'$tmp_dir/meta-plan.json' && jq -e '.status == \"planned\" and .autonomy_claim == \"bounded_meta_harness_plan\" and .summary.candidate_count == 2 and .summary.selected_count == 2 and .summary.admitted_count == 1 and .summary.needs_human_count == 1 and any(.selected[]; .candidate_id == \"ci-auth-failure\" and .selected_template_id == \"ci-triage\" and .decision == \"admit_to_queue\") and any(.selected[]; .candidate_id == \"billing-architecture-rewrite\" and .decision == \"needs_human\") and (.generated_artifacts.validation | all(.valid == true)) and (.boundary.does_not | index(\"dispatch agents\")) != null' '$tmp_dir/meta-plan.json' >/dev/null"
+assert "meta-harness-plan emits valid queue and sync seeds" "jq -e '(.generated_artifacts.work_queue_seed.tasks | length) == 1 and (.generated_artifacts.work_item_syncs | length) == 2 and any(.planned_actions[]; .type == \"queue_claim\") and any(.planned_actions[]; .type == \"human_review\" and .requires_admission == true)' '$tmp_dir/meta-plan.json' >/dev/null"
+assert "meta-harness plan report validates" "'$ROOT/bin/adlc' validate-artifact --schema meta-harness-plan-report --input '$tmp_dir/meta-plan-report.json' --json | jq -e '.valid == true' >/dev/null"
+assert "meta-harness-plan blocks empty input" "if '$ROOT/bin/adlc' meta-harness-plan --json >'$tmp_dir/meta-empty.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"no_task_candidates\")' '$tmp_dir/meta-empty.json' >/dev/null; fi"
+
+echo ""
 echo "--- Work Queue And Worktrees ---"
 queue_repo="$tmp_dir/queue-repo"
 dirty_queue_repo="$tmp_dir/dirty-queue-repo"

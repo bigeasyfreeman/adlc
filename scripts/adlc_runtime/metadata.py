@@ -18,6 +18,7 @@ SCHEMA_ALIASES = {
     "loop-action": "docs/schemas/loop-action.schema.json",
     "loop-contract": "docs/schemas/loop-contract.schema.json",
     "loop-maturity-report": "docs/schemas/loop-maturity-report.schema.json",
+    "meta-harness-plan-report": "docs/schemas/meta-harness-plan-report.schema.json",
     "loop-template-catalog": "docs/schemas/loop-template-catalog.schema.json",
     "loop-template-install-report": "docs/schemas/loop-template-install-report.schema.json",
     "loop-test-result": "docs/schemas/loop-test-result.schema.json",
@@ -164,6 +165,10 @@ COMMAND_METADATA = {
     "loop-template-install": {
         "mcp_name": "adlc_loop_template_install",
         "description": "Dry-run or install a packaged ADLC loop template into a workspace with schema-backed contracts and action admission.",
+    },
+    "meta-harness-plan": {
+        "mcp_name": "adlc_meta_harness_plan",
+        "description": "Rank repo, ticket, and signal candidates into a bounded ADLC meta-harness execution plan without dispatching agents.",
     },
     "control-plane-drift-loop": {
         "mcp_name": "adlc_control_plane_drift_loop",

@@ -85,6 +85,7 @@ The shipped framework layers are:
 | Compound engineering | Prior verified work, task refs, verifier refs, resume context, and graph status as compact context | `bin/adlc compound-context` before research |
 | Learning and Architecture Memory | Evidence-backed learning refs, architecture decision memory, stale/overclaim checks, duplicate primitive checks, and champion/holdout promotion gates | `architecture-memory`, `memory-health`, and `champion-holdout` before reuse or prompt/skill promotion |
 | Packaged Loop Library | Assisted-loop templates with required skills, connectors, ADLC commands, schemas, gates, approval points, generated Loop Contracts, Tool Registries, and Work Queue seeds | `loop-library` and `loop-template-install` before a harness runs a known loop |
+| Self-Actioning Meta-Harness | Repo, ticket, and signal candidate ranking with packaged-loop selection, queue seed artifacts, tracker-sync payloads, planned ADLC commands, and explicit human gates | `meta-harness-plan` before a harness claims, dispatches, or mutates work |
 | Scalable code primitives | Construct refs, paved-road reuse, intent contracts, production invariants, and verifiability | Build Brief task fields and Eval Council checks |
 | Implementation Interface | Task-scoped contract for what a change reuses, consumes, emits, preserves, integrates with, and validates | Active when a task touches repo boundaries, schemas, emitters, providers, workflow state, CLI contracts, or reusable framework surfaces |
 | Productionization Gate | Bounded production claim with Coverage State, evidence, rollback/observability/security posture, reliability risks, and No-Overclaim boundaries | Active when a task claims production support or production readiness |
@@ -105,6 +106,7 @@ What is automatic today:
 - schema-backed work queue status, task claims, completion/block/escalation state, dirty-checks, file-overlap checks, and worktree prepare/status/cleanup dry-runs
 - evidence-backed architecture memory writes, memory-health stale/overclaim/duplicate primitive checks, and champion/holdout promotion gates for prompt or skill changes
 - packaged assisted-loop template inspection and install plans through `loop-library` and `loop-template-install`
+- bounded self-actioning task selection and execution planning through `meta-harness-plan`
 - runtime preflight through `bin/adlc health-check --json`
 - resume summaries for task fingerprints, loop progress, no-progress count, control events, safe checkpoints, and escalation context
 
@@ -198,6 +200,7 @@ bin/adlc champion-holdout --input .adlc/champion_holdout.json --json
 bin/adlc loop-library --json
 bin/adlc loop-library --template-id ci-triage --json
 bin/adlc loop-template-install --template-id ci-triage --workspace . --dry-run --json
+bin/adlc meta-harness-plan --signals .adlc/signals.json --build-brief .adlc/build_brief.json --max-candidates 3 --json
 bin/adlc control-plane-drift-loop --workspace . --verifier 'python3 -m py_compile scripts/adlc_runtime/metadata.py' --dry-run --json
 bin/adlc action-admit --tool-registry .adlc/tool_registry.json --tool Read --action read_file --phase research --brief-id BRF-123 --run-id ADLC-RUN-123 --session-id SESSION-123 --json
 bin/adlc loop-test-selection --loop-contract docs/loop-contracts/task.json --test-plan .adlc/test_plan.json --json
@@ -228,6 +231,8 @@ The first dogfood loop is `control-plane-drift-loop`. It detects schema-alias dr
 Goal 8 memory commands keep ADLC's outer loop from compounding stale or overfit knowledge. `architecture-memory` records accepted architecture boundaries only from evidence-backed candidates and writes through action admission. `memory-health` audits `docs/solutions` and `docs/architecture/decisions` for stale refs, overclaim, and duplicate primitive proposals. `champion-holdout` promotes prompt or skill challengers only when holdout data beats the current champion by the configured margin and all must-pass rules pass.
 
 Goal 9 packages known assisted loops for harnesses. `loop-library` lists or inspects templates such as `ci-triage`, `pr-babysitter`, `dependency-bump`, `ticket-hygiene`, `architecture-debt-discovery`, `feedback-sweep`, and `skill-champion`. `loop-template-install` dry-runs by default and, after `adlc-loop-library:install_loop_template` action admission, writes `.adlc/loops/<template_id>/loop_contract.json`, `tool_registry.json`, `work_queue_seed.json`, `token_budget.json`, `README.md`, and `install_report.json`. It does not schedule jobs, dispatch agents, choose work, merge code, or make architecture decisions; those remain outside Goal 9.
+
+Goal 10 ships the bounded self-actioning meta-harness planner. `meta-harness-plan` reads repo, ticket, Build Brief, queue, and signal candidates; ranks them by value, risk, verifiability, repeatability, and urgency; chooses a packaged loop template; emits schema-backed Work Queue seed and Work Item Sync payloads; and returns the exact ADLC commands a harness should run next. It does not claim tasks, create worktrees, update trackers, dispatch agents, merge, deploy, or decide architecture. Those steps remain behind existing action-admitted commands and human approval gates.
 
 Minimal Loop Contract flow:
 
@@ -382,6 +387,7 @@ adlc/
 - [`docs/specs/slop-eval-loop.md`](docs/specs/slop-eval-loop.md) — Output-side slop benchmark, threshold, regression, and case-promotion contract
 - [`docs/specs/compound-engineering-learning-store.md`](docs/specs/compound-engineering-learning-store.md) — `docs/solutions` learning-entry schema, capture, refresh, and preflight contract
 - [`docs/specs/packaged-loop-library.md`](docs/specs/packaged-loop-library.md) — Packaged assisted-loop catalog, install artifacts, and action-admitted install flow
+- [`docs/specs/self-actioning-meta-harness.md`](docs/specs/self-actioning-meta-harness.md) — Bounded Goal 10 candidate ranking, packaged-loop selection, queue seed, tracker-sync, and planned-command contract
 - [`docs/adlc-v2-tickets.md`](docs/adlc-v2-tickets.md) — 58-ticket implementation roadmap
 
 ## Acknowledgments
