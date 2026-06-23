@@ -168,16 +168,18 @@ Every loop caps. Plan review: 3. Code review: 3. Fixer: 2. QA: 2. Hit the wall a
 
 ## Verification
 
-The repo ships with three verification layers:
+The repo ships with four verification layers:
 
 - `tests/test_adlc_contracts.sh` checks prompt/schema/runtime wiring and the checked-in golden artifacts.
 - `tests/backtest/run_backtest.sh` replays the deterministic evaluators against the benchmark fixture set.
 - `tests/smoke/run_smoke.sh` runs the real staged agents through a tiny repo using the selected runtime adapter.
+- `tests/acceptance/run_public_acceptance.sh` runs the provider-free public acceptance path: install ADLC into a realistic target repo, plan from repo/ticket signals, install a packaged loop, exercise queue/worktree gates, prove a verifier fails before a bounded repair and passes after it, complete the queue item, and dry-run tracker sync.
 
 Typical verification flow:
 
 ```bash
 bin/adlc ci --json
+bash tests/acceptance/run_public_acceptance.sh
 bash tests/test_adlc_contracts.sh
 bash tests/backtest/run_backtest.sh
 ADLC_RUNTIME=codex ADLC_SMOKE_SETTINGS_CODEX=~/path/to/config.toml SMOKE=1 MODEL=gpt-5-codex bash tests/smoke/run_smoke.sh

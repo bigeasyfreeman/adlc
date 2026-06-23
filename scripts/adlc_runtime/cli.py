@@ -1625,6 +1625,10 @@ CI_SUITES = {
         "description": "Target install/setup contract tests",
         "command": ["bash", "tests/test_setup.sh"],
     },
+    "acceptance": {
+        "description": "Provider-free public control-plane acceptance test",
+        "command": ["bash", "tests/acceptance/run_public_acceptance.sh"],
+    },
     "backtest": {
         "description": "Deterministic evaluator backtest",
         "command": ["bash", "tests/backtest/run_backtest.sh"],
@@ -1635,7 +1639,7 @@ CI_SUITES = {
     },
 }
 
-DEFAULT_CI_SUITE_ORDER = ("health-check", "cli", "contracts", "setup", "backtest", "py-compile")
+DEFAULT_CI_SUITE_ORDER = ("health-check", "cli", "contracts", "setup", "acceptance", "backtest", "py-compile")
 
 
 def ci_command_for_suite(suite_name: str) -> List[str]:
