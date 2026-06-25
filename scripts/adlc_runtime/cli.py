@@ -1608,6 +1608,107 @@ def command_health_check(args: argparse.Namespace) -> int:
     return 0 if payload["summary"]["failed_required"] == 0 else 1
 
 
+def beads_status_payload(workspace: Path) -> Dict[str, Any]:
+    """Read-only preflight for optional Beads (bd) task-graph integration.
+
+    ADLC never requires Beads. This reports whether the local `bd` binary and a
+    `.beads/` work graph are present so a harness can decide whether to use the
+    optional Beads task-memory layer. It performs no mutation and never runs
+    `bd init`, `bd setup`, or any write command.
+    """
+    checks: List[Dict[str, Any]] = []
+    warnings: List[str] = []
+
+    def add(name: str, status: str, detail: str) -> None:
+        checks.append({"name": name, "status": status, "detail": detail})
+
+    bd_path = shutil.which("bd")
+    bd_present = bd_path is not None
+    add(
+        "bd-binary",
+        "pass" if bd_present else "absent",
+        bd_path if bd_present else "bd not found on PATH",
+    )
+
+    bd_version = None
+    bd_version_ok = not bd_present
+    if bd_present:
+        result = subprocess.run(
+            ["bd", "--version"],
+            cwd=str(workspace),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            bd_version = result.stdout.strip() or result.stderr.strip() or None
+            bd_version_ok = True
+            add("bd-version", "pass", bd_version or "unknown")
+        else:
+            bd_version_ok = False
+            add("bd-version", "warn", "bd --version returned a non-zero exit code")
+            warnings.append("bd is present but `bd --version` failed")
+
+    beads_dir_path = workspace / ".beads"
+    beads_dir_present = beads_dir_path.is_dir()
+    add(
+        "beads-dir",
+        "pass" if beads_dir_present else "absent",
+        workspace_rel_path(beads_dir_path, workspace) if beads_dir_present else ".beads/ not present",
+    )
+
+    if bd_present and bd_version_ok and beads_dir_present:
+        status = "available"
+    elif not bd_present and not beads_dir_present:
+        status = "not_configured"
+    else:
+        status = "unavailable"
+        if bd_present and not beads_dir_present:
+            warnings.append("bd is installed but no .beads/ work graph exists; run `bd init` only with explicit approval")
+        if beads_dir_present and not bd_present:
+            warnings.append(".beads/ exists but bd is not on PATH")
+
+    safe_to_use = status == "available" and not warnings
+
+    return {
+        "contract_version": "1.0.0",
+        "status": status,
+        "workspace": str(workspace),
+        "bd_present": bd_present,
+        "bd_path": bd_path,
+        "bd_version": bd_version,
+        "beads_dir_present": beads_dir_present,
+        "beads_dir": workspace_rel_path(beads_dir_path, workspace) if beads_dir_present else None,
+        "safe_to_use": safe_to_use,
+        "checks": checks,
+        "warnings": warnings,
+        "summary": {
+            "total": len(checks),
+            "warnings": len(warnings),
+        },
+    }
+
+
+def command_beads_status(args: argparse.Namespace) -> int:
+    workspace = resolve_workspace(args.workspace)
+    payload = beads_status_payload(workspace)
+    if getattr(args, "output", None):
+        write_artifact(
+            resolve_under_workspace(args.output, workspace, ".adlc/outputs/beads_status.json"),
+            payload,
+            "beads-status-report",
+        )
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"ADLC beads-status: {payload['status']}")
+        for check in payload["checks"]:
+            print(f"{check['status']}\t{check['name']}\t{check['detail']}")
+        for warning in payload["warnings"]:
+            print(f"warn\t{warning}")
+    return 0
+
+
 CI_SUITES = {
     "health-check": {
         "description": "ADLC runtime preflight",
@@ -8350,6 +8451,18 @@ def mcp_tools() -> List[Dict[str, Any]]:
                 },
             },
         },
+        {
+            "name": command_mcp_name("beads-status"),
+            "description": command_description("beads-status"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
     ]
 
 
@@ -8750,6 +8863,17 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return tool_result(payload, is_error=payload["maturity_verdict"] == "one_shot_in_disguise")
+    if name == "adlc_beads_status":
+        workspace = resolve_workspace(arguments.get("workspace"))
+        payload = beads_status_payload(workspace)
+        output = arguments.get("output")
+        if isinstance(output, str):
+            write_artifact(
+                resolve_under_workspace(output, workspace, ".adlc/outputs/beads_status.json"),
+                payload,
+                "beads-status-report",
+            )
+        return tool_result(payload, is_error=False)
     raise KeyError(f"Unknown tool: {name}")
 
 
@@ -9024,6 +9148,12 @@ def build_parser() -> argparse.ArgumentParser:
     memory_health.add_argument("--output", help="Optional memory-health report path.")
     memory_health.add_argument("--json", action="store_true", help="Emit JSON.")
     memory_health.set_defaults(func=command_memory_health)
+
+    beads_status = subparsers.add_parser("beads-status", help=command_description("beads-status"))
+    beads_status.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    beads_status.add_argument("--output", help="Optional beads-status report path.")
+    beads_status.add_argument("--json", action="store_true", help="Emit JSON.")
+    beads_status.set_defaults(func=command_beads_status)
 
     champion_holdout = subparsers.add_parser("champion-holdout", help=command_description("champion-holdout"))
     champion_holdout.add_argument("--input", required=True, help="Champion/holdout evaluation JSON path.")

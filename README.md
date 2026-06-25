@@ -202,6 +202,7 @@ bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --j
 bin/adlc architecture-memory --input .adlc/architecture_decisions.json --workspace . --dry-run --json
 bin/adlc memory-health --workspace . --changed-path scripts/adlc_runtime/cli.py --primitive-proposals .adlc/primitive_proposals.json --json
 bin/adlc champion-holdout --input .adlc/champion_holdout.json --json
+bin/adlc beads-status --workspace . --json
 bin/adlc loop-library --json
 bin/adlc loop-library --template-id ci-triage --json
 bin/adlc loop-template-install --template-id ci-triage --workspace . --dry-run --json
