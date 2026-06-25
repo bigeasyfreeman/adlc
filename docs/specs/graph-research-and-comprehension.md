@@ -120,6 +120,11 @@ Passing tests never override an unclear comprehension verdict.
 
 ## Beads Integration
 
+ADLC ships a read-only `bin/adlc beads-status` preflight so a harness can detect
+whether the optional Beads layer is usable before relying on it. It reports
+`available`, `not_configured`, or `unavailable`, never runs `bd init`, `bd setup`,
+or any write command, and exits cleanly when `bd` and `.beads/` are absent.
+
 If Beads is configured:
 - use `bd prime` at session start
 - use `bd ready --json` for ready-work selection

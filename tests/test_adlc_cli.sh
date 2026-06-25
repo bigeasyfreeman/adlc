@@ -177,6 +177,27 @@ cat > "$tmp_dir/primitive-proposals.json" <<'JSON'
 }
 JSON
 assert "memory-health blocks duplicate primitive proposals without reuse refs" "if '$ROOT/bin/adlc' memory-health --workspace '$ROOT' --primitive-proposals '$tmp_dir/primitive-proposals.json' --json >'$tmp_dir/memory-health-duplicate.json'; then false; else jq -e '.status == \"blocked\" and any(.duplicate_primitive_issues[]; .rule == \"duplicate_primitive_without_reuse_ref\")' '$tmp_dir/memory-health-duplicate.json' >/dev/null; fi"
+
+# beads-status: optional Beads (bd) preflight is read-only and must no-op safely when bd/.beads are absent.
+mkdir -p "$tmp_dir/beads-bin" "$tmp_dir/beads-ws/.beads" "$tmp_dir/beads-ws-nodir"
+mkdir -p "$tmp_dir/beads-bad-bin" "$tmp_dir/beads-bad-ws/.beads"
+cat > "$tmp_dir/beads-bin/bd" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+  --version) echo "bd 9.9.9-fake" ;;
+  *) echo '{}' ;;
+esac
+EOF
+chmod +x "$tmp_dir/beads-bin/bd"
+cat > "$tmp_dir/beads-bad-bin/bd" <<'EOF'
+#!/usr/bin/env bash
+exit 17
+EOF
+chmod +x "$tmp_dir/beads-bad-bin/bd"
+assert "beads-status reports not_configured when bd and .beads are absent" "'$ROOT/bin/adlc' beads-status --workspace '$tmp_dir' --output '$tmp_dir/beads-status-absent.json' --json | jq -e '.status == \"not_configured\" and .bd_present == false and .beads_dir_present == false and .safe_to_use == false' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema beads-status-report --input '$tmp_dir/beads-status-absent.json' --json | jq -e '.valid == true' >/dev/null"
+assert "beads-status reports available when bd and .beads are present" "PATH='$tmp_dir/beads-bin:$PATH' '$ROOT/bin/adlc' beads-status --workspace '$tmp_dir/beads-ws' --output '$tmp_dir/beads-status-available.json' --json | jq -e '.status == \"available\" and .bd_present == true and .beads_dir_present == true and .safe_to_use == true and (.bd_version | test(\"9.9.9-fake\"))' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema beads-status-report --input '$tmp_dir/beads-status-available.json' --json | jq -e '.valid == true' >/dev/null"
+assert "beads-status warns unavailable when bd present without .beads" "PATH='$tmp_dir/beads-bin:$PATH' '$ROOT/bin/adlc' beads-status --workspace '$tmp_dir/beads-ws-nodir' --json | jq -e '.status == \"unavailable\" and .safe_to_use == false and (.warnings | length) >= 1' >/dev/null"
+assert "beads-status blocks availability when bd version check fails" "PATH='$tmp_dir/beads-bad-bin:$PATH' '$ROOT/bin/adlc' beads-status --workspace '$tmp_dir/beads-bad-ws' --json | jq -e '.status == \"unavailable\" and .bd_present == true and .beads_dir_present == true and .safe_to_use == false and any(.checks[]; .name == \"bd-version\" and .status == \"warn\")' >/dev/null"
 cat > "$tmp_dir/champion-holdout-pass.json" <<'JSON'
 {
   "evaluation_id": "g8-skill-loop",
@@ -502,7 +523,7 @@ assert "sync-work-item validates mutated workflow state" "'$ROOT/bin/adlc' valid
 echo ""
 echo "--- MCP Wrapper ---"
 cat > "$tmp_dir/mcp-tools-filter.jq" <<'JQ'
-(.tools | length) >= 29
+(.tools | length) >= 30
 and any(.tools[]; .name == "adlc_validate_artifact" and (.inputSchema.required | index("schema")))
 and any(.tools[]; .name == "adlc_health_check")
 and any(.tools[]; .name == "adlc_ci" and .inputSchema.properties.suite.type == "array")
@@ -528,11 +549,13 @@ and any(.tools[]; .name == "adlc_loop_test_selection" and .inputSchema.propertie
 and any(.tools[]; .name == "adlc_loop_budget_check" and (.inputSchema.required | index("token_budget")) and .inputSchema.properties.estimated_input_tokens.type == "integer")
 and any(.tools[]; .name == "adlc_loop_action_validate" and .inputSchema.properties.token_budget.type == "string")
 and any(.tools[]; .name == "adlc_loop_maturity_audit" and .inputSchema.properties.test_results.type == "string" and .inputSchema.properties.token_budget.type == "string" and (.inputSchema.properties | has("build_brief") | not))
+and any(.tools[]; .name == "adlc_beads_status" and .inputSchema.properties.workspace.type == "string")
 JQ
 assert "mcp-tools emits MCP tool declarations" "'$ROOT/bin/adlc' mcp-tools --json | jq -e -f '$tmp_dir/mcp-tools-filter.jq' >/dev/null"
 assert "mcp-serve handles initialize and tools/list" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"0\"}}}' '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' | '$ROOT/bin/adlc' mcp-serve | jq -s -e '.[0].result.capabilities.tools.listChanged == false and any(.[1].result.tools[]; .name == \"adlc_list_agents\")' >/dev/null"
 assert "mcp-serve calls adlc_list_agents" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_list_agents\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.count >= 11' >/dev/null"
 assert "mcp-serve calls health check" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_health_check\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"
+assert "mcp-serve calls beads status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_beads_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
 assert "mcp-serve calls selectable ci suites" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_ci\",\"arguments\":{\"suite\":[\"health-check\",\"py-compile\"]}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and .result.structuredContent.summary.total == 2' >/dev/null"
 assert "mcp-serve calls action admission" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_action_admit\",\"arguments\":{\"tool_registry\":\"'$tmp_dir'/action-tool-registry.json\",\"tool\":\"Read\",\"action\":\"read_file\",\"phase\":\"research\",\"brief_id\":\"BRF-ACTION\",\"run_id\":\"RUN-ACTION\",\"session_id\":\"SESSION-ACTION\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"admitted\" and .result.structuredContent.run_identity.run_id == \"RUN-ACTION\" and .result.structuredContent.audit_trail.entries[0].decision == \"approved\" and .result.structuredContent.audit_trail.entries[0].run_id == \"RUN-ACTION\"' >/dev/null"
 assert "mcp-serve calls architecture memory dry-run" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_architecture_memory\",\"arguments\":{\"input\":\"'$tmp_dir'/architecture-memory-candidate.json\",\"workspace\":\"'$memory_repo'\",\"dry_run\":true}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"planned\" and .result.structuredContent.summary.candidates == 1' >/dev/null"

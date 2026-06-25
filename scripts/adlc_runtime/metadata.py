@@ -9,6 +9,7 @@ SCHEMA_ALIASES = {
     "applicability-manifest": "docs/schemas/applicability-manifest.schema.json",
     "architecture-memory-report": "docs/schemas/architecture-memory-report.schema.json",
     "build-brief": "docs/schemas/build-brief.schema.json",
+    "beads-status-report": "docs/schemas/beads-status-report.schema.json",
     "champion-holdout-report": "docs/schemas/champion-holdout-report.schema.json",
     "coder-output": "docs/schemas/coder-output.schema.json",
     "control-plane-drift-report": "docs/schemas/control-plane-drift-report.schema.json",
@@ -153,6 +154,10 @@ COMMAND_METADATA = {
     "memory-health": {
         "mcp_name": "adlc_memory_health",
         "description": "Audit learning and architecture memory for stale evidence, overclaim, and duplicate primitive risks.",
+    },
+    "beads-status": {
+        "mcp_name": "adlc_beads_status",
+        "description": "Read-only preflight of optional Beads (bd) task-graph integration; reports availability without mutation.",
     },
     "champion-holdout": {
         "mcp_name": "adlc_champion_holdout",
