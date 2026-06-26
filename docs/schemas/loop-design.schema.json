@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/loop-design.schema.json",
+  "title": "ADLC Loop Design Contract",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "design_id",
+    "design_source",
+    "goal",
+    "verification",
+    "gates",
+    "loop_control",
+    "execution_boundary",
+    "privacy",
+    "artifacts"
+  ],
+  "properties": {
+    "contract_version": {"type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"},
+    "design_id": {"type": "string", "minLength": 1},
+    "design_source": {"type": "string", "enum": ["looper", "adlc-native"]},
+    "goal": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["statement", "definition_of_done"],
+      "properties": {
+        "statement": {"type": "string", "minLength": 1},
+        "definition_of_done": {"type": "string", "minLength": 1},
+        "non_goals": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "context_sources": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "verification": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["programmatic", "judge"],
+      "properties": {
+        "programmatic": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["id", "command"],
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "command": {"type": "string", "minLength": 1},
+              "coverage_tags": {"type": "array", "items": {"type": "string", "minLength": 1}}
+            }
+          }
+        },
+        "judge": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["type", "criteria"],
+          "properties": {
+            "type": {"type": "string", "enum": ["human", "model", "none"]},
+            "criteria": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          }
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["plan_gate", "delivery_gate"],
+      "properties": {
+        "plan_gate": {"type": "string", "minLength": 1},
+        "delivery_gate": {"type": "string", "minLength": 1},
+        "human_checkpoints": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "loop_control": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["max_iterations", "no_progress_rule", "revision_cap"],
+      "properties": {
+        "max_iterations": {"type": "integer", "minimum": 1},
+        "revision_cap": {"type": "integer", "minimum": 0},
+        "no_progress_rule": {"type": "string", "minLength": 1},
+        "budget_guard": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "execution_boundary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["allowed_tools", "mutation_policy", "stop_before"],
+      "properties": {
+        "allowed_tools": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "mutation_policy": {"type": "string", "minLength": 1},
+        "stop_before": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["egress_policy", "redaction_posture"],
+      "properties": {
+        "egress_policy": {"type": "string", "minLength": 1},
+        "redaction_posture": {"type": "string", "minLength": 1}
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["runbook", "state_log"],
+      "properties": {
+        "runbook": {"type": "string", "minLength": 1},
+        "state_log": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

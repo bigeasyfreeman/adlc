@@ -52,6 +52,7 @@ assert "validate-artifact accepts work queue fixture" "'$ROOT/bin/adlc' validate
 assert "validate-artifact accepts work-item sync fixture" "'$ROOT/bin/adlc' validate-artifact --schema work-item-sync --input '$ROOT/tests/fixtures/tracker_sync/run-update.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
 assert "validate-artifact accepts tool-node result fixture" "'$ROOT/bin/adlc' validate-artifact --schema tool-node-result --input '$ROOT/tests/fixtures/tool_node/valid-qa-result.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
 assert "validate-artifact accepts loop template catalog" "'$ROOT/bin/adlc' validate-artifact --schema loop-template-catalog --input '$ROOT/docs/loop-library/catalog.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+assert "validate-artifact accepts loop design fixture" "'$ROOT/bin/adlc' validate-artifact --schema loop-design --input '$ROOT/tests/fixtures/loop_design/valid-looper-design.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
 assert "schema aliases include control-plane drift report" "'$ROOT/bin/adlc' health-check --json | jq -e '.status == \"pass\" and any(.checks[]; .name == \"schemas\" and .status == \"pass\")' >/dev/null"
 cat > "$tmp_dir/tool-registry.json" <<'JSON'
 {"version":"1.0.0","default_policy":"deny","tools":[{"name":"Read","description":"Read files","inputSchema":{},"side_effect_profile":"read_only","permission_tier":"unrestricted","available_phases":["phase_0_codebase_research"]}]}
@@ -198,6 +199,18 @@ assert "beads-status reports not_configured when bd and .beads are absent" "'$RO
 assert "beads-status reports available when bd and .beads are present" "PATH='$tmp_dir/beads-bin:$PATH' '$ROOT/bin/adlc' beads-status --workspace '$tmp_dir/beads-ws' --output '$tmp_dir/beads-status-available.json' --json | jq -e '.status == \"available\" and .bd_present == true and .beads_dir_present == true and .safe_to_use == true and (.bd_version | test(\"9.9.9-fake\"))' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema beads-status-report --input '$tmp_dir/beads-status-available.json' --json | jq -e '.valid == true' >/dev/null"
 assert "beads-status warns unavailable when bd present without .beads" "PATH='$tmp_dir/beads-bin:$PATH' '$ROOT/bin/adlc' beads-status --workspace '$tmp_dir/beads-ws-nodir' --json | jq -e '.status == \"unavailable\" and .safe_to_use == false and (.warnings | length) >= 1' >/dev/null"
 assert "beads-status blocks availability when bd version check fails" "PATH='$tmp_dir/beads-bad-bin:$PATH' '$ROOT/bin/adlc' beads-status --workspace '$tmp_dir/beads-bad-ws' --json | jq -e '.status == \"unavailable\" and .bd_present == true and .beads_dir_present == true and .safe_to_use == false and any(.checks[]; .name == \"bd-version\" and .status == \"warn\")' >/dev/null"
+
+mkdir -p "$tmp_dir/looper-bin" "$tmp_dir/looper-ws"
+cat > "$tmp_dir/looper-bin/looper" <<'EOF'
+#!/usr/bin/env bash
+echo "looper fake"
+EOF
+chmod +x "$tmp_dir/looper-bin/looper"
+assert "looper-status reports not_configured without looper command or skill" "'$ROOT/bin/adlc' looper-status --workspace '$tmp_dir' --output '$tmp_dir/looper-status.json' --json | jq -e '.status == \"not_configured\" and .safe_to_use == false and .loop_design_schema_present == true' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema looper-status-report --input '$tmp_dir/looper-status.json' --json | jq -e '.valid == true' >/dev/null"
+assert "looper-status reports available with looper command" "PATH='$tmp_dir/looper-bin:$PATH' '$ROOT/bin/adlc' looper-status --workspace '$tmp_dir/looper-ws' --json | jq -e '.status == \"available\" and .safe_to_use == true and .looper_command_present == true and .loop_design_schema_present == true' >/dev/null"
+assert "loop-design-validate passes valid Looper design" "'$ROOT/bin/adlc' loop-design-validate --input '$ROOT/tests/fixtures/loop_design/valid-looper-design.json' --output '$tmp_dir/loop-design-validation.json' --json | jq -e '.status == \"pass\" and .summary.programmatic_verifiers == 2' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema loop-design-validation-report --input '$tmp_dir/loop-design-validation.json' --json | jq -e '.valid == true' >/dev/null"
+assert "loop-design-validate blocks missing stop guards" "if '$ROOT/bin/adlc' loop-design-validate --input '$ROOT/tests/fixtures/loop_design/missing-stop-guards.json' --json >'$tmp_dir/loop-design-blocked.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"missing_programmatic_verifier\") and any(.issues[]; .rule == \"missing_no_progress_rule\")' '$tmp_dir/loop-design-blocked.json' >/dev/null; fi"
+assert "loop-contract-from-design emits valid ADLC Loop Contract" "'$ROOT/bin/adlc' loop-contract-from-design --loop-design '$ROOT/tests/fixtures/loop_design/valid-looper-design.json' --output '$tmp_dir/loop-contract-from-design.json' --json | jq -e '.contract_id == \"adlc-loop-design:shipped-change-reconcile\" and .autonomy_claim == \"assisted_loop\" and (.test_selection.mandatory_floor | length) == 2' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema loop-contract --input '$tmp_dir/loop-contract-from-design.json' --json | jq -e '.valid == true' >/dev/null"
 cat > "$tmp_dir/champion-holdout-pass.json" <<'JSON'
 {
   "evaluation_id": "g8-skill-loop",
@@ -523,7 +536,7 @@ assert "sync-work-item validates mutated workflow state" "'$ROOT/bin/adlc' valid
 echo ""
 echo "--- MCP Wrapper ---"
 cat > "$tmp_dir/mcp-tools-filter.jq" <<'JQ'
-(.tools | length) >= 30
+(.tools | length) >= 33
 and any(.tools[]; .name == "adlc_validate_artifact" and (.inputSchema.required | index("schema")))
 and any(.tools[]; .name == "adlc_health_check")
 and any(.tools[]; .name == "adlc_ci" and .inputSchema.properties.suite.type == "array")
@@ -549,6 +562,9 @@ and any(.tools[]; .name == "adlc_loop_test_selection" and .inputSchema.propertie
 and any(.tools[]; .name == "adlc_loop_budget_check" and (.inputSchema.required | index("token_budget")) and .inputSchema.properties.estimated_input_tokens.type == "integer")
 and any(.tools[]; .name == "adlc_loop_action_validate" and .inputSchema.properties.token_budget.type == "string")
 and any(.tools[]; .name == "adlc_loop_maturity_audit" and .inputSchema.properties.test_results.type == "string" and .inputSchema.properties.token_budget.type == "string" and (.inputSchema.properties | has("build_brief") | not))
+and any(.tools[]; .name == "adlc_looper_status" and .inputSchema.properties.workspace.type == "string")
+and any(.tools[]; .name == "adlc_loop_design_validate" and (.inputSchema.required | index("input")))
+and any(.tools[]; .name == "adlc_loop_contract_from_design" and (.inputSchema.required | index("loop_design")))
 and any(.tools[]; .name == "adlc_beads_status" and .inputSchema.properties.workspace.type == "string")
 JQ
 assert "mcp-tools emits MCP tool declarations" "'$ROOT/bin/adlc' mcp-tools --json | jq -e -f '$tmp_dir/mcp-tools-filter.jq' >/dev/null"
@@ -556,6 +572,9 @@ assert "mcp-serve handles initialize and tools/list" "printf '%s\n' '{\"jsonrpc\
 assert "mcp-serve calls adlc_list_agents" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_list_agents\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.count >= 11' >/dev/null"
 assert "mcp-serve calls health check" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_health_check\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"
 assert "mcp-serve calls beads status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_beads_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
+assert "mcp-serve calls looper status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_looper_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
+assert "mcp-serve calls loop design validation" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_design_validate\",\"arguments\":{\"input\":\"tests/fixtures/loop_design/valid-looper-design.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"
+assert "mcp-serve calls loop contract from design" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_contract_from_design\",\"arguments\":{\"loop_design\":\"tests/fixtures/loop_design/valid-looper-design.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.contract_id == \"adlc-loop-design:shipped-change-reconcile\"' >/dev/null"
 assert "mcp-serve calls selectable ci suites" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_ci\",\"arguments\":{\"suite\":[\"health-check\",\"py-compile\"]}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and .result.structuredContent.summary.total == 2' >/dev/null"
 assert "mcp-serve calls action admission" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_action_admit\",\"arguments\":{\"tool_registry\":\"'$tmp_dir'/action-tool-registry.json\",\"tool\":\"Read\",\"action\":\"read_file\",\"phase\":\"research\",\"brief_id\":\"BRF-ACTION\",\"run_id\":\"RUN-ACTION\",\"session_id\":\"SESSION-ACTION\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"admitted\" and .result.structuredContent.run_identity.run_id == \"RUN-ACTION\" and .result.structuredContent.audit_trail.entries[0].decision == \"approved\" and .result.structuredContent.audit_trail.entries[0].run_id == \"RUN-ACTION\"' >/dev/null"
 assert "mcp-serve calls architecture memory dry-run" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_architecture_memory\",\"arguments\":{\"input\":\"'$tmp_dir'/architecture-memory-candidate.json\",\"workspace\":\"'$memory_repo'\",\"dry_run\":true}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"planned\" and .result.structuredContent.summary.candidates == 1' >/dev/null"

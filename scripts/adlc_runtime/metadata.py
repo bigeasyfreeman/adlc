@@ -18,11 +18,14 @@ SCHEMA_ALIASES = {
     "learning-entry": "docs/schemas/learning-entry.schema.json",
     "loop-action": "docs/schemas/loop-action.schema.json",
     "loop-contract": "docs/schemas/loop-contract.schema.json",
+    "loop-design": "docs/schemas/loop-design.schema.json",
+    "loop-design-validation-report": "docs/schemas/loop-design-validation-report.schema.json",
     "loop-maturity-report": "docs/schemas/loop-maturity-report.schema.json",
     "meta-harness-plan-report": "docs/schemas/meta-harness-plan-report.schema.json",
     "loop-template-catalog": "docs/schemas/loop-template-catalog.schema.json",
     "loop-template-install-report": "docs/schemas/loop-template-install-report.schema.json",
     "loop-test-result": "docs/schemas/loop-test-result.schema.json",
+    "looper-status-report": "docs/schemas/looper-status-report.schema.json",
     "memory-health-report": "docs/schemas/memory-health-report.schema.json",
     "permission-audit-trail": "docs/schemas/permission-audit-trail.schema.json",
     "prd-template": "docs/schemas/prd-template.schema.json",
@@ -186,6 +189,18 @@ COMMAND_METADATA = {
     "loop-test-selection": {
         "mcp_name": "adlc_loop_test_selection",
         "description": "Validate Loop Contract required tests and optionally require executed result evidence.",
+    },
+    "looper-status": {
+        "mcp_name": "adlc_looper_status",
+        "description": "Read-only preflight of optional Looper loop-design integration; reports availability without mutation.",
+    },
+    "loop-design-validate": {
+        "mcp_name": "adlc_loop_design_validate",
+        "description": "Validate a Looper-compatible ADLC Loop Design Contract before packaging or execution.",
+    },
+    "loop-contract-from-design": {
+        "mcp_name": "adlc_loop_contract_from_design",
+        "description": "Convert a validated Loop Design Contract into an ADLC Loop Contract artifact.",
     },
     "loop-action-validate": {
         "mcp_name": "adlc_loop_action_validate",

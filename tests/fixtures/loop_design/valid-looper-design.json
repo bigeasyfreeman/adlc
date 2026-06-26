@@ -1,0 +1,41 @@
+{
+  "contract_version": "1.0.0",
+  "design_id": "looper:shipped-change-reconcile",
+  "design_source": "looper",
+  "goal": {
+    "statement": "Reconcile shipped code changes into task and documentation state without mutating trackers before approval.",
+    "definition_of_done": "Changed files are indexed, stale references are reported, and all planned syncs are dry-run validated.",
+    "non_goals": ["merge code", "deploy code", "close external tickets without approval"]
+  },
+  "context_sources": ["git diff", "graphify-out/GRAPH_REPORT.md", ".adlc/workflow_state.json"],
+  "verification": {
+    "programmatic": [
+      {"id": "required:ci", "command": "bin/adlc ci --json", "coverage_tags": ["adlc", "e2e"]},
+      {"id": "required:docs", "command": "rg -q 'shipped-change' docs README.md", "coverage_tags": ["docs"]}
+    ],
+    "judge": {"type": "human", "criteria": ["planned mutations are reviewable", "no external tracker mutation before approval"]}
+  },
+  "gates": {
+    "plan_gate": "Human reviews loop design and dry-run plan before execution.",
+    "delivery_gate": "All programmatic verifiers pass and human confirms no overclaim.",
+    "human_checkpoints": ["before external tracker mutation", "before merge"]
+  },
+  "loop_control": {
+    "max_iterations": 2,
+    "revision_cap": 1,
+    "no_progress_rule": "Escalate when two consecutive runs produce the same unresolved blocker."
+  },
+  "execution_boundary": {
+    "allowed_tools": ["Read", "Bash", "adlc-sync", "human-escalation"],
+    "mutation_policy": "dry-run by default; mutation requires action-admit and human approval",
+    "stop_before": ["merge", "deploy", "external tracker mutation"]
+  },
+  "privacy": {
+    "egress_policy": "No external model or tracker egress without explicit approval.",
+    "redaction_posture": "Only file paths, commit SHAs, verifier summaries, and redacted logs are stored."
+  },
+  "artifacts": {
+    "runbook": ".adlc/loops/shipped-change-reconcile/RUN_IN_SESSION.md",
+    "state_log": ".adlc/loops/shipped-change-reconcile/state.jsonl"
+  }
+}
