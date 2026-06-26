@@ -203,6 +203,9 @@ bin/adlc architecture-memory --input .adlc/architecture_decisions.json --workspa
 bin/adlc memory-health --workspace . --changed-path scripts/adlc_runtime/cli.py --primitive-proposals .adlc/primitive_proposals.json --json
 bin/adlc champion-holdout --input .adlc/champion_holdout.json --json
 bin/adlc beads-status --workspace . --json
+bin/adlc looper-status --workspace . --json
+bin/adlc loop-design-validate --input .adlc/loops/task/loop_design.json --json
+bin/adlc loop-contract-from-design --loop-design .adlc/loops/task/loop_design.json --output .adlc/loops/task/loop_contract.json --json
 bin/adlc loop-library --json
 bin/adlc loop-library --template-id ci-triage --json
 bin/adlc loop-template-install --template-id ci-triage --workspace . --dry-run --json
@@ -237,6 +240,8 @@ The first dogfood loop is `control-plane-drift-loop`. It detects schema-alias dr
 Learning and architecture memory keeps ADLC's outer loop from compounding stale or overfit knowledge. `architecture-memory` records accepted architecture boundaries only from evidence-backed candidates and writes through action admission. `memory-health` audits `docs/solutions` and `docs/architecture/decisions` for stale refs, overclaim, and duplicate primitive proposals. `champion-holdout` promotes prompt or skill challengers only when holdout data beats the current champion by the configured margin and all must-pass rules pass.
 
 The packaged loop library makes known assisted loops reusable by harnesses. `loop-library` lists or inspects templates such as `ci-triage`, `pr-babysitter`, `dependency-bump`, `ticket-hygiene`, `architecture-debt-discovery`, `feedback-sweep`, and `skill-champion`. `loop-template-install` dry-runs by default and, after `adlc-loop-library:install_loop_template` action admission, writes `.adlc/loops/<template_id>/loop_contract.json`, `tool_registry.json`, `work_queue_seed.json`, `token_budget.json`, `README.md`, and `install_report.json`. It does not schedule jobs, dispatch agents, choose work, merge code, or make architecture decisions; those remain outside the library contract.
+
+Loop Design support makes Looper-style loop planning an admission artifact before execution. `looper-status` is read-only and optional. `loop-design-validate` checks a Looper-compatible Loop Design Contract for verifiers, judge criteria, stop/no-progress controls, mutation boundaries, and privacy posture. `loop-contract-from-design` converts a validated design into a schema-backed ADLC Loop Contract; it does not execute the loop, schedule agents, or mutate trackers.
 
 The bounded self-actioning meta-harness planner lets ADLC decide candidate work without bypassing the control plane. `meta-harness-plan` reads repo, ticket, Build Brief, queue, and signal candidates; ranks them by value, risk, verifiability, repeatability, and urgency; chooses a packaged loop template; emits schema-backed Work Queue seed and Work Item Sync payloads; and returns the exact ADLC commands a harness should run next. It does not claim tasks, create worktrees, update trackers, dispatch agents, merge, deploy, or decide architecture. Those steps remain behind existing action-admitted commands and human approval gates.
 

@@ -21,6 +21,17 @@ Verdicts:
 
 ADLC currently scores as `assisted_loop`. It has a directed workflow graph, labels, retry caps, verifier-first test generation, workflow state, test-strength audit, compound preflight, Loop Contract/action validators, execution-backed required-test result artifacts, and human gates. It still treats self-autonomy as a per-workflow evidence claim, not a default framework claim, and tag-only required-test plans are capped below robust.
 
+## Loop Design Admission
+
+ADLC can validate Looper-compatible Loop Design Contracts before a loop is
+packaged or executed. `bin/adlc looper-status` is a read-only optional preflight.
+`bin/adlc loop-design-validate` checks that a loop has a goal, definition of
+done, programmatic verifier, judge criteria, iteration cap, no-progress rule,
+mutation boundary, and privacy posture. `bin/adlc loop-contract-from-design`
+converts a passing design into the existing ADLC Loop Contract schema. The
+design artifact is admission evidence; it does not schedule agents, claim work,
+mutate trackers, or upgrade maturity without executed verifier evidence.
+
 ## Seven Audit Dimensions
 
 ### Real loop

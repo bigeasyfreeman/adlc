@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/loop-design-validation-report.schema.json",
+  "title": "ADLC Loop Design Validation Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["contract_version", "status", "design_id", "input", "issues", "summary"],
+  "properties": {
+    "contract_version": {"type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"},
+    "status": {"type": "string", "enum": ["pass", "blocked"]},
+    "design_id": {"type": ["string", "null"]},
+    "input": {"type": "string", "minLength": 1},
+    "issues": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "summary": {"type": "object", "additionalProperties": true}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "contract_version": "1.0.0",
+  "design_id": "looper:bad-loop",
+  "design_source": "looper",
+  "goal": {"statement": "Keep trying until it works.", "definition_of_done": "It works."},
+  "verification": {"programmatic": [], "judge": {"type": "none", "criteria": []}},
+  "gates": {"plan_gate": "review", "delivery_gate": "review"},
+  "loop_control": {"max_iterations": 0, "revision_cap": 0, "no_progress_rule": ""},
+  "execution_boundary": {"allowed_tools": [], "mutation_policy": "", "stop_before": []},
+  "privacy": {"egress_policy": "", "redaction_posture": ""},
+  "artifacts": {"runbook": "RUN_IN_SESSION.md", "state_log": "state.jsonl"}
+}

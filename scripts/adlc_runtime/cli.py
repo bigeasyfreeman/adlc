@@ -1709,6 +1709,243 @@ def command_beads_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def looper_status_payload(workspace: Path) -> Dict[str, Any]:
+    """Read-only preflight for optional Looper loop-design integration."""
+    checks: List[Dict[str, Any]] = []
+    warnings: List[str] = []
+
+    def add(name: str, status: str, detail: str) -> None:
+        checks.append({"name": name, "status": status, "detail": detail})
+
+    looper_command = shutil.which("looper")
+    looper_command_present = looper_command is not None
+    add(
+        "looper-command",
+        "pass" if looper_command_present else "absent",
+        looper_command or "looper not found on PATH",
+    )
+
+    skill_candidates = [
+        workspace / "SKILL.md",
+        workspace / "skills" / "looper" / "SKILL.md",
+        workspace / ".claude" / "skills" / "looper" / "SKILL.md",
+        workspace / ".agents" / "skills" / "looper" / "SKILL.md",
+    ]
+    looper_skill_path = next((path for path in skill_candidates if path.is_file()), None)
+    looper_skill_present = looper_skill_path is not None
+    add(
+        "looper-skill",
+        "pass" if looper_skill_present else "absent",
+        workspace_rel_path(looper_skill_path, workspace) if looper_skill_path else "Looper SKILL.md not found in workspace skill paths",
+    )
+
+    loop_design_schema = ROOT / SCHEMA_ALIASES["loop-design"]
+    loop_design_schema_present = loop_design_schema.is_file()
+    add(
+        "loop-design-schema",
+        "pass" if loop_design_schema_present else "warn",
+        rel_path(loop_design_schema) if loop_design_schema_present else "loop-design schema alias is missing",
+    )
+
+    if looper_command_present or looper_skill_present:
+        status = "available" if loop_design_schema_present else "unavailable"
+    else:
+        status = "not_configured"
+        warnings.append("Looper is optional; no looper command or workspace Looper skill was found")
+
+    if status == "unavailable":
+        warnings.append("Looper signal exists but ADLC loop-design schema support is incomplete")
+
+    return {
+        "contract_version": "1.0.0",
+        "status": status,
+        "workspace": str(workspace),
+        "safe_to_use": status == "available",
+        "looper_skill_present": looper_skill_present,
+        "looper_skill_path": workspace_rel_path(looper_skill_path, workspace) if looper_skill_path else None,
+        "looper_command_present": looper_command_present,
+        "looper_command_path": looper_command,
+        "loop_design_schema_present": loop_design_schema_present,
+        "checks": checks,
+        "warnings": warnings,
+        "summary": {"total": len(checks), "warnings": len(warnings)},
+    }
+
+
+def command_looper_status(args: argparse.Namespace) -> int:
+    workspace = resolve_workspace(args.workspace)
+    payload = looper_status_payload(workspace)
+    if getattr(args, "output", None):
+        write_artifact(
+            resolve_under_workspace(args.output, workspace, ".adlc/outputs/looper_status.json"),
+            payload,
+            "looper-status-report",
+        )
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"ADLC looper-status: {payload['status']}")
+        for check in payload["checks"]:
+            print(f"{check['status']}\t{check['name']}\t{check['detail']}")
+        for warning in payload["warnings"]:
+            print(f"warn\t{warning}")
+    return 0
+
+
+def loop_design_validation_payload(design_path: Path) -> Dict[str, Any]:
+    design = read_json(design_path)
+    schema_errors = validate_artifact_payload(resolve_schema("loop-design"), design)
+    issues: List[Dict[str, Any]] = [
+        {"severity": "blocking", "rule": "schema", "message": error}
+        for error in schema_errors
+    ]
+
+    design_id = design.get("design_id") if isinstance(design, dict) else None
+    verification = design.get("verification", {}) if isinstance(design, dict) else {}
+    programmatic = verification.get("programmatic", []) if isinstance(verification, dict) else []
+    judge = verification.get("judge", {}) if isinstance(verification, dict) else {}
+    loop_control = design.get("loop_control", {}) if isinstance(design, dict) else {}
+    execution_boundary = design.get("execution_boundary", {}) if isinstance(design, dict) else {}
+    privacy = design.get("privacy", {}) if isinstance(design, dict) else {}
+
+    if not programmatic:
+        issues.append({"severity": "blocking", "rule": "missing_programmatic_verifier", "message": "loop design requires at least one programmatic verifier"})
+    if not isinstance(judge, dict) or judge.get("type") == "none" or not judge.get("criteria"):
+        issues.append({"severity": "blocking", "rule": "missing_judge_criteria", "message": "loop design requires human or model judge criteria"})
+    if int(loop_control.get("max_iterations", 0) or 0) < 1:
+        issues.append({"severity": "blocking", "rule": "missing_max_iterations", "message": "loop design must cap max_iterations"})
+    if not str(loop_control.get("no_progress_rule", "")).strip():
+        issues.append({"severity": "blocking", "rule": "missing_no_progress_rule", "message": "loop design must define a no-progress stop rule"})
+    if not execution_boundary.get("stop_before"):
+        issues.append({"severity": "blocking", "rule": "missing_stop_before", "message": "loop design must state actions it stops before"})
+    if not str(execution_boundary.get("mutation_policy", "")).strip():
+        issues.append({"severity": "blocking", "rule": "missing_mutation_policy", "message": "loop design must define mutation policy"})
+    if not str(privacy.get("egress_policy", "")).strip() or not str(privacy.get("redaction_posture", "")).strip():
+        issues.append({"severity": "blocking", "rule": "missing_privacy_posture", "message": "loop design must define egress and redaction posture"})
+
+    status = "blocked" if issues else "pass"
+    return {
+        "contract_version": "1.0.0",
+        "status": status,
+        "design_id": design_id,
+        "input": rel_path(design_path),
+        "issues": issues,
+        "summary": {
+            "issues": len(issues),
+            "programmatic_verifiers": len(programmatic) if isinstance(programmatic, list) else 0,
+            "judge_type": judge.get("type") if isinstance(judge, dict) else None,
+        },
+    }
+
+
+def command_loop_design_validate(args: argparse.Namespace) -> int:
+    design_path = cli_input_path(args.input)
+    payload = loop_design_validation_payload(design_path)
+    if getattr(args, "output", None):
+        output_path = cli_input_path(args.output)
+        write_artifact(output_path, payload, "loop-design-validation-report")
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"loop-design-validate: {payload['status']} ({payload['summary']['issues']} issue(s))")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def loop_contract_from_design_payload(design_path: Path) -> Dict[str, Any]:
+    validation = loop_design_validation_payload(design_path)
+    if validation["status"] != "pass":
+        raise ValueError("loop design validation failed: " + "; ".join(issue["rule"] for issue in validation["issues"]))
+    design = read_json(design_path)
+    verification = design["verification"]
+    loop_control = design["loop_control"]
+    execution_boundary = design["execution_boundary"]
+    privacy = design["privacy"]
+    artifacts = design["artifacts"]
+    programmatic = verification["programmatic"]
+    judge = verification["judge"]
+
+    contract = {
+        "contract_version": "1.0.0",
+        "contract_id": design["design_id"].replace("looper:", "adlc-loop-design:"),
+        "autonomy_claim": "assisted_loop",
+        "job_win_condition": {
+            "job": design["goal"]["statement"],
+            "done_when": design["goal"]["definition_of_done"],
+            "deterministic_checks": [item["command"] for item in programmatic],
+            "semantic_intent_check": "; ".join(judge.get("criteria", [])),
+        },
+        "allowed_tools": [
+            {"name": name, "actions": ["use"]}
+            for name in execution_boundary.get("allowed_tools", [])
+        ] or [{"name": "human-escalation", "actions": ["escalate"]}],
+        "feedback_channels": [
+            {"after_action": "programmatic_verifier", "observes": ["exit_code", "stdout", "stderr"]},
+            {"after_action": "judge_review", "observes": ["verdict", "criteria", "revision_request"]},
+        ],
+        "stop_escalate_rules": {
+            "max_iterations": int(loop_control["max_iterations"]),
+            "no_progress_after": max(1, int(loop_control.get("revision_cap", 0)) + 1),
+            "escalate_when": list(dict.fromkeys(["verifier_failed", "judge_rejected", "human_review_required"] + execution_boundary.get("stop_before", []))),
+        },
+        "test_selection": {
+            "mandatory_floor": [
+                {
+                    "id": item["id"],
+                    "command": item["command"],
+                    "coverage_tags": item.get("coverage_tags", ["loop-design"]),
+                }
+                for item in programmatic
+            ],
+            "required_from_task_signals": [
+                {
+                    "id": item["id"],
+                    "command": item["command"],
+                    "coverage_tags": item.get("coverage_tags", ["loop-design"]),
+                }
+                for item in programmatic
+            ],
+            "additive_agent_tests": True,
+        },
+        "safe_bail_state": {
+            "state": f"loop design artifacts remain in {artifacts['runbook']} and {artifacts['state_log']}",
+            "rollback": "discard planned actions and rerun from the saved loop design contract",
+            "idempotency": "conversion is deterministic for a given loop design artifact",
+        },
+        "progress_signal": {
+            "signals": ["verifier_passed", "judge_passed", "artifact_written"],
+            "no_progress_rule": loop_control["no_progress_rule"],
+        },
+        "control_channel": {
+            "supports": ["steer", "abort", "interrupt", "escalate"],
+            "safe_checkpoint_required": True,
+        },
+        "independent_truth": {
+            "type": "agent_self_assessment",
+            "evidence": judge.get("criteria", []),
+        },
+        "redaction_posture": privacy["redaction_posture"],
+    }
+    errors = validate_artifact_payload(resolve_schema("loop-contract"), contract)
+    if errors:
+        raise ValueError("generated loop contract failed schema validation: " + "; ".join(errors))
+    return contract
+
+
+def command_loop_contract_from_design(args: argparse.Namespace) -> int:
+    try:
+        contract = loop_contract_from_design_payload(cli_input_path(args.loop_design))
+        if args.output:
+            write_artifact(cli_input_path(args.output), contract, "loop-contract")
+        if args.json:
+            write_json(contract)
+        else:
+            print(f"loop-contract-from-design: {contract['contract_id']}")
+        return 0
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+
 CI_SUITES = {
     "health-check": {
         "description": "ADLC runtime preflight",
@@ -8452,6 +8689,44 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("looper-status"),
+            "description": command_description("looper-status"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("loop-design-validate"),
+            "description": command_description("loop-design-validate"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["input"],
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("loop-contract-from-design"),
+            "description": command_description("loop-contract-from-design"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["loop_design"],
+                "properties": {
+                    "loop_design": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("beads-status"),
             "description": command_description("beads-status"),
             "inputSchema": {
@@ -8863,6 +9138,38 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return tool_result(payload, is_error=payload["maturity_verdict"] == "one_shot_in_disguise")
+    if name == "adlc_looper_status":
+        workspace = resolve_workspace(arguments.get("workspace"))
+        payload = looper_status_payload(workspace)
+        output = arguments.get("output")
+        if isinstance(output, str):
+            write_artifact(
+                resolve_under_workspace(output, workspace, ".adlc/outputs/looper_status.json"),
+                payload,
+                "looper-status-report",
+            )
+        return tool_result(payload, is_error=False)
+    if name == "adlc_loop_design_validate":
+        input_path = arguments.get("input")
+        if not isinstance(input_path, str):
+            raise ValueError("adlc_loop_design_validate requires string argument: input")
+        payload = loop_design_validation_payload(cli_input_path(input_path, ROOT))
+        output = arguments.get("output")
+        if isinstance(output, str):
+            write_artifact(cli_input_path(output, ROOT), payload, "loop-design-validation-report")
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_loop_contract_from_design":
+        loop_design = arguments.get("loop_design")
+        if not isinstance(loop_design, str):
+            raise ValueError("adlc_loop_contract_from_design requires string argument: loop_design")
+        try:
+            payload = loop_contract_from_design_payload(cli_input_path(loop_design, ROOT))
+        except Exception as exc:
+            return tool_result({"status": "blocked", "error": str(exc)}, is_error=True)
+        output = arguments.get("output")
+        if isinstance(output, str):
+            write_artifact(cli_input_path(output, ROOT), payload, "loop-contract")
+        return tool_result(payload, is_error=False)
     if name == "adlc_beads_status":
         workspace = resolve_workspace(arguments.get("workspace"))
         payload = beads_status_payload(workspace)
@@ -9079,6 +9386,24 @@ def build_parser() -> argparse.ArgumentParser:
     loop_maturity.add_argument("--output", help="Optional output report path.")
     loop_maturity.add_argument("--json", action="store_true", help="Emit JSON.")
     loop_maturity.set_defaults(func=command_loop_maturity_audit)
+
+    looper_status = subparsers.add_parser("looper-status", help=command_description("looper-status"))
+    looper_status.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    looper_status.add_argument("--output", help="Optional looper-status report path.")
+    looper_status.add_argument("--json", action="store_true", help="Emit JSON.")
+    looper_status.set_defaults(func=command_looper_status)
+
+    loop_design = subparsers.add_parser("loop-design-validate", help=command_description("loop-design-validate"))
+    loop_design.add_argument("--input", required=True, help="Loop Design Contract JSON path.")
+    loop_design.add_argument("--output", help="Optional validation report path.")
+    loop_design.add_argument("--json", action="store_true", help="Emit JSON.")
+    loop_design.set_defaults(func=command_loop_design_validate)
+
+    loop_from_design = subparsers.add_parser("loop-contract-from-design", help=command_description("loop-contract-from-design"))
+    loop_from_design.add_argument("--loop-design", required=True, help="Loop Design Contract JSON path.")
+    loop_from_design.add_argument("--output", help="Optional Loop Contract JSON path.")
+    loop_from_design.add_argument("--json", action="store_true", help="Emit JSON.")
+    loop_from_design.set_defaults(func=command_loop_contract_from_design)
 
     run = subparsers.add_parser("run", help="Run or dry-run ADLC workflow phases with persisted state.")
     run.add_argument("--brief-id", help="Build Brief ID. Required when creating new state without --input.")

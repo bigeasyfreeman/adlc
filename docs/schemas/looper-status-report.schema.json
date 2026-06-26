@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/looper-status-report.schema.json",
+  "title": "ADLC Looper Status Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["contract_version", "status", "workspace", "safe_to_use", "checks", "warnings", "summary"],
+  "properties": {
+    "contract_version": {"type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"},
+    "status": {"type": "string", "enum": ["available", "not_configured", "unavailable"]},
+    "workspace": {"type": "string", "minLength": 1},
+    "safe_to_use": {"type": "boolean"},
+    "looper_skill_present": {"type": "boolean"},
+    "looper_command_present": {"type": "boolean"},
+    "loop_design_schema_present": {"type": "boolean"},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["name", "status", "detail"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "status": {"type": "string", "enum": ["pass", "warn", "absent"]},
+          "detail": {"type": "string"}
+        }
+      }
+    },
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["total", "warnings"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "warnings": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
