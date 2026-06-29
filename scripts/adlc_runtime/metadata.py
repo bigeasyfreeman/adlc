@@ -14,6 +14,7 @@ SCHEMA_ALIASES = {
     "coder-output": "docs/schemas/coder-output.schema.json",
     "control-plane-drift-report": "docs/schemas/control-plane-drift-report.schema.json",
     "council-verdict": "docs/schemas/council-verdict-output.schema.json",
+    "drift-gate-report": "docs/schemas/drift-gate-report.schema.json",
     "eval-council-verdict": "docs/schemas/eval-council-verdict.schema.json",
     "learning-entry": "docs/schemas/learning-entry.schema.json",
     "loop-action": "docs/schemas/loop-action.schema.json",
@@ -28,10 +29,15 @@ SCHEMA_ALIASES = {
     "looper-status-report": "docs/schemas/looper-status-report.schema.json",
     "memory-health-report": "docs/schemas/memory-health-report.schema.json",
     "permission-audit-trail": "docs/schemas/permission-audit-trail.schema.json",
+    "ponytail-admission-report": "docs/schemas/ponytail-admission-report.schema.json",
+    "ponytail-scenario-canary-report": "docs/schemas/ponytail-scenario-canary-report.schema.json",
     "prd-template": "docs/schemas/prd-template.schema.json",
     "repo-map": "docs/schemas/repo-map.schema.json",
+    "regression-oracle": "docs/schemas/regression-oracle.schema.json",
+    "scenario-coverage-plan": "docs/schemas/scenario-coverage-plan.schema.json",
     "security-assessment": "docs/schemas/security-assessment.schema.json",
     "session-state": "docs/schemas/session-state.schema.json",
+    "spec-surface": "docs/schemas/spec-surface.schema.json",
     "streaming-events": "docs/schemas/streaming-events.schema.json",
     "system-log": "docs/schemas/system-log.schema.json",
     "test-author-output": "docs/schemas/test-author-output.schema.json",
@@ -185,6 +191,30 @@ COMMAND_METADATA = {
     "slop-gate": {
         "mcp_name": "adlc_slop_gate",
         "description": "Validate generated-output slop quality gate contracts for a Build Brief.",
+    },
+    "ponytail-admit": {
+        "mcp_name": "adlc_ponytail_admit",
+        "description": "Validate task-level Ponytail minimality contracts before work-item emission.",
+    },
+    "ponytail-scenario-canary": {
+        "mcp_name": "adlc_ponytail_scenario_canary",
+        "description": "Run deterministic with/without Ponytail scenario canaries against the ADLC readiness gate.",
+    },
+    "coverage-surface-validate": {
+        "mcp_name": "adlc_coverage_surface_validate",
+        "description": "Validate an enumerable ADLC specification surface before Kitchen Loop style coverage claims.",
+    },
+    "scenario-coverage-plan": {
+        "mcp_name": "adlc_scenario_coverage_plan",
+        "description": "Validate a bounded Kitchen Loop scenario coverage plan and optional spec-surface alignment.",
+    },
+    "regression-oracle-validate": {
+        "mcp_name": "adlc_regression_oracle_validate",
+        "description": "Validate an independent regression oracle contract for coverage admission.",
+    },
+    "drift-gate-evaluate": {
+        "mcp_name": "adlc_drift_gate_evaluate",
+        "description": "Evaluate a Kitchen Loop drift gate report and fail closed on pause or escalation.",
     },
     "loop-test-selection": {
         "mcp_name": "adlc_loop_test_selection",

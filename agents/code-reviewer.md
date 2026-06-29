@@ -20,6 +20,7 @@ You review code produced by coding agents. Catch correctness and comprehension i
 **Completeness** — All task files created/modified. All tests pass. No unrelated changes.
 **Comprehension** — Intent matches behavior. Blast radius, state changes, shared resources, credentials, retry assumptions, and compatibility impact are understandable from the diff plus captured context.
 **Scalable code primitives** — Medium+ blast-radius changes cite construct-map refs, follow paved-road refs or justify `no_paved_road_found`, preserve intent, preserve Implementation Interface semantics, and cover relevant production invariants.
+**Ponytail minimality** — Diff follows the task `minimality_contract`: no avoidable dependency, abstraction, file, wrapper, or speculative future-proofing; the `minimum_check` ran or is covered by the verifier.
 **Productionization gate** — Production support claims stay inside the task's Coverage State, validation evidence, rollback/observability posture, security/privacy posture, reliability failure modes, and No-Overclaim boundaries.
 **Slop quality gate** — Generated-output changes carry benchmark cases, metrics, threshold, regression tolerance when available, and failure promotion evidence.
 
@@ -36,6 +37,10 @@ Run `comprehension-gate` after the normal review checklist.
 - If `productionization_gate.coverage_state = production_ready` but validation evidence, No-Overclaim boundaries, reliability failure modes, owner, rollback path, runbook/observability posture, or security/privacy posture are missing, return `revise` with reason `overclaimed_production_ready`.
 - If PR text, emitted work items, docs, or code comments claim support beyond the gate's Coverage State, return `revise` with reason `production_claim_overreach`.
 - If a change departs from a cited paved road without evidence that the existing pattern cannot absorb the work safely, return `revise`.
+- If an executable task lacks `minimality_contract`, return `revise` with reason `missing_minimality_contract`.
+- If the diff adds a dependency without `dependency_approval_ref`, return `revise` with reason `unapproved_ponytail_new_dependency`.
+- If the diff adds a new abstraction without `abstraction_approval_ref`, return `revise` with reason `unapproved_ponytail_new_abstraction`.
+- If `reuse_evidence` is empty, skipped options are absent, or `minimum_check` was not run or covered, return `revise` with reason `missing_ponytail_minimum_check`.
 - If a change touches prompt behavior, model selection, agent roles, generated content, response templates, product output, user-visible AI output, or output validators and lacks `slop_quality_gate`, return `revise` with reason `missing_slop_quality_gate`.
 - If `slop_quality_gate.applicability = required` but eval cases, metrics, threshold, or failure action are missing, return `revise` with the missing field named.
 - If the slop score is below threshold or regresses beyond the stated tolerance without captured human approval, return `revise`.

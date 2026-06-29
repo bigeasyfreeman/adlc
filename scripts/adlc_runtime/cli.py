@@ -1851,6 +1851,261 @@ def command_loop_design_validate(args: argparse.Namespace) -> int:
     return 0 if payload["status"] == "pass" else 1
 
 
+def schema_issue_payload(alias: str, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return [
+        {"severity": "blocking", "rule": "schema", "message": error}
+        for error in validate_artifact_payload(resolve_schema(alias), payload)
+    ]
+
+
+def blocking_issue(rule: str, message: str) -> Dict[str, str]:
+    return {"severity": "blocking", "rule": rule, "message": message}
+
+
+def coverage_surface_validation_payload(surface_path: Path) -> Dict[str, Any]:
+    surface = read_json(surface_path)
+    issues = schema_issue_payload("spec-surface", surface)
+
+    dimensions = surface.get("dimensions", []) if isinstance(surface, dict) else []
+    claims = surface.get("capability_claims", []) if isinstance(surface, dict) else []
+    combinations = surface.get("supported_combinations", []) if isinstance(surface, dict) else []
+    oracle_refs = surface.get("oracle_refs", []) if isinstance(surface, dict) else []
+    unsupported_states = surface.get("unsupported_states", []) if isinstance(surface, dict) else []
+    criteria = surface.get("success_criteria", []) if isinstance(surface, dict) else []
+    enumerability = surface.get("enumerability", {}) if isinstance(surface, dict) else {}
+
+    if isinstance(enumerability, dict) and enumerability.get("state") not in {"enumerable", "bounded_with_exclusions"}:
+        issues.append(blocking_issue("non_enumerable_surface", "spec surface must be enumerable or bounded with documented exclusions"))
+    for combo in combinations if isinstance(combinations, list) else []:
+        if isinstance(combo, dict) and not combo.get("oracle_refs"):
+            issues.append(blocking_issue("missing_combination_oracle", f"supported combination {combo.get('id', '<unknown>')} has no oracle_refs"))
+    for criterion in criteria if isinstance(criteria, list) else []:
+        if isinstance(criterion, dict) and criterion.get("evaluation_type") != "deterministic":
+            issues.append(blocking_issue("non_deterministic_success_criterion", f"success criterion {criterion.get('id', '<unknown>')} requires human review and cannot prove coverage exhaustion"))
+
+    status = "blocked" if issues else "pass"
+    return {
+        "contract_version": "1.0.0",
+        "status": status,
+        "surface_id": surface.get("surface_id") if isinstance(surface, dict) else None,
+        "input": rel_path(surface_path),
+        "issues": issues,
+        "summary": {
+            "capability_claims": len(claims) if isinstance(claims, list) else 0,
+            "dimensions": len(dimensions) if isinstance(dimensions, list) else 0,
+            "supported_combinations": len(combinations) if isinstance(combinations, list) else 0,
+            "oracle_refs": len(oracle_refs) if isinstance(oracle_refs, list) else 0,
+            "unsupported_states": len(unsupported_states) if isinstance(unsupported_states, list) else 0,
+            "issues": len(issues),
+        },
+        "boundary": {
+            "does_not": [
+                "generate scenarios",
+                "mutate trackers",
+                "merge code",
+                "claim self-autonomy without executed oracle evidence",
+            ]
+        },
+    }
+
+
+def command_coverage_surface_validate(args: argparse.Namespace) -> int:
+    surface_path = cli_input_path(args.input)
+    payload = coverage_surface_validation_payload(surface_path)
+    if getattr(args, "output", None):
+        write_artifact(cli_input_path(args.output), payload)
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"coverage-surface-validate: {payload['status']} ({payload['summary']['issues']} issue(s))")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def scenario_coverage_plan_payload(plan_path: Path, spec_surface_path: Path | None = None) -> Dict[str, Any]:
+    plan = read_json(plan_path)
+    issues = schema_issue_payload("scenario-coverage-plan", plan)
+
+    scenarios = plan.get("scenarios", []) if isinstance(plan, dict) else []
+    max_scenarios = int(plan.get("max_scenarios", 0) or 0) if isinstance(plan, dict) else 0
+    if isinstance(scenarios, list) and max_scenarios and len(scenarios) > max_scenarios:
+        issues.append(blocking_issue("scenario_count_exceeds_bound", f"{len(scenarios)} scenarios exceeds max_scenarios={max_scenarios}"))
+    if isinstance(plan, dict) and plan.get("bounded") is not True:
+        issues.append(blocking_issue("unbounded_scenario_plan", "scenario coverage plans must set bounded=true"))
+
+    counts = {"covered": 0, "missing": 0, "blocked": 0, "not_applicable": 0}
+    tiers = {"foundation": 0, "composition": 0, "frontier": 0}
+    for scenario in scenarios if isinstance(scenarios, list) else []:
+        if not isinstance(scenario, dict):
+            continue
+        status = scenario.get("status")
+        tier = scenario.get("tier")
+        if status in counts:
+            counts[status] += 1
+        if tier in tiers:
+            tiers[tier] += 1
+        if status == "missing":
+            issues.append(blocking_issue("missing_scenario_coverage", f"scenario {scenario.get('scenario_id', '<unknown>')} is still missing"))
+        if status == "covered" and not scenario.get("evidence_refs"):
+            issues.append(blocking_issue("covered_scenario_missing_evidence", f"covered scenario {scenario.get('scenario_id', '<unknown>')} has no evidence_refs"))
+        if status in {"covered", "blocked"} and not scenario.get("oracle_ref"):
+            issues.append(blocking_issue("scenario_missing_oracle", f"scenario {scenario.get('scenario_id', '<unknown>')} has no oracle_ref"))
+
+    spec_surface_id = None
+    if spec_surface_path is not None:
+        spec_surface = read_json(spec_surface_path)
+        spec_errors = schema_issue_payload("spec-surface", spec_surface)
+        if spec_errors:
+            issues.extend({"severity": "blocking", "rule": "spec_surface_schema", "message": issue["message"]} for issue in spec_errors)
+        spec_surface_id = spec_surface.get("surface_id") if isinstance(spec_surface, dict) else None
+        if isinstance(plan, dict) and spec_surface_id and plan.get("surface_id") != spec_surface_id:
+            issues.append(blocking_issue("surface_id_mismatch", f"plan surface_id {plan.get('surface_id')} does not match spec surface {spec_surface_id}"))
+
+    status = "blocked" if issues else "pass"
+    return {
+        "contract_version": "1.0.0",
+        "status": status,
+        "plan_id": plan.get("plan_id") if isinstance(plan, dict) else None,
+        "surface_id": plan.get("surface_id") if isinstance(plan, dict) else None,
+        "spec_surface_id": spec_surface_id,
+        "input": rel_path(plan_path),
+        "spec_surface_input": rel_path(spec_surface_path) if spec_surface_path else None,
+        "issues": issues,
+        "summary": {
+            "scenarios": len(scenarios) if isinstance(scenarios, list) else 0,
+            "max_scenarios": max_scenarios,
+            "coverage": counts,
+            "tiers": tiers,
+            "issues": len(issues),
+        },
+    }
+
+
+def command_scenario_coverage_plan(args: argparse.Namespace) -> int:
+    plan_path = cli_input_path(args.input)
+    spec_surface_path = cli_input_path(args.spec_surface) if getattr(args, "spec_surface", None) else None
+    payload = scenario_coverage_plan_payload(plan_path, spec_surface_path)
+    if getattr(args, "output", None):
+        write_artifact(cli_input_path(args.output), payload)
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"scenario-coverage-plan: {payload['status']} ({payload['summary']['issues']} issue(s))")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def regression_oracle_validation_payload(oracle_path: Path) -> Dict[str, Any]:
+    oracle = read_json(oracle_path)
+    issues = schema_issue_payload("regression-oracle", oracle)
+
+    ground_truth = oracle.get("ground_truth_source", {}) if isinstance(oracle, dict) else {}
+    boundary = oracle.get("execution_boundary", {}) if isinstance(oracle, dict) else {}
+    anti_canaries = oracle.get("anti_canaries", []) if isinstance(oracle, dict) else []
+    assertions = oracle.get("state_delta_assertions", []) if isinstance(oracle, dict) else []
+    limitations = oracle.get("coverage_limitations", []) if isinstance(oracle, dict) else []
+
+    if isinstance(ground_truth, dict) and ground_truth.get("strength") != "independent":
+        issues.append(blocking_issue("weak_ground_truth", "regression oracle ground_truth_source.strength must be independent"))
+    if isinstance(ground_truth, dict) and ground_truth.get("type") == "llm_self_assessment":
+        issues.append(blocking_issue("self_graded_oracle", "LLM self-assessment cannot be the only regression oracle"))
+    if isinstance(boundary, dict) and boundary.get("mutation_policy") not in {"read_only", "ephemeral_fixture_only", "explicit_action_admission_required"}:
+        issues.append(blocking_issue("unsafe_oracle_mutation_policy", "oracle mutation policy must be read-only, fixture-only, or require action admission"))
+    if isinstance(anti_canaries, list) and not anti_canaries:
+        issues.append(blocking_issue("missing_anti_canaries", "regression oracle requires at least one anti-canary"))
+    if isinstance(assertions, list) and not assertions:
+        issues.append(blocking_issue("missing_state_delta_assertions", "regression oracle requires state-delta assertions"))
+    if isinstance(limitations, list) and not limitations:
+        issues.append(blocking_issue("missing_oracle_limitations", "regression oracle requires coverage limitations"))
+    if isinstance(oracle, dict) and not (oracle.get("pre_merge_required") or oracle.get("post_merge_required")):
+        issues.append(blocking_issue("oracle_not_required", "regression oracle must be required before or after merge"))
+
+    status = "blocked" if issues else "pass"
+    return {
+        "contract_version": "1.0.0",
+        "status": status,
+        "oracle_id": oracle.get("oracle_id") if isinstance(oracle, dict) else None,
+        "input": rel_path(oracle_path),
+        "issues": issues,
+        "summary": {
+            "ground_truth_type": ground_truth.get("type") if isinstance(ground_truth, dict) else None,
+            "ground_truth_strength": ground_truth.get("strength") if isinstance(ground_truth, dict) else None,
+            "state_delta_assertions": len(assertions) if isinstance(assertions, list) else 0,
+            "anti_canaries": len(anti_canaries) if isinstance(anti_canaries, list) else 0,
+            "coverage_limitations": len(limitations) if isinstance(limitations, list) else 0,
+            "issues": len(issues),
+        },
+    }
+
+
+def command_regression_oracle_validate(args: argparse.Namespace) -> int:
+    oracle_path = cli_input_path(args.input)
+    payload = regression_oracle_validation_payload(oracle_path)
+    if getattr(args, "output", None):
+        write_artifact(cli_input_path(args.output), payload)
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"regression-oracle-validate: {payload['status']} ({payload['summary']['issues']} issue(s))")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def drift_gate_evaluation_payload(report_path: Path, history_path: Path | None = None) -> Dict[str, Any]:
+    report = read_json(report_path)
+    issues = schema_issue_payload("drift-gate-report", report)
+    metrics = report.get("metrics", []) if isinstance(report, dict) else []
+    gate_status = report.get("status") if isinstance(report, dict) else None
+
+    for metric in metrics if isinstance(metrics, list) else []:
+        if not isinstance(metric, dict):
+            continue
+        name = metric.get("name", "<unknown>")
+        current = metric.get("current")
+        threshold = metric.get("threshold")
+        direction = metric.get("direction")
+        if not isinstance(current, (int, float)) or not isinstance(threshold, (int, float)):
+            continue
+        if direction == "max" and current > threshold:
+            issues.append(blocking_issue("metric_over_threshold", f"{name} current={current} exceeds max threshold={threshold}"))
+        elif direction == "min" and current < threshold:
+            issues.append(blocking_issue("metric_under_threshold", f"{name} current={current} is below min threshold={threshold}"))
+
+    if gate_status in {"pause", "escalate"}:
+        issues.append(blocking_issue("drift_gate_status", f"drift gate status is {gate_status}; fail closed before admitting more work"))
+
+    history = read_json(history_path) if history_path else None
+    history_items = history if isinstance(history, list) else []
+    status = "blocked" if issues else "pass"
+    return {
+        "contract_version": "1.0.0",
+        "status": status,
+        "gate_status": gate_status,
+        "gate_id": report.get("gate_id") if isinstance(report, dict) else None,
+        "surface_id": report.get("surface_id") if isinstance(report, dict) else None,
+        "oracle_id": report.get("oracle_id") if isinstance(report, dict) else None,
+        "input": rel_path(report_path),
+        "history_input": rel_path(history_path) if history_path else None,
+        "issues": issues,
+        "summary": {
+            "metrics": len(metrics) if isinstance(metrics, list) else 0,
+            "history_items": len(history_items),
+            "next_action": report.get("next_action") if isinstance(report, dict) else None,
+            "issues": len(issues),
+        },
+    }
+
+
+def command_drift_gate_evaluate(args: argparse.Namespace) -> int:
+    report_path = cli_input_path(args.input)
+    history_path = cli_input_path(args.history) if getattr(args, "history", None) else None
+    payload = drift_gate_evaluation_payload(report_path, history_path)
+    if getattr(args, "output", None):
+        write_artifact(cli_input_path(args.output), payload)
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"drift-gate-evaluate: {payload['status']} ({payload['summary']['issues']} issue(s))")
+    return 0 if payload["status"] == "pass" else 1
+
+
 def loop_contract_from_design_payload(design_path: Path) -> Dict[str, Any]:
     validation = loop_design_validation_payload(design_path)
     if validation["status"] != "pass":
@@ -5079,6 +5334,127 @@ def has_nonempty_list(value: Any) -> bool:
     return isinstance(value, list) and len(value) > 0
 
 
+PONYTAIL_RUNGS = {
+    "does_not_need_to_exist",
+    "reuse_existing",
+    "stdlib",
+    "native_platform",
+    "installed_dependency",
+    "one_liner",
+    "minimum_code",
+}
+
+PONYTAIL_SAFETY_BOUNDARIES = {
+    "comprehension",
+    "validation",
+    "data_loss",
+    "security",
+    "accessibility",
+    "trust_boundary",
+    "money",
+    "hardware",
+    "explicit_requirement",
+}
+
+
+def ponytail_issue(task: Dict[str, Any], rule: str, message: str) -> Dict[str, Any]:
+    return {
+        "severity": "blocking",
+        "rule": rule,
+        "task_id": str(task.get("task_id") or "<unknown>"),
+        "message": message,
+    }
+
+
+def ponytail_contract_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
+    task_id = str(task.get("task_id") or "<unknown>")
+    contract = task.get("minimality_contract")
+    executable = task_executable(task)
+
+    if contract is None:
+        return [
+            ponytail_issue(
+                task,
+                "missing_minimality_contract",
+                "every ADLC task must carry a Ponytail minimality_contract before work-item emission",
+            )
+        ]
+
+    if is_not_applicable_reason(contract):
+        if executable:
+            return [
+                ponytail_issue(
+                    task,
+                    "minimality_contract_not_applicable_on_executable",
+                    "implementation_task and validation_task work cannot bypass Ponytail with not_applicable",
+                )
+            ]
+        return []
+
+    if not isinstance(contract, dict):
+        return [
+            ponytail_issue(
+                task,
+                "invalid_minimality_contract",
+                "minimality_contract must be an object or a not_applicable reason",
+            )
+        ]
+
+    issues: List[Dict[str, Any]] = []
+    if contract.get("mode") not in {"lite", "full", "ultra"}:
+        issues.append(ponytail_issue(task, "missing_ponytail_mode", "minimality_contract.mode must be lite, full, or ultra"))
+    if contract.get("rung") not in PONYTAIL_RUNGS:
+        issues.append(ponytail_issue(task, "missing_ponytail_rung", "minimality_contract.rung must identify the Ponytail ladder rung used"))
+    if not isinstance(contract.get("decision"), str) or not contract["decision"].strip():
+        issues.append(ponytail_issue(task, "missing_ponytail_decision", "minimality_contract.decision must explain the smallest acceptable change"))
+    if not has_nonempty_list(contract.get("reuse_evidence")):
+        issues.append(ponytail_issue(task, "missing_ponytail_reuse_evidence", "minimality_contract.reuse_evidence must show the repo, stdlib, platform, or dependency search"))
+    if not has_nonempty_list(contract.get("skipped")) and contract.get("rung") != "does_not_need_to_exist":
+        issues.append(ponytail_issue(task, "missing_ponytail_skipped_options", "minimality_contract.skipped must record avoided abstractions, files, or dependencies"))
+
+    new_dependencies = contract.get("new_dependencies")
+    if isinstance(new_dependencies, list) and new_dependencies and not has_nonempty_value(contract.get("dependency_approval_ref")):
+        issues.append(
+            ponytail_issue(
+                task,
+                "unapproved_ponytail_new_dependency",
+                "new dependencies require dependency_approval_ref because Ponytail prefers stdlib, platform, or installed dependencies first",
+            )
+        )
+
+    new_abstractions = contract.get("new_abstractions")
+    if isinstance(new_abstractions, list) and new_abstractions and not has_nonempty_value(contract.get("abstraction_approval_ref")):
+        issues.append(
+            ponytail_issue(
+                task,
+                "unapproved_ponytail_new_abstraction",
+                "new abstractions require abstraction_approval_ref because Ponytail defaults to the fewest files and concepts possible",
+            )
+        )
+
+    minimum_check = contract.get("minimum_check")
+    if not isinstance(minimum_check, dict) or not has_nonempty_value(minimum_check.get("command")) or not has_nonempty_value(minimum_check.get("proves")):
+        issues.append(ponytail_issue(task, "missing_ponytail_minimum_check", "minimality_contract.minimum_check must name one runnable check and what it proves"))
+
+    safety_preserved = contract.get("safety_preserved")
+    if not has_nonempty_list(safety_preserved):
+        issues.append(ponytail_issue(task, "missing_ponytail_safety_boundaries", "minimality_contract.safety_preserved must name the safety boundaries Ponytail did not cut"))
+    elif any(item not in PONYTAIL_SAFETY_BOUNDARIES for item in safety_preserved):
+        issues.append(ponytail_issue(task, "invalid_ponytail_safety_boundary", f"{task_id} has an unknown Ponytail safety boundary"))
+
+    for shortcut in contract.get("intentional_shortcuts", []) or []:
+        if not isinstance(shortcut, dict):
+            issues.append(ponytail_issue(task, "invalid_ponytail_shortcut", "intentional_shortcuts entries must be objects"))
+            continue
+        comment = shortcut.get("comment")
+        if not isinstance(comment, str) or "ponytail:" not in comment:
+            issues.append(ponytail_issue(task, "missing_ponytail_shortcut_comment", "intentional shortcuts must include a ponytail: comment"))
+        if not has_nonempty_value(shortcut.get("ceiling")) or not has_nonempty_value(shortcut.get("upgrade_trigger")):
+            issues.append(ponytail_issue(task, "missing_ponytail_shortcut_bounds", "intentional shortcuts must include ceiling and upgrade_trigger"))
+
+    return issues
+
+
 def task_has_generated_output_surface(task: Dict[str, Any]) -> bool:
     surface = task.get("generated_output_surface")
     if isinstance(surface, bool):
@@ -5246,6 +5622,82 @@ def productionization_gate_issues_for_task(task: Dict[str, Any]) -> List[Dict[st
     return issues
 
 
+KITCHEN_LOOP_REQUIRED_REF_PREFIXES = {
+    "spec-surface:": "missing_kitchen_loop_spec_surface_ref",
+    "scenario-coverage-plan:": "missing_kitchen_loop_scenario_coverage_ref",
+    "regression-oracle:": "missing_kitchen_loop_regression_oracle_ref",
+    "drift-gate-report:": "missing_kitchen_loop_drift_gate_ref",
+}
+
+
+def task_string_refs(task: Dict[str, Any]) -> List[str]:
+    refs: List[str] = []
+    for field_name in (
+        "construct_map_refs",
+        "paved_road_refs",
+        "intent_contract_refs",
+        "evidence_responsibilities",
+        "definition_of_done",
+    ):
+        value = task.get(field_name)
+        if isinstance(value, list):
+            refs.extend(str(item) for item in value if str(item).strip())
+
+    meta = task.get("work_item_metadata")
+    if isinstance(meta, dict):
+        for field_name in ("labels", "external_refs"):
+            value = meta.get(field_name)
+            if isinstance(value, list):
+                refs.extend(str(item) for item in value if str(item).strip())
+
+    for contract_name in ("implementation_interface_contract", "productionization_gate"):
+        contract = task.get(contract_name)
+        if isinstance(contract, dict):
+            for field_name in ("id", "capability", "claim"):
+                value = contract.get(field_name)
+                if isinstance(value, str) and value.strip():
+                    refs.append(value)
+            for field_name in ("evidence_refs", "validation_gates", "validation_evidence", "no_overclaim", "runbook_refs"):
+                value = contract.get(field_name)
+                if isinstance(value, list):
+                    refs.extend(str(item) for item in value if str(item).strip())
+
+    return refs
+
+
+def task_activates_kitchen_loop(task: Dict[str, Any]) -> bool:
+    refs = [ref.lower() for ref in task_string_refs(task)]
+    activation_terms = (
+        "kitchen-loop",
+        "coverage-admission",
+        "coverage-exhaustion",
+        "spec-surface:",
+        "scenario-coverage-plan:",
+        "regression-oracle:",
+        "drift-gate-report:",
+    )
+    return any(any(term in ref for term in activation_terms) for ref in refs)
+
+
+def kitchen_loop_coverage_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not task_executable(task) or not task_activates_kitchen_loop(task):
+        return []
+
+    refs = task_string_refs(task)
+    issues: List[Dict[str, Any]] = []
+    for prefix, rule in KITCHEN_LOOP_REQUIRED_REF_PREFIXES.items():
+        if not any(ref.startswith(prefix) for ref in refs):
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": rule,
+                    "task_id": task["task_id"],
+                    "message": f"Kitchen Loop coverage admission requires a {prefix} evidence ref",
+                }
+            )
+    return issues
+
+
 def slop_gate_payload(brief_path: Path) -> Dict[str, Any]:
     errors = validate_artifact(resolve_schema("build-brief"), brief_path)
     if errors:
@@ -5288,6 +5740,292 @@ def slop_gate_payload(brief_path: Path) -> Dict[str, Any]:
             "issues": len(issues),
         },
     }
+
+
+def ponytail_admission_payload(brief_path: Path) -> Dict[str, Any]:
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+
+    brief = read_json(brief_path)
+    tasks = brief.get("sections", {}).get("8_task_tickets", [])
+    issues: List[Dict[str, Any]] = []
+    task_results: List[Dict[str, Any]] = []
+    for task in tasks:
+        task_issues = ponytail_contract_issues_for_task(task)
+        issues.extend(task_issues)
+        contract = task.get("minimality_contract")
+        if task_issues:
+            status = "blocked"
+        elif is_not_applicable_reason(contract):
+            status = "not_applicable"
+        else:
+            status = "pass"
+        task_results.append(
+            {
+                "task_id": str(task.get("task_id") or "<unknown>"),
+                "artifact_type": str(task.get("artifact_type") or "unknown"),
+                "executable": task_executable(task),
+                "status": status,
+                "minimality_contract": contract if isinstance(contract, dict) else None,
+                "issues": task_issues,
+            }
+        )
+
+    payload = {
+        "contract_version": "1.0.0",
+        "status": "blocked" if issues else "pass",
+        "build_brief_id": str(brief.get("brief_id") or "unknown"),
+        "input": rel_path(brief_path),
+        "tasks": task_results,
+        "issues": issues,
+        "summary": {
+            "tasks": len(tasks),
+            "executable_tasks": sum(1 for task in tasks if task_executable(task)),
+            "passed": sum(1 for item in task_results if item["status"] in {"pass", "not_applicable"}),
+            "blocked": sum(1 for item in task_results if item["status"] == "blocked"),
+            "issues": len(issues),
+        },
+        "boundary": {
+            "does_not": [
+                "install the upstream Ponytail plugin",
+                "mutate trackers",
+                "approve new dependencies",
+                "dispatch coding agents",
+            ]
+        },
+    }
+    report_errors = validate_artifact_payload(resolve_schema("ponytail-admission-report"), payload)
+    if report_errors:
+        raise ValueError("generated Ponytail admission report failed schema validation: " + "; ".join(report_errors))
+    return payload
+
+
+def command_ponytail_admit(args: argparse.Namespace) -> int:
+    brief_path = cli_input_path(args.build_brief)
+    payload = ponytail_admission_payload(brief_path)
+    if getattr(args, "output", None):
+        write_artifact(cli_input_path(args.output), payload, "ponytail-admission-report")
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"ponytail-admit: {payload['status']} ({payload['summary']['issues']} issue(s))")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def canary_script_line_count(source: str) -> int:
+    return len([line for line in source.splitlines() if line.strip()])
+
+
+def run_ponytail_canary_script(workspace: Path, variant: Dict[str, Any]) -> Dict[str, Any]:
+    script_path = workspace / variant["script"]
+    script_path.parent.mkdir(parents=True, exist_ok=True)
+    script_path.write_text(variant["code"].rstrip() + "\n", encoding="utf-8")
+    command = [
+        str(part).replace("{script}", str(script_path))
+        for part in variant.get("command", ["python3", "{script}"])
+    ]
+    started = monotonic()
+    result = subprocess.run(command, cwd=str(workspace), text=True, capture_output=True, check=False)
+    duration_ms = int((monotonic() - started) * 1000)
+    return {
+        "script": rel_path(script_path),
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip()[-2000:],
+        "duration_ms": duration_ms,
+        "lines_of_code": canary_script_line_count(variant["code"]),
+    }
+
+
+def canary_task_from_template(
+    template: Dict[str, Any],
+    scenario: Dict[str, Any],
+    variant: Dict[str, Any],
+    with_ponytail: bool,
+) -> Dict[str, Any]:
+    task = json.loads(json.dumps(template))
+    scenario_id = str(scenario["scenario_id"])
+    task["task_id"] = scenario_id
+    task["artifact_type"] = "implementation_task"
+    task["task_classification"] = "feature"
+    task["title"] = str(scenario["task"])
+    task["objective"] = str(scenario["task"])
+    task["scope"] = [f"Build {variant['script']} for {scenario_id}."]
+    task["out_of_scope"] = ["Do not add packages, frameworks, or multi-file scaffolding for the canary."]
+    task["dependencies"] = []
+    task["acceptance_criteria"] = [f"{variant['script']} prints {scenario['expected_stdout']} for the supplied input."]
+    task["implementation_notes"] = [f"Ponytail scenario canary variant: {'with' if with_ponytail else 'without'}."]
+    task["verification_spec"]["primary_verifier"]["target"] = " ".join(str(part) for part in variant.get("command", ["python3", "{script}"]))
+    task["verification_spec"]["primary_verifier"]["target_files"] = [variant["script"]]
+    task["verification_spec"]["primary_verifier"]["expected_failure_mode"] = "script exits non-zero or stdout differs from expected_stdout"
+    task["verification_spec"]["primary_verifier"]["rationale"] = "Ponytail scenario canary executes the generated script and compares stdout."
+    task["verification_spec"]["scope_note"] = "Canary-generated script only; no repo mutation."
+    task["tech_debt_boundaries"] = {
+        "prerequisite_debt": "none",
+        "deferred_debt": "none",
+        "deferral_safety": "Canary scripts are written to an ephemeral temp workspace.",
+    }
+    task["compatibility_contract"] = {
+        "backward": "No external interface; canary is local and ephemeral.",
+        "forward": "The scenario fixture can add more cases without changing the CLI contract.",
+        "migration_or_rollout": "No rollout; this is a deterministic local canary.",
+    }
+    task["evidence_responsibilities"] = ["ponytail-scenario-canary report"]
+    task["definition_of_done"] = ["Script exits 0, stdout matches expected, and ADLC readiness behaves as expected."]
+    task["failure_modes"] = ["wrong stdout", "readiness gate admits missing minimality contract"]
+    task["files_to_create"] = [variant["script"]]
+    task["files_to_modify"] = []
+    task["reference_impl"] = "tests/fixtures/ponytail/scenarios.json"
+    task["work_item_metadata"] = {
+        "area": "canary",
+        "area_label": "canary",
+        "phase_label": "ponytail",
+        "target_project": "adlc",
+        "labels": ["ponytail", "minimality", "canary"],
+        "external_refs": [scenario_id],
+    }
+    if with_ponytail:
+        task["minimality_contract"] = variant["minimality_contract"]
+    else:
+        task.pop("minimality_contract", None)
+    return task
+
+
+def canary_brief_from_scenario(base_brief: Dict[str, Any], scenario: Dict[str, Any], variant: Dict[str, Any], with_ponytail: bool) -> Dict[str, Any]:
+    brief = json.loads(json.dumps(base_brief))
+    template = next(
+        task
+        for task in brief.get("sections", {}).get("8_task_tickets", [])
+        if task.get("artifact_type") == "implementation_task"
+    )
+    task = canary_task_from_template(template, scenario, variant, with_ponytail)
+    brief["brief_id"] = f"PONYTAIL-CANARY-{scenario['scenario_id']}"
+    brief["prd_id"] = f"PONYTAIL-CANARY-{scenario['scenario_id']}"
+    brief["adlc_mode"] = "prd_only"
+    brief["enterprise_readiness_contract"]["validation_tasks"] = []
+    brief["sections"]["1_context"] = f"Ponytail scenario canary: {scenario['task']}"
+    brief["sections"]["8_task_tickets"] = [task]
+    return brief
+
+
+def canary_readiness_for_brief(brief: Dict[str, Any], brief_path: Path, target: str = "linear") -> Tuple[Dict[str, Any], bool]:
+    tasks = brief.get("sections", {}).get("8_task_tickets", [])
+    readiness = compute_readiness_report(brief, tasks, phase_project_map=None)
+    ticket_inherits = False
+    if readiness["status"] == "ready":
+        payload = normalized_work_item_payload(brief_path, target)
+        ticket_inherits = any(
+            isinstance(artifact.get("minimality_contract"), dict)
+            for artifact in payload.get("artifacts", [])
+        )
+    return readiness, ticket_inherits
+
+
+def ponytail_scenario_canary_payload(input_path: Path) -> Dict[str, Any]:
+    scenario_set = read_json(input_path)
+    scenarios = scenario_set.get("scenarios", []) if isinstance(scenario_set, dict) else []
+    base_brief_path = ROOT / "tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json"
+    base_brief = read_json(base_brief_path)
+    scenario_results: List[Dict[str, Any]] = []
+
+    with tempfile.TemporaryDirectory(prefix="adlc-ponytail-canary-") as raw_tmp:
+        workspace = Path(raw_tmp)
+        for scenario in scenarios:
+            without_variant = scenario["without_ponytail"]
+            with_variant = scenario["with_ponytail"]
+            without_script = run_ponytail_canary_script(workspace / "without", without_variant)
+            with_script = run_ponytail_canary_script(workspace / "with", with_variant)
+
+            without_brief = canary_brief_from_scenario(base_brief, scenario, without_variant, with_ponytail=False)
+            with_brief = canary_brief_from_scenario(base_brief, scenario, with_variant, with_ponytail=True)
+            without_brief_path = workspace / f"{scenario['scenario_id']}-without-build-brief.json"
+            with_brief_path = workspace / f"{scenario['scenario_id']}-with-build-brief.json"
+            without_brief_path.write_text(json.dumps(without_brief, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            with_brief_path.write_text(json.dumps(with_brief, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+            without_readiness, without_ticket_inherits = canary_readiness_for_brief(without_brief, without_brief_path)
+            with_readiness, with_ticket_inherits = canary_readiness_for_brief(with_brief, with_brief_path)
+
+            expected = str(scenario["expected_stdout"])
+            scripts_pass = (
+                without_script["exit_code"] == 0
+                and with_script["exit_code"] == 0
+                and without_script["stdout"] == expected
+                and with_script["stdout"] == expected
+            )
+            readiness_pass = without_readiness["status"] == "blocked" and with_readiness["status"] == "ready" and with_ticket_inherits
+            smaller_or_equal = with_script["lines_of_code"] <= without_script["lines_of_code"]
+            result = "pass" if scripts_pass and readiness_pass and smaller_or_equal else "blocked"
+            scenario_results.append(
+                {
+                    "scenario_id": str(scenario["scenario_id"]),
+                    "task": str(scenario["task"]),
+                    "without_ponytail": {
+                        "script": without_script["script"],
+                        "exit_code": without_script["exit_code"],
+                        "stdout": without_script["stdout"],
+                        "lines_of_code": without_script["lines_of_code"],
+                        "adlc_ready": without_readiness["status"] == "ready",
+                        "readiness_issues": [issue["rule"] for issue in without_readiness.get("issues", [])],
+                        "ticket_inherits_minimality_contract": without_ticket_inherits,
+                    },
+                    "with_ponytail": {
+                        "script": with_script["script"],
+                        "exit_code": with_script["exit_code"],
+                        "stdout": with_script["stdout"],
+                        "lines_of_code": with_script["lines_of_code"],
+                        "adlc_ready": with_readiness["status"] == "ready",
+                        "readiness_issues": [issue["rule"] for issue in with_readiness.get("issues", [])],
+                        "ticket_inherits_minimality_contract": with_ticket_inherits,
+                    },
+                    "result": result,
+                }
+            )
+
+    payload = {
+        "contract_version": "1.0.0",
+        "status": "blocked" if any(item["result"] != "pass" for item in scenario_results) else "pass",
+        "scenario_set_id": str(scenario_set.get("scenario_set_id") or "ponytail-scenarios"),
+        "input": rel_path(input_path),
+        "scenarios": scenario_results,
+        "summary": {
+            "scenarios": len(scenario_results),
+            "passed": sum(1 for item in scenario_results if item["result"] == "pass"),
+            "blocked": sum(1 for item in scenario_results if item["result"] != "pass"),
+            "without_ponytail_ready": sum(1 for item in scenario_results if item["without_ponytail"]["adlc_ready"]),
+            "with_ponytail_ready": sum(1 for item in scenario_results if item["with_ponytail"]["adlc_ready"]),
+            "scripts_passed": sum(
+                1
+                for item in scenario_results
+                if item["without_ponytail"]["exit_code"] == 0 and item["with_ponytail"]["exit_code"] == 0
+            ),
+        },
+        "boundary": {
+            "does_not": [
+                "mutate the source checkout",
+                "install dependencies",
+                "dispatch agents",
+                "call external model providers",
+            ]
+        },
+    }
+    report_errors = validate_artifact_payload(resolve_schema("ponytail-scenario-canary-report"), payload)
+    if report_errors:
+        raise ValueError("generated Ponytail scenario canary report failed schema validation: " + "; ".join(report_errors))
+    return payload
+
+
+def command_ponytail_scenario_canary(args: argparse.Namespace) -> int:
+    input_path = cli_input_path(args.input or "tests/fixtures/ponytail/scenarios.json")
+    payload = ponytail_scenario_canary_payload(input_path)
+    if getattr(args, "output", None):
+        write_artifact(cli_input_path(args.output), payload, "ponytail-scenario-canary-report")
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"ponytail-scenario-canary: {payload['status']} ({payload['summary']['passed']}/{payload['summary']['scenarios']} passed)")
+    return 0 if payload["status"] == "pass" else 1
 
 
 def terminal_side_effect_dependency_ids(state: Dict[str, Any] | None, target: str, brief_id: str) -> set:
@@ -5388,6 +6126,9 @@ def compute_readiness_report(
                 })
 
     for task in tasks:
+        issues.extend(ponytail_contract_issues_for_task(task))
+
+    for task in tasks:
         atype = task.get("artifact_type")
         if atype in ("implementation_task", "validation_task"):
             checks = [
@@ -5430,6 +6171,7 @@ def compute_readiness_report(
 
             issues.extend(slop_gate_issues_for_task(task))
             issues.extend(productionization_gate_issues_for_task(task))
+            issues.extend(kitchen_loop_coverage_issues_for_task(task))
 
     if phase_project_map:
         for task in tasks:
@@ -5527,6 +6269,7 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "files_to_modify": task.get("files_to_modify", []),
             "tech_debt_boundaries": task.get("tech_debt_boundaries"),
             "compatibility_contract": task.get("compatibility_contract"),
+            "minimality_contract": task.get("minimality_contract"),
             "construct_map_refs": task.get("construct_map_refs", []),
             "paved_road_refs": task.get("paved_road_refs", []),
             "intent_contract_refs": task.get("intent_contract_refs", []),
@@ -8624,6 +9367,85 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("ponytail-admit"),
+            "description": command_description("ponytail-admit"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("ponytail-scenario-canary"),
+            "description": command_description("ponytail-scenario-canary"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("coverage-surface-validate"),
+            "description": command_description("coverage-surface-validate"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["input"],
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("scenario-coverage-plan"),
+            "description": command_description("scenario-coverage-plan"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["input"],
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                    "spec_surface": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("regression-oracle-validate"),
+            "description": command_description("regression-oracle-validate"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["input"],
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("drift-gate-evaluate"),
+            "description": command_description("drift-gate-evaluate"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["input"],
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                    "history": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("loop-test-selection"),
             "description": command_description("loop-test-selection"),
             "inputSchema": {
@@ -9080,6 +9902,70 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             brief_path = ROOT / brief_path
         payload = slop_gate_payload(brief_path)
         return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_ponytail_admit":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_ponytail_admit requires string argument: build_brief")
+        payload = ponytail_admission_payload(cli_input_path(build_brief, ROOT))
+        output = arguments.get("output")
+        if isinstance(output, str):
+            write_artifact(cli_input_path(output, ROOT), payload, "ponytail-admission-report")
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_ponytail_scenario_canary":
+        input_path = arguments.get("input")
+        payload = ponytail_scenario_canary_payload(
+            cli_input_path(input_path, ROOT)
+            if isinstance(input_path, str)
+            else ROOT / "tests/fixtures/ponytail/scenarios.json"
+        )
+        output = arguments.get("output")
+        if isinstance(output, str):
+            write_artifact(cli_input_path(output, ROOT), payload, "ponytail-scenario-canary-report")
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_coverage_surface_validate":
+        input_path = arguments.get("input")
+        if not isinstance(input_path, str):
+            raise ValueError("adlc_coverage_surface_validate requires string argument: input")
+        payload = coverage_surface_validation_payload(cli_input_path(input_path, ROOT))
+        output = arguments.get("output")
+        if isinstance(output, str):
+            write_artifact(cli_input_path(output, ROOT), payload)
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_scenario_coverage_plan":
+        input_path = arguments.get("input")
+        if not isinstance(input_path, str):
+            raise ValueError("adlc_scenario_coverage_plan requires string argument: input")
+        spec_surface = arguments.get("spec_surface")
+        payload = scenario_coverage_plan_payload(
+            cli_input_path(input_path, ROOT),
+            cli_input_path(spec_surface, ROOT) if isinstance(spec_surface, str) else None,
+        )
+        output = arguments.get("output")
+        if isinstance(output, str):
+            write_artifact(cli_input_path(output, ROOT), payload)
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_regression_oracle_validate":
+        input_path = arguments.get("input")
+        if not isinstance(input_path, str):
+            raise ValueError("adlc_regression_oracle_validate requires string argument: input")
+        payload = regression_oracle_validation_payload(cli_input_path(input_path, ROOT))
+        output = arguments.get("output")
+        if isinstance(output, str):
+            write_artifact(cli_input_path(output, ROOT), payload)
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_drift_gate_evaluate":
+        input_path = arguments.get("input")
+        if not isinstance(input_path, str):
+            raise ValueError("adlc_drift_gate_evaluate requires string argument: input")
+        history = arguments.get("history")
+        payload = drift_gate_evaluation_payload(
+            cli_input_path(input_path, ROOT),
+            cli_input_path(history, ROOT) if isinstance(history, str) else None,
+        )
+        output = arguments.get("output")
+        if isinstance(output, str):
+            write_artifact(cli_input_path(output, ROOT), payload)
+        return tool_result(payload, is_error=payload["status"] != "pass")
     if name == "adlc_loop_test_selection":
         loop_contract = arguments.get("loop_contract")
         test_plan = arguments.get("test_plan")
@@ -9405,6 +10291,32 @@ def build_parser() -> argparse.ArgumentParser:
     loop_from_design.add_argument("--json", action="store_true", help="Emit JSON.")
     loop_from_design.set_defaults(func=command_loop_contract_from_design)
 
+    coverage_surface = subparsers.add_parser("coverage-surface-validate", help=command_description("coverage-surface-validate"))
+    coverage_surface.add_argument("--input", required=True, help="Specification Surface JSON path.")
+    coverage_surface.add_argument("--output", help="Optional validation report path.")
+    coverage_surface.add_argument("--json", action="store_true", help="Emit JSON.")
+    coverage_surface.set_defaults(func=command_coverage_surface_validate)
+
+    scenario_coverage = subparsers.add_parser("scenario-coverage-plan", help=command_description("scenario-coverage-plan"))
+    scenario_coverage.add_argument("--input", required=True, help="Scenario Coverage Plan JSON path.")
+    scenario_coverage.add_argument("--spec-surface", help="Optional Specification Surface JSON path to verify surface_id alignment.")
+    scenario_coverage.add_argument("--output", help="Optional validation report path.")
+    scenario_coverage.add_argument("--json", action="store_true", help="Emit JSON.")
+    scenario_coverage.set_defaults(func=command_scenario_coverage_plan)
+
+    regression_oracle = subparsers.add_parser("regression-oracle-validate", help=command_description("regression-oracle-validate"))
+    regression_oracle.add_argument("--input", required=True, help="Regression Oracle JSON path.")
+    regression_oracle.add_argument("--output", help="Optional validation report path.")
+    regression_oracle.add_argument("--json", action="store_true", help="Emit JSON.")
+    regression_oracle.set_defaults(func=command_regression_oracle_validate)
+
+    drift_gate = subparsers.add_parser("drift-gate-evaluate", help=command_description("drift-gate-evaluate"))
+    drift_gate.add_argument("--input", required=True, help="Drift Gate Report JSON path.")
+    drift_gate.add_argument("--history", help="Optional drift history JSON array path.")
+    drift_gate.add_argument("--output", help="Optional evaluation report path.")
+    drift_gate.add_argument("--json", action="store_true", help="Emit JSON.")
+    drift_gate.set_defaults(func=command_drift_gate_evaluate)
+
     run = subparsers.add_parser("run", help="Run or dry-run ADLC workflow phases with persisted state.")
     run.add_argument("--brief-id", help="Build Brief ID. Required when creating new state without --input.")
     run.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
@@ -9638,6 +10550,18 @@ def build_parser() -> argparse.ArgumentParser:
     slop_gate.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
     slop_gate.add_argument("--json", action="store_true", help="Emit JSON.")
     slop_gate.set_defaults(func=command_slop_gate)
+
+    ponytail_admit = subparsers.add_parser("ponytail-admit", help=command_description("ponytail-admit"))
+    ponytail_admit.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
+    ponytail_admit.add_argument("--output", help="Optional Ponytail admission report path.")
+    ponytail_admit.add_argument("--json", action="store_true", help="Emit JSON.")
+    ponytail_admit.set_defaults(func=command_ponytail_admit)
+
+    ponytail_canary = subparsers.add_parser("ponytail-scenario-canary", help=command_description("ponytail-scenario-canary"))
+    ponytail_canary.add_argument("--input", help="Ponytail scenario fixture path. Defaults to tests/fixtures/ponytail/scenarios.json.")
+    ponytail_canary.add_argument("--output", help="Optional Ponytail scenario canary report path.")
+    ponytail_canary.add_argument("--json", action="store_true", help="Emit JSON.")
+    ponytail_canary.set_defaults(func=command_ponytail_scenario_canary)
 
     mcp = subparsers.add_parser("mcp-tools", help="Emit MCP-compatible tool declarations for the ADLC CLI.")
     mcp.add_argument("--json", action="store_true", help="Emit JSON.")

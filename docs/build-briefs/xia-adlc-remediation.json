@@ -186,6 +186,31 @@
           "external_refs": [
             "XIA-Socraticode-indexing"
           ]
+        },
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "minimum_code",
+          "decision": "Keep XIA-SOC-INDEX scoped to the referenced repo pattern and the fewest files needed for its verifier.",
+          "reuse_evidence": [
+            "scripts/adlc.py",
+            "docs/specs/socraticode-indexing.md"
+          ],
+          "skipped": [
+            {
+              "option": "new framework, package, or parallel abstraction",
+              "reason": "Existing ADLC schema, CLI, fixture, and test surfaces can absorb this task."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "adlc validate-artifact --schema build-brief --input docs/build-briefs/xia-adlc-remediation.json",
+            "proves": "The smallest task-scoped change satisfies the Build Brief verifier."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
         }
       },
       {
@@ -278,6 +303,30 @@
           "external_refs": [
             "XIA-Linear-reconciliation"
           ]
+        },
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "minimum_code",
+          "decision": "Keep XIA-LIN-RECON scoped to the referenced repo pattern and the fewest files needed for its verifier.",
+          "reuse_evidence": [
+            "scripts/adlc.py"
+          ],
+          "skipped": [
+            {
+              "option": "new framework, package, or parallel abstraction",
+              "reason": "Existing ADLC schema, CLI, fixture, and test surfaces can absorb this task."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "adlc emit-work-items --target linear --dry-run --require-ready",
+            "proves": "The smallest task-scoped change satisfies the Build Brief verifier."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
         }
       },
       {
@@ -369,6 +418,10 @@
           "external_refs": [
             "XIA-Type1-decisions"
           ]
+        },
+        "minimality_contract": {
+          "applicability": "not_applicable",
+          "reason": "decision_gate does not direct a coding agent to change executable code."
         }
       },
       {
@@ -460,6 +513,30 @@
           ],
           "external_refs": [
             "XIA-alias-cleanup"
+          ]
+        },
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "minimum_code",
+          "decision": "Keep XIA-ALIAS-CLEAN scoped to the referenced repo pattern and the fewest files needed for its verifier.",
+          "reuse_evidence": [
+            "scripts/adlc.py"
+          ],
+          "skipped": [
+            {
+              "option": "new framework, package, or parallel abstraction",
+              "reason": "Existing ADLC schema, CLI, fixture, and test surfaces can absorb this task."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "adlc validate-artifact --schema build-brief --input docs/build-briefs/xia-adlc-remediation.json",
+            "proves": "The smallest task-scoped change satisfies the Build Brief verifier."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
           ]
         }
       },
@@ -562,6 +639,33 @@
           "external_refs": [
             "XIA-ADLC-readiness-gate"
           ]
+        },
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "reuse_existing",
+          "decision": "Keep XIA-ADLC-READY scoped to the referenced repo pattern and the fewest files needed for its verifier.",
+          "reuse_evidence": [
+            "scripts/adlc.py",
+            "scripts/adlc.py",
+            "docs/specs/emitter-contract.md",
+            "docs/schemas/build-brief.schema.json"
+          ],
+          "skipped": [
+            {
+              "option": "new framework, package, or parallel abstraction",
+              "reason": "Existing ADLC schema, CLI, fixture, and test surfaces can absorb this task."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "python3 -m py_compile scripts/adlc.py",
+            "proves": "The smallest task-scoped change satisfies the Build Brief verifier."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
         }
       },
       {
@@ -656,6 +760,30 @@
           ],
           "external_refs": [
             "XIA-validation-split"
+          ]
+        },
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "minimum_code",
+          "decision": "Keep XIA-VAL-SPLIT scoped to the referenced repo pattern and the fewest files needed for its verifier.",
+          "reuse_evidence": [
+            "scripts/adlc.py"
+          ],
+          "skipped": [
+            {
+              "option": "new framework, package, or parallel abstraction",
+              "reason": "Existing ADLC schema, CLI, fixture, and test surfaces can absorb this task."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "adlc emit-work-items --target linear --build-brief docs/build-briefs/xia-adlc-remediation.json --dry-run --require-ready",
+            "proves": "The smallest task-scoped change satisfies the Build Brief verifier."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
           ]
         }
       }

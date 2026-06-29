@@ -24,6 +24,17 @@ Use `verification_spec.primary_verifier` as the source of truth.
 
 If the verifier passes too early, the verifier is wrong or the task is already satisfied.
 
+## Ponytail Minimality
+
+The assembled context includes `minimality_contract`. Treat it as binding scope.
+
+- Follow the named Ponytail rung before adding code: reuse existing code, stdlib, native platform, installed dependency, one-liner, then minimum code.
+- Keep the diff to the fewest files and concepts that satisfy `verification_spec`.
+- Do not add new dependencies unless `minimality_contract.dependency_approval_ref` is present.
+- Do not add a new abstraction unless `minimality_contract.abstraction_approval_ref` is present.
+- Preserve every listed safety boundary. Ponytail never cuts validation, comprehension, data-loss prevention, security, accessibility, trust-boundary checks, money handling, hardware calibration, or explicit requirements.
+- Run `minimality_contract.minimum_check.command` when it differs from the primary verifier or proves a narrower invariant.
+
 ## Test Plan Input
 
 The assembled context includes `.adlc/test_plan.json` from the `test-author` agent.

@@ -1,0 +1,36 @@
+{
+  "contract_version": "1.0.0",
+  "oracle_id": "oracle:kitchen-loop-fixture",
+  "owner": "adlc-maintainers",
+  "oracle_type": "golden_command",
+  "ground_truth_source": {
+    "type": "golden_command",
+    "strength": "independent",
+    "ref": "tests/test_adlc_cli.sh::kitchen-loop-canaries"
+  },
+  "execution_boundary": {
+    "command": "bin/adlc coverage-surface-validate --input tests/fixtures/kitchen_loop/valid-spec-surface.json --json",
+    "mutation_policy": "read_only",
+    "network_policy": "none"
+  },
+  "state_delta_assertions": [
+    {
+      "id": "assertion:status-pass",
+      "assertion": "The validator emits status=pass for the valid spec surface fixture."
+    }
+  ],
+  "anti_canaries": [
+    {
+      "id": "anti:missing-oracle",
+      "input_ref": "tests/fixtures/kitchen_loop/invalid-spec-surface-missing-oracle.json",
+      "expected_failure": "Schema validation rejects the missing oracle refs."
+    }
+  ],
+  "environmental_failure_policy": "fail_closed",
+  "pre_merge_required": true,
+  "post_merge_required": false,
+  "coverage_limitations": [
+    "This oracle verifies ADLC admission mechanics, not downstream product correctness."
+  ],
+  "redaction_posture": "No secrets, no external network, no provider mutation."
+}

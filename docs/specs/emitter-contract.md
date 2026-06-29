@@ -96,6 +96,12 @@ Repo configuration binds ADLC's logical emitter capabilities to whatever tool na
       "area": "backend | frontend | infra | observability",
       "phase": 1,
       "linked_failure_modes": ["FM-001"],
+      "minimality_contract": {
+        "mode": "full",
+        "rung": "reuse_existing | stdlib | native_platform | installed_dependency | one_liner | minimum_code",
+        "reuse_evidence": [],
+        "minimum_check": { "command": "string", "proves": "string" }
+      },
       "idempotency_key": "string"
     }
   ],
@@ -138,6 +144,10 @@ The sync input is schema-backed by `docs/schemas/work-item-sync.schema.json`:
 `sync-work-item` supports two input modes:
 
 - `--build-brief`: derive stable work-item identities from the existing normalized emitter payload and mirror the supplied workflow state.
+
+## Ponytail Minimality Contract
+
+Every work-item emitter must preserve `minimality_contract` exactly as supplied by the Build Brief. The emitted ticket or issue must show the Ponytail rung, `reuse_evidence`, skipped options, dependency and abstraction approvals when present, and `minimum_check`. `emit-work-items --require-ready` blocks missing or weak contracts before provider mutation, so external systems receive the same forcing function the coding harness receives.
 - `--work-item`: sync one explicit work-item update payload.
 
 Dry-run mode returns planned `create` or `append` operations. Mutation mode requires all of these:

@@ -32,6 +32,20 @@ converts a passing design into the existing ADLC Loop Contract schema. The
 design artifact is admission evidence; it does not schedule agents, claim work,
 mutate trackers, or upgrade maturity without executed verifier evidence.
 
+## Kitchen Loop Coverage Admission
+
+ADLC can validate Kitchen Loop style coverage-admission artifacts before a loop
+claims coverage exhaustion or autonomous scenario evolution. The admission layer
+requires a `spec-surface`, `scenario-coverage-plan`, `regression-oracle`, and
+`drift-gate-report`. The first artifact bounds the surface, the second bounds
+scenario coverage, the third supplies independent truth, and the fourth can
+`pass`, `pause`, or `escalate` based on drift.
+
+This evidence strengthens the test-selection, self-grading, and failure-handling
+dimensions, but it is still admission evidence. A workflow does not become
+`self_autonomous` until required tests and oracle checks have execution-backed
+results and the drift gate is passing.
+
 ## Seven Audit Dimensions
 
 ### Real loop

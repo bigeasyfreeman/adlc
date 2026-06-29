@@ -53,6 +53,24 @@ Failure mode: if the PRD does not contain enough user-outcome language to popula
 
 The narrative contract is the human-readable surface of the Build Brief. Everything below it (Scalable AI Code Primitives, Implementation Interface Contracts, Productionization Gates, Loop Contracts, Slop Quality Gates) is agent-readable contract data. Both audiences are served by the same brief.
 
+## Ponytail Minimality Contract (REQUIRED)
+
+Every task in Section 8 MUST carry `minimality_contract`. This is the ADLC forcing function that makes Ponytail survive decomposition, ticket emission, codegen, review, and harness handoff.
+
+For executable `implementation_task` and `validation_task` items, populate:
+
+- `mode`: `full` unless the user explicitly chooses `lite` or `ultra`.
+- `rung`: the highest valid Ponytail ladder rung: `does_not_need_to_exist`, `reuse_existing`, `stdlib`, `native_platform`, `installed_dependency`, `one_liner`, or `minimum_code`.
+- `decision`: why this is the smallest correct scoped work.
+- `reuse_evidence`: repo refs, stdlib refs, platform refs, or installed dependency refs checked before new code.
+- `skipped`: options intentionally not taken, especially new dependencies, abstractions, files, wrappers, or speculative future-proofing.
+- `new_dependencies`: empty unless a named approval exists in `dependency_approval_ref`.
+- `new_abstractions`: empty unless a named approval exists in `abstraction_approval_ref`.
+- `minimum_check`: the smallest runnable verifier command and what it proves.
+- `safety_preserved`: the boundaries not cut by minimality, such as `validation`, `security`, `data_loss`, `accessibility`, `trust_boundary`, `money`, `hardware`, `explicit_requirement`, or `comprehension`.
+
+Use a compact `{ "applicability": "not_applicable", "reason": "..." }` only for non-executable `scope_lock_epic` or `decision_gate` artifacts. Do not emit implementation tickets without `minimality_contract`; `emit-work-items --require-ready` blocks `missing_minimality_contract`, `missing_ponytail_reuse_evidence`, `unapproved_ponytail_new_dependency`, `unapproved_ponytail_new_abstraction`, and `missing_ponytail_minimum_check`.
+
 ### Voice Contract (NON-NEGOTIABLE for the four narrative fields)
 
 The narrative is written in the founder's voice, not generic AI voice. Canonical source: `magnus/config/eric-voice-profile.md` and `magnus/config/magnus-brand-foundation.md`. The rules below are inlined for portability; the Magnus files are the source of truth where they conflict.
