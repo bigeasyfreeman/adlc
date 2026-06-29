@@ -1,0 +1,31 @@
+{
+  "contract_version": "1.0.0",
+  "plan_id": "coverage-plan:adlc:kitchen-loop-unbounded",
+  "surface_id": "surface:adlc:kitchen-loop-fixture",
+  "bounded": false,
+  "max_scenarios": 0,
+  "scenarios": [
+    {
+      "scenario_id": "scenario:unbounded",
+      "tier": "frontier",
+      "status": "missing",
+      "dimension_values": {
+        "artifact": "scenario_plan",
+        "admission_state": "missing"
+      },
+      "expected_behavior": "This should fail because scenario generation is not bounded.",
+      "oracle_ref": "oracle:kitchen-loop-fixture"
+    }
+  ],
+  "blocked_combinations": [],
+  "coverage_limitations": [
+    "Invalid fixture."
+  ],
+  "summary": {
+    "covered": 0,
+    "missing": 1,
+    "blocked": 0,
+    "not_applicable": 0
+  },
+  "redaction_posture": "No secrets."
+}

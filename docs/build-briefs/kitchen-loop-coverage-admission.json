@@ -1,0 +1,1155 @@
+{
+  "version": "1.0.0",
+  "adlc_mode": "decompose_only",
+  "brief_id": "ADLC-KITCHEN-LOOP-COVERAGE-ADMISSION",
+  "prd_id": "ADLC-KITCHEN-LOOP-COVERAGE-ADMISSION-PRD",
+  "applicability_manifest": {
+    "version": "1.0.0",
+    "task_classification": "infra",
+    "task_classification_confidence": 0.94,
+    "classification_evidence": [
+      "The paper-derived change adds ADLC framework contracts, schemas, CLI/MCP surfaces, docs, fixtures, and validators rather than application product code.",
+      "The key implementation risk is overclaiming autonomous coverage without an enumerable specification surface and independent regression oracle."
+    ],
+    "change_surface": {
+      "new_attack_surface": false,
+      "runtime_path_change": true,
+      "service_boundary_change": false,
+      "external_integration": false,
+      "persistent_storage": true,
+      "api_change": true,
+      "data_format_change": true,
+      "auth_change": false,
+      "perf_sensitive": true,
+      "user_facing_operation": false
+    },
+    "claim_provenance": {
+      "supported": [
+        {
+          "claim": "Kitchen Loop is best mapped into ADLC as an optional coverage-exhaustion overlay around specification surfaces, scenario coverage, independent regression oracles, and drift pause gates.",
+          "source_ref": "docs/research/kitchen-loop-adlc-review.md",
+          "extracted_from": "Paper review against ADLC README, Loop Contract, Build Brief, validation, and maturity surfaces"
+        },
+        {
+          "claim": "ADLC already has many required control-plane primitives: schema-backed Build Briefs, Loop Contracts, test-selection evidence, maturity audit, Eval Council, slop gates, learning memory, and provider-neutral CLI/MCP metadata.",
+          "source_ref": "README.md; docs/research/loop-engineering-adlc-strategy-review.md; docs/build-briefs/loop-system-maturity-audit.json",
+          "extracted_from": "Graphify-refreshed repo review at commit 9c4432c7"
+        },
+        {
+          "claim": "The first implementation should be admission contracts and deterministic validators, not wholesale orchestrator import or autonomous merge behavior.",
+          "source_ref": "docs/research/kitchen-loop-adlc-review.md",
+          "extracted_from": "No-overclaim mapping from Kitchen Loop limitations to ADLC productionization gates"
+        }
+      ],
+      "unsupported": [],
+      "contradicted": []
+    },
+    "contamination": {
+      "flags": [
+        "scope_creep"
+      ],
+      "supported_claims": [
+        "Add Kitchen Loop as an optional, provider-free ADLC coverage admission layer.",
+        "Require an enumerable spec surface and independent oracle before coverage-exhaustion or autonomous-loop claims.",
+        "Emit pause or escalation reports instead of mutating production state."
+      ],
+      "unsupported_claims": [],
+      "contradicted_claims": [],
+      "needs_clarification": [
+        "Which downstream product should be the first real spec-surface fixture after ADLC's synthetic fixtures pass?"
+      ],
+      "suspect_phrases": [
+        "import Kitchen Loop wholesale",
+        "auto-merge after debate",
+        "self-autonomous because scenario generation exists",
+        "LLM-authored tests are the oracle",
+        "coverage-exhaustion for non-enumerable exploratory work"
+      ]
+    },
+    "section_policy": [
+      {
+        "section_name": "1_context",
+        "status": "active",
+        "reason": "The paper needs to be positioned as an ADLC framework capability with a conservative admission boundary."
+      },
+      {
+        "section_name": "3_repo_findings",
+        "status": "active",
+        "reason": "ADLC already has overlapping primitives, so implementation must reuse them instead of adding parallel orchestration."
+      },
+      {
+        "section_name": "8_task_tickets",
+        "status": "active",
+        "reason": "The implementation should be decomposed into schema, CLI/MCP, docs, tests, and validation slices."
+      },
+      {
+        "section_name": "11_validation_plan",
+        "status": "active",
+        "reason": "Schema and CLI additions require executable validation before any integration claim."
+      },
+      {
+        "section_name": "16_implementation_interfaces",
+        "status": "active",
+        "reason": "The new admission artifacts are consumed by Build Briefs, Loop Contracts, maturity audits, and work-item emitters."
+      },
+      {
+        "section_name": "17_productionization_gates",
+        "status": "active",
+        "reason": "The core risk is overclaiming production autonomy without oracle coverage."
+      }
+    ],
+    "verification_spec": {
+      "primary_verifier": {
+        "type": "command",
+        "target": "bin/adlc emit-work-items --target github --build-brief docs/build-briefs/kitchen-loop-coverage-admission.json --dry-run --require-ready --json",
+        "expected_pre_change": "fail",
+        "expected_post_change": "pass",
+        "rationale": "The decomposition must be schema-valid and work-item ready before implementation begins.",
+        "target_files": [
+          "docs/build-briefs/kitchen-loop-coverage-admission.json"
+        ],
+        "expected_failure_mode": "Kitchen Loop coverage admission decomposition missing or readiness blocked"
+      },
+      "secondary_verifiers": [
+        {
+          "type": "command",
+          "target": "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/kitchen-loop-coverage-admission.json --json",
+          "expected_pre_change": "fail",
+          "expected_post_change": "pass",
+          "rationale": "The paper-derived plan must satisfy the ADLC Build Brief schema.",
+          "target_files": [
+            "docs/build-briefs/kitchen-loop-coverage-admission.json"
+          ],
+          "expected_failure_mode": "Kitchen Loop Build Brief schema validation fails"
+        }
+      ],
+      "must_fail_before_change": true,
+      "must_be_deterministic": true,
+      "scope_note": "This validates the decomposition artifact, not the future implementation."
+    }
+  },
+  "enterprise_readiness_contract": {
+    "production_grade_target": "Add Kitchen Loop Coverage Admission to ADLC as an optional contract layer that proves a workflow has an enumerable specification surface, scenario coverage plan, independent regression oracle, and deterministic drift pause gate before it claims coverage-exhaustion or self-evolving behavior.",
+    "backward_compatibility": "Existing Build Briefs, Loop Contracts, work queues, emitters, and CI paths must continue to validate when no Kitchen Loop coverage fields are present. The overlay activates only when a task or workflow explicitly claims coverage-exhaustion, autonomous scenario generation, broad product support, or Kitchen Loop style behavior.",
+    "forward_compatibility": "New artifacts must be schema-backed, versioned, provider-neutral, and referenced from Build Brief or Loop Contract metadata so future harnesses can consume them without parsing prose.",
+    "failure_mode_coverage": [
+      "Non-enumerable surfaces are covered by admission failure and human escalation.",
+      "Weak or subjective ground truth is covered by oracle-contract limitations and no-overclaim productionization gates.",
+      "LLM-authored test circularity is covered by requiring independent oracle evidence and anti-canaries.",
+      "Runaway scenario generation is covered by bounded scenario plans, blocked-combination registries, and starvation/no-work counters.",
+      "Quality drift is covered by deterministic drift-gate reports that can pause or escalate before more work is admitted.",
+      "Scope creep into orchestration or auto-merge is covered by read-only default commands and existing ADLC action-admission boundaries."
+    ],
+    "definition_of_done": [
+      "ADLC has schemas and fixtures for spec surfaces, scenario coverage plans, regression oracle contracts, and drift gate reports.",
+      "ADLC has provider-free CLI commands and MCP metadata for validating coverage admission artifacts.",
+      "Build Brief and Loop Contract docs explain when the Kitchen Loop overlay activates and when it is not applicable.",
+      "Coverage admission can fail closed for non-enumerable, weak-oracle, subjective, or safety-critical surfaces.",
+      "Focused CLI and contract tests cover valid and invalid fixtures.",
+      "Full `bin/adlc ci --json` passes after implementation and Graphify is refreshed."
+    ],
+    "validation_tasks": [
+      "KL-ADLC-VAL"
+    ],
+    "compliance_posture": "No external service, secret, auth, production mutation, auto-merge, or deployment authority is introduced. The slice adds local schemas, fixtures, docs, read-only/dry-run CLI checks, MCP metadata, and tests.",
+    "construct_map_refs": [
+      "README.md",
+      "docs/schemas/build-brief.schema.json",
+      "docs/schemas/loop-contract.schema.json",
+      "docs/schemas/loop-maturity-report.schema.json",
+      "docs/specs/loop-system-maturity-audit.md",
+      "scripts/adlc_runtime/cli.py",
+      "scripts/adlc_runtime/metadata.py",
+      "tests/test_adlc_cli.sh",
+      "tests/test_adlc_contracts.sh"
+    ],
+    "paved_road_refs": [
+      "docs/build-briefs/loop-system-maturity-audit.json",
+      "docs/build-briefs/loop-budget-guard-integration.json",
+      "docs/research/loop-engineering-adlc-strategy-review.md",
+      "docs/specs/slop-eval-loop.md",
+      "docs/specs/implementation-interfaces-and-productionization.md",
+      "docs/specs/self-actioning-meta-harness.md"
+    ],
+    "production_invariant_coverage": [
+      "idempotency: coverage admission validators must be deterministic for the same inputs.",
+      "persistence: spec surface, scenario coverage, oracle, and drift reports are repo-local artifacts, not chat state.",
+      "observability: every validator returns machine-readable status, missing fields, limitation reasons, and next actions.",
+      "sensitive_data: oracle reports and drift history must support redaction posture and must not require secrets in checked-in fixtures.",
+      "downgrade: workflows without Kitchen Loop claims continue through existing Build Brief and Loop Contract paths."
+    ],
+    "implementation_interface_refs": [
+      "I-ADLC-KITCHEN-LOOP-COVERAGE-ADMISSION"
+    ],
+    "productionization_gate_refs": [
+      "G-ADLC-KITCHEN-LOOP-NO-OVERCLAIM"
+    ]
+  },
+  "sections": {
+    "1_context": "The Kitchen Loop paper argues that long-running autonomous software evolution is made safe by a unified trust model: an enumerable specification surface, high-cadence synthetic user scenarios, independent ground-truth tests, and drift/pause gates. ADLC already has Build Briefs, Loop Contracts, test-selection evidence, maturity audit, Eval Council, slop gates, compound memory, and provider-neutral CLI/MCP surfaces. The useful addition is a coverage admission overlay that proves a workflow is eligible for Kitchen Loop style claims before any harness attempts autonomous scenario generation or coverage-exhaustion.",
+    "2_scope_and_constraints": "In scope: schema-backed spec surfaces, scenario coverage plans, regression oracle contracts, drift gate reports, fixtures, read-only/dry-run CLI commands, MCP metadata, docs, focused tests, and Build Brief/Loop Contract references. Out of scope: importing the Kitchen Loop repository, adding a new orchestrator, auto-merging PRs, auto-deploying, scheduling background loops, making the overlay mandatory for normal deterministic tasks, or claiming self-autonomy without oracle evidence.",
+    "3_repo_findings": "Graphify was refreshed on 2026-06-28 to commit 9c4432c7 before repo inspection. ADLC already describes an evidence-bound agent control plane with schema-backed CLI/MCP runtime, Build Briefs, implementation-interface and productionization overlays, Loop Contracts, loop-test-selection, loop-budget-check, loop-action-validate, loop-maturity-audit, slop gates, queue/worktree controls, learning memory, and CI validation. The gap is not lack of agents; it is lack of a first-class contract for enumerable product surfaces, scenario coverage, independent regression oracles, and drift pause semantics.",
+    "4_architecture": "Add Kitchen Loop Coverage Admission as an optional contract layer. A spec surface declares product claims and dimensions. A scenario coverage plan enumerates candidate combinations, tiers them as foundation/composition/frontier, marks covered/missing/blocked/not_applicable states, and binds each runnable scenario to an oracle. A regression oracle contract declares the independent ground-truth boundary, state-delta assertions, anti-canaries, environmental failure policy, and coverage limitations. A drift gate report evaluates oracle output and history to emit pass, pause, or escalate. Build Briefs and Loop Contracts reference these artifacts when the overlay activates; existing maturity and productionization gates consume the compact evidence.",
+    "5_security_review": [
+      {
+        "risk": "Coverage-exhaustion claims can expand agent authority beyond reviewed boundaries.",
+        "mitigation": "Keep all new commands read-only or dry-run by default and require existing ADLC action admission for any future mutation."
+      },
+      {
+        "risk": "Oracle reports can capture secrets, private data, or environment-specific operational state.",
+        "mitigation": "Require redaction posture, checked-in fixture discipline, and explicit sensitive-data limitations in oracle contracts and drift reports."
+      },
+      {
+        "risk": "LLM-generated scenarios can create false confidence when the surface is not enumerable or the oracle is weak.",
+        "mitigation": "Fail admission for non-enumerable surfaces, subjective success criteria, weak ground truth, and unsupported safety-critical claims."
+      },
+      {
+        "risk": "Scenario generators can produce unbounded work.",
+        "mitigation": "Require bounded scenario plans, blocked-combination registries, and starvation/no-work counters before any coverage-exhaustion claim."
+      }
+    ],
+    "6_observability_slo": "Every validation command should return JSON with artifact id, version, status, missing fields, unsupported states, coverage counts, oracle limitations, drift status, next action, and evidence refs. Missing or weak oracle evidence must be visible as `pause` or `escalate`, not silent pass.",
+    "7_execution_plan": "Implement in five bounded slices plus validation. First define schemas and fixtures, then add validator/runtime helpers, then expose CLI and MCP metadata, then wire Build Brief/Loop Contract docs and examples, then add focused tests and CI proof. Do not add debate orchestration or autonomous scenario generation until the admission path is validated.",
+    "8_task_tickets": [
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "KL-ADLC-001",
+        "title": "Add Kitchen Loop admission schemas and fixtures",
+        "objective": "Create schema-backed artifacts for specification surfaces, scenario coverage plans, regression oracle contracts, and drift gate reports.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-07-02",
+          "blocks_implementation": false,
+          "resolution": "Represent Kitchen Loop as optional ADLC admission contracts rather than importing a new orchestrator."
+        },
+        "scope": [
+          "Create docs/schemas/spec-surface.schema.json.",
+          "Create docs/schemas/scenario-coverage-plan.schema.json.",
+          "Create docs/schemas/regression-oracle.schema.json.",
+          "Create docs/schemas/drift-gate-report.schema.json.",
+          "Add valid and invalid fixtures under tests/fixtures/kitchen_loop/.",
+          "Ensure schemas fail closed on non-enumerable surfaces, missing oracle refs, and missing drift status."
+        ],
+        "out_of_scope": [
+          "No LLM scenario generation.",
+          "No external API calls.",
+          "No runtime mutation or scheduler.",
+          "No auto-merge behavior."
+        ],
+        "dependencies": [],
+        "acceptance_criteria": [
+          {
+            "id": "AC-KL_ADLC_001-SCHEMAS",
+            "given": "a contributor wants to declare Kitchen Loop coverage admission evidence",
+            "when": "the new schema files are reviewed",
+            "then": "they can represent spec surface, scenario plan, oracle, and drift report artifacts with required no-overclaim fields",
+            "measurable_post_condition": "the four schema files exist and include required ids, version fields, status fields, evidence refs, and limitation fields"
+          },
+          {
+            "id": "AC-KL_ADLC_001-FIXTURES",
+            "given": "valid and invalid Kitchen Loop fixture artifacts",
+            "when": "schema validation runs",
+            "then": "valid fixtures pass and invalid fixtures fail for deterministic reasons",
+            "measurable_post_condition": "tests/fixtures/kitchen_loop contains positive and negative cases for each schema"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not add prose-only contracts where machine-readable fields are needed.",
+          "Do not allow `self_autonomous` or `production_ready` claims without oracle limitations.",
+          "Do not make subjective UX or exploratory R&D surfaces look enumerable by naming generic buckets."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Reuse existing schema validation conventions and fixture layout.",
+          "deferred_debt": "Do not add a full scenario generator in this slice.",
+          "deferral_safety": "Schemas and fixtures are useful without generation because they define the admission contract first."
+        },
+        "compatibility_contract": {
+          "backward": "No existing schema or Build Brief should require Kitchen Loop fields unless it opts into the overlay.",
+          "forward": "Schemas must be versioned so future scenario generation can consume the same artifact structure.",
+          "migration_or_rollout": "Add new files only; avoid changing existing artifact requirements in this task."
+        },
+        "implementation_notes": [
+          "Use draft-07 JSON Schema to match existing ADLC schemas.",
+          "Prefer explicit enums for status fields: pass, pause, escalate, blocked, not_applicable.",
+          "Keep fixture content provider-free and local."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bash tests/test_adlc_contracts.sh",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Contract tests should include the new schemas and fixtures.",
+            "target_files": [
+              "docs/schemas/spec-surface.schema.json",
+              "docs/schemas/scenario-coverage-plan.schema.json",
+              "docs/schemas/regression-oracle.schema.json",
+              "docs/schemas/drift-gate-report.schema.json",
+              "tests/fixtures/kitchen_loop/"
+            ],
+            "expected_failure_mode": "Kitchen Loop schemas or fixtures are missing from contract validation"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc validate-artifact --schema spec-surface --input tests/fixtures/kitchen_loop/valid-spec-surface.json --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "The runtime should recognize the new spec-surface schema alias.",
+              "target_files": [
+                "docs/schemas/spec-surface.schema.json",
+                "scripts/adlc_runtime/metadata.py"
+              ],
+              "expected_failure_mode": "spec-surface schema alias is not wired"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate schema existence, alias wiring, and fixture coverage."
+        },
+        "evidence_responsibilities": [
+          "Show schema validation output for every positive and negative fixture.",
+          "Record why each unsupported Kitchen Loop state fails closed."
+        ],
+        "definition_of_done": [
+          "Four schemas are checked in.",
+          "Positive and negative fixtures are checked in.",
+          "Contract tests include the fixtures.",
+          "Schema aliases are discoverable through validate-artifact."
+        ],
+        "failure_modes": [
+          "Schemas are too loose and allow empty oracle evidence.",
+          "Invalid fixtures fail for incidental JSON errors instead of meaningful admission rules.",
+          "Existing Build Brief validation starts requiring new fields unexpectedly."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc_runtime/metadata.py",
+          "tests/test_adlc_contracts.sh"
+        ],
+        "files_to_create": [
+          "docs/schemas/spec-surface.schema.json",
+          "docs/schemas/scenario-coverage-plan.schema.json",
+          "docs/schemas/regression-oracle.schema.json",
+          "docs/schemas/drift-gate-report.schema.json",
+          "tests/fixtures/kitchen_loop/valid-spec-surface.json",
+          "tests/fixtures/kitchen_loop/invalid-spec-surface-missing-oracle.json",
+          "tests/fixtures/kitchen_loop/valid-scenario-coverage-plan.json",
+          "tests/fixtures/kitchen_loop/invalid-scenario-coverage-unbounded.json",
+          "tests/fixtures/kitchen_loop/valid-regression-oracle.json",
+          "tests/fixtures/kitchen_loop/invalid-regression-oracle-weak-ground-truth.json",
+          "tests/fixtures/kitchen_loop/valid-drift-gate-report.json",
+          "tests/fixtures/kitchen_loop/invalid-drift-gate-missing-status.json"
+        ],
+        "reference_impl": "Existing JSON schema and fixture patterns in docs/schemas/loop-contract.schema.json, docs/schemas/loop-maturity-report.schema.json, and tests/fixtures/loop_maturity/"
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "KL-ADLC-002",
+        "title": "Add Kitchen Loop admission CLI validators",
+        "objective": "Expose provider-free CLI commands that validate spec surfaces, scenario coverage plans, regression oracle contracts, and drift gate reports.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-07-03",
+          "blocks_implementation": false,
+          "resolution": "Add read-only validators that reuse existing ADLC runtime metadata and validation helpers."
+        },
+        "scope": [
+          "Add CLI commands for coverage-surface-validate, scenario-coverage-plan, regression-oracle-validate, and drift-gate-evaluate or equivalent names matching repo conventions.",
+          "Return machine-readable JSON with status, missing fields, coverage counts, oracle limitations, drift verdict, and next action.",
+          "Ensure all commands are read-only and work against local fixture files.",
+          "Fail closed when spec surfaces are non-enumerable, oracle evidence is weak, or drift status requires human review."
+        ],
+        "out_of_scope": [
+          "No LLM calls.",
+          "No scenario synthesis beyond deterministic enumeration from provided inputs.",
+          "No GitHub, Linear, deploy, or merge mutation.",
+          "No scheduler."
+        ],
+        "dependencies": [
+          "KL-ADLC-001"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-KL_ADLC_002-CLI",
+            "given": "valid Kitchen Loop fixture artifacts",
+            "when": "the new CLI validators run with --json",
+            "then": "they return pass status and structured evidence without mutating the workspace",
+            "measurable_post_condition": "tests/test_adlc_cli.sh exercises each command against at least one valid fixture"
+          },
+          {
+            "id": "AC-KL_ADLC_002-FAILCLOSED",
+            "given": "invalid artifacts with weak oracle evidence or unbounded scenario generation",
+            "when": "the validators run",
+            "then": "they fail or emit pause/escalate with an explicit reason",
+            "measurable_post_condition": "negative CLI tests assert nonzero or blocked output for invalid fixtures"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not hide admission failures in warnings.",
+          "Do not print prose-only status when --json is requested.",
+          "Do not duplicate generic validate-artifact behavior unless the command adds Kitchen Loop specific admission semantics."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Use existing scripts/adlc_runtime structure and metadata patterns.",
+          "deferred_debt": "Scenario prioritization heuristics can be refined after basic admission works.",
+          "deferral_safety": "The first validators can operate on explicit fixture inputs and still enforce the safety boundary."
+        },
+        "compatibility_contract": {
+          "backward": "Existing CLI commands and aliases must keep their output shape.",
+          "forward": "Output should be stable enough for MCP tools, emitters, and future harnesses to consume.",
+          "migration_or_rollout": "Additive CLI commands only."
+        },
+        "implementation_notes": [
+          "Keep command names consistent with existing hyphenated ADLC CLI naming.",
+          "Use shared JSON loading and schema validation helpers where present.",
+          "Include `status`, `reasons`, and `next_action` in outputs."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bash tests/test_adlc_cli.sh",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "CLI tests must prove command wiring and fail-closed behavior.",
+            "target_files": [
+              "scripts/adlc_runtime/cli.py",
+              "scripts/adlc_runtime/metadata.py",
+              "tests/test_adlc_cli.sh",
+              "tests/fixtures/kitchen_loop/"
+            ],
+            "expected_failure_mode": "Kitchen Loop CLI commands are missing or do not fail closed"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc coverage-surface-validate --input tests/fixtures/kitchen_loop/valid-spec-surface.json --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "A direct smoke command should prove the first validator works.",
+              "target_files": [
+                "scripts/adlc_runtime/cli.py",
+                "tests/fixtures/kitchen_loop/valid-spec-surface.json"
+              ],
+              "expected_failure_mode": "coverage-surface-validate command is unavailable or invalid"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate CLI surfaces and outputs, not autonomous execution."
+        },
+        "evidence_responsibilities": [
+          "Capture positive and negative CLI output snippets in test assertions.",
+          "Show that commands do not write files unless a future explicit --output is added."
+        ],
+        "definition_of_done": [
+          "All new CLI commands appear in help or command metadata.",
+          "CLI tests cover valid and invalid fixtures.",
+          "JSON output is stable and documented by tests."
+        ],
+        "failure_modes": [
+          "Commands only wrap validate-artifact and miss Kitchen Loop semantics.",
+          "Invalid oracle or scenario inputs pass with warnings.",
+          "CLI writes report files by default."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc_runtime/cli.py",
+          "scripts/adlc_runtime/metadata.py",
+          "tests/test_adlc_cli.sh"
+        ],
+        "files_to_create": [],
+        "reference_impl": "Existing ADLC command implementations for loop-design-validate, loop-budget-check, loop-test-selection, and meta-harness-plan"
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "KL-ADLC-003",
+        "title": "Expose Kitchen Loop validators through MCP metadata",
+        "objective": "Make the new coverage admission validators discoverable to agent harnesses through ADLC's MCP tool metadata.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-07-03",
+          "blocks_implementation": false,
+          "resolution": "MCP metadata should mirror the read-only CLI validators so harnesses can discover them without hardcoded prompt text."
+        },
+        "scope": [
+          "Add MCP tool metadata entries for Kitchen Loop admission validators.",
+          "Document input schemas and output report schemas in metadata descriptions.",
+          "Ensure metadata marks commands as read-only or dry-run.",
+          "Add tests that `bin/adlc mcp-tools --json` includes the new tools."
+        ],
+        "out_of_scope": [
+          "No MCP server transport changes.",
+          "No external connector integrations.",
+          "No mutation tools."
+        ],
+        "dependencies": [
+          "KL-ADLC-001",
+          "KL-ADLC-002"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-KL_ADLC_003-MCP",
+            "given": "a harness asks ADLC for MCP tools",
+            "when": "bin/adlc mcp-tools --json runs",
+            "then": "Kitchen Loop admission validators are listed with read-only semantics and schema references",
+            "measurable_post_condition": "tests assert the tool names, descriptions, and safety metadata are present"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not expose a mutating Kitchen Loop MCP tool in this slice.",
+          "Do not describe validators as autonomous runners.",
+          "Do not omit schema refs from tool descriptions."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Reuse existing metadata registry structure.",
+          "deferred_debt": "No separate app connector surface is needed.",
+          "deferral_safety": "MCP metadata is sufficient for harness discovery."
+        },
+        "compatibility_contract": {
+          "backward": "Existing MCP tool names and JSON shape must remain unchanged.",
+          "forward": "Descriptions should be specific enough for future agents to choose the correct validator.",
+          "migration_or_rollout": "Additive metadata entries only."
+        },
+        "implementation_notes": [
+          "Match the naming and risk language used by existing loop and meta-harness tools.",
+          "State that validators emit admission evidence and do not execute loops."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc mcp-tools --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "MCP metadata should include the new validator tools after implementation.",
+            "target_files": [
+              "scripts/adlc_runtime/metadata.py"
+            ],
+            "expected_failure_mode": "Kitchen Loop validators are absent from MCP metadata"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bash tests/test_adlc_cli.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "CLI contract tests should assert MCP metadata entries.",
+              "target_files": [
+                "tests/test_adlc_cli.sh",
+                "scripts/adlc_runtime/metadata.py"
+              ],
+              "expected_failure_mode": "MCP metadata contract tests fail"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate discoverability only."
+        },
+        "evidence_responsibilities": [
+          "Show mcp-tools JSON includes the new entries.",
+          "Record read-only semantics in tool metadata."
+        ],
+        "definition_of_done": [
+          "MCP metadata includes all Kitchen Loop validators.",
+          "Tests assert the metadata.",
+          "No mutation tools are exposed."
+        ],
+        "failure_modes": [
+          "MCP names diverge from CLI names.",
+          "Metadata overclaims autonomous execution.",
+          "Missing schema refs make tools hard for agents to use correctly."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc_runtime/metadata.py",
+          "tests/test_adlc_cli.sh"
+        ],
+        "files_to_create": [],
+        "reference_impl": "Existing MCP metadata for loop-design-validate, loop-contract-from-design, loop-maturity-audit, and meta-harness-plan"
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "KL-ADLC-004",
+        "title": "Document Build Brief and Loop Contract Kitchen Loop overlay",
+        "objective": "Document when Kitchen Loop Coverage Admission activates, how artifacts reference each other, and when the overlay must fail closed.",
+        "task_classification": "docs",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-07-04",
+          "blocks_implementation": false,
+          "resolution": "Treat Kitchen Loop as an optional overlay for coverage-exhaustion claims and broad product support, not a mandatory Build Brief section."
+        },
+        "scope": [
+          "Create docs/specs/kitchen-loop-coverage-admission.md.",
+          "Update README or relevant specs to mention the optional overlay.",
+          "Document Build Brief references to spec surface, scenario coverage, oracle, and drift report artifacts.",
+          "Document Loop Contract interaction when LLM-driven scenario generation or coverage-exhaustion is active.",
+          "Document no-overclaim states: weak oracle, non-enumerable surface, subjective success, safety-critical without external verification."
+        ],
+        "out_of_scope": [
+          "No broad README rewrite.",
+          "No generated marketing language.",
+          "No claim that ADLC now fully implements Kitchen Loop end-to-end until validators and tests pass."
+        ],
+        "dependencies": [
+          "KL-ADLC-001",
+          "KL-ADLC-002"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-KL_ADLC_004-SPEC",
+            "given": "a planner wants to know whether a task needs Kitchen Loop Coverage Admission",
+            "when": "they read the new spec",
+            "then": "they can identify activation triggers, required artifacts, validation commands, and no-overclaim boundaries",
+            "measurable_post_condition": "docs/specs/kitchen-loop-coverage-admission.md includes activation, artifact graph, command examples, and not-applicable states"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not describe Kitchen Loop as a general replacement for ADLC.",
+          "Do not repeat the paper as generic summary; document ADLC contracts and commands.",
+          "Do not claim production readiness without validation evidence."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Keep docs aligned with actual CLI names and schemas.",
+          "deferred_debt": "Discussion Manager/debate-mode council is a follow-up, not this slice.",
+          "deferral_safety": "Coverage admission docs are sufficient for first implementation and later debate work can reference them."
+        },
+        "compatibility_contract": {
+          "backward": "Existing docs should still describe assisted-loop maturity as the default.",
+          "forward": "Docs should leave room for future scenario generation and debate orchestration without promising them now.",
+          "migration_or_rollout": "Additive documentation update only."
+        },
+        "implementation_notes": [
+          "Anchor the spec to ADLC Build Brief, Loop Contract, maturity audit, and productionization gates.",
+          "Include exact commands and expected statuses.",
+          "Preserve the paper's limitations in ADLC terms."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "git diff --check -- docs/specs/kitchen-loop-coverage-admission.md README.md docs/specs/loop-system-maturity-audit.md",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Docs should be clean and scoped.",
+            "target_files": [
+              "docs/specs/kitchen-loop-coverage-admission.md",
+              "README.md",
+              "docs/specs/loop-system-maturity-audit.md"
+            ],
+            "expected_failure_mode": "Kitchen Loop docs are missing or have formatting errors"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bash tests/test_adlc_contracts.sh",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Contract tests should continue to pass after documentation and metadata changes.",
+              "target_files": [
+                "docs/specs/kitchen-loop-coverage-admission.md",
+                "tests/test_adlc_contracts.sh"
+              ],
+              "expected_failure_mode": "Contract docs or schema refs are inconsistent"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate documentation hygiene and contract alignment."
+        },
+        "evidence_responsibilities": [
+          "Cite the paper and local ADLC artifacts used.",
+          "Show the commands planners should run."
+        ],
+        "definition_of_done": [
+          "Spec doc exists.",
+          "README/spec references are accurate.",
+          "No-overclaim states are documented.",
+          "Docs validation passes."
+        ],
+        "failure_modes": [
+          "Docs promise autonomous merge behavior.",
+          "Docs drift from command names.",
+          "Overlay activation rules are ambiguous."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "README.md",
+          "docs/specs/loop-system-maturity-audit.md"
+        ],
+        "files_to_create": [
+          "docs/specs/kitchen-loop-coverage-admission.md"
+        ],
+        "reference_impl": "README Build Brief Template, docs/specs/loop-system-maturity-audit.md, and docs/specs/implementation-interfaces-and-productionization.md"
+      },
+      {
+        "artifact_type": "implementation_task",
+        "task_id": "KL-ADLC-005",
+        "title": "Wire Kitchen Loop coverage admission into work-item readiness",
+        "objective": "Ensure Build Briefs that opt into Kitchen Loop coverage admission can emit ready work items only when required admission artifacts are present and valid.",
+        "task_classification": "infra",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-07-05",
+          "blocks_implementation": false,
+          "resolution": "Use existing Build Brief work-item readiness and implementation-interface fields instead of adding a parallel ticket emitter."
+        },
+        "scope": [
+          "Add optional work_item_metadata refs for spec surface, scenario coverage plan, regression oracle, and drift gate report if schema supports this without breaking existing briefs; otherwise document refs in implementation_interface evidence refs.",
+          "Update readiness checks so tasks claiming Kitchen Loop coverage admission require artifact refs and validator evidence.",
+          "Ensure `emit-work-items --require-ready` blocks claims missing oracle or drift evidence.",
+          "Add an example Build Brief or fixture that opts into the overlay and emits ready work items."
+        ],
+        "out_of_scope": [
+          "No new work-item target provider.",
+          "No Linear/GitHub mutation.",
+          "No mandatory overlay for unrelated tasks."
+        ],
+        "dependencies": [
+          "KL-ADLC-001",
+          "KL-ADLC-002",
+          "KL-ADLC-004"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-KL_ADLC_005-READY",
+            "given": "a Build Brief task claims Kitchen Loop coverage admission",
+            "when": "emit-work-items runs with --require-ready",
+            "then": "the task is ready only if required admission artifact refs and validator evidence are present",
+            "measurable_post_condition": "a positive fixture emits ready and a negative fixture is blocked with a specific missing evidence reason"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not make all tasks require Kitchen Loop artifacts.",
+          "Do not allow claim words to bypass missing evidence.",
+          "Do not add provider-specific logic to readiness checks."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Prefer existing work_item_metadata or implementation_interface evidence fields before schema expansion.",
+          "deferred_debt": "If richer metadata is needed later, make it a versioned schema change.",
+          "deferral_safety": "Evidence refs can carry the first implementation without forcing broad Build Brief migration."
+        },
+        "compatibility_contract": {
+          "backward": "Existing Build Briefs must continue to emit or validate as before.",
+          "forward": "Overlay evidence refs should be stable enough for future emitters and harnesses.",
+          "migration_or_rollout": "Make readiness checks conditional on explicit overlay activation."
+        },
+        "implementation_notes": [
+          "Use phrase detection only as a last resort; prefer structured activation fields or implementation interface refs.",
+          "Keep blocked reasons precise and machine-readable.",
+          "Avoid broad Build Brief schema changes unless necessary."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc emit-work-items --target github --build-brief tests/fixtures/kitchen_loop/kitchen-loop-ready-brief.json --dry-run --require-ready --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "A positive overlay fixture should emit ready work items.",
+            "target_files": [
+              "scripts/adlc_runtime/cli.py",
+              "tests/fixtures/kitchen_loop/kitchen-loop-ready-brief.json"
+            ],
+            "expected_failure_mode": "Kitchen Loop ready fixture is blocked or unsupported"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc emit-work-items --target github --build-brief tests/fixtures/kitchen_loop/kitchen-loop-missing-oracle-brief.json --dry-run --require-ready --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "A negative overlay fixture should be blocked with a missing oracle reason.",
+              "target_files": [
+                "scripts/adlc_runtime/cli.py",
+                "tests/fixtures/kitchen_loop/kitchen-loop-missing-oracle-brief.json"
+              ],
+              "expected_failure_mode": "Missing oracle evidence does not block readiness"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Validate readiness gating for explicit overlay tasks."
+        },
+        "evidence_responsibilities": [
+          "Show ready output for positive fixture.",
+          "Show blocked output and reason for missing oracle fixture."
+        ],
+        "definition_of_done": [
+          "Overlay readiness is conditional and evidence-backed.",
+          "Positive and negative Build Brief fixtures exist.",
+          "emit-work-items readiness behavior is tested."
+        ],
+        "failure_modes": [
+          "Readiness requires Kitchen Loop evidence for unrelated tasks.",
+          "Missing oracle evidence is only a warning.",
+          "Schema expansion breaks existing Build Briefs."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [
+          "scripts/adlc_runtime/cli.py",
+          "docs/schemas/build-brief.schema.json",
+          "tests/test_adlc_cli.sh",
+          "tests/test_adlc_contracts.sh"
+        ],
+        "files_to_create": [
+          "tests/fixtures/kitchen_loop/kitchen-loop-ready-brief.json",
+          "tests/fixtures/kitchen_loop/kitchen-loop-missing-oracle-brief.json"
+        ],
+        "reference_impl": "Existing emit-work-items readiness behavior and Build Brief implementation-interface contracts"
+      },
+      {
+        "artifact_type": "validation_task",
+        "task_id": "KL-ADLC-VAL",
+        "title": "Validate Kitchen Loop coverage admission end to end",
+        "objective": "Run the full ADLC validation gate and refresh Graphify after the implementation slices land.",
+        "task_classification": "build_validation",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "not_applicable",
+          "owner": "adlc-maintainers",
+          "deadline": "2026-07-05",
+          "blocks_implementation": false,
+          "resolution": "Validation task only."
+        },
+        "scope": [
+          "Run targeted schema, CLI, MCP metadata, and readiness tests.",
+          "Run `bin/adlc ci --json`.",
+          "Run `graphify update .` after code changes.",
+          "Record validation evidence in the implementation closeout."
+        ],
+        "out_of_scope": [
+          "No remote publish unless separately requested.",
+          "No merge or deploy action."
+        ],
+        "dependencies": [
+          "KL-ADLC-001",
+          "KL-ADLC-002",
+          "KL-ADLC-003",
+          "KL-ADLC-004",
+          "KL-ADLC-005"
+        ],
+        "acceptance_criteria": [
+          {
+            "id": "AC-KL_ADLC_VAL-CI",
+            "given": "all Kitchen Loop coverage admission slices are implemented",
+            "when": "bin/adlc ci --json runs",
+            "then": "the full ADLC validation gate passes",
+            "measurable_post_condition": "ci JSON reports success"
+          },
+          {
+            "id": "AC-KL_ADLC_VAL-GRAPH",
+            "given": "code and docs changed",
+            "when": "graphify update . runs",
+            "then": "graphify-out/GRAPH_REPORT.md is current with HEAD",
+            "measurable_post_condition": "Graph Report built-from commit matches git rev-parse HEAD"
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not claim implementation complete without full CI.",
+          "Do not treat docs diff hygiene as runtime validation.",
+          "Do not include unrelated Hermes artifacts in validation or publish scope."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "Resolve any failing Kitchen Loop contract tests before claiming the slice.",
+          "deferred_debt": "Debate-mode Discussion Manager remains a separate future brief.",
+          "deferral_safety": "Coverage admission is independently useful without debate orchestration."
+        },
+        "compatibility_contract": {
+          "backward": "All existing checked-in ADLC fixtures and golden artifacts must continue to pass.",
+          "forward": "Validation evidence should be reusable by future implementation or publish closeout.",
+          "migration_or_rollout": "Local validation first; remote publish only on explicit request."
+        },
+        "implementation_notes": [
+          "Use the repo's decisive gate: bin/adlc ci --json.",
+          "Run graphify update . after code changes.",
+          "Keep unrelated untracked Hermes files out of scope."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc ci --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "Full ADLC CI is the implementation proof gate.",
+            "target_files": [
+              "docs/schemas/",
+              "scripts/adlc_runtime/",
+              "tests/",
+              "docs/specs/"
+            ],
+            "expected_failure_mode": "Full ADLC CI fails after Kitchen Loop coverage admission changes"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "graphify update .",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "Graphify must be refreshed after code changes.",
+              "target_files": [
+                "graphify-out/GRAPH_REPORT.md",
+                "graphify-out/graph.json"
+              ],
+              "expected_failure_mode": "Graphify is stale after code changes"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "Final validation gate for the implementation, not for this planning brief alone."
+        },
+        "evidence_responsibilities": [
+          "Report targeted test results.",
+          "Report full ci JSON success.",
+          "Report Graphify freshness."
+        ],
+        "definition_of_done": [
+          "Targeted tests pass.",
+          "bin/adlc ci --json passes.",
+          "Graphify is refreshed.",
+          "Closeout states no-overclaim boundaries."
+        ],
+        "failure_modes": [
+          "Full CI fails but targeted tests pass.",
+          "Graphify is left stale.",
+          "Closeout claims autonomous behavior beyond admission validation."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "adlc-maintainers",
+        "files_to_modify": [],
+        "files_to_create": [],
+        "reference_impl": "Existing ADLC validation closeout pattern: targeted tests, bin/adlc ci --json, graphify update ."
+      }
+    ],
+    "9_risks": [
+      "Kitchen Loop language can cause scope creep into auto-merge or autonomous production mutation.",
+      "A weak oracle can produce false confidence, which is worse than an explicit human gate.",
+      "Scenario coverage can become unbounded if dimensions are not enumerated and capped.",
+      "Build Brief schema expansion could break existing artifacts if not kept optional.",
+      "Discussion Manager/debate work could duplicate Eval Council if implemented too early."
+    ],
+    "10_rollout": "Ship as a provider-free optional overlay. Start with schema and validator artifacts in ADLC itself, then use one downstream product as a fixture only after local fixtures pass. Keep all commands read-only or dry-run. Do not claim Kitchen Loop autonomy until a real workflow has spec surface, oracle, drift history, and maturity evidence.",
+    "11_validation_plan": [
+      "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/kitchen-loop-coverage-admission.json --json",
+      "bin/adlc emit-work-items --target github --build-brief docs/build-briefs/kitchen-loop-coverage-admission.json --dry-run --require-ready --json",
+      "bash tests/test_adlc_contracts.sh",
+      "bash tests/test_adlc_cli.sh",
+      "bin/adlc ci --json",
+      "graphify update ."
+    ],
+    "12_skill_trigger_configuration": [
+      {
+        "skill": "graph-research",
+        "trigger": "Any implementation pass must inspect current Graphify state before reading code and refresh Graphify after code changes."
+      },
+      {
+        "skill": "spec-to-tests",
+        "trigger": "Activated when adding fixtures and negative tests for schema and CLI validators."
+      },
+      {
+        "skill": "eval-council",
+        "trigger": "Activated only for Type 1 decisions or future Discussion Manager/debate-mode work, not the first schema/CLI slice."
+      },
+      {
+        "skill": "definition-of-done",
+        "trigger": "Activated before closeout to prevent overclaiming Kitchen Loop autonomy."
+      }
+    ],
+    "13_comprehension_context": {
+      "module_refs": [
+        "scripts/adlc_runtime/cli.py",
+        "scripts/adlc_runtime/metadata.py",
+        "docs/schemas/build-brief.schema.json",
+        "docs/schemas/loop-contract.schema.json",
+        "docs/schemas/loop-maturity-report.schema.json",
+        "tests/test_adlc_cli.sh",
+        "tests/test_adlc_contracts.sh"
+      ],
+      "behavioral_contracts": [
+        "New overlay fields are optional unless a task explicitly claims Kitchen Loop coverage admission.",
+        "Validators are read-only by default.",
+        "Missing oracle or non-enumerable surface fails closed."
+      ],
+      "decision_logs": [
+        "Kitchen Loop should be integrated as admission contracts and validators before orchestration.",
+        "Discussion Manager is deferred because ADLC already has Eval Council and the first risk is evidence quality."
+      ]
+    },
+    "14_graph_research_evidence": {
+      "graph_report": "graphify-out/GRAPH_REPORT.md",
+      "freshness": "Refreshed on 2026-06-28 from commit 9c4432c7 before this brief was written.",
+      "repo_evidence": [
+        "README.md describes ADLC as an evidence-bound agent control plane with schema-backed CLI/MCP runtime.",
+        "README.md lists Loop Contracts, loop-test-selection, loop-action-validate, loop-budget-check, and loop-maturity-audit as existing deterministic gates.",
+        "docs/research/loop-engineering-adlc-strategy-review.md already maps long-running loop engineering to ADLC and warns against unmanaged loops."
+      ]
+    },
+    "15_dark_code_risk": {
+      "risk": "Kitchen Loop terms may hide broad runtime authority changes if implemented as orchestration first.",
+      "mitigation": "Start with explicit schemas, read-only validators, and readiness gating. Keep any future scenario generation behind Loop Contract and action admission."
+    },
+    "16_implementation_interfaces": [
+      {
+        "id": "I-ADLC-KITCHEN-LOOP-COVERAGE-ADMISSION",
+        "capability": "Kitchen Loop Coverage Admission",
+        "task_refs": [
+          "KL-ADLC-001",
+          "KL-ADLC-002",
+          "KL-ADLC-003",
+          "KL-ADLC-004",
+          "KL-ADLC-005"
+        ],
+        "reuse": [
+          "Build Brief applicability and implementation-interface overlays",
+          "Loop Contract and loop-maturity evidence model",
+          "validate-artifact schema aliasing",
+          "Existing CLI/MCP metadata registry",
+          "Contract and CLI shell test conventions"
+        ],
+        "consumes": [
+          "spec-surface artifact",
+          "scenario-coverage-plan artifact",
+          "regression-oracle artifact",
+          "drift-gate-report artifact",
+          "Build Brief task metadata and verifier evidence"
+        ],
+        "emits": [
+          "coverage admission validation report",
+          "scenario coverage summary",
+          "oracle limitation summary",
+          "drift gate status",
+          "work-item readiness blocked or ready reasons"
+        ],
+        "minimum_fields": [
+          {
+            "name": "surface_id",
+            "kind": "string",
+            "constraint": "Required for any spec surface."
+          },
+          {
+            "name": "ground_truth_source",
+            "kind": "string",
+            "constraint": "Required for any regression oracle."
+          },
+          {
+            "name": "status",
+            "kind": "enum",
+            "constraint": "Required for validation outputs and drift reports."
+          },
+          {
+            "name": "limitations",
+            "kind": "array",
+            "constraint": "Required where oracle or coverage is bounded."
+          }
+        ],
+        "invariants": [
+          "Admission fails closed when the surface is not enumerable.",
+          "Admission fails closed when oracle evidence is weak or missing.",
+          "Validators do not mutate repo, tracker, merge, deploy, or production state.",
+          "Overlay activation remains optional and explicit."
+        ],
+        "integration_points": [
+          "bin/adlc validate-artifact",
+          "bin/adlc mcp-tools --json",
+          "bin/adlc emit-work-items --require-ready",
+          "Loop Contract and maturity evidence docs",
+          "tests/test_adlc_cli.sh and tests/test_adlc_contracts.sh"
+        ],
+        "validation_gates": [
+          "Schema validation for all new artifacts",
+          "CLI positive and negative fixture tests",
+          "MCP metadata discovery test",
+          "emit-work-items readiness test",
+          "bin/adlc ci --json",
+          "graphify update . after code changes"
+        ],
+        "failure_semantics": [
+          "Weak oracle returns pause or blocked status.",
+          "Subjective success criteria require human judgment.",
+          "Safety-critical claims without robust external verification are unsupported."
+        ],
+        "idempotency": "Same inputs must produce the same validation status and reasons.",
+        "privacy_redaction": "Oracle and drift artifacts must declare redaction posture and avoid committed secrets.",
+        "evidence_refs": [
+          "docs/research/kitchen-loop-adlc-review.md",
+          "https://arxiv.org/abs/2603.25697v1",
+          "https://arxiv.org/pdf/2603.25697v1"
+        ]
+      }
+    ],
+    "17_productionization_gates": [
+      {
+        "id": "G-ADLC-KITCHEN-LOOP-NO-OVERCLAIM",
+        "task_refs": [
+          "KL-ADLC-001",
+          "KL-ADLC-002",
+          "KL-ADLC-003",
+          "KL-ADLC-004",
+          "KL-ADLC-005",
+          "KL-ADLC-VAL"
+        ],
+        "claim": "ADLC can admit or reject Kitchen Loop style coverage-exhaustion claims through local schemas, validators, MCP metadata, and readiness gates.",
+        "coverage_state": "governed",
+        "operational_readiness": {
+          "owner": "adlc-maintainers",
+          "deployment_path": "Local ADLC CLI and checked-in schemas/tests only.",
+          "rollback_path": "Revert additive schemas, fixtures, CLI commands, metadata entries, and docs.",
+          "runbook_refs": [
+            "docs/specs/kitchen-loop-coverage-admission.md"
+          ],
+          "support_boundary": "Admission validation only; no autonomous execution, merge, deploy, or production mutation."
+        },
+        "security_privacy": {
+          "threat_model_delta": "Adds local validation of oracle and drift artifacts; no external service or secret access.",
+          "secrets_handling": "Fixtures must be synthetic and oracle outputs must declare redaction posture.",
+          "data_retention": "Artifacts are repo-local JSON/docs under existing ADLC retention practices.",
+          "redaction_posture": "Required field in oracle/drift artifacts where command output or live-state evidence is referenced.",
+          "policy_authority": "Existing ADLC action admission and human review boundaries.",
+          "approval_authority": "Human maintainer remains final authority for production claims."
+        },
+        "reliability_failure_modes": [
+          "Oracle misses a failure mode and admission overstates coverage.",
+          "Surface dimensions are incomplete.",
+          "Scenario plan grows without bounded tiers.",
+          "Drift history is stale or missing.",
+          "Provider or environment failures are misclassified as code regressions."
+        ],
+        "validation_evidence": [
+          "New schema fixture validation",
+          "New CLI validator tests",
+          "MCP metadata discovery",
+          "emit-work-items readiness gating",
+          "bin/adlc ci --json"
+        ],
+        "no_overclaim": [
+          "Do not claim ADLC has implemented Kitchen Loop autonomous execution from this overlay alone.",
+          "Do not claim zero regressions unless a named oracle detects that scope after every relevant iteration.",
+          "Do not claim production readiness for domains with weak ground truth, subjective success, non-enumerable surfaces, or safety-critical external effects.",
+          "Do not claim auto-merge, auto-deploy, or scheduling support."
+        ],
+        "known_unsupported_states": [
+          "Exploratory R&D where the goal is discovery rather than convergence.",
+          "Aesthetic or taste-heavy UX judgment without external oracle.",
+          "Safety-critical domains without robust independent verification.",
+          "Legacy codebases where the specification surface cannot yet be enumerated."
+        ]
+      }
+    ]
+  }
+}

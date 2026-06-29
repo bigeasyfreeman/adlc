@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/ponytail-scenario-canary-report.schema.json",
+  "title": "ADLC Ponytail Scenario Canary Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "status",
+    "scenario_set_id",
+    "scenarios",
+    "summary",
+    "boundary"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "blocked"
+      ]
+    },
+    "scenario_set_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input": {
+      "type": "string"
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scenario_id",
+          "task",
+          "without_ponytail",
+          "with_ponytail",
+          "result"
+        ],
+        "properties": {
+          "scenario_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task": {
+            "type": "string",
+            "minLength": 1
+          },
+          "without_ponytail": {
+            "$ref": "#/definitions/scenario_variant"
+          },
+          "with_ponytail": {
+            "$ref": "#/definitions/scenario_variant"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "blocked"
+            ]
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenarios",
+        "passed",
+        "blocked",
+        "without_ponytail_ready",
+        "with_ponytail_ready",
+        "scripts_passed"
+      ],
+      "properties": {
+        "scenarios": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "without_ponytail_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "with_ponytail_ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "scripts_passed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "does_not"
+      ],
+      "properties": {
+        "does_not": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "scenario_variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "script",
+        "exit_code",
+        "stdout",
+        "lines_of_code",
+        "adlc_ready"
+      ],
+      "properties": {
+        "script": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exit_code": {
+          "type": "integer"
+        },
+        "stdout": {
+          "type": "string"
+        },
+        "lines_of_code": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "adlc_ready": {
+          "type": "boolean"
+        },
+        "readiness_issues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ticket_inherits_minimality_contract": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -435,6 +435,8 @@ For production readiness findings, include only the specific `PROD-*` entries th
 
 For paved-road findings, include only repo-local reference implementations and explicit allowed departures. Do not ask the coding agent to invent a parallel framework, schema style, emitter format, or build convention unless the Build Brief names `no_paved_road_found` and records why existing patterns cannot absorb the work.
 
+For Ponytail minimality, inline the task `minimality_contract` verbatim in the coding prompt. The prompt must name the selected rung, `reuse_evidence`, skipped options, `new_dependencies`, `new_abstractions`, `minimum_check`, and safety boundaries. If an executable task lacks `minimality_contract`, emit `missing_minimality_contract` instead of assembling a coding prompt. If new dependencies or abstractions are present without approval refs, emit `unapproved_ponytail_new_dependency` or `unapproved_ponytail_new_abstraction`.
+
 ### Step 6: Add the verification loop
 
 The prompt ends with the primary verifier and any secondary verifiers. The coding agent's terminal state is that the verifier contract has been satisfied.

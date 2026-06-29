@@ -1,0 +1,155 @@
+{
+  "scenario_set_id": "ponytail-randomized-script-canaries-20260629",
+  "seed": "ADLC-PONYTAIL-20260629",
+  "scenarios": [
+    {
+      "scenario_id": "PONYTAIL_URL_PARAM",
+      "task": "Extract one query parameter from a URL",
+      "expected_stdout": "ada",
+      "without_ponytail": {
+        "script": "url_param_overbuilt.py",
+        "command": [
+          "python3",
+          "{script}",
+          "https://example.test/path?user=ada&debug=1",
+          "user"
+        ],
+        "code": "import sys\n\nclass QueryToken:\n    def __init__(self, raw):\n        self.raw = raw\n\n    def pair(self):\n        if '=' not in self.raw:\n            return self.raw, ''\n        key, value = self.raw.split('=', 1)\n        return key, value\n\nclass QueryStringParser:\n    def __init__(self, url):\n        self.url = url\n\n    def query(self):\n        if '?' not in self.url:\n            return ''\n        return self.url.split('?', 1)[1]\n\n    def values(self):\n        parsed = {}\n        for token in self.query().split('&'):\n            if not token:\n                continue\n            key, value = QueryToken(token).pair()\n            parsed[key] = value\n        return parsed\n\nparser = QueryStringParser(sys.argv[1])\nprint(parser.values().get(sys.argv[2], ''))"
+      },
+      "with_ponytail": {
+        "script": "url_param_ponytail.py",
+        "command": [
+          "python3",
+          "{script}",
+          "https://example.test/path?user=ada&debug=1",
+          "user"
+        ],
+        "code": "import sys\nfrom urllib.parse import parse_qs, urlparse\n\nprint(parse_qs(urlparse(sys.argv[1]).query).get(sys.argv[2], [''])[0])",
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "stdlib",
+          "decision": "Use urllib.parse instead of a custom URL/query parser.",
+          "reuse_evidence": [
+            "stdlib:urllib.parse.parse_qs",
+            "stdlib:urllib.parse.urlparse"
+          ],
+          "skipped": [
+            {
+              "option": "custom QueryStringParser class",
+              "reason": "The standard library already parses URL query strings correctly."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "python3 url_param_ponytail.py https://example.test/path?user=ada&debug=1 user",
+            "proves": "The script prints the requested parameter value."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "PONYTAIL_CSV_SUM",
+      "task": "Sum CSV amounts for one account name",
+      "expected_stdout": "9",
+      "without_ponytail": {
+        "script": "csv_sum_overbuilt.py",
+        "command": [
+          "python3",
+          "{script}",
+          "alpha,2\nbeta,5\nalpha,7",
+          "alpha"
+        ],
+        "code": "import sys\n\nclass AmountRow:\n    def __init__(self, raw):\n        parts = raw.split(',')\n        self.name = parts[0]\n        self.amount = int(parts[1])\n\nclass AmountLedger:\n    def __init__(self, text):\n        self.rows = []\n        for line in text.splitlines():\n            if line.strip():\n                self.rows.append(AmountRow(line.strip()))\n\n    def sum_for(self, name):\n        total = 0\n        for row in self.rows:\n            if row.name == name:\n                total += row.amount\n        return total\n\nledger = AmountLedger(sys.argv[1])\nprint(ledger.sum_for(sys.argv[2]))"
+      },
+      "with_ponytail": {
+        "script": "csv_sum_ponytail.py",
+        "command": [
+          "python3",
+          "{script}",
+          "alpha,2\nbeta,5\nalpha,7",
+          "alpha"
+        ],
+        "code": "import csv\nimport io\nimport sys\n\nrows = csv.DictReader(io.StringIO('name,amount\\n' + sys.argv[1]))\nprint(sum(int(row['amount']) for row in rows if row['name'] == sys.argv[2]))",
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "stdlib",
+          "decision": "Use csv.DictReader and a generator expression instead of a ledger abstraction.",
+          "reuse_evidence": [
+            "stdlib:csv.DictReader",
+            "stdlib:io.StringIO"
+          ],
+          "skipped": [
+            {
+              "option": "AmountRow and AmountLedger classes",
+              "reason": "The task is a single aggregation over CSV rows."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "python3 csv_sum_ponytail.py 'alpha,2 beta,5 alpha,7' alpha",
+            "proves": "The script sums only matching account rows."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "PONYTAIL_PORT_CLAMP",
+      "task": "Clamp a port number to the valid TCP port range",
+      "expected_stdout": "65535",
+      "without_ponytail": {
+        "script": "port_clamp_overbuilt.py",
+        "command": [
+          "python3",
+          "{script}",
+          "70000"
+        ],
+        "code": "import sys\n\nclass IntegerBoundary:\n    def __init__(self, low, high):\n        self.low = low\n        self.high = high\n\n    def contains(self, value):\n        return self.low <= value <= self.high\n\nclass PortNormalizer:\n    def __init__(self):\n        self.boundary = IntegerBoundary(0, 65535)\n\n    def normalize(self, value):\n        number = int(value)\n        if self.boundary.contains(number):\n            return number\n        if number < self.boundary.low:\n            return self.boundary.low\n        return self.boundary.high\n\nprint(PortNormalizer().normalize(sys.argv[1]))"
+      },
+      "with_ponytail": {
+        "script": "port_clamp_ponytail.py",
+        "command": [
+          "python3",
+          "{script}",
+          "70000"
+        ],
+        "code": "import sys\n\nprint(min(65535, max(0, int(sys.argv[1]))))",
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "one_liner",
+          "decision": "Use min/max around int conversion instead of boundary and normalizer classes.",
+          "reuse_evidence": [
+            "builtin:min",
+            "builtin:max",
+            "builtin:int"
+          ],
+          "skipped": [
+            {
+              "option": "IntegerBoundary and PortNormalizer classes",
+              "reason": "There is one numeric clamp operation and no second caller."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "python3 port_clamp_ponytail.py 70000",
+            "proves": "The script clamps high values to 65535."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
+        }
+      }
+    }
+  ]
+}

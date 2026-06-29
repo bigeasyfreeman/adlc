@@ -94,6 +94,7 @@ The shipped framework layers are:
 | Productionization Gate | Bounded production claim with Coverage State, evidence, rollback/observability/security posture, reliability risks, and No-Overclaim boundaries | Active when a task claims production support or production readiness |
 | Slop Quality Gate | Output-side benchmark, threshold, eval cases, and failure action for generated-output surfaces | Active when a task changes prompt/model/agent/generated content behavior |
 | Loop Contract | LLM action-loop contract: job, win condition, allowed tools, real feedback, required tests, progress, control channel, safe checkpoint, independent truth, escalation, and optional `budget_guard` evidence | Active when a task delegates decisions, tool use, test selection, retry/repair, escalation, or maturity claims to an LLM loop |
+| Kitchen Loop Coverage Admission | Enumerable spec surfaces, bounded scenario coverage plans, independent regression oracles, and drift pause gates | Active when a task claims Kitchen Loop behavior, coverage admission, or coverage exhaustion |
 
 The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, retry caps, workflow state, compound context, readiness gates, test-strength checks, Loop Contract admission gates, and execution-backed required-test evidence when `loop-test-result` artifacts are supplied. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, failure handling, or budget evidence. Missing, stale, warning, alert, or exhausted `budget_status` blocks `self_autonomous`; healthy local budget evidence is necessary but not sufficient. Tag-only Loop Contract coverage is intentionally capped below robust.
 
@@ -106,6 +107,7 @@ What is automatic today:
 - Loop Contract test-selection, action-admission, and maturity-audit CLI/MCP tools
 - deterministic `loop-budget-check` CLI/MCP budget guard for LLM-backed Loop Actions
 - strict Loop Contract required-test proof through `docs/schemas/loop-test-result.schema.json` and `loop-test-selection --require-test-results`
+- Kitchen Loop coverage-admission readiness checks when tasks opt into `spec-surface`, `scenario-coverage-plan`, `regression-oracle`, and `drift-gate-report` refs
 - schema-backed work queue status, task claims, completion/block/escalation state, dirty-checks, file-overlap checks, and worktree prepare/status/cleanup dry-runs
 - evidence-backed architecture memory writes, memory-health stale/overclaim/duplicate primitive checks, and champion/holdout promotion gates for prompt or skill changes
 - packaged assisted-loop template inspection and install plans through `loop-library` and `loop-template-install`
@@ -206,6 +208,10 @@ bin/adlc beads-status --workspace . --json
 bin/adlc looper-status --workspace . --json
 bin/adlc loop-design-validate --input .adlc/loops/task/loop_design.json --json
 bin/adlc loop-contract-from-design --loop-design .adlc/loops/task/loop_design.json --output .adlc/loops/task/loop_contract.json --json
+bin/adlc coverage-surface-validate --input .adlc/kitchen_loop/spec_surface.json --json
+bin/adlc scenario-coverage-plan --input .adlc/kitchen_loop/scenario_coverage_plan.json --spec-surface .adlc/kitchen_loop/spec_surface.json --json
+bin/adlc regression-oracle-validate --input .adlc/kitchen_loop/regression_oracle.json --json
+bin/adlc drift-gate-evaluate --input .adlc/kitchen_loop/drift_gate_report.json --json
 bin/adlc loop-library --json
 bin/adlc loop-library --template-id ci-triage --json
 bin/adlc loop-template-install --template-id ci-triage --workspace . --dry-run --json
@@ -242,6 +248,16 @@ Learning and architecture memory keeps ADLC's outer loop from compounding stale 
 The packaged loop library makes known assisted loops reusable by harnesses. `loop-library` lists or inspects templates such as `ci-triage`, `pr-babysitter`, `dependency-bump`, `ticket-hygiene`, `architecture-debt-discovery`, `feedback-sweep`, and `skill-champion`. `loop-template-install` dry-runs by default and, after `adlc-loop-library:install_loop_template` action admission, writes `.adlc/loops/<template_id>/loop_contract.json`, `tool_registry.json`, `work_queue_seed.json`, `token_budget.json`, `README.md`, and `install_report.json`. It does not schedule jobs, dispatch agents, choose work, merge code, or make architecture decisions; those remain outside the library contract.
 
 Loop Design support makes Looper-style loop planning an admission artifact before execution. `looper-status` is read-only and optional. `loop-design-validate` checks a Looper-compatible Loop Design Contract for verifiers, judge criteria, stop/no-progress controls, mutation boundaries, and privacy posture. `loop-contract-from-design` converts a validated design into a schema-backed ADLC Loop Contract; it does not execute the loop, schedule agents, or mutate trackers.
+
+Kitchen Loop Coverage Admission makes broad coverage claims explicit before execution. `coverage-surface-validate`, `scenario-coverage-plan`, `regression-oracle-validate`, and `drift-gate-evaluate` validate local JSON artifacts for an enumerable surface, bounded scenarios, independent oracle evidence, and pass/pause/escalate drift status. When a Build Brief task opts in with Kitchen Loop labels or refs, `emit-work-items --require-ready` requires all four evidence ref classes and blocks missing drift, weak oracle, unbounded scenario, or non-enumerable surface claims.
+
+Ponytail Minimality is mandatory at ticket emission. Every Build Brief task carries `minimality_contract`; executable tasks must name the Ponytail rung, `reuse_evidence`, skipped options, dependency and abstraction approvals if any, `minimum_check`, and safety boundaries. `ponytail-admit` reports the contract state directly, while `emit-work-items --require-ready` blocks `missing_minimality_contract`, unapproved dependencies or abstractions, missing reuse evidence, and missing minimum checks before a coding agent inherits work.
+
+```bash
+bin/adlc ponytail-admit --build-brief .adlc/build_brief.json --json
+bin/adlc ponytail-scenario-canary --json
+bin/adlc emit-work-items --target linear --build-brief .adlc/build_brief.json --dry-run --require-ready --json
+```
 
 The bounded self-actioning meta-harness planner lets ADLC decide candidate work without bypassing the control plane. `meta-harness-plan` reads repo, ticket, Build Brief, queue, and signal candidates; ranks them by value, risk, verifiability, repeatability, and urgency; chooses a packaged loop template; emits schema-backed Work Queue seed and Work Item Sync payloads; and returns the exact ADLC commands a harness should run next. It does not claim tasks, create worktrees, update trackers, dispatch agents, merge, deploy, or decide architecture. Those steps remain behind existing action-admitted commands and human approval gates.
 
@@ -331,7 +347,7 @@ The Build Brief Agent produces a brief with an `applicability_manifest`, a core 
 | 17 | Productionization Gates (Coverage State, Validation Evidence, No-Overclaim, rollback/observability/security posture) | When a task makes or changes a production support claim |
 | 18 | Revision History (council finding IDs → changes) | Always |
 
-Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, failure modes, and enough acceptance criteria to define the verifier contract. Tasks that touch integration boundaries should carry an `implementation_interface_contract`; tasks that claim `production_ready` must carry a `productionization_gate` with validation evidence and no-overclaim boundaries. Tasks that introduce or change LLM-driven loop behavior should carry a Loop Contract and the deterministic loop verifier commands that prove required tests, action admission, progress/control state, and maturity verdicts.
+Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, `minimality_contract`, failure modes, and enough acceptance criteria to define the verifier contract. Tasks that touch integration boundaries should carry an `implementation_interface_contract`; tasks that claim `production_ready` must carry a `productionization_gate` with validation evidence and no-overclaim boundaries. Tasks that introduce or change LLM-driven loop behavior should carry a Loop Contract and the deterministic loop verifier commands that prove required tests, action admission, progress/control state, and maturity verdicts.
 
 Loop Contracts are task/workflow control artifacts, not a required Build Brief section for every task. Emit them as referenced JSON artifacts through `work_item_metadata.loop_contract_path`, `loop_action_path`, and `loop_maturity_report_path` when an LLM-driven loop surface is active.
 

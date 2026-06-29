@@ -1,0 +1,70 @@
+{
+  "contract_version": "1.0.0",
+  "surface_id": "surface:adlc:kitchen-loop-fixture",
+  "owner": "adlc-maintainers",
+  "enumerability": {
+    "state": "bounded_with_exclusions",
+    "rationale": "The fixture covers a bounded ADLC validator surface with two explicit dimensions and documented exclusions.",
+    "boundary_ref": "docs/specs/kitchen-loop-coverage-admission.md#spec-surface"
+  },
+  "capability_claims": [
+    {
+      "id": "claim:admission-fixture",
+      "claim": "ADLC can admit a Kitchen Loop style coverage claim only when the declared surface is bounded and has oracle-backed scenarios.",
+      "scope": "Local schema and CLI fixture validation.",
+      "limitations": [
+        "Does not generate new scenarios.",
+        "Does not prove production product behavior."
+      ]
+    }
+  ],
+  "dimensions": [
+    {
+      "name": "artifact",
+      "values": ["spec_surface", "scenario_plan"]
+    },
+    {
+      "name": "admission_state",
+      "values": ["valid", "blocked"]
+    }
+  ],
+  "supported_combinations": [
+    {
+      "id": "combo:valid-spec-surface",
+      "dimension_values": {
+        "artifact": "spec_surface",
+        "admission_state": "valid"
+      },
+      "oracle_refs": ["oracle:kitchen-loop-fixture"]
+    },
+    {
+      "id": "combo:blocked-scenario-plan",
+      "dimension_values": {
+        "artifact": "scenario_plan",
+        "admission_state": "blocked"
+      },
+      "oracle_refs": ["oracle:kitchen-loop-fixture"]
+    }
+  ],
+  "oracle_refs": ["oracle:kitchen-loop-fixture"],
+  "success_criteria": [
+    {
+      "id": "criterion:oracle-backed",
+      "description": "Every supported combination has an oracle ref.",
+      "oracle_ref": "oracle:kitchen-loop-fixture",
+      "evaluation_type": "deterministic"
+    }
+  ],
+  "unsupported_states": [
+    {
+      "state": "self_autonomous_without_independent_oracle",
+      "reason": "Coverage-exhaustion claims without independent truth are circular.",
+      "failure_action": "block"
+    }
+  ],
+  "out_of_scope": [
+    "Autonomous scenario generation",
+    "Auto-merge or deployment authority"
+  ],
+  "redaction_posture": "Fixtures contain no secrets and only local ADLC paths."
+}

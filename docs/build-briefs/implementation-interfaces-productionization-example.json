@@ -304,6 +304,32 @@
           "known_unsupported_states": [
             "External tracker API transport is out of scope."
           ]
+        },
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "reuse_existing",
+          "decision": "Keep ADLC-IIP-EX-IMPL scoped to the referenced repo pattern and the fewest files needed for its verifier.",
+          "reuse_evidence": [
+            "scripts/adlc.py:normalized_work_item_payload",
+            "scripts/adlc.py",
+            "docs/build-briefs/implementation-interfaces-productionization-example.json"
+          ],
+          "skipped": [
+            {
+              "option": "new framework, package, or parallel abstraction",
+              "reason": "Existing ADLC schema, CLI, fixture, and test surfaces can absorb this task."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization-example.json --dry-run --require-ready --json",
+            "proves": "The smallest task-scoped change satisfies the Build Brief verifier."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
         }
       },
       {
@@ -395,6 +421,31 @@
         "productionization_gate": {
           "applicability": "not_applicable",
           "reason": "Validation task does not make a production support claim."
+        },
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "minimum_code",
+          "decision": "Keep ADLC-IIP-EX-VAL scoped to the referenced repo pattern and the fewest files needed for its verifier.",
+          "reuse_evidence": [
+            "docs/build-briefs/xia-adlc-remediation.json",
+            "docs/build-briefs/implementation-interfaces-productionization-example.json"
+          ],
+          "skipped": [
+            {
+              "option": "new framework, package, or parallel abstraction",
+              "reason": "Existing ADLC schema, CLI, fixture, and test surfaces can absorb this task."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "bin/adlc emit-work-items --target linear --build-brief docs/build-briefs/implementation-interfaces-productionization-example.json --dry-run --require-ready --json",
+            "proves": "The smallest task-scoped change satisfies the Build Brief verifier."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
         }
       }
     ],

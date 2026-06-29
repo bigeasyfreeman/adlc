@@ -228,8 +228,39 @@
           "area_label": "backend",
           "phase_label": "coding",
           "target_project": "smoke",
-          "labels": ["smoke", "bugfix"],
-          "external_refs": ["EXT-1"]
+          "labels": [
+            "smoke",
+            "bugfix"
+          ],
+          "external_refs": [
+            "EXT-1"
+          ]
+        },
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "reuse_existing",
+          "decision": "Keep SMOKE_BUGFIX_AVERAGE scoped to the referenced repo pattern and the fewest files needed for its verifier.",
+          "reuse_evidence": [
+            "src/scoreboard.py",
+            "src/scoreboard.py",
+            "tests/test_average_score.py"
+          ],
+          "skipped": [
+            {
+              "option": "new framework, package, or parallel abstraction",
+              "reason": "Existing ADLC schema, CLI, fixture, and test surfaces can absorb this task."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "python3 -m unittest tests.test_average_score -v",
+            "proves": "The smallest task-scoped change satisfies the Build Brief verifier."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
         }
       },
       {
@@ -346,7 +377,33 @@
         "files_to_create": [
           "tests/test_render_scoreboard.py"
         ],
-        "reference_impl": "src/scoreboard.py"
+        "reference_impl": "src/scoreboard.py",
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "reuse_existing",
+          "decision": "Keep SMOKE_FEATURE_SCOREBOARD scoped to the referenced repo pattern and the fewest files needed for its verifier.",
+          "reuse_evidence": [
+            "src/scoreboard.py",
+            "src/scoreboard.py",
+            "tests/test_render_scoreboard.py"
+          ],
+          "skipped": [
+            {
+              "option": "new framework, package, or parallel abstraction",
+              "reason": "Existing ADLC schema, CLI, fixture, and test surfaces can absorb this task."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "python3 -m unittest tests.test_render_scoreboard -v",
+            "proves": "The smallest task-scoped change satisfies the Build Brief verifier."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
+        }
       },
       {
         "artifact_type": "validation_task",
@@ -427,7 +484,31 @@
         "owner": "smoke-harness",
         "files_to_modify": [],
         "files_to_create": [],
-        "reference_impl": "src/scoreboard.py"
+        "reference_impl": "src/scoreboard.py",
+        "minimality_contract": {
+          "mode": "full",
+          "rung": "minimum_code",
+          "decision": "Keep SMOKE_VALIDATION_SCOREBOARD scoped to the referenced repo pattern and the fewest files needed for its verifier.",
+          "reuse_evidence": [
+            "src/scoreboard.py"
+          ],
+          "skipped": [
+            {
+              "option": "new framework, package, or parallel abstraction",
+              "reason": "Existing ADLC schema, CLI, fixture, and test surfaces can absorb this task."
+            }
+          ],
+          "new_dependencies": [],
+          "new_abstractions": [],
+          "minimum_check": {
+            "command": "python3 -m unittest discover -s tests -p 'test_*.py'",
+            "proves": "The smallest task-scoped change satisfies the Build Brief verifier."
+          },
+          "safety_preserved": [
+            "validation",
+            "comprehension"
+          ]
+        }
       }
     ],
     "9_risks": [

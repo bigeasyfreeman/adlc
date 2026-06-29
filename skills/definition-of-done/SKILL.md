@@ -65,6 +65,7 @@ Extraction rules:
 | 15 | Reuse analysis confirmed | `automatable` | core | Automated: reuse-analysis output | Reimplementation detected |
 | 16 | Existing conventions followed | `judgement` | core | Council review | Convention violation |
 | 17 | Antipattern checklist cleared | `automatable` | core | Automated: anti-slop plus antipattern scanner outputs | Known antipattern used |
+| 27 | Ponytail minimality admitted | `automatable` | core | Automated: `bin/adlc ponytail-admit --build-brief <brief> --json` and task `minimality_contract.minimum_check` evidence | `missing_minimality_contract`, empty `reuse_evidence`, unapproved dependency/abstraction, or missing `minimum_check` |
 
 ## Security Overlay
 

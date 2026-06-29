@@ -1,0 +1,36 @@
+{
+  "contract_version": "1.0.0",
+  "oracle_id": "oracle:kitchen-loop-weak",
+  "owner": "adlc-maintainers",
+  "oracle_type": "fixture",
+  "ground_truth_source": {
+    "type": "fixture",
+    "strength": "llm_self_assessment",
+    "ref": "chat-only claim"
+  },
+  "execution_boundary": {
+    "command": "echo weak",
+    "mutation_policy": "read_only",
+    "network_policy": "none"
+  },
+  "state_delta_assertions": [
+    {
+      "id": "assertion:weak",
+      "assertion": "This should fail because the ground truth is not independent."
+    }
+  ],
+  "anti_canaries": [
+    {
+      "id": "anti:weak",
+      "input_ref": "none",
+      "expected_failure": "Weak truth must be rejected."
+    }
+  ],
+  "environmental_failure_policy": "fail_closed",
+  "pre_merge_required": true,
+  "post_merge_required": false,
+  "coverage_limitations": [
+    "Invalid fixture."
+  ],
+  "redaction_posture": "No secrets."
+}

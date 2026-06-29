@@ -245,6 +245,26 @@ For every implementation task that changes code, schemas, runtime behavior, pers
 
 Do not require these fields for trivial docs, lint-only, or build-validation tasks when the applicability manifest proves no code path or build pattern changes.
 
+### Ponytail Minimality Checks
+
+For every Build Brief task:
+
+- `minimality_contract` must be present before work-item emission.
+- Executable tasks cannot use `not_applicable`; they must name a Ponytail rung, `reuse_evidence`, skipped options, `minimum_check`, and `safety_preserved`.
+- `new_dependencies` must be empty unless `dependency_approval_ref` names the approval.
+- `new_abstractions` must be empty unless `abstraction_approval_ref` names the approval.
+- The selected rung must be coherent with the task: prefer reuse, stdlib, native platform, installed dependency, one-liner, then minimum code.
+
+Missing or weak minimality returns:
+
+- `missing_minimality_contract` when the task lacks the contract.
+- `missing_ponytail_reuse_evidence` when no repo, stdlib, platform, or installed-dependency evidence is recorded.
+- `unapproved_ponytail_new_dependency` when a new dependency lacks approval.
+- `unapproved_ponytail_new_abstraction` when a new abstraction lacks approval.
+- `missing_ponytail_minimum_check` when no runnable check is named.
+
+Do not waive Ponytail with prose. `bin/adlc ponytail-admit` and `emit-work-items --require-ready` are the mechanical gates.
+
 ### Implementation Interface And Productionization Gate Checks
 
 For every task that changes an integration boundary, schema, emitter payload, workflow state, CLI contract, provider edge, or reusable framework surface:
