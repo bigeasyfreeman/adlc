@@ -991,6 +991,7 @@ def command_pr_hygiene_scan(args: argparse.Namespace) -> int:
 
 
 CONVENTION_DOCS = ("CLAUDE.md", "AGENTS.md", "CONTRIBUTING.md")
+CONVENTION_SKIP_DIRS = {".git", ".adlc", "graphify-out", "node_modules", "__pycache__"}
 MUST_RULE_SIGNALS = (
     " must ",
     " must not ",
@@ -1005,6 +1006,7 @@ MUST_RULE_SIGNALS = (
     " no ",
     " when a responsibility grows",
 )
+REMOVED_CI_GATE_LABEL_RE = re.compile(r"\b(removed|retired|disabled|deleted)\b.*\b(ci\s+)?(gate|check|job)s?\b", re.IGNORECASE)
 
 
 def clean_markdown_rule(line: str) -> str:
@@ -1018,68 +1020,162 @@ def convention_doc_kind(path: Path) -> str:
     return path.name if path.name in CONVENTION_DOCS else "other"
 
 
+def convention_rule_id(source_path: str, index: int) -> str:
+    stem = re.sub(r"\.md$", "", source_path, flags=re.IGNORECASE)
+    prefix = re.sub(r"[^A-Za-z0-9]+", "_", stem).strip("_").upper() or "CONVENTION"
+    return f"{prefix}_MUST_{index:03d}"
+
+
+def convention_doc_skipped(path: Path, workspace: Path) -> bool:
+    try:
+        rel = path.relative_to(workspace)
+    except ValueError:
+        return True
+    return any(part in CONVENTION_SKIP_DIRS or part.startswith(".") and part != "." for part in rel.parts[:-1])
+
+
+def iter_convention_docs(workspace: Path) -> List[Path]:
+    found: Dict[str, Path] = {}
+    for name in CONVENTION_DOCS:
+        top_level = workspace / name
+        if top_level.is_file():
+            found[workspace_rel_path(top_level, workspace)] = top_level
+    for path in sorted(workspace.rglob("*")):
+        if path.name in CONVENTION_DOCS and path.is_file() and not convention_doc_skipped(path, workspace):
+            found.setdefault(workspace_rel_path(path, workspace), path)
+    return [found[key] for key in sorted(found)]
+
+
+def convention_warning(rule: str, path: str, line: int, message: str) -> Dict[str, Any]:
+    return {"rule": rule, "source_path": path, "line": line, "message": message}
+
+
+def markdown_table_cells(line: str) -> List[str]:
+    return [cell.strip(" `*") for cell in line.strip().strip("|").split("|")]
+
+
+def removed_ci_gates_from_line(line: str) -> List[str]:
+    stripped = line.strip()
+    cleaned = clean_markdown_rule(stripped)
+    if not REMOVED_CI_GATE_LABEL_RE.search(cleaned):
+        return []
+    if stripped.startswith("|"):
+        cells = markdown_table_cells(stripped)
+        for index, cell in enumerate(cells):
+            if REMOVED_CI_GATE_LABEL_RE.search(cell) and index + 1 < len(cells):
+                return [cells[index + 1]] if cells[index + 1] else []
+    backtick_values = [value.strip() for value in re.findall(r"`([^`]+)`", stripped) if value.strip()]
+    if backtick_values:
+        return backtick_values
+    tail = re.split(r":|\s+-\s+", cleaned, maxsplit=1)[-1]
+    tail = re.sub(r"(?i)^.*?\b(removed|retired|disabled|deleted)\b.*?\b(gate|check|job)s?\b", "", tail).strip()
+    gates = []
+    for value in re.split(r",|;|\band\b", tail):
+        gate = re.sub(r"(?i)\s+(gate|check|job)$", "", value.strip(" ."))
+        if gate:
+            gates.append(gate)
+    return gates
+
+
 def verification_predicate_for_rule(_rule: str) -> str:
     return "Record a deterministic check, cited file review, or explicit per-file waiver proving the rule for every changed file."
 
 
-def extract_convention_rules_from_doc(path: Path, workspace: Path) -> Tuple[List[Dict[str, Any]], Dict[str, Any] | None]:
+def extract_convention_rules_from_doc(path: Path, workspace: Path) -> Tuple[List[Dict[str, Any]], Dict[str, Any] | None, List[Dict[str, Any]], List[str]]:
     if not path.is_file():
-        return [], None
+        return [], None, [], []
     rel = workspace_rel_path(path, workspace)
     source = {"path": rel, "kind": convention_doc_kind(path)}
     rules: List[Dict[str, Any]] = []
+    warnings_out: List[Dict[str, Any]] = []
+    removed_ci_gates: List[str] = []
     in_conventions = False
-    for line in path.read_text(encoding="utf-8").splitlines():
+    current_rule_lines: List[str] = []
+    current_rule_line = 0
+    current_rule_in_conventions = False
+
+    def flush_rule() -> None:
+        nonlocal current_rule_lines, current_rule_line, current_rule_in_conventions
+        if not current_rule_lines:
+            return
+        rule = clean_markdown_rule(" ".join(current_rule_lines))
+        normalized = f" {rule.lower()} "
+        if rule and (current_rule_in_conventions or any(signal in normalized for signal in MUST_RULE_SIGNALS)) and any(
+            signal in normalized for signal in MUST_RULE_SIGNALS
+        ):
+            rules.append(
+                {
+                    "id": convention_rule_id(rel, len(rules) + 1),
+                    "source_path": rel,
+                    "rule": rule,
+                    "verification_predicate": verification_predicate_for_rule(rule),
+                    "severity": "must",
+                    "applies_to": ["changed_files"],
+                    "line": current_rule_line,
+                }
+            )
+        current_rule_lines = []
+        current_rule_line = 0
+        current_rule_in_conventions = False
+
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         stripped = line.strip()
         header = stripped.lower().lstrip("#").strip()
+        removed_ci_gates.extend(removed_ci_gates_from_line(stripped))
         if stripped.startswith("#") and "convention" in header:
+            flush_rule()
             in_conventions = True
             source["section"] = stripped.lstrip("#").strip()
             continue
         if in_conventions and stripped.startswith("#") and "convention" not in header:
+            flush_rule()
             in_conventions = False
+        if re.match(r"^[-*]\s+", stripped):
+            flush_rule()
+            current_rule_lines = [stripped]
+            current_rule_line = line_number
+            current_rule_in_conventions = in_conventions
+            continue
+        if current_rule_lines and (line.startswith((" ", "\t")) and stripped and not stripped.startswith(("#", "|", "-", "*"))):
+            current_rule_lines.append(stripped)
+            continue
+        flush_rule()
         normalized = f" {clean_markdown_rule(stripped).lower()} "
-        if not stripped.startswith(("-", "*")):
-            continue
-        if not in_conventions and not any(signal in normalized for signal in MUST_RULE_SIGNALS):
-            continue
-        if not any(signal in normalized for signal in MUST_RULE_SIGNALS):
-            continue
-        rule = clean_markdown_rule(stripped)
-        if not rule:
-            continue
-        rules.append(
-            {
-                "id": f"{path.stem.upper()}_MUST_{len(rules) + 1:03d}",
-                "source_path": rel,
-                "rule": rule,
-                "verification_predicate": verification_predicate_for_rule(rule),
-                "severity": "must",
-                "applies_to": ["changed_files"],
-            }
-        )
-    return rules, source if rules else None
+        if in_conventions and stripped.startswith("|") and any(signal in normalized for signal in MUST_RULE_SIGNALS):
+            warnings_out.append(convention_warning("table_convention_candidate", rel, line_number, "Table row contains convention language; record it as a bullet to make extraction deterministic."))
+        elif in_conventions and stripped and not stripped.startswith("#") and any(signal in normalized for signal in MUST_RULE_SIGNALS):
+            warnings_out.append(convention_warning("prose_convention_candidate", rel, line_number, "Prose contains convention language; record it as a bullet to make extraction deterministic."))
+    flush_rule()
+    return rules, source if rules else None, warnings_out, list(dict.fromkeys(removed_ci_gates))
 
 
 def repo_conventions_payload(workspace: Path) -> Dict[str, Any]:
     sources: List[Dict[str, Any]] = []
     rules: List[Dict[str, Any]] = []
-    for name in CONVENTION_DOCS:
-        extracted, source = extract_convention_rules_from_doc(workspace / name, workspace)
+    warnings_out: List[Dict[str, Any]] = []
+    removed_ci_gates: List[str] = []
+    for path in iter_convention_docs(workspace):
+        extracted, source, doc_warnings, doc_removed_ci_gates = extract_convention_rules_from_doc(path, workspace)
         if source:
             sources.append(source)
         rules.extend(extracted)
+        warnings_out.extend(doc_warnings)
+        removed_ci_gates.extend(doc_removed_ci_gates)
     if not rules:
         return {
             "status": "none_found",
             "explicit_empty_marker": "no_conventions_found",
             "sources": [],
             "rules": [],
+            "warnings": warnings_out,
+            "removed_ci_gates": list(dict.fromkeys(removed_ci_gates)),
         }
     return {
         "status": "extracted",
         "sources": sources,
         "rules": rules,
+        "warnings": warnings_out,
+        "removed_ci_gates": list(dict.fromkeys(removed_ci_gates)),
     }
 
 

@@ -434,6 +434,10 @@
                 "type": "string",
                 "minLength": 1
               },
+              "line": {
+                "type": "integer",
+                "minimum": 1
+              },
               "verification_predicate": {
                 "type": "string",
                 "minLength": 1
@@ -453,6 +457,46 @@
                 }
               }
             }
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "rule",
+              "message",
+              "source_path"
+            ],
+            "properties": {
+              "rule": {
+                "type": "string",
+                "enum": [
+                  "prose_convention_candidate",
+                  "table_convention_candidate"
+                ]
+              },
+              "source_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "line": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "removed_ci_gates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "waivers": {

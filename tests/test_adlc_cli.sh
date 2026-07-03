@@ -130,6 +130,31 @@ cat > "$tmp_dir/conventions-repo/CLAUDE.md" <<'EOF'
 EOF
 assert "repo-conventions extracts target repo convention rules" "'$ROOT/bin/adlc' repo-conventions --workspace '$tmp_dir/conventions-repo' --json | jq -e '.status == \"extracted\" and (.rules | length) >= 3 and all(.rules[]; (.verification_predicate | length) > 0)' >/dev/null"
 assert "repo-conventions records explicit empty marker when no docs exist" "'$ROOT/bin/adlc' repo-conventions --workspace '$tmp_dir/no-conventions-repo' --json | jq -e '.status == \"none_found\" and .explicit_empty_marker == \"no_conventions_found\" and (.rules | length) == 0' >/dev/null"
+mkdir -p "$tmp_dir/conventions-fidelity-repo/docs/policies"
+cat > "$tmp_dir/conventions-fidelity-repo/AGENTS.md" <<'EOF'
+# Fidelity Repo
+
+## Code conventions
+
+- **One responsibility per file**
+  Continuation states this must include module ownership.
+
+Teams must document ambiguous ownership before merging.
+
+| Area | Rule |
+|------|------|
+| Modules | must keep ownership explicit |
+
+- Removed CI gates: `file-size`, `legacy-shellcheck`
+EOF
+cat > "$tmp_dir/conventions-fidelity-repo/docs/policies/AGENTS.md" <<'EOF'
+# Nested Policy
+
+## Team conventions
+
+- Nested docs must be honored by extraction.
+EOF
+assert "repo-conventions preserves multiline bullets warnings removed gates and nested docs" "'$ROOT/bin/adlc' repo-conventions --workspace '$tmp_dir/conventions-fidelity-repo' --json >'$tmp_dir/conventions-fidelity.json' && jq -e '.status == \"extracted\" and any(.rules[]; .source_path == \"AGENTS.md\" and (.rule | contains(\"Continuation states this must include module ownership\"))) and any(.rules[]; .source_path == \"docs/policies/AGENTS.md\") and (.removed_ci_gates | index(\"file-size\") != null) and (.removed_ci_gates | index(\"legacy-shellcheck\") != null) and any(.warnings[]; .rule == \"prose_convention_candidate\") and any(.warnings[]; .rule == \"table_convention_candidate\")' '$tmp_dir/conventions-fidelity.json' >/dev/null"
 "$ROOT/bin/adlc" repo-conventions --workspace "$tmp_dir/conventions-repo" --json > "$tmp_dir/extracted-repo-conventions.json"
 cp "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" "$tmp_dir/honest-none-found-brief.json"
 jq --slurpfile conventions "$tmp_dir/extracted-repo-conventions.json" '.repo_conventions = ($conventions[0] | .rules = (.rules[0:1]))' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/divergent-conventions-brief.json"
