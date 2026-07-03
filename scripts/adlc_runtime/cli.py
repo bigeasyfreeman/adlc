@@ -941,6 +941,130 @@ def repo_conventions_payload(workspace: Path) -> Dict[str, Any]:
     }
 
 
+def normalize_convention_text(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+
+
+def convention_rule_present(rule: Dict[str, Any], claimed_rules: List[Dict[str, Any]]) -> bool:
+    rule_id = str(rule.get("id") or "")
+    source_path = str(rule.get("source_path") or "")
+    rule_text = normalize_convention_text(rule.get("rule"))
+    for claimed in claimed_rules:
+        claimed_id = str(claimed.get("id") or "")
+        claimed_source = str(claimed.get("source_path") or "")
+        claimed_text = normalize_convention_text(claimed.get("rule"))
+        if rule_id and claimed_id == rule_id:
+            return True
+        if source_path == claimed_source and rule_text and rule_text == claimed_text:
+            return True
+    return False
+
+
+def convention_waiver_matches(rule: Dict[str, Any], waiver: Dict[str, Any]) -> bool:
+    if not isinstance(waiver, dict):
+        return False
+    waiver_rule = normalize_convention_text(waiver.get("rule"))
+    reason = str(waiver.get("reason") or "").strip()
+    if not waiver_rule or not reason:
+        return False
+    rule_id = normalize_convention_text(rule.get("id"))
+    rule_text = normalize_convention_text(rule.get("rule"))
+    source_path = normalize_convention_text(rule.get("source_path"))
+    candidates = {
+        rule_id,
+        rule_text,
+        normalize_convention_text(f"{rule.get('source_path')}:{rule.get('id')}"),
+        normalize_convention_text(f"{rule.get('source_path')}:{rule.get('rule')}"),
+    }
+    if waiver_rule in candidates:
+        return True
+    waiver_source = normalize_convention_text(waiver.get("source_path"))
+    return bool(waiver_source and waiver_source == source_path and waiver_rule in {rule_id, rule_text})
+
+
+def repo_conventions_check_payload(workspace: Path, brief_path: Path) -> Dict[str, Any]:
+    issues: List[Dict[str, Any]] = []
+    try:
+        schema_errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    except Exception as exc:
+        schema_errors = [str(exc)]
+    if schema_errors:
+        return {
+            "status": "blocked",
+            "workspace": str(workspace),
+            "build_brief": rel_path(brief_path),
+            "claim": None,
+            "fresh": None,
+            "missing_rules": [],
+            "waived_rules": [],
+            "issues": [
+                {
+                    "rule": "build_brief_schema_invalid",
+                    "message": "build brief failed schema validation",
+                    "errors": schema_errors,
+                }
+            ],
+        }
+
+    brief = read_json(brief_path)
+    claimed = brief.get("repo_conventions", {}) if isinstance(brief, dict) else {}
+    claimed_rules = claimed.get("rules", []) if isinstance(claimed, dict) and isinstance(claimed.get("rules"), list) else []
+    waivers = claimed.get("waivers", []) if isinstance(claimed, dict) and isinstance(claimed.get("waivers"), list) else []
+    fresh = repo_conventions_payload(workspace)
+    missing_rules: List[Dict[str, Any]] = []
+    waived_rules: List[Dict[str, Any]] = []
+    for rule in fresh.get("rules", []):
+        if not isinstance(rule, dict) or convention_rule_present(rule, claimed_rules):
+            continue
+        summary = {
+            "id": rule.get("id"),
+            "source_path": rule.get("source_path"),
+            "rule": rule.get("rule"),
+        }
+        if any(convention_waiver_matches(rule, waiver) for waiver in waivers):
+            waived_rules.append(summary)
+        else:
+            missing_rules.append(summary)
+
+    claimed_status = claimed.get("status") if isinstance(claimed, dict) else None
+    if missing_rules:
+        issue_rule = "unextracted_repo_conventions" if claimed_status == "none_found" else "divergent_repo_conventions"
+        issues.append(
+            {
+                "rule": issue_rule,
+                "message": "build brief repo_conventions omits rules extracted from the target repo",
+                "missing_rules": missing_rules,
+            }
+        )
+
+    if fresh.get("status") == "none_found" and claimed_status == "extracted":
+        issues.append(
+            {
+                "rule": "stale_repo_conventions",
+                "message": "build brief claims extracted conventions but fresh extraction found no convention docs",
+            }
+        )
+
+    return {
+        "status": "blocked" if issues else "pass",
+        "workspace": str(workspace),
+        "build_brief": rel_path(brief_path),
+        "claim": {
+            "status": claimed_status,
+            "rule_count": len(claimed_rules),
+            "waiver_count": len(waivers),
+        },
+        "fresh": {
+            "status": fresh.get("status"),
+            "rule_count": len(fresh.get("rules", [])),
+            "sources": fresh.get("sources", []),
+        },
+        "missing_rules": missing_rules,
+        "waived_rules": waived_rules,
+        "issues": issues,
+    }
+
+
 def command_repo_conventions(args: argparse.Namespace) -> int:
     workspace = resolve_workspace(args.workspace)
     payload = repo_conventions_payload(workspace)
@@ -953,6 +1077,20 @@ def command_repo_conventions(args: argparse.Namespace) -> int:
     else:
         print(f"repo-conventions: {payload['status']} ({len(payload['rules'])} rule(s))")
     return 0
+
+
+def command_repo_conventions_check(args: argparse.Namespace) -> int:
+    workspace = resolve_workspace(args.workspace)
+    brief_path = resolve_input_path(args.build_brief, workspace)
+    if not brief_path.is_file():
+        print(f"build brief not found: {brief_path}", file=sys.stderr)
+        return 2
+    payload = repo_conventions_check_payload(workspace, brief_path)
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"repo-conventions-check: {payload['status']} ({len(payload['issues'])} issue(s))")
+    return 0 if payload["status"] == "pass" else 1
 
 
 RUST_SIDE_EFFECT_PATTERNS = (
@@ -1685,6 +1823,52 @@ def execute_tool_node_phase(
     return finish_tool_node_phase(state_path, state, phase, plan, result, output_path)
 
 
+BUILD_BRIEF_HONESTY_PHASES = {"compound_preflight", "scaffold", "context_assembly", "qa", "slop_gate"}
+
+
+def run_phase_repo_conventions_check(args: argparse.Namespace, workspace: Path, state: Dict[str, Any], phase: str) -> Dict[str, Any] | None:
+    brief_path = phase_build_brief_path(args, workspace, state)
+    if not brief_path or not brief_path.is_file():
+        return None
+    explicit_brief = bool(getattr(args, "build_brief", None) or state.get("checkpoint", {}).get("build_brief"))
+    if not explicit_brief and phase not in BUILD_BRIEF_HONESTY_PHASES:
+        return None
+    payload = repo_conventions_check_payload(workspace, brief_path)
+    return payload if payload.get("status") == "blocked" else None
+
+
+def block_run_phase_for_repo_conventions(
+    state_path: Path,
+    state: Dict[str, Any],
+    phase: str,
+    plan: Dict[str, Any],
+    check: Dict[str, Any],
+) -> Tuple[int, Dict[str, Any]]:
+    state["phase"] = phase
+    state["status"] = "failed"
+    state["step"] = "failed"
+    state["stop_reason"] = "repo_conventions_check_failed"
+    state["updated_at"] = utc_now()
+    append_history(
+        state,
+        {
+            "phase": phase,
+            "status": "blocked",
+            "dry_run": False,
+            "invocation": plan,
+            "stop_reason": "repo_conventions_check_failed",
+        },
+    )
+    save_workflow_state(state_path, state)
+    return 1, {
+        "state_path": rel_path(state_path),
+        "run_identity": workflow_identity_payload(state),
+        "state": state,
+        "plan": plan,
+        "repo_conventions_check": check,
+    }
+
+
 def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
     workspace = resolve_workspace(args.workspace)
     workspace.mkdir(parents=True, exist_ok=True)
@@ -1706,6 +1890,10 @@ def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
 
     node_by_id, _ = workflow_maps()
     node_type = node_by_id[phase]["type"]
+    convention_check = run_phase_repo_conventions_check(args, workspace, state, phase)
+    if convention_check:
+        return block_run_phase_for_repo_conventions(state_path, state, phase, plan, convention_check)
+
     if phase in {"done", "escalate"}:
         state["status"] = "completed"
         state["updated_at"] = utc_now()
@@ -8580,6 +8768,19 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("repo-conventions-check"),
+            "description": command_description("repo-conventions-check"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "build_brief": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("convention-scan"),
             "description": command_description("convention-scan"),
             "inputSchema": {
@@ -9264,6 +9465,13 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return tool_result(payload)
+    if name == "adlc_repo_conventions_check":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_repo_conventions_check requires build_brief")
+        workspace = resolve_workspace(arguments.get("workspace"))
+        payload = repo_conventions_check_payload(workspace, resolve_input_path(build_brief, workspace))
+        return tool_result(payload, is_error=payload["status"] != "pass")
     if name == "adlc_convention_scan":
         args = argparse.Namespace(
             workspace=arguments.get("workspace"),
@@ -9842,6 +10050,12 @@ def build_parser() -> argparse.ArgumentParser:
     repo_conventions.add_argument("--output", help="Optional repo_conventions JSON output path.")
     repo_conventions.add_argument("--json", action="store_true", help="Emit JSON.")
     repo_conventions.set_defaults(func=command_repo_conventions)
+
+    repo_conventions_check = subparsers.add_parser("repo-conventions-check", help=command_description("repo-conventions-check"))
+    repo_conventions_check.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
+    repo_conventions_check.add_argument("--build-brief", required=True, help="Build Brief JSON path to cross-check.")
+    repo_conventions_check.add_argument("--json", action="store_true", help="Emit JSON.")
+    repo_conventions_check.set_defaults(func=command_repo_conventions_check)
 
     convention_scan = subparsers.add_parser("convention-scan", help=command_description("convention-scan"))
     convention_scan.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
