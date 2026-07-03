@@ -735,7 +735,7 @@ assert "linear ticket creation is registered for pr_prep" "jq -e '.skills[] | se
 assert "notion decomposition is registered for pr_prep" "jq -e '.skills[] | select(.name==\"notion-decomposition\") | .side_effect_profile == \"mutating\" and (.dag_nodes | index(\"pr_prep\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "learning capture is registered for closeout" "jq -e '.skills[] | select(.name==\"learning-capture\") | .side_effect_profile == \"mutating\" and .activation.mode == \"conditional_closeout\" and (.dag_nodes | index(\"learning_capture\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "learning refresh is scoped maintenance only" "jq -e '.skills[] | select(.name==\"learning-refresh\") | .side_effect_profile == \"mutating\" and .activation.mode == \"scoped_maintenance\" and (.dag_nodes | length) == 0' '$ROOT/skills/manifest.json' >/dev/null"
-assert "pr-preparer is wired to learning capture" "jq -e '.agents[] | select(.name==\"pr-preparer\") | (.skills | index(\"learning-capture\")) != null' '$ROOT/skills/manifest.json' >/dev/null && rg -q 'learning_candidates|redaction_status|stale_conditions' '$ROOT/agents/pr-preparer.md'"
+assert "pr-preparer is wired to learning capture and PR hygiene" "jq -e '.agents[] | select(.name==\"pr-preparer\") | (.skills | index(\"learning-capture\")) != null' '$ROOT/skills/manifest.json' >/dev/null && rg -q 'learning_candidates|redaction_status|stale_conditions' '$ROOT/agents/pr-preparer.md' && rg -q 'pr-hygiene-scan|base/default|PR-123' '$ROOT/agents/pr-preparer.md'"
 
 echo ""
 echo "--- gen_tests Authoring ---"

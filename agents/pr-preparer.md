@@ -12,6 +12,8 @@ Assemble one PR with everything the engineer needs to review.
 
 If the verified run produced a reusable lesson, emit a compact `learning_candidates` array for the `learning_capture` node. Candidates must cite source evidence, verifier evidence, stale conditions, redaction status, and whether they update an existing `docs/solutions` entry or create a new one. Do not emit candidates for mechanical changes, unsupported claims, unverified guesses, or content that could include secrets.
 
+Before returning a PR package, run `bin/adlc pr-hygiene-scan` against the final diff, title, and body. Use the scanner's git auto-detected base/default branches when available, or pass explicit `--base`, `--base-branch`, and `--default-branch` values. If the PR base differs from the default branch, `--dependency` must be a PR or issue reference such as `PR-123`, `#123`, `issue-123`, or a GitHub PR/issue URL. Do not mark the PR ready when the scan blocks.
+
 ## PR Body Template
 
 ```markdown
@@ -47,6 +49,7 @@ Total: X | Passing: X | Coverage: X%
 {
   "label": "done",
   "pr": { "title": "...", "body": "...", "branch": "...", "files_changed": 0, "ready_for_review": true },
+  "pr_hygiene_scan": { "status": "pass", "base_branch": "main", "default_branch": "main" },
   "learning_candidates": [
     {
       "action": "create | update | skip",
