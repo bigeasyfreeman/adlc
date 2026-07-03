@@ -228,8 +228,13 @@
           "area_label": "backend",
           "phase_label": "coding",
           "target_project": "smoke",
-          "labels": ["smoke", "bugfix"],
-          "external_refs": ["EXT-1"]
+          "labels": [
+            "smoke",
+            "bugfix"
+          ],
+          "external_refs": [
+            "EXT-1"
+          ]
         }
       },
       {
@@ -442,5 +447,11 @@
       "python3 -m unittest discover -s tests -p 'test_*.py'"
     ],
     "12_skill_trigger_configuration": null
+  },
+  "repo_conventions": {
+    "status": "none_found",
+    "explicit_empty_marker": "no_conventions_found",
+    "sources": [],
+    "rules": []
   }
 }

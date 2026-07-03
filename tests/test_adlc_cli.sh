@@ -70,6 +70,23 @@ assert "validate-artifact rejects work queue invalid path owner" "if '$ROOT/bin/
 assert "validate-artifact rejects tool-node result missing status" "if '$ROOT/bin/adlc' validate-artifact --schema tool-node-result --input '$ROOT/tests/fixtures/tool_node/invalid-missing-status.json' --json >'$tmp_dir/invalid-tool-node-result.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"status\"))' '$tmp_dir/invalid-tool-node-result.json' >/dev/null; fi"
 jq 'del(.adlc_mode)' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/invalid-build-brief.json"
 assert "validate-artifact rejects missing required field" "if '$ROOT/bin/adlc' validate-artifact --schema build-brief --input '$tmp_dir/invalid-build-brief.json' --json >'$tmp_dir/invalid-result.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"adlc_mode\"))' '$tmp_dir/invalid-result.json' >/dev/null; fi"
+jq 'del(.repo_conventions)' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/missing-conventions-brief.json"
+assert "validate-artifact requires repo_conventions decision" "if '$ROOT/bin/adlc' validate-artifact --schema build-brief --input '$tmp_dir/missing-conventions-brief.json' --json >'$tmp_dir/missing-conventions-result.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"repo_conventions\"))' '$tmp_dir/missing-conventions-result.json' >/dev/null; fi"
+
+echo ""
+echo "--- Repo Convention Extraction ---"
+mkdir -p "$tmp_dir/conventions-repo" "$tmp_dir/no-conventions-repo"
+cat > "$tmp_dir/conventions-repo/CLAUDE.md" <<'EOF'
+# Test Repo
+
+## Code conventions
+
+- **One responsibility per file**, stated in the first line of the module doc-comment.
+- **The coordinator file is a thin coordinator, never a worker.**
+- **Pure core, impure shell.** Side effects live only in an impure shell.
+EOF
+assert "repo-conventions extracts target repo convention rules" "'$ROOT/bin/adlc' repo-conventions --workspace '$tmp_dir/conventions-repo' --json | jq -e '.status == \"extracted\" and (.rules | length) >= 3 and all(.rules[]; (.verification_predicate | length) > 0)' >/dev/null"
+assert "repo-conventions records explicit empty marker when no docs exist" "'$ROOT/bin/adlc' repo-conventions --workspace '$tmp_dir/no-conventions-repo' --json | jq -e '.status == \"none_found\" and .explicit_empty_marker == \"no_conventions_found\" and (.rules | length) == 0' >/dev/null"
 
 echo ""
 echo "--- Compound Context ---"
@@ -107,7 +124,7 @@ assert "run-phase qa dry-run plans verifiers without claiming pass" "'$ROOT/bin/
 assert "run-phase qa executes passing verifier and records artifact" "'$ROOT/bin/adlc' run-phase qa --brief-id CLI-QA-PASS --workspace '$tmp_dir/tool-qa-pass' --verifier true --json | jq -e '.tool_result.status == \"pass\" and .state.phase == \"pr_prep\" and .state.phase_artifacts[-1].phase == \"qa\" and (.tool_result.evidence_refs | length) >= 2' >/dev/null"
 assert "run-phase qa fails closed on failing verifier" "if '$ROOT/bin/adlc' run-phase qa --brief-id CLI-QA-FAIL --workspace '$tmp_dir/tool-qa-fail' --verifier false --json >'$tmp_dir/qa-fail.json'; then false; else jq -e '.tool_result.status == \"fail\" and .tool_result.stop_reason == \"verifier_failed\" and .state.status == \"failed\"' '$tmp_dir/qa-fail.json' >/dev/null; fi"
 assert "run-phase qa blocks missing verifier command" "if '$ROOT/bin/adlc' run-phase qa --brief-id CLI-QA-MISSING --workspace '$tmp_dir/tool-qa-missing' --json >'$tmp_dir/qa-missing.json'; then false; else jq -e '.tool_result.status == \"blocked\" and .tool_result.stop_reason == \"missing_verifier_command\" and .state.status == \"failed\"' '$tmp_dir/qa-missing.json' >/dev/null; fi"
-assert "run-phase context assembly emits per-task packages" "'$ROOT/bin/adlc' run-phase context_assembly --brief-id CLI-CTX --workspace '$tmp_dir/tool-context' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --json | jq -e '.tool_result.status == \"pass\" and .state.phase == \"code\" and .tool_result.outputs.package_count > 0 and any(.tool_result.outputs.context_packages[]; .task_id == \"XIA-SOC-INDEX\")' >/dev/null"
+assert "run-phase context assembly emits per-task packages with repo conventions" "'$ROOT/bin/adlc' run-phase context_assembly --brief-id CLI-CTX --workspace '$tmp_dir/tool-context' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --json | jq -e '.tool_result.status == \"pass\" and .state.phase == \"code\" and .tool_result.outputs.package_count > 0 and any(.tool_result.outputs.context_packages[]; .task_id == \"XIA-SOC-INDEX\" and (.constraints.repo_conventions.status == \"none_found\"))' >/dev/null"
 assert "run-phase scaffold dry-run emits planned writes" "'$ROOT/bin/adlc' run-phase scaffold --brief-id CLI-SCAFFOLD --workspace '$tmp_dir/tool-scaffold' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --dry-run --json | jq -e '.tool_result.status == \"planned\" and .state.phase == \"scaffold\" and (.tool_result.outputs.planned_writes | length) > 0' >/dev/null"
 assert "run-phase scaffold write intent requires admission" "if '$ROOT/bin/adlc' run-phase scaffold --brief-id CLI-SCAFFOLD-BLOCK --workspace '$tmp_dir/tool-scaffold-block' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --json >'$tmp_dir/scaffold-block.json'; then false; else jq -e '.tool_result.status == \"blocked\" and .tool_result.stop_reason == \"action_not_admitted\"' '$tmp_dir/scaffold-block.json' >/dev/null; fi"
 assert "run-phase slop gate reuses deterministic gate" "'$ROOT/bin/adlc' run-phase slop_gate --brief-id CLI-SLOP --workspace '$tmp_dir/tool-slop' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --json | jq -e '.tool_result.status == \"skipped\" and .tool_result.skip_reason == \"generated_output_surface_inactive\" and .state.phase == \"pr_prep\"' >/dev/null"
@@ -536,9 +553,10 @@ assert "sync-work-item validates mutated workflow state" "'$ROOT/bin/adlc' valid
 echo ""
 echo "--- MCP Wrapper ---"
 cat > "$tmp_dir/mcp-tools-filter.jq" <<'JQ'
-(.tools | length) >= 33
+(.tools | length) >= 34
 and any(.tools[]; .name == "adlc_validate_artifact" and (.inputSchema.required | index("schema")))
 and any(.tools[]; .name == "adlc_health_check")
+and any(.tools[]; .name == "adlc_repo_conventions" and .inputSchema.properties.workspace.type == "string")
 and any(.tools[]; .name == "adlc_ci" and .inputSchema.properties.suite.type == "array")
 and any(.tools[]; .name == "adlc_action_admit" and (.inputSchema.required | index("tool_registry")) and .inputSchema.properties.allow_mutation.type == "boolean" and .inputSchema.properties.run_id.type == "string")
 and any(.tools[]; .name == "adlc_run_phase")
@@ -571,6 +589,7 @@ assert "mcp-tools emits MCP tool declarations" "'$ROOT/bin/adlc' mcp-tools --jso
 assert "mcp-serve handles initialize and tools/list" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"0\"}}}' '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}' | '$ROOT/bin/adlc' mcp-serve | jq -s -e '.[0].result.capabilities.tools.listChanged == false and any(.[1].result.tools[]; .name == \"adlc_list_agents\")' >/dev/null"
 assert "mcp-serve calls adlc_list_agents" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_list_agents\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.count >= 11' >/dev/null"
 assert "mcp-serve calls health check" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_health_check\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"
+assert "mcp-serve calls repo conventions extraction" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":41,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_repo_conventions\",\"arguments\":{\"workspace\":\"'$tmp_dir/conventions-repo'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"extracted\" and (.result.structuredContent.rules | length) >= 3' >/dev/null"
 assert "mcp-serve calls beads status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_beads_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
 assert "mcp-serve calls looper status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_looper_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
 assert "mcp-serve calls loop design validation" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_design_validate\",\"arguments\":{\"input\":\"tests/fixtures/loop_design/valid-looper-design.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"

@@ -1513,5 +1513,11 @@
         "Framework spec and example Build Brief"
       ]
     }
+  },
+  "repo_conventions": {
+    "status": "none_found",
+    "explicit_empty_marker": "no_conventions_found",
+    "sources": [],
+    "rules": []
   }
 }

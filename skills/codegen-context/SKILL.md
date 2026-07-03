@@ -127,6 +127,18 @@ This skill runs before the coding agent starts. Its output is the coding agent's
     "no_op_reasons": []
   },
   "build_brief": {
+    "repo_conventions": {
+      "status": "extracted | none_found",
+      "explicit_empty_marker": "no_conventions_found when status is none_found",
+      "rules": [
+        {
+          "id": "string",
+          "source_path": "CLAUDE.md | AGENTS.md | CONTRIBUTING.md | other",
+          "rule": "string",
+          "verification_predicate": "string"
+        }
+      ]
+    },
     "applicability_manifest": {},
     "existing_patterns": [{"pattern": "string", "file_path": "string", "reuse_instructions": "string"}],
     "enterprise_readiness_contract": {},
@@ -186,6 +198,7 @@ The coding agent should never need to read a file to understand what to do. Ever
 Hard rule:
 - Every file listed in `files_to_modify` must have its current content inlined
 - Every file in `reference_impl` must have its code inlined
+- Every task must include the target repo `repo_conventions` contract from the Build Brief. If no conventions exist, inline `status: none_found` and `explicit_empty_marker: no_conventions_found`. If the field is absent, return `stuck` with reason `missing_repo_conventions`.
 - Every behavioral test artifact, fixture, and command verifier relevant to the task must be inlined
 - Every implementation task must include its decision contract, tech debt boundaries, compatibility contract, evidence responsibilities, and Definition of Done. If the task is blocked by an unresolved Type 1 decision, do not assemble a coding prompt; return `stuck` with reason `unresolved_decision_blocks_implementation`.
 - Every code-changing implementation task must include its construct-map refs, paved-road refs or explicit `no_paved_road_found`, intent contract refs, and production invariant coverage. If these are missing for a medium+ blast-radius code path, return `stuck` with reason `missing_scalable_code_primitives`.
@@ -214,6 +227,7 @@ What gets inlined:
 - Compatibility constraints and performance budget when active
 - Graph research evidence relevant to compatibility, reuse, and blast radius
 - Module manifests, behavioral contracts, and decision-log warnings when the task touches those modules
+- Target repo conventions: source path, rule text, verification predicate, and any allowed waiver process
 
 What does not get inlined:
 - Unrelated files
@@ -352,28 +366,31 @@ These are the exact files this task touches.
 ## 10. Comprehension Context
 [Paste relevant module manifest entries, behavioral contracts, decision-log warnings, graph research evidence, and unresolved context gaps.]
 
-## 11. Evidence and Definition of Done
+## 11. Repo Conventions
+[Paste `repo_conventions.rules[]` as hard requirements. If status is `none_found`, paste the explicit empty marker.]
+
+## 12. Evidence and Definition of Done
 [Paste evidence responsibilities and binary Definition of Done checks.]
 
-## 12. Performance Budget
+## 13. Performance Budget
 [Paste only the targets that are active for this task.]
 
-## 13. Schema
+## 14. Schema
 [Paste only the relevant schema sections.]
 
-## 14. Slop Quality Gate (only when active)
+## 15. Slop Quality Gate (only when active)
 [Include this section only when the task changes generated-output behavior. Paste `slop_quality_gate`: applicability reason, mode, eval cases, metrics, threshold, baseline score, regression tolerance, failure action, and case-promotion sources. Omit the section entirely for code-only, docs-only, lint-only, and build-validation tasks with no generated-output surface.]
 
-## 15. Prior Learnings
+## 16. Prior Learnings
 [Include only relevant `learning_refs`: ID, path, title, distilled summary, source evidence, verifier, stale conditions, and whether current source verification has confirmed applicability. Omit this section when no relevant refs exist.]
 
-## 16. What Not To Do
-[Paste the negative constraints from duplication and verifier quality.]
+## 17. What Not To Do
+[Paste the negative constraints from duplication, verifier quality, and repo conventions.]
 
-## 17. Manual Test Plan
+## 18. Manual Test Plan
 [Paste if present.]
 
-## 18. Verification
+## 19. Verification
 Run the primary verifier first.
 If it fails for the wrong reason, adjust the verifier.
 If it fails for the right reason, make the smallest change that makes it pass.
@@ -435,6 +452,8 @@ For production readiness findings, include only the specific `PROD-*` entries th
 
 For paved-road findings, include only repo-local reference implementations and explicit allowed departures. Do not ask the coding agent to invent a parallel framework, schema style, emitter format, or build convention unless the Build Brief names `no_paved_road_found` and records why existing patterns cannot absorb the work.
 
+For repo conventions, inline each `repo_conventions.rules[]` item in the prompt's hard constraints and verification section. If `repo_conventions.status == extracted`, the coding agent must run or cite the rule's `verification_predicate`; if a rule cannot be applied mechanically, the task output must record an explicit per-file waiver with file, rule id, and reason. If `repo_conventions` is missing, emit `missing_repo_conventions`.
+
 ### Step 6: Add the verification loop
 
 The prompt ends with the primary verifier and any secondary verifiers. The coding agent's terminal state is that the verifier contract has been satisfied.
@@ -461,9 +480,13 @@ Tasks flagged as `parallel: true` with no dependencies get separate assembled pr
       "task_id": { "type": "string" },
       "build_brief": { "type": "string" },
       "research_deliverable": { "type": "string" },
-      "repo_path": { "type": "string" }
+      "repo_path": { "type": "string" },
+      "repo_conventions": {
+        "type": "object",
+        "description": "Required target-repo conventions contract from the Build Brief; use explicit status none_found plus no_conventions_found marker when no convention files exist."
+      }
     },
-    "required": ["task_id", "build_brief", "research_deliverable", "repo_path"]
+    "required": ["task_id", "build_brief", "research_deliverable", "repo_path", "repo_conventions"]
   }
 }
 ```
@@ -480,9 +503,10 @@ Tasks flagged as `parallel: true` with no dependencies get separate assembled pr
       "build_brief": { "type": "string" },
       "research_deliverable": { "type": "string" },
       "repo_path": { "type": "string" },
+      "repo_conventions": { "type": "object" },
       "output_directory": { "type": "string" }
     },
-    "required": ["build_brief", "research_deliverable", "repo_path"]
+    "required": ["build_brief", "research_deliverable", "repo_path", "repo_conventions"]
   }
 }
 ```

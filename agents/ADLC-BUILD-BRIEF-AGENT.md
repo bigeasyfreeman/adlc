@@ -60,6 +60,7 @@ Most Build Brief fields are answerable from two sources the engineer has already
 |--------|----------------|
 | **PRD content** | Capabilities, behaviors, out of scope, personas, success metrics, dependencies, screen specs, permission models |
 | **Repo map** | Architecture patterns, tech stack, existing services, data models, API surface, test conventions, CI/CD, security posture, observability |
+| **Target repo conventions** | `CLAUDE.md`, `AGENTS.md`, and `CONTRIBUTING.md` rules with verification predicates |
 | **PRD × Repo cross-reference** | Where PRD assumes something the codebase contradicts, where the codebase already has partial implementations, where PRD dependencies map to existing services |
 
 **Only ask questions when:**
@@ -209,6 +210,12 @@ Everything else is either **in the PRD** (timeline, deliverable, customer segmen
 - **Tech debt analysis** specific to the areas the PRD touches
 - **Improvement opportunities** the engineer should know about before building
 - **A research deliverable** that becomes the starting point for the conversation
+
+**Step 2.5: Extract target repo conventions.** Run
+`bin/adlc repo-conventions --workspace <target-repo> --json` or consume its
+output. The Build Brief must include top-level `repo_conventions`. If no
+convention docs or rules exist, record the explicit `no_conventions_found`
+marker rather than silently omitting the field.
 
 The research deliverable is the first thing the engineer reads. It's not background context — it's the actual starting point.
 
