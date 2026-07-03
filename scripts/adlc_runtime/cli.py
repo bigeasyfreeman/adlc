@@ -717,6 +717,10 @@ PIPELINE_ARTIFACT_PATTERNS = (
     re.compile(r"\beval[-_]council\b|\bcouncil[-_]report\b", re.IGNORECASE),
 )
 ABSOLUTE_LOCAL_PATH_RE = re.compile(r"(?<![A-Za-z0-9_.-])/(Users|home)/[A-Za-z0-9_.-]+")
+PR_DEPENDENCY_REF_RE = re.compile(
+    r"^(#\d+|(?:PR|PULL|ISSUE)[-#: ]?\d+|https://github\.com/[^/\s]+/[^/\s]+/(?:pull|issues)/\d+/?(?:#\S+)?)$",
+    re.IGNORECASE,
+)
 
 
 def build_brief_banned_tokens(path_arg: str | None, workspace: Path) -> Tuple[List[str], List[str]]:
@@ -731,8 +735,116 @@ def build_brief_banned_tokens(path_arg: str | None, workspace: Path) -> Tuple[Li
     return tokens, removed
 
 
-def git_diff_text(workspace: Path, base: str | None) -> Tuple[str, str]:
-    base_ref = base or "HEAD"
+def git_stdout(workspace: Path, args: List[str]) -> str | None:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=str(workspace),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+def normalize_branch_ref(value: str | None) -> str | None:
+    raw = str(value or "").strip()
+    if not raw or raw == "HEAD" or re.fullmatch(r"[0-9a-fA-F]{7,40}", raw):
+        return None
+    for prefix in ("refs/heads/", "refs/remotes/"):
+        if raw.startswith(prefix):
+            raw = raw[len(prefix) :]
+    for remote_prefix in ("origin/", "upstream/"):
+        if raw.startswith(remote_prefix):
+            raw = raw[len(remote_prefix) :]
+    return raw or None
+
+
+def remote_branch_ref(workspace: Path, branch: str | None) -> str | None:
+    if not branch:
+        return None
+    remote_ref = f"origin/{branch}"
+    if git_stdout(workspace, ["rev-parse", "--verify", f"refs/remotes/{remote_ref}"]):
+        return remote_ref
+    if git_stdout(workspace, ["rev-parse", "--verify", branch]):
+        return branch
+    return remote_ref
+
+
+def detect_default_branch(workspace: Path, explicit: str | None) -> Tuple[str | None, str]:
+    if explicit:
+        return explicit, "explicit"
+    remote_head = normalize_branch_ref(git_stdout(workspace, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]))
+    if remote_head:
+        return remote_head, "origin_head"
+    for candidate in ("main", "master"):
+        if git_stdout(workspace, ["rev-parse", "--verify", f"refs/remotes/origin/{candidate}"]) or git_stdout(
+            workspace,
+            ["rev-parse", "--verify", candidate],
+        ):
+            return candidate, "git_branch"
+    return None, "unresolved"
+
+
+def detect_pr_base_branch(explicit_base_branch: str | None, base_ref: str | None, default_branch: str | None) -> Tuple[str | None, str]:
+    if explicit_base_branch:
+        return explicit_base_branch, "explicit"
+    normalized = normalize_branch_ref(base_ref)
+    if normalized:
+        return normalized, "base_ref"
+    if default_branch:
+        return default_branch, "default_branch"
+    return None, "unresolved"
+
+
+def pr_dependency_ref_is_resolvable(value: str | None) -> bool:
+    return bool(PR_DEPENDENCY_REF_RE.fullmatch(str(value or "").strip()))
+
+
+def pr_hygiene_branch_context(args: argparse.Namespace, workspace: Path) -> Dict[str, Any]:
+    default_branch, default_source = detect_default_branch(workspace, args.default_branch)
+    base_ref = args.base
+    if not base_ref and default_branch and not args.diff_file:
+        base_ref = remote_branch_ref(workspace, default_branch)
+    base_branch, base_source = detect_pr_base_branch(args.base_branch, base_ref, default_branch)
+    issues: List[Dict[str, Any]] = []
+    if not default_branch:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "default_branch_unresolved",
+                "message": "Target repo default branch was not provided and could not be detected from git",
+            }
+        )
+    if not base_branch:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "base_branch_unresolved",
+                "message": "PR base branch was not provided and could not be detected from --base or default branch",
+            }
+        )
+    if not args.diff_file and not base_ref:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "diff_base_unresolved",
+                "message": "No diff file or git diff base is available for PR hygiene scanning",
+            }
+        )
+    return {
+        "base": base_ref,
+        "base_branch": base_branch,
+        "default_branch": default_branch,
+        "base_branch_source": base_source,
+        "default_branch_source": default_source,
+        "issues": issues,
+    }
+
+
+def git_diff_text(workspace: Path, base_ref: str) -> Tuple[str, str, List[Dict[str, Any]]]:
     name_result = subprocess.run(
         ["git", "diff", "--name-only", base_ref],
         cwd=str(workspace),
@@ -747,11 +859,23 @@ def git_diff_text(workspace: Path, base: str | None) -> Tuple[str, str]:
         capture_output=True,
         check=False,
     )
-    return name_result.stdout, diff_result.stdout
+    issues: List[Dict[str, Any]] = []
+    if name_result.returncode != 0 or diff_result.returncode != 0:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "git_diff_unavailable",
+                "message": "Unable to read git diff for PR hygiene scanning",
+                "base": base_ref,
+                "stderr": (diff_result.stderr or name_result.stderr).strip(),
+            }
+        )
+    return name_result.stdout, diff_result.stdout, issues
 
 
 def pr_hygiene_payload(args: argparse.Namespace) -> Dict[str, Any]:
     workspace = resolve_workspace(args.workspace)
+    branch_context = pr_hygiene_branch_context(args, workspace)
     explicit_tokens = [str(token) for token in args.banned_token or [] if str(token).strip()]
     brief_tokens, removed_gates = build_brief_banned_tokens(args.build_brief, workspace)
     banned_tokens = list(dict.fromkeys([*explicit_tokens, *brief_tokens]))
@@ -761,11 +885,14 @@ def pr_hygiene_payload(args: argparse.Namespace) -> Dict[str, Any]:
         diff_text = diff_path.read_text(encoding="utf-8")
         name_text = "\n".join(line[6:] for line in diff_text.splitlines() if line.startswith("+++ b/"))
     else:
-        name_text, diff_text = git_diff_text(workspace, args.base)
+        if branch_context["base"]:
+            name_text, diff_text, diff_issues = git_diff_text(workspace, branch_context["base"])
+        else:
+            name_text, diff_text, diff_issues = "", "", []
     title = args.title or ""
     body = args.body or ""
     combined = "\n".join([name_text, diff_text, title, body])
-    issues: List[Dict[str, Any]] = []
+    issues: List[Dict[str, Any]] = [*branch_context["issues"], *(diff_issues if not args.diff_file else [])]
     for pattern in PIPELINE_ARTIFACT_PATTERNS:
         match = pattern.search(combined)
         if match:
@@ -807,23 +934,38 @@ def pr_hygiene_payload(args: argparse.Namespace) -> Dict[str, Any]:
                     "message": "PR appears to reintroduce a CI gate the target repo removed or recorded as banned",
                 }
             )
-    if args.base_branch and args.default_branch and args.base_branch != args.default_branch and not args.dependency:
+    dependency = str(args.dependency or "").strip()
+    if dependency and not pr_dependency_ref_is_resolvable(dependency):
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "unresolved_dependency_reference",
+                "message": "PR dependency must be a resolvable PR or issue reference",
+                "dependency": dependency,
+            }
+        )
+    if branch_context["base_branch"] and branch_context["default_branch"] and branch_context["base_branch"] != branch_context["default_branch"] and not dependency:
         issues.append(
             {
                 "severity": "blocking",
                 "rule": "stacked_pr_without_dependency",
                 "message": "PR base differs from the default branch without a documented dependency",
-                "base_branch": args.base_branch,
-                "default_branch": args.default_branch,
+                "base_branch": branch_context["base_branch"],
+                "default_branch": branch_context["default_branch"],
             }
         )
     return {
         "contract_version": "1.0.0",
         "status": "blocked" if issues else "pass",
         "workspace": str(workspace),
-        "base": args.base,
-        "base_branch": args.base_branch,
-        "default_branch": args.default_branch,
+        "base": branch_context["base"],
+        "base_branch": branch_context["base_branch"],
+        "default_branch": branch_context["default_branch"],
+        "branch_context": {
+            "base_branch_source": branch_context["base_branch_source"],
+            "default_branch_source": branch_context["default_branch_source"],
+        },
+        "dependency": dependency or None,
         "banned_tokens": banned_tokens,
         "removed_gate_tokens": removed_gate_tokens,
         "issues": issues,
@@ -10069,14 +10211,14 @@ def build_parser() -> argparse.ArgumentParser:
     pr_hygiene.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
     pr_hygiene.add_argument("--build-brief", help="Build Brief JSON path whose product_vocabulary and repo_conventions provide banned tokens.")
     pr_hygiene.add_argument("--diff-file", help="Unified diff file to scan instead of running git diff.")
-    pr_hygiene.add_argument("--base", help="Git diff base ref. Defaults to HEAD when --diff-file is absent.")
+    pr_hygiene.add_argument("--base", help="Git diff base ref. Defaults to the detected default branch when --diff-file is absent.")
     pr_hygiene.add_argument("--title", help="PR title to scan.")
     pr_hygiene.add_argument("--body", help="PR body to scan.")
     pr_hygiene.add_argument("--banned-token", action="append", help="Project banned token. Can be passed multiple times.")
     pr_hygiene.add_argument("--removed-gate-token", action="append", help="Removed CI gate token that must not be reintroduced. Can be passed multiple times.")
-    pr_hygiene.add_argument("--base-branch", help="Proposed PR base branch.")
-    pr_hygiene.add_argument("--default-branch", help="Target repo default branch.")
-    pr_hygiene.add_argument("--dependency", help="Documented dependent PR or branch when base differs from default.")
+    pr_hygiene.add_argument("--base-branch", help="Proposed PR base branch. Auto-detected from --base or default branch when omitted.")
+    pr_hygiene.add_argument("--default-branch", help="Target repo default branch. Auto-detected from git when omitted.")
+    pr_hygiene.add_argument("--dependency", help="Documented dependent PR or issue reference when base differs from default.")
     pr_hygiene.add_argument("--output", help="Optional PR hygiene report path.")
     pr_hygiene.add_argument("--json", action="store_true", help="Emit JSON.")
     pr_hygiene.set_defaults(func=command_pr_hygiene_scan)
