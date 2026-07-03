@@ -9,7 +9,8 @@ fi
 case_file="$1"
 
 jq -ce '
-  .expected_manifest.change_surface as $surface
+  .expected_manifest as $manifest
+  | $manifest.change_surface as $surface
   | if ($surface | type) != "object" then
       error("missing change_surface")
     else
@@ -26,6 +27,20 @@ jq -ce '
           + (
             if ($surface.runtime_path_change or $surface.user_facing_operation) then
               ["operator"]
+            else
+              []
+            end
+          )
+          + (
+            if ($surface.new_attack_surface or $surface.auth_change or $surface.external_integration) then
+              ["security_auditor"]
+            else
+              []
+            end
+          )
+          + (
+            if $manifest.repo_conventions.status? == "extracted" then
+              ["convention_auditor"]
             else
               []
             end

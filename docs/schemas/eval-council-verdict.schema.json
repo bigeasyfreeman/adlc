@@ -57,7 +57,8 @@
               "operator",
               "executioner",
               "first_principles",
-              "security_auditor"
+              "security_auditor",
+              "convention_auditor"
             ]
           },
           "verdict": {

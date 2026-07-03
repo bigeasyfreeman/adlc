@@ -47,6 +47,7 @@ Core personas always run. Overlay personas activate from `change_surface` flags 
 | `architect` | Overlay | `service_boundary_change OR external_integration OR api_change OR data_format_change` |
 | `operator` | Overlay | `runtime_path_change OR user_facing_operation` |
 | `security_auditor` | Overlay focus (expands Skeptic) | `new_attack_surface OR auth_change OR external_integration` |
+| `convention_auditor` | Target repo standards | `repo_conventions.status == extracted` |
 
 Suppressed overlays use the concrete reason already recorded in the manifest section policy. Do not ask each persona to duplicate that reason.
 
@@ -165,6 +166,30 @@ Any FAIL = the task is not agent-ready. This is a **major finding**.
 
 ---
 
+### 6. The Convention Auditor
+
+**Perspective:** Target repo maintainer house rules. Reviews files the way the target repo maintainer reviews them.
+**Activation:** Active whenever `repo_conventions.status == extracted`.
+
+**Post-Brief asks:**
+- Does the task decomposition preserve the target repo's one-responsibility, coordinator, and pure-core/impure-shell rules before implementation starts?
+- Does every planned file have one distinct job and a verification predicate from `repo_conventions.rules[]`?
+- Do planned files avoid catch-all responsibilities that would force multiple jobs into one implementation file?
+
+**Post-Execution asks:**
+- For each changed file, what are its distinct jobs: types cluster, data shape, each logic domain, each I/O site, and coordination?
+- Does any changed file have two or more jobs?
+- Does any rule predicate fail, including mechanical convention-scan issues when that scan is available?
+- Are any convention waivers explicit, with file, rule, and reason?
+
+**Verdict rule:** If any changed file has 2+ distinct jobs, a repo-convention predicate fails, or a waiver is silent, issue `REVISION REQUIRED`. Findings must cite file and line ranges the way a human reviewer would.
+
+**Catches:** Multi-responsibility files, worker coordinators, mixed pure/impure code, silent waivers, and convention predicates ignored after code changes.
+
+**Does not use:** file size, line count, or SLOC. Those are not convention criteria.
+
+---
+
 ## Gate 0: Static Pre-Checks (Before Council Tokens Are Spent)
 
 Before any persona evaluates, validate the payload against the contract schemas and run only the cheapest structural checks. Do not spend council tokens on pure presence checks.
@@ -244,6 +269,23 @@ For every implementation task that changes code, schemas, runtime behavior, pers
 - Verifiability must be concrete. If the task has no deterministic verifier and no bounded human-judgment checkpoint, return `REVISION_REQUIRED` with reason `unverifiable_delegation`.
 
 Do not require these fields for trivial docs, lint-only, or build-validation tasks when the applicability manifest proves no code path or build pattern changes.
+
+### Repo Convention Checks
+
+When `repo_conventions.status == extracted`:
+
+- every rule must carry `source_path`, `rule`, `verification_predicate`, and `severity`
+- post-brief council checks that planned task/file decomposition respects repo conventions before codegen
+- post-execution council includes the Convention Auditor and requires changed-file findings to cite file and line ranges
+- every waiver must be explicit with file, rule, and reason
+
+Missing or weak convention inputs return:
+
+- `missing_convention_predicate` when an extracted rule lacks a verification predicate
+- `missing_repo_convention_evidence` when post-execution evidence omits convention checks for changed files
+- `silent_convention_waiver` when a waiver lacks file, rule, or reason
+
+Do not accept file-size, line-count, or SLOC gates as convention enforcement.
 
 ### Implementation Interface And Productionization Gate Checks
 
@@ -353,6 +395,7 @@ EVAL COUNCIL ASSESSMENT (manifest-aware):
 │ Skeptic (Red Team):  INCLUDE — always active core failure analysis
 │ Operator:            EXCLUDE — no runtime path or user-facing operation changed
 │ Executioner:         INCLUDE — autonomous execution required
+│ Convention Auditor:  INCLUDE — repo_conventions.status == extracted
 │ First Principles:    INCLUDE — always active core scope check
 ```
 
@@ -366,7 +409,7 @@ Each persona produces:
 
 ```json
 {
-  "persona": "architect | skeptic | operator | executioner | first_principles",
+  "persona": "architect | skeptic | operator | executioner | first_principles | security_auditor | convention_auditor",
   "verdict": "PASS | CONCERN | FAIL",
   "findings": [
     {
@@ -467,6 +510,7 @@ The council evaluates the complete Build Brief against these criteria:
 - [ ] Acceptance criteria are Given/When/Then throughout (Section 1 and Section 8)
 - [ ] No task references "the spec" or "as discussed" — context is embedded, not pointed at
 - [ ] Inactive overlay sections are explicitly marked `not_applicable` with a concrete reason
+- [ ] Extracted `repo_conventions` rules have source paths and verification predicates
 
 **Completeness**
 - [ ] All active sections present and filled (inactive overlays marked `not_applicable`)
@@ -489,6 +533,7 @@ The council evaluates the complete Build Brief against these criteria:
 - [ ] Independent tasks are flagged for parallel execution
 - [ ] Dependency chain is a DAG (no circular dependencies)
 - [ ] Parallel execution groups are identified
+- [ ] Planned files follow repo conventions and recursive decomposition rules before codegen
 
 **Executability**
 - [ ] A coding agent with only the Build Brief and repo map could produce working code
@@ -502,7 +547,7 @@ The council evaluates the complete Build Brief against these criteria:
 - [ ] File paths referenced in the repo map actually exist
 - [ ] Tech stack detection matches package manifests
 - [ ] Architecture pattern detection is accurate (spot-check 3 reference files)
-- [ ] Risk areas include quantitative evidence (change frequency, file size, coupling)
+- [ ] Risk areas include quantitative evidence (change frequency, coupling, ownership, or dependency degree)
 - [ ] Security findings are real (not false positives from grep patterns)
 
 ### Post-Skill-Output Evaluation
@@ -760,7 +805,7 @@ The Eval Council posts its verdicts through the Slack Orchestration Skill:
 **APPROVED:**
 ```
 ✅ *Eval Council: [Feature Name] — APPROVED*
-5/5 personas passed. 2 minor observations logged.
+All active personas passed. 2 minor observations logged.
 Ready for engineer review.
 ```
 
