@@ -89,6 +89,34 @@ assert "repo-conventions extracts target repo convention rules" "'$ROOT/bin/adlc
 assert "repo-conventions records explicit empty marker when no docs exist" "'$ROOT/bin/adlc' repo-conventions --workspace '$tmp_dir/no-conventions-repo' --json | jq -e '.status == \"none_found\" and .explicit_empty_marker == \"no_conventions_found\" and (.rules | length) == 0' >/dev/null"
 
 echo ""
+echo "--- Convention Structural Scan ---"
+mkdir -p "$tmp_dir/convention-scan-repo/src/foo" "$tmp_dir/convention-scan-repo/src/pure"
+cat > "$tmp_dir/convention-scan-repo/src/bad.rs" <<'EOF'
+//! Reading and writing records
+use std::fs;
+
+pub fn run() {
+    let _ = fs::read_to_string("state.txt");
+}
+EOF
+cat > "$tmp_dir/convention-scan-repo/src/foo.rs" <<'EOF'
+//! Foo coordinator
+pub mod worker;
+
+pub fn do_work() {
+    let _value = 1 + 1;
+}
+EOF
+cat > "$tmp_dir/convention-scan-repo/src/pure/mod.rs" <<'EOF'
+//! Pure math
+pub mod add;
+EOF
+assert "convention-scan blocks Rust module doc and impure-shell violations" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/bad.rs --json >'$tmp_dir/convention-scan-bad.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"module_doc_multiple_jobs\") and any(.issues[]; .rule == \"side_effect_without_impure_shell\") and (.boundary.does_not | index(\"use file size as a criterion\")) != null and (.boundary.does_not | index(\"use line count as a criterion\")) != null' '$tmp_dir/convention-scan-bad.json' >/dev/null; fi"
+assert "convention-scan blocks coordinator worker logic" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/foo.rs --json >'$tmp_dir/convention-scan-coordinator.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"coordinator_worker_logic\")' '$tmp_dir/convention-scan-coordinator.json' >/dev/null; fi"
+assert "convention-scan records explicit waivers without failing" "'$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/bad.rs --waiver 'src/bad.rs:module_doc_multiple_jobs:legacy split tracked' --waiver 'src/bad.rs:side_effect_without_impure_shell:legacy split tracked' --json | jq -e '.status == \"pass\" and .summary.waived_issues == 2 and all(.issues[]; .status == \"waived\")' >/dev/null"
+assert "convention-scan passes thin Rust coordinator" "'$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/pure/mod.rs --json | jq -e '.status == \"pass\" and .summary.open_issues == 0' >/dev/null"
+
+echo ""
 echo "--- Compound Context ---"
 assert "health-check passes required runtime checks" "'$ROOT/bin/adlc' health-check --json | jq -e '.status == \"pass\" and .summary.failed_required == 0 and any(.checks[]; .name == \"jsonschema\" and .status == \"pass\") and any(.checks[]; .name == \"schemas\" and .status == \"pass\") and any(.checks[]; .name == \"workflow-state-phase-parity\" and .status == \"pass\")' >/dev/null"
 assert "ci command runs selectable canonical suites" "'$ROOT/bin/adlc' ci --suite health-check --suite py-compile --json | jq -e '.status == \"pass\" and .summary.total == 2 and .summary.failed == 0 and ([.suites[].name] == [\"health-check\", \"py-compile\"])' >/dev/null"
@@ -557,6 +585,7 @@ cat > "$tmp_dir/mcp-tools-filter.jq" <<'JQ'
 and any(.tools[]; .name == "adlc_validate_artifact" and (.inputSchema.required | index("schema")))
 and any(.tools[]; .name == "adlc_health_check")
 and any(.tools[]; .name == "adlc_repo_conventions" and .inputSchema.properties.workspace.type == "string")
+and any(.tools[]; .name == "adlc_convention_scan" and .inputSchema.properties.file.type == "array" and .inputSchema.properties.waiver.type == "array")
 and any(.tools[]; .name == "adlc_ci" and .inputSchema.properties.suite.type == "array")
 and any(.tools[]; .name == "adlc_action_admit" and (.inputSchema.required | index("tool_registry")) and .inputSchema.properties.allow_mutation.type == "boolean" and .inputSchema.properties.run_id.type == "string")
 and any(.tools[]; .name == "adlc_run_phase")
@@ -590,6 +619,7 @@ assert "mcp-serve handles initialize and tools/list" "printf '%s\n' '{\"jsonrpc\
 assert "mcp-serve calls adlc_list_agents" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_list_agents\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.count >= 11' >/dev/null"
 assert "mcp-serve calls health check" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_health_check\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"
 assert "mcp-serve calls repo conventions extraction" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":41,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_repo_conventions\",\"arguments\":{\"workspace\":\"'$tmp_dir/conventions-repo'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"extracted\" and (.result.structuredContent.rules | length) >= 3' >/dev/null"
+assert "mcp-serve calls convention scan" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_convention_scan\",\"arguments\":{\"workspace\":\"'$tmp_dir'/convention-scan-repo\",\"file\":[\"src/pure/mod.rs\"]}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and .result.structuredContent.summary.checked_files == 1' >/dev/null"
 assert "mcp-serve calls beads status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_beads_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
 assert "mcp-serve calls looper status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_looper_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
 assert "mcp-serve calls loop design validation" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_design_validate\",\"arguments\":{\"input\":\"tests/fixtures/loop_design/valid-looper-design.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"

@@ -815,6 +815,183 @@ def command_repo_conventions(args: argparse.Namespace) -> int:
     return 0
 
 
+RUST_SIDE_EFFECT_PATTERNS = (
+    (re.compile(r"\bstd::fs::|\bfs::|\bFile::"), "filesystem"),
+    (re.compile(r"\bstd::process::|\bCommand::new\b|\bCommand::"), "subprocess"),
+    (re.compile(r"\bstd::env::|\benv::(var|set_var|remove_var|vars)\b"), "environment"),
+    (re.compile(r"\bstd::net::|\bTcpStream::|\bUdpSocket::|\breqwest::|\bureq::"), "network"),
+    (re.compile(r"\bsqlx::|\brusqlite::|\bpostgres::|\bmysql::"), "database"),
+)
+
+
+def rust_module_doc_first_line(source: str) -> Tuple[str, int | None]:
+    for index, line in enumerate(source.splitlines(), start=1):
+        stripped = line.strip()
+        if stripped.startswith("//!"):
+            return stripped.removeprefix("//!").strip(), index
+        if stripped and not stripped.startswith(("//", "#![", "use ", "pub use ")):
+            break
+    return "", None
+
+
+def line_number_for_offset(source: str, offset: int) -> int:
+    return source.count("\n", 0, offset) + 1
+
+
+def parse_convention_waivers(values: Iterable[str] | None) -> Dict[Tuple[str, str], str]:
+    waivers: Dict[Tuple[str, str], str] = {}
+    for value in values or []:
+        parts = str(value).split(":", 2)
+        if len(parts) != 3:
+            continue
+        path, rule, reason = [part.strip() for part in parts]
+        if path and rule and reason:
+            waivers[(normalize_owned_path(path), rule)] = reason
+    return waivers
+
+
+def inline_waiver_reason(source: str, rule: str) -> str | None:
+    pattern = re.compile(rf"adlc-conventions:\s*waive\s+{re.escape(rule)}\b(?P<reason>.*)", re.IGNORECASE)
+    for line in source.splitlines():
+        match = pattern.search(line)
+        if match:
+            reason = match.group("reason").strip(" :-")
+            return reason or "inline waiver"
+    return None
+
+
+def apply_convention_waiver(issue: Dict[str, Any], source: str, waivers: Dict[Tuple[str, str], str]) -> Dict[str, Any]:
+    rel = normalize_owned_path(str(issue["path"]))
+    rule = str(issue["rule"])
+    reason = waivers.get((rel, rule)) or inline_waiver_reason(source, rule)
+    if reason:
+        return {**issue, "status": "waived", "waiver_reason": reason}
+    return issue
+
+
+def rust_coordinator_file(path: Path) -> bool:
+    if path.name == "mod.rs":
+        return True
+    return path.suffix == ".rs" and (path.parent / path.stem).is_dir()
+
+
+def scan_rust_conventions(path: Path, workspace: Path, waivers: Dict[Tuple[str, str], str]) -> List[Dict[str, Any]]:
+    source = path.read_text(encoding="utf-8")
+    rel = workspace_rel_path(path, workspace)
+    doc_line, doc_lineno = rust_module_doc_first_line(source)
+    issues: List[Dict[str, Any]] = []
+    if doc_line and re.search(r"\band\b", doc_line, flags=re.IGNORECASE):
+        issues.append(
+            {
+                "severity": "blocking",
+                "status": "open",
+                "rule": "module_doc_multiple_jobs",
+                "path": rel,
+                "line": doc_lineno,
+                "message": "module doc first line appears to describe multiple jobs with `and`",
+            }
+        )
+    impure_declared = bool(re.search(r"\bimpure\b|\bshell\b|\bside[- ]effect", doc_line, flags=re.IGNORECASE))
+    if not impure_declared:
+        for pattern, kind in RUST_SIDE_EFFECT_PATTERNS:
+            match = pattern.search(source)
+            if match:
+                issues.append(
+                    {
+                        "severity": "blocking",
+                        "status": "open",
+                        "rule": "side_effect_without_impure_shell",
+                        "path": rel,
+                        "line": line_number_for_offset(source, match.start()),
+                        "message": f"{kind} side-effect call appears in a module that does not declare an impure shell",
+                    }
+                )
+                break
+    if rust_coordinator_file(path):
+        match = re.search(r"(?m)^\s*(pub\s+)?fn\s+\w+\s*\([^)]*\)\s*(?:->\s*[^{]+)?\{", source)
+        if match:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "status": "open",
+                    "rule": "coordinator_worker_logic",
+                    "path": rel,
+                    "line": line_number_for_offset(source, match.start()),
+                    "message": "coordinator file contains function-body worker logic instead of staying thin",
+                }
+            )
+    return [apply_convention_waiver(issue, source, waivers) for issue in issues]
+
+
+def convention_scan_files(args: argparse.Namespace, workspace: Path) -> List[Path]:
+    files = []
+    for raw in args.file or []:
+        path = Path(raw)
+        if not path.is_absolute():
+            path = workspace / path
+        if path.is_file():
+            files.append(path.resolve())
+    if files:
+        return files
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=ACMR", "HEAD"],
+        cwd=str(workspace),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+    return [(workspace / line.strip()).resolve() for line in result.stdout.splitlines() if line.strip()]
+
+
+def convention_scan_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    workspace = resolve_workspace(args.workspace)
+    waivers = parse_convention_waivers(args.waiver)
+    issues: List[Dict[str, Any]] = []
+    checked: List[str] = []
+    for path in convention_scan_files(args, workspace):
+        if path.suffix != ".rs":
+            continue
+        checked.append(workspace_rel_path(path, workspace))
+        issues.extend(scan_rust_conventions(path, workspace, waivers))
+    open_issues = [issue for issue in issues if issue.get("status") != "waived"]
+    return {
+        "contract_version": "1.0.0",
+        "status": "blocked" if open_issues else "pass",
+        "workspace": str(workspace),
+        "language": "rust",
+        "checked_files": checked,
+        "issues": issues,
+        "summary": {
+            "checked_files": len(checked),
+            "issues": len(issues),
+            "open_issues": len(open_issues),
+            "waived_issues": len(issues) - len(open_issues),
+        },
+        "boundary": {
+            "does_not": [
+                "use file size as a criterion",
+                "use line count as a criterion",
+                "perform LLM judgement",
+            ]
+        },
+    }
+
+
+def command_convention_scan(args: argparse.Namespace) -> int:
+    payload = convention_scan_payload(args)
+    if args.output:
+        output_path = resolve_under_workspace(args.output, resolve_workspace(args.workspace), ".adlc/outputs/convention_scan.json")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"convention-scan: {payload['status']} ({payload['summary']['open_issues']} open issue(s))")
+    return 0 if payload["status"] == "pass" else 1
+
+
 def learning_candidates_from_args(args: argparse.Namespace, workspace: Path) -> Tuple[List[Dict[str, Any]], List[str]]:
     warnings: List[str] = []
     input_path = phase_arg_path(getattr(args, "input", None), workspace)
@@ -8263,6 +8440,20 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("convention-scan"),
+            "description": command_description("convention-scan"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "file": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "waiver": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("ci"),
             "description": command_description("ci"),
             "inputSchema": {
@@ -8911,6 +9102,21 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return tool_result(payload)
+    if name == "adlc_convention_scan":
+        args = argparse.Namespace(
+            workspace=arguments.get("workspace"),
+            file=arguments.get("file") if isinstance(arguments.get("file"), list) else [],
+            waiver=arguments.get("waiver") if isinstance(arguments.get("waiver"), list) else [],
+            output=arguments.get("output"),
+            json=True,
+        )
+        payload = convention_scan_payload(args)
+        if args.output:
+            workspace = resolve_workspace(args.workspace)
+            output_path = resolve_under_workspace(args.output, workspace, ".adlc/outputs/convention_scan.json")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return tool_result(payload, is_error=payload.get("status") != "pass")
     if name == "adlc_ci":
         suites_arg = arguments.get("suite")
         suites = suites_arg if isinstance(suites_arg, list) else None
@@ -9451,6 +9657,14 @@ def build_parser() -> argparse.ArgumentParser:
     repo_conventions.add_argument("--output", help="Optional repo_conventions JSON output path.")
     repo_conventions.add_argument("--json", action="store_true", help="Emit JSON.")
     repo_conventions.set_defaults(func=command_repo_conventions)
+
+    convention_scan = subparsers.add_parser("convention-scan", help=command_description("convention-scan"))
+    convention_scan.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
+    convention_scan.add_argument("--file", action="append", help="Changed file to scan. Can be passed multiple times. Defaults to git diff against HEAD.")
+    convention_scan.add_argument("--waiver", action="append", help="Explicit waiver in path:rule:reason form. Can be passed multiple times.")
+    convention_scan.add_argument("--output", help="Optional convention scan report path.")
+    convention_scan.add_argument("--json", action="store_true", help="Emit JSON.")
+    convention_scan.set_defaults(func=command_convention_scan)
 
     ci = subparsers.add_parser("ci", help=command_description("ci"))
     ci.add_argument(
