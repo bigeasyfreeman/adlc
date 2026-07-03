@@ -127,6 +127,11 @@ This skill runs before the coding agent starts. Its output is the coding agent's
     "no_op_reasons": []
   },
   "build_brief": {
+    "product_vocabulary": {
+      "status": "defined | none_declared",
+      "mappings": [{"internal": "string", "product": "string"}],
+      "banned_tokens": ["string"]
+    },
     "repo_conventions": {
       "status": "extracted | none_found",
       "explicit_empty_marker": "no_conventions_found when status is none_found",
@@ -198,6 +203,7 @@ The coding agent should never need to read a file to understand what to do. Ever
 Hard rule:
 - Every file listed in `files_to_modify` must have its current content inlined
 - Every file in `reference_impl` must have its code inlined
+- Every task must include `product_vocabulary`, including the shared banned-token list. Internal terms in that list are hard banned output tokens, not style suggestions.
 - Every task must include the target repo `repo_conventions` contract from the Build Brief. If no conventions exist, inline `status: none_found` and `explicit_empty_marker: no_conventions_found`. If the field is absent, return `stuck` with reason `missing_repo_conventions`.
 - Every behavioral test artifact, fixture, and command verifier relevant to the task must be inlined
 - Every implementation task must include its decision contract, tech debt boundaries, compatibility contract, evidence responsibilities, and Definition of Done. If the task is blocked by an unresolved Type 1 decision, do not assemble a coding prompt; return `stuck` with reason `unresolved_decision_blocks_implementation`.
@@ -228,6 +234,7 @@ What gets inlined:
 - Graph research evidence relevant to compatibility, reuse, and blast radius
 - Module manifests, behavioral contracts, and decision-log warnings when the task touches those modules
 - Target repo conventions: source path, rule text, verification predicate, and any allowed waiver process
+- Product vocabulary mappings and banned tokens; use product terms only in identifiers, schema/version strings, CLI output, comments, filenames, tests, and public copy
 
 What does not get inlined:
 - Unrelated files
@@ -369,25 +376,28 @@ These are the exact files this task touches.
 ## 11. Repo Conventions
 [Paste `repo_conventions.rules[]` as hard requirements. If status is `none_found`, paste the explicit empty marker.]
 
-## 12. Evidence and Definition of Done
+## 12. Product Vocabulary
+[Paste `product_vocabulary.mappings[]` and `banned_tokens[]`; internal terms are forbidden in identifiers, schema/version strings, CLI output, comments, filenames, tests, and PR materials.]
+
+## 13. Evidence and Definition of Done
 [Paste evidence responsibilities and binary Definition of Done checks.]
 
-## 13. Performance Budget
+## 14. Performance Budget
 [Paste only the targets that are active for this task.]
 
-## 14. Schema
+## 15. Schema
 [Paste only the relevant schema sections.]
 
-## 15. Slop Quality Gate (only when active)
+## 16. Slop Quality Gate (only when active)
 [Include this section only when the task changes generated-output behavior. Paste `slop_quality_gate`: applicability reason, mode, eval cases, metrics, threshold, baseline score, regression tolerance, failure action, and case-promotion sources. Omit the section entirely for code-only, docs-only, lint-only, and build-validation tasks with no generated-output surface.]
 
-## 16. Prior Learnings
+## 17. Prior Learnings
 [Include only relevant `learning_refs`: ID, path, title, distilled summary, source evidence, verifier, stale conditions, and whether current source verification has confirmed applicability. Omit this section when no relevant refs exist.]
 
-## 17. What Not To Do
-[Paste the negative constraints from duplication, verifier quality, and repo conventions.]
+## 18. What Not To Do
+[Paste the negative constraints from duplication, verifier quality, repo conventions, and product vocabulary. Include every banned token from `product_vocabulary.banned_tokens[]`. State that `bin/adlc pr-hygiene-scan` consumes the same vocabulary source for PR materials.]
 
-## 18. Manual Test Plan
+## 19. Manual Test Plan
 [Paste if present.]
 
 ## 19. Verification
@@ -429,6 +439,7 @@ Pull in only the brief sections that the applicability manifest marks active:
 - slop quality gate when the task changes generated-output behavior, prompt behavior, model selection, agent roles, content, product output, response templates, or output validators
 - context-layer artifacts and decision-log warnings when applicable
 - performance budget when applicable
+- product_vocabulary always; absence blocks context assembly, while the explicit `none_declared` marker keeps execution moving
 
 ### Step 3: Inline the right verification artifacts
 
@@ -453,6 +464,8 @@ For production readiness findings, include only the specific `PROD-*` entries th
 For paved-road findings, include only repo-local reference implementations and explicit allowed departures. Do not ask the coding agent to invent a parallel framework, schema style, emitter format, or build convention unless the Build Brief names `no_paved_road_found` and records why existing patterns cannot absorb the work.
 
 For repo conventions, inline each `repo_conventions.rules[]` item in the prompt's hard constraints and verification section. If `repo_conventions.status == extracted`, the coding agent must run or cite the rule's `verification_predicate`; if a rule cannot be applied mechanically, the task output must record an explicit per-file waiver with file, rule id, and reason. If `repo_conventions` is missing, emit `missing_repo_conventions`.
+
+For product vocabulary, inline `product_vocabulary.mappings[]` and `banned_tokens[]`. Internal terms must never appear in identifiers, schema/version strings, CLI output, comments, filenames, tests, or PR text. If the field is missing, emit `missing_product_vocabulary`.
 
 ### Step 6: Add the verification loop
 
@@ -481,12 +494,16 @@ Tasks flagged as `parallel: true` with no dependencies get separate assembled pr
       "build_brief": { "type": "string" },
       "research_deliverable": { "type": "string" },
       "repo_path": { "type": "string" },
+      "product_vocabulary": {
+        "type": "object",
+        "description": "Required product vocabulary mapping and shared banned-token list."
+      },
       "repo_conventions": {
         "type": "object",
         "description": "Required target-repo conventions contract from the Build Brief; use explicit status none_found plus no_conventions_found marker when no convention files exist."
       }
     },
-    "required": ["task_id", "build_brief", "research_deliverable", "repo_path", "repo_conventions"]
+    "required": ["task_id", "build_brief", "research_deliverable", "repo_path", "product_vocabulary", "repo_conventions"]
   }
 }
 ```
@@ -503,10 +520,11 @@ Tasks flagged as `parallel: true` with no dependencies get separate assembled pr
       "build_brief": { "type": "string" },
       "research_deliverable": { "type": "string" },
       "repo_path": { "type": "string" },
+      "product_vocabulary": { "type": "object" },
       "repo_conventions": { "type": "object" },
       "output_directory": { "type": "string" }
     },
-    "required": ["build_brief", "research_deliverable", "repo_path", "repo_conventions"]
+    "required": ["build_brief", "research_deliverable", "repo_path", "product_vocabulary", "repo_conventions"]
   }
 }
 ```

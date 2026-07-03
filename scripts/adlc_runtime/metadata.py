@@ -94,6 +94,10 @@ COMMAND_METADATA = {
         "mcp_name": "adlc_convention_scan",
         "description": "Run cheap Rust-first structural convention checks over changed files or explicit files.",
     },
+    "pr-hygiene-scan": {
+        "mcp_name": "adlc_pr_hygiene_scan",
+        "description": "Scan PR diff, title, and body for pipeline artifacts, banned internal tokens, local paths, removed gates, and undocumented stacked bases.",
+    },
     "ci": {
         "mcp_name": "adlc_ci",
         "description": "Run the canonical local ADLC verification suite and emit a structured summary.",

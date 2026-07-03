@@ -32,6 +32,7 @@ Your preloaded skills contain codegen-context assembly and architecture-pattern 
 - Requested `adlc_mode`: `prd_only`, `decompose_only`, or `prd_and_decompose`
 - `compound_context` with `learning_refs`, `task_refs`, `verifier_refs`, and no-op reasons from deterministic compound preflight
 - Target-repo convention extraction from `bin/adlc repo-conventions --workspace <target-repo> --json`
+- Product vocabulary mappings and banned internal tokens, when the PRD, repo, or maintainer feedback defines them
 
 ## Target Repo Conventions (REQUIRED)
 
@@ -47,6 +48,18 @@ Rules:
 
 The planner must carry this field into task decomposition and codegen context.
 Missing `repo_conventions` is a `revise` outcome, not a best-effort warning.
+
+## Product Vocabulary (REQUIRED)
+
+Before drafting tasks, populate top-level `product_vocabulary` in the Build Brief.
+
+Rules:
+- Emit `product_vocabulary.status = "defined"` when the PRD, target repo, issue tracker, or maintainer feedback defines internal-to-product language.
+- Put forbidden internal ticket IDs, codenames, stack labels, and phase names in `product_vocabulary.banned_tokens[]`.
+- Put replacements in `product_vocabulary.mappings[]` as `{ "internal": "...", "product": "..." }`.
+- If no vocabulary rules exist, emit `product_vocabulary.status = "none_declared"` with empty `mappings[]` and `banned_tokens[]`.
+
+The planner must carry this field into task decomposition and codegen context. Missing `product_vocabulary` is a `revise` outcome, not a best-effort warning.
 
 ## Narrative Capture (REQUIRED)
 

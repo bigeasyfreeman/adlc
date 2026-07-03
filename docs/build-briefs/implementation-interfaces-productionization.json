@@ -1519,5 +1519,10 @@
     "explicit_empty_marker": "no_conventions_found",
     "sources": [],
     "rules": []
+  },
+  "product_vocabulary": {
+    "status": "none_declared",
+    "mappings": [],
+    "banned_tokens": []
   }
 }

@@ -48,6 +48,7 @@ Create a single-task brief that includes:
 - the task classification: `bugfix`
 - the `verification_spec`
 - the regression expectation
+- `product_vocabulary` with mappings and `banned_tokens[]`, or `none_declared`
 
 Do not decompose into feature-style subwork unless the bug truly reveals a larger feature gap.
 
@@ -96,6 +97,8 @@ Include:
 - regression guard evidence
 - council verdict
 - severity classification
+
+Before publishing, run `bin/adlc pr-hygiene-scan` with the Build Brief. The PR diff and body must contain only the scoped code/docs change, not ADLC goal prompts, Build Brief drafts, local paths, council scratch artifacts, or removed target-repo gates. If the base branch is not the default branch, document the dependency explicitly.
 
 ---
 

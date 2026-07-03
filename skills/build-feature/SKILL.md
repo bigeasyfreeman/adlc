@@ -19,7 +19,7 @@ This orchestration skill chains core ADLC skills into the complete Build Loop se
 
 ```
 Step 1: PRD (fork — interactive)
-Step 2: Build Brief + repo conventions + scalable-code primitives
+Step 2: Build Brief + repo conventions + product vocabulary + scalable-code primitives
 Step 3: Eval Council (HEAVY)  ←── revision loop (max 3)
 Step 4: Scaffold (if needed)
 Step 5: Codegen Context Assembly (repo conventions become hard constraints)
@@ -29,8 +29,8 @@ Step 6: Per-task execution (parallel where independent):
   6c: Implementation
 Step 7: Definition of Done verification
 Step 8: Eval Council (HEAVY — post-execution)  ←── revision loop (max 3)
-Step 9: Stop Slop on PR description
-Step 10: Create PR
+Step 9: Stop Slop + PR hygiene scan
+Step 10: Create PR from default branch unless a dependency is documented
 ```
 
 ### Step 1: PRD Agent
@@ -43,9 +43,10 @@ Step 10: Create PR
 ### Step 2: Build Brief
 - **Skill:** `build-brief` (ADLC Build Brief Agent)
 - **Input:** Structured PRD + codebase context
-- **Output:** Technical design with top-level `repo_conventions` and per-task: acceptance criteria (G/W/T), `task_classification`, `change_surface`, `verification_spec`, `applicability_manifest`, construct-map refs, paved-road refs, intent refs, production invariant coverage, reuse analysis, antipatterns, Definition of Done
+- **Output:** Technical design with top-level `repo_conventions`, top-level `product_vocabulary`, and per-task: acceptance criteria (G/W/T), `task_classification`, `change_surface`, `verification_spec`, `applicability_manifest`, construct-map refs, paved-road refs, intent refs, production invariant coverage, reuse analysis, antipatterns, Definition of Done
 - **Includes:** `paved-road-registry`, `reuse-analysis`, `security-review` only when the security overlay is active, and `observability-contract` only when the observability overlay is active
 - **Repo conventions:** Run `bin/adlc repo-conventions --workspace <target-repo> --json` against the target repo. If CLAUDE.md, AGENTS.md, or CONTRIBUTING.md exists, the Build Brief `repo_conventions.rules[]` MUST list every extracted rule with a verification predicate. If none exist, the brief MUST carry `status: none_found` and `explicit_empty_marker: no_conventions_found`; absence is invalid.
+- **Vocabulary firewall:** The brief MUST carry `product_vocabulary.mappings[]` and one shared `product_vocabulary.banned_tokens[]` list for internal ticket IDs, codenames, stack labels, and phase names that must not reach public identifiers, schemas, filenames, tests, comments, CLI output, PR titles, or PR bodies.
 
 ### Step 3: Eval Council — Post-Brief
 - **Skill:** `eval-council` (HEAVY — manifest-aware core personas + active overlays, 3 rounds)
@@ -59,7 +60,7 @@ Step 10: Create PR
 
 ### Step 5: Codegen Context Assembly
 - **Skill:** `codegen-context`
-- **Output:** Per-task self-contained prompt with: mission, G/W/T, verification_spec, tests, files (inlined), repo_conventions rules, construct-map refs, paved-road refs, intent contract, production invariant coverage, reference implementations, reusable functions, schema, "What NOT to Do", security contract, observability contract, lint config, scale considerations, integration wiring, anti-slop rules, verification commands, DoD checklist, applicability_manifest
+- **Output:** Per-task self-contained prompt with: mission, G/W/T, verification_spec, tests, files (inlined), repo_conventions rules, product_vocabulary banned tokens, construct-map refs, paved-road refs, intent contract, production invariant coverage, reference implementations, reusable functions, schema, "What NOT to Do", security contract, observability contract, lint config, scale considerations, integration wiring, anti-slop rules, verification commands, DoD checklist, applicability_manifest
 - **Parallel dispatch:** Independent tasks get separate prompts for simultaneous execution
 
 ### Step 6: Execution (per task)
@@ -76,12 +77,16 @@ Step 10: Create PR
 - **Focus:** Did the implementation match the design? Did it stay on the paved road or justify departure? Are construct relationships, verifiers, and production invariants satisfied? Are active overlays satisfied? Is observability complete where active?
 - **Verdicts:** APPROVED → Step 9. REVISION REQUIRED → back to Step 6 (max 3 loops).
 
-### Step 9: Stop Slop
+### Step 9: Stop Slop + PR Hygiene
 - **Skill:** `stop-slop` (content mode on PR description)
 - **Threshold:** 35/50
+- **Hygiene scan:** Run `bin/adlc pr-hygiene-scan --build-brief <brief> --title <title> --body <body> --base-branch <base> --default-branch <default> --json`. It fails on pipeline artifacts, banned internal tokens, absolute local paths, removed CI gates supplied to the scan, and undocumented stacked bases.
 
 ### Step 10: Create PR
-- **Output:** PR with: summary, active overlay summaries, DoD checklist, council verdict, test results, risk tier
+- **Diff contract:** PR diff contains product code, tests, and user-facing docs only. Pipeline artifacts - Build Briefs, eval/council reports, tech-debt audits, closeout or validation scripts, and goal prompts - live in ADLC-side storage keyed by target repo and task, not in the target repo diff.
+- **Base policy:** Cut from the target repo default branch. A non-default base is allowed only when the brief documents a genuine code dependency on an unmerged PR; dependent PRs remain drafts and name the dependency in the body.
+- **Language contract:** PR title/body use product language from `product_vocabulary`; internal codenames, ticket IDs, stack labels, and phase names are banned.
+- **Output:** PR with: summary, active overlay summaries, DoD checklist, council verdict, test results, risk tier, PR hygiene scan result
 - **Merge policy:** Routine=auto-merge, Elevated=human review, Critical=human sign-off
 
 ## Failure Handling
