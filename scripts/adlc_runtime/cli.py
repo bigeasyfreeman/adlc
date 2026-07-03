@@ -693,6 +693,7 @@ def context_packages_for_brief(
                     "implementation_interface_contract": task.get("implementation_interface_contract"),
                     "productionization_gate": task.get("productionization_gate"),
                     "repo_conventions": brief.get("repo_conventions"),
+                    "product_vocabulary": brief.get("product_vocabulary"),
                 },
                 "target_files": {
                     "files_to_modify": task.get("files_to_modify", []),
@@ -706,6 +707,145 @@ def context_packages_for_brief(
             }
         )
     return packages
+
+
+PIPELINE_ARTIFACT_PATTERNS = (
+    re.compile(r"docs/build-briefs/"),
+    re.compile(r"\bTECH_DEBT_AUDIT\b"),
+    re.compile(r"\bGOAL_PROMPT\b"),
+    re.compile(r"\b(closeout|validation)[-_]?(script|report)\b", re.IGNORECASE),
+    re.compile(r"\beval[-_]council\b|\bcouncil[-_]report\b", re.IGNORECASE),
+)
+ABSOLUTE_LOCAL_PATH_RE = re.compile(r"(?<![A-Za-z0-9_.-])/(Users|home)/[A-Za-z0-9_.-]+")
+
+
+def build_brief_banned_tokens(path_arg: str | None, workspace: Path) -> Tuple[List[str], List[str]]:
+    if not path_arg:
+        return [], []
+    path = resolve_input_path(path_arg, workspace)
+    brief = read_json(path)
+    vocab = brief.get("product_vocabulary", {}) if isinstance(brief, dict) else {}
+    conventions = brief.get("repo_conventions", {}) if isinstance(brief, dict) else {}
+    tokens = [str(token) for token in vocab.get("banned_tokens", []) if str(token).strip()] if isinstance(vocab, dict) else []
+    removed = [str(token) for token in conventions.get("removed_ci_gates", []) if str(token).strip()] if isinstance(conventions, dict) else []
+    return tokens, removed
+
+
+def git_diff_text(workspace: Path, base: str | None) -> Tuple[str, str]:
+    base_ref = base or "HEAD"
+    name_result = subprocess.run(
+        ["git", "diff", "--name-only", base_ref],
+        cwd=str(workspace),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    diff_result = subprocess.run(
+        ["git", "diff", base_ref],
+        cwd=str(workspace),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return name_result.stdout, diff_result.stdout
+
+
+def pr_hygiene_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    workspace = resolve_workspace(args.workspace)
+    explicit_tokens = [str(token) for token in args.banned_token or [] if str(token).strip()]
+    brief_tokens, removed_gates = build_brief_banned_tokens(args.build_brief, workspace)
+    banned_tokens = list(dict.fromkeys([*explicit_tokens, *brief_tokens]))
+    removed_gate_tokens = list(dict.fromkeys([*(args.removed_gate_token or []), *removed_gates]))
+    if args.diff_file:
+        diff_path = resolve_input_path(args.diff_file, workspace)
+        diff_text = diff_path.read_text(encoding="utf-8")
+        name_text = "\n".join(line[6:] for line in diff_text.splitlines() if line.startswith("+++ b/"))
+    else:
+        name_text, diff_text = git_diff_text(workspace, args.base)
+    title = args.title or ""
+    body = args.body or ""
+    combined = "\n".join([name_text, diff_text, title, body])
+    issues: List[Dict[str, Any]] = []
+    for pattern in PIPELINE_ARTIFACT_PATTERNS:
+        match = pattern.search(combined)
+        if match:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "pipeline_artifact_in_pr",
+                    "match": match.group(0),
+                    "message": "PR diff, title, or body contains an ADLC pipeline artifact reference",
+                }
+            )
+    for token in banned_tokens:
+        if token and re.search(re.escape(token), combined, flags=re.IGNORECASE):
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "banned_internal_token",
+                    "match": token,
+                    "message": "PR diff, title, or body contains a project banned token instead of product vocabulary",
+                }
+            )
+    local_path = ABSOLUTE_LOCAL_PATH_RE.search(combined)
+    if local_path:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "absolute_local_path",
+                "match": local_path.group(0),
+                "message": "PR materials must not contain absolute local paths",
+            }
+        )
+    for token in removed_gate_tokens:
+        if token and re.search(re.escape(token), combined, flags=re.IGNORECASE):
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "removed_gate_reintroduced",
+                    "match": token,
+                    "message": "PR appears to reintroduce a CI gate the target repo removed or recorded as banned",
+                }
+            )
+    if args.base_branch and args.default_branch and args.base_branch != args.default_branch and not args.dependency:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "stacked_pr_without_dependency",
+                "message": "PR base differs from the default branch without a documented dependency",
+                "base_branch": args.base_branch,
+                "default_branch": args.default_branch,
+            }
+        )
+    return {
+        "contract_version": "1.0.0",
+        "status": "blocked" if issues else "pass",
+        "workspace": str(workspace),
+        "base": args.base,
+        "base_branch": args.base_branch,
+        "default_branch": args.default_branch,
+        "banned_tokens": banned_tokens,
+        "removed_gate_tokens": removed_gate_tokens,
+        "issues": issues,
+        "summary": {
+            "issues": len(issues),
+            "banned_tokens": len(banned_tokens),
+            "removed_gate_tokens": len(removed_gate_tokens),
+        },
+    }
+
+
+def command_pr_hygiene_scan(args: argparse.Namespace) -> int:
+    payload = pr_hygiene_payload(args)
+    if args.output:
+        output_path = resolve_under_workspace(args.output, resolve_workspace(args.workspace), ".adlc/outputs/pr_hygiene_scan.json")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"pr-hygiene-scan: {payload['status']} ({payload['summary']['issues']} issue(s))")
+    return 0 if payload["status"] == "pass" else 1
 
 
 CONVENTION_DOCS = ("CLAUDE.md", "AGENTS.md", "CONTRIBUTING.md")
@@ -8454,6 +8594,28 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("pr-hygiene-scan"),
+            "description": command_description("pr-hygiene-scan"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "diff_file": {"type": "string", "minLength": 1},
+                    "base": {"type": "string", "minLength": 1},
+                    "title": {"type": "string"},
+                    "body": {"type": "string"},
+                    "banned_token": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "removed_gate_token": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "base_branch": {"type": "string", "minLength": 1},
+                    "default_branch": {"type": "string", "minLength": 1},
+                    "dependency": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("ci"),
             "description": command_description("ci"),
             "inputSchema": {
@@ -9117,6 +9279,29 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return tool_result(payload, is_error=payload.get("status") != "pass")
+    if name == "adlc_pr_hygiene_scan":
+        args = argparse.Namespace(
+            workspace=arguments.get("workspace"),
+            build_brief=arguments.get("build_brief"),
+            diff_file=arguments.get("diff_file"),
+            base=arguments.get("base"),
+            title=arguments.get("title"),
+            body=arguments.get("body"),
+            banned_token=arguments.get("banned_token") if isinstance(arguments.get("banned_token"), list) else [],
+            removed_gate_token=arguments.get("removed_gate_token") if isinstance(arguments.get("removed_gate_token"), list) else [],
+            base_branch=arguments.get("base_branch"),
+            default_branch=arguments.get("default_branch"),
+            dependency=arguments.get("dependency"),
+            output=arguments.get("output"),
+            json=True,
+        )
+        payload = pr_hygiene_payload(args)
+        if args.output:
+            workspace = resolve_workspace(args.workspace)
+            output_path = resolve_under_workspace(args.output, workspace, ".adlc/outputs/pr_hygiene_scan.json")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return tool_result(payload, is_error=payload["status"] != "pass")
     if name == "adlc_ci":
         suites_arg = arguments.get("suite")
         suites = suites_arg if isinstance(suites_arg, list) else None
@@ -9665,6 +9850,22 @@ def build_parser() -> argparse.ArgumentParser:
     convention_scan.add_argument("--output", help="Optional convention scan report path.")
     convention_scan.add_argument("--json", action="store_true", help="Emit JSON.")
     convention_scan.set_defaults(func=command_convention_scan)
+
+    pr_hygiene = subparsers.add_parser("pr-hygiene-scan", help=command_description("pr-hygiene-scan"))
+    pr_hygiene.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
+    pr_hygiene.add_argument("--build-brief", help="Build Brief JSON path whose product_vocabulary and repo_conventions provide banned tokens.")
+    pr_hygiene.add_argument("--diff-file", help="Unified diff file to scan instead of running git diff.")
+    pr_hygiene.add_argument("--base", help="Git diff base ref. Defaults to HEAD when --diff-file is absent.")
+    pr_hygiene.add_argument("--title", help="PR title to scan.")
+    pr_hygiene.add_argument("--body", help="PR body to scan.")
+    pr_hygiene.add_argument("--banned-token", action="append", help="Project banned token. Can be passed multiple times.")
+    pr_hygiene.add_argument("--removed-gate-token", action="append", help="Removed CI gate token that must not be reintroduced. Can be passed multiple times.")
+    pr_hygiene.add_argument("--base-branch", help="Proposed PR base branch.")
+    pr_hygiene.add_argument("--default-branch", help="Target repo default branch.")
+    pr_hygiene.add_argument("--dependency", help="Documented dependent PR or branch when base differs from default.")
+    pr_hygiene.add_argument("--output", help="Optional PR hygiene report path.")
+    pr_hygiene.add_argument("--json", action="store_true", help="Emit JSON.")
+    pr_hygiene.set_defaults(func=command_pr_hygiene_scan)
 
     ci = subparsers.add_parser("ci", help=command_description("ci"))
     ci.add_argument(

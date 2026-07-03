@@ -72,6 +72,33 @@ jq 'del(.adlc_mode)' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brie
 assert "validate-artifact rejects missing required field" "if '$ROOT/bin/adlc' validate-artifact --schema build-brief --input '$tmp_dir/invalid-build-brief.json' --json >'$tmp_dir/invalid-result.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"adlc_mode\"))' '$tmp_dir/invalid-result.json' >/dev/null; fi"
 jq 'del(.repo_conventions)' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/missing-conventions-brief.json"
 assert "validate-artifact requires repo_conventions decision" "if '$ROOT/bin/adlc' validate-artifact --schema build-brief --input '$tmp_dir/missing-conventions-brief.json' --json >'$tmp_dir/missing-conventions-result.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"repo_conventions\"))' '$tmp_dir/missing-conventions-result.json' >/dev/null; fi"
+jq 'del(.product_vocabulary)' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/missing-vocab-brief.json"
+assert "validate-artifact requires product vocabulary decision" "if '$ROOT/bin/adlc' validate-artifact --schema build-brief --input '$tmp_dir/missing-vocab-brief.json' --json >'$tmp_dir/missing-vocab-result.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"product_vocabulary\"))' '$tmp_dir/missing-vocab-result.json' >/dev/null; fi"
+
+cat > "$tmp_dir/hygiene-brief.json" <<'JSON'
+{
+  "product_vocabulary": {
+    "status": "defined",
+    "mappings": [
+      {"internal": "HMETA", "product": "metadata"}
+    ],
+    "banned_tokens": ["HMETA"]
+  },
+  "repo_conventions": {
+    "removed_ci_gates": ["file-size"]
+  }
+}
+JSON
+cat > "$tmp_dir/pr-diff.patch" <<'PATCH'
+diff --git a/docs/build-briefs/leak.json b/docs/build-briefs/leak.json
+new file mode 100644
+--- /dev/null
++++ b/docs/build-briefs/leak.json
+@@
++HMETA leaked from /Users/eric/adlc and reintroduced file-size gate
+PATCH
+assert "pr-hygiene-scan blocks artifacts banned tokens local paths removed gates and stacked bases" "if '$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --build-brief '$tmp_dir/hygiene-brief.json' --diff-file '$tmp_dir/pr-diff.patch' --title 'HMETA phase label' --base-branch feature/child --default-branch main --json >'$tmp_dir/pr-hygiene.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"pipeline_artifact_in_pr\") and any(.issues[]; .rule == \"banned_internal_token\") and any(.issues[]; .rule == \"absolute_local_path\") and any(.issues[]; .rule == \"removed_gate_reintroduced\") and any(.issues[]; .rule == \"stacked_pr_without_dependency\")' '$tmp_dir/pr-hygiene.json' >/dev/null; fi"
+assert "pr-hygiene-scan allows documented dependent base without other findings" "'$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --diff-file /dev/null --base-branch feature/child --default-branch main --dependency PR-123 --json | jq -e '.status == \"pass\" and .summary.issues == 0' >/dev/null"
 
 echo ""
 echo "--- Repo Convention Extraction ---"
@@ -152,7 +179,7 @@ assert "run-phase qa dry-run plans verifiers without claiming pass" "'$ROOT/bin/
 assert "run-phase qa executes passing verifier and records artifact" "'$ROOT/bin/adlc' run-phase qa --brief-id CLI-QA-PASS --workspace '$tmp_dir/tool-qa-pass' --verifier true --json | jq -e '.tool_result.status == \"pass\" and .state.phase == \"pr_prep\" and .state.phase_artifacts[-1].phase == \"qa\" and (.tool_result.evidence_refs | length) >= 2' >/dev/null"
 assert "run-phase qa fails closed on failing verifier" "if '$ROOT/bin/adlc' run-phase qa --brief-id CLI-QA-FAIL --workspace '$tmp_dir/tool-qa-fail' --verifier false --json >'$tmp_dir/qa-fail.json'; then false; else jq -e '.tool_result.status == \"fail\" and .tool_result.stop_reason == \"verifier_failed\" and .state.status == \"failed\"' '$tmp_dir/qa-fail.json' >/dev/null; fi"
 assert "run-phase qa blocks missing verifier command" "if '$ROOT/bin/adlc' run-phase qa --brief-id CLI-QA-MISSING --workspace '$tmp_dir/tool-qa-missing' --json >'$tmp_dir/qa-missing.json'; then false; else jq -e '.tool_result.status == \"blocked\" and .tool_result.stop_reason == \"missing_verifier_command\" and .state.status == \"failed\"' '$tmp_dir/qa-missing.json' >/dev/null; fi"
-assert "run-phase context assembly emits per-task packages with repo conventions" "'$ROOT/bin/adlc' run-phase context_assembly --brief-id CLI-CTX --workspace '$tmp_dir/tool-context' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --json | jq -e '.tool_result.status == \"pass\" and .state.phase == \"code\" and .tool_result.outputs.package_count > 0 and any(.tool_result.outputs.context_packages[]; .task_id == \"XIA-SOC-INDEX\" and (.constraints.repo_conventions.status == \"none_found\"))' >/dev/null"
+assert "run-phase context assembly emits per-task packages with repo conventions and product vocabulary" "'$ROOT/bin/adlc' run-phase context_assembly --brief-id CLI-CTX --workspace '$tmp_dir/tool-context' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --json | jq -e '.tool_result.status == \"pass\" and .state.phase == \"code\" and .tool_result.outputs.package_count > 0 and any(.tool_result.outputs.context_packages[]; .task_id == \"XIA-SOC-INDEX\" and (.constraints.repo_conventions.status == \"none_found\") and (.constraints.product_vocabulary.status == \"none_declared\"))' >/dev/null"
 assert "run-phase scaffold dry-run emits planned writes" "'$ROOT/bin/adlc' run-phase scaffold --brief-id CLI-SCAFFOLD --workspace '$tmp_dir/tool-scaffold' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --dry-run --json | jq -e '.tool_result.status == \"planned\" and .state.phase == \"scaffold\" and (.tool_result.outputs.planned_writes | length) > 0' >/dev/null"
 assert "run-phase scaffold write intent requires admission" "if '$ROOT/bin/adlc' run-phase scaffold --brief-id CLI-SCAFFOLD-BLOCK --workspace '$tmp_dir/tool-scaffold-block' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --json >'$tmp_dir/scaffold-block.json'; then false; else jq -e '.tool_result.status == \"blocked\" and .tool_result.stop_reason == \"action_not_admitted\"' '$tmp_dir/scaffold-block.json' >/dev/null; fi"
 assert "run-phase slop gate reuses deterministic gate" "'$ROOT/bin/adlc' run-phase slop_gate --brief-id CLI-SLOP --workspace '$tmp_dir/tool-slop' --build-brief '$ROOT/docs/build-briefs/xia-adlc-remediation.json' --json | jq -e '.tool_result.status == \"skipped\" and .tool_result.skip_reason == \"generated_output_surface_inactive\" and .state.phase == \"pr_prep\"' >/dev/null"
@@ -586,6 +613,7 @@ and any(.tools[]; .name == "adlc_validate_artifact" and (.inputSchema.required |
 and any(.tools[]; .name == "adlc_health_check")
 and any(.tools[]; .name == "adlc_repo_conventions" and .inputSchema.properties.workspace.type == "string")
 and any(.tools[]; .name == "adlc_convention_scan" and .inputSchema.properties.file.type == "array" and .inputSchema.properties.waiver.type == "array")
+and any(.tools[]; .name == "adlc_pr_hygiene_scan" and .inputSchema.properties.banned_token.type == "array" and .inputSchema.properties.removed_gate_token.type == "array")
 and any(.tools[]; .name == "adlc_ci" and .inputSchema.properties.suite.type == "array")
 and any(.tools[]; .name == "adlc_action_admit" and (.inputSchema.required | index("tool_registry")) and .inputSchema.properties.allow_mutation.type == "boolean" and .inputSchema.properties.run_id.type == "string")
 and any(.tools[]; .name == "adlc_run_phase")

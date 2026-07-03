@@ -61,6 +61,7 @@ Most Build Brief fields are answerable from two sources the engineer has already
 | **PRD content** | Capabilities, behaviors, out of scope, personas, success metrics, dependencies, screen specs, permission models |
 | **Repo map** | Architecture patterns, tech stack, existing services, data models, API surface, test conventions, CI/CD, security posture, observability |
 | **Target repo conventions** | `CLAUDE.md`, `AGENTS.md`, and `CONTRIBUTING.md` rules with verification predicates |
+| **Product vocabulary** | Public product terms, internal codenames, ticket IDs, stack labels, and phase names that must not appear in shipped code or PR text |
 | **PRD × Repo cross-reference** | Where PRD assumes something the codebase contradicts, where the codebase already has partial implementations, where PRD dependencies map to existing services |
 
 **Only ask questions when:**
