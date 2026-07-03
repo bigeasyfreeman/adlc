@@ -55,7 +55,7 @@ Extraction rules:
 |---|-------|-----|-------|-------------|-----------|
 | 1 | All linters pass | `automatable` | core | Automated: LDD gate | Any violation |
 | 2 | All tests pass | `automatable` | core | Automated: TDD suite | Any failure |
-| 3 | Code complexity within budget | `automatable` | core | Automated: CC < 15, SLOC < 50/fn | Exceeding ceiling |
+| 3 | Code complexity within budget | `automatable` | core | Automated: configured cyclomatic-complexity threshold only | Exceeding configured complexity ceiling |
 | 4 | No code slop or stub patterns | `automatable` | core | Automated: anti-slop scanner | `TODO`, `FIXME`, `PLACEHOLDER`, `todo!()`, `unimplemented!()`, `panic!(\"not implemented\")`, `NotImplementedError`, `pass`, empty placeholder bodies, commented-out code, fake/mock placeholder logic in shipped code |
 
 ### Reuse & Patterns
@@ -63,8 +63,11 @@ Extraction rules:
 | # | Check | Tag | Scope | Verification | Blocks On |
 |---|-------|-----|-------|-------------|-----------|
 | 15 | Reuse analysis confirmed | `automatable` | core | Automated: reuse-analysis output | Reimplementation detected |
-| 16 | Existing conventions followed | `judgement` | core | Council review | Convention violation |
+| 16 | Existing conventions followed | `automatable` | core | Automated: `bin/adlc convention-scan --file <changed-file> --json` when target repo conventions are present | Open convention-scan issue |
 | 17 | Antipattern checklist cleared | `automatable` | core | Automated: anti-slop plus antipattern scanner outputs | Known antipattern used |
+| 28 | Repo convention waivers explicit | `automatable` | core | Convention scan or task output records file, rule, and reason for every waiver | Silent convention waiver, missing reason, or waived rule not tied to a file |
+
+No DoD check may use file size, line count, or SLOC as a criterion. Split decisions are based on responsibility, side effects, coordinator boundaries, and repo conventions, never size.
 
 ## Security Overlay
 
@@ -134,7 +137,7 @@ Extraction rules:
   "dod_checks": {
     "ldd_pass": { "status": true, "evidence": "ruff: 0 violations, mypy: 0 errors" },
     "tdd_pass": { "status": true, "evidence": "42 passed, 0 failed", "coverage": 87 },
-    "complexity_ok": { "status": true, "evidence": "max CC: 8, max SLOC: 35" },
+    "complexity_ok": { "status": true, "evidence": "max configured cyclomatic complexity: 8" },
     "no_code_slop": { "status": true, "evidence": "0 violations: no TODO/FIXME/PLACEHOLDER, no stub bodies, no NotImplementedError, no commented-out code" },
     "stride_complete": { "status": true, "threats": 6, "mitigations": 4 },
     "stride_implemented": { "status": true, "evidence": "4/4 mitigations present" },
@@ -147,7 +150,8 @@ Extraction rules:
     "log_format": { "status": true, "evidence": "structured JSON" },
     "correlation_ids": { "status": true, "evidence": "propagated" },
     "reuse_confirmed": { "status": true, "reimplementations": 0 },
-    "conventions_followed": { "status": true, "evidence": "council approved" },
+    "conventions_followed": { "status": true, "evidence": "convention-scan: pass for changed Rust files" },
+    "repo_convention_waivers_explicit": { "status": true, "evidence": "0 waivers, or each waiver records file/rule/reason" },
     "antipatterns_cleared": { "status": true, "violations": 0 },
     "wiring_complete": { "status": true, "upstream": 2, "downstream": 1 },
     "scalability_documented": { "status": true },
@@ -172,3 +176,5 @@ Extraction rules:
 - No partial passes — ALL active checks must be green
 - Scaffolding artifacts are never considered done. Any remaining stub, placeholder, or partial wiring fails DoD.
 - Mixed acceptance-criteria handlers that lose an upstream `id` or `measurable_post_condition` fail DoD verification.
+- Repo-convention failures block DoD unless every waiver is explicit and present in task output.
+- File size, line count, and SLOC are not valid DoD criteria.
