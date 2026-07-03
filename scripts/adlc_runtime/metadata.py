@@ -86,6 +86,10 @@ COMMAND_METADATA = {
         "mcp_name": "adlc_health_check",
         "description": "Check deterministic ADLC runtime dependencies, schema aliases, and CLI wrapper availability.",
     },
+    "repo-conventions": {
+        "mcp_name": "adlc_repo_conventions",
+        "description": "Extract target-repo CLAUDE.md, AGENTS.md, and CONTRIBUTING.md conventions into the Build Brief repo_conventions contract shape.",
+    },
     "ci": {
         "mcp_name": "adlc_ci",
         "description": "Run the canonical local ADLC verification suite and emit a structured summary.",

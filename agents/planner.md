@@ -31,6 +31,22 @@ Your preloaded skills contain codegen-context assembly and architecture-pattern 
 - Triage output confidence, confidence band, and any human override signal
 - Requested `adlc_mode`: `prd_only`, `decompose_only`, or `prd_and_decompose`
 - `compound_context` with `learning_refs`, `task_refs`, `verifier_refs`, and no-op reasons from deterministic compound preflight
+- Target-repo convention extraction from `bin/adlc repo-conventions --workspace <target-repo> --json`
+
+## Target Repo Conventions (REQUIRED)
+
+Before drafting tasks, the planner MUST populate top-level `repo_conventions` in
+the Build Brief.
+
+Rules:
+- Run or consume `bin/adlc repo-conventions --workspace <target-repo> --json`.
+- If `CLAUDE.md`, `AGENTS.md`, or `CONTRIBUTING.md` has conventions, emit every
+  extracted rule as `repo_conventions.rules[]` with a verification predicate.
+- If no convention docs or rules exist, emit `repo_conventions.status =
+  "none_found"` with `explicit_empty_marker = "no_conventions_found"`.
+
+The planner must carry this field into task decomposition and codegen context.
+Missing `repo_conventions` is a `revise` outcome, not a best-effort warning.
 
 ## Narrative Capture (REQUIRED)
 

@@ -668,5 +668,11 @@
       "adlc emit-work-items --target linear --build-brief docs/build-briefs/xia-adlc-remediation.json --dry-run --require-ready"
     ],
     "12_skill_trigger_configuration": null
+  },
+  "repo_conventions": {
+    "status": "none_found",
+    "explicit_empty_marker": "no_conventions_found",
+    "sources": [],
+    "rules": []
   }
 }

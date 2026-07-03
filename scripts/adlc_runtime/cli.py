@@ -692,6 +692,7 @@ def context_packages_for_brief(
                     "compatibility_contract": task.get("compatibility_contract"),
                     "implementation_interface_contract": task.get("implementation_interface_contract"),
                     "productionization_gate": task.get("productionization_gate"),
+                    "repo_conventions": brief.get("repo_conventions"),
                 },
                 "target_files": {
                     "files_to_modify": task.get("files_to_modify", []),
@@ -705,6 +706,113 @@ def context_packages_for_brief(
             }
         )
     return packages
+
+
+CONVENTION_DOCS = ("CLAUDE.md", "AGENTS.md", "CONTRIBUTING.md")
+MUST_RULE_SIGNALS = (
+    " must ",
+    " must not ",
+    " never ",
+    " only ",
+    " one responsibility ",
+    " pure core",
+    " impure shell",
+    " coordinator",
+    " do not ",
+    " don't ",
+    " no ",
+    " when a responsibility grows",
+)
+
+
+def clean_markdown_rule(line: str) -> str:
+    text = re.sub(r"^\s*[-*]\s+", "", line).strip()
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def convention_doc_kind(path: Path) -> str:
+    return path.name if path.name in CONVENTION_DOCS else "other"
+
+
+def verification_predicate_for_rule(_rule: str) -> str:
+    return "Record a deterministic check, cited file review, or explicit per-file waiver proving the rule for every changed file."
+
+
+def extract_convention_rules_from_doc(path: Path, workspace: Path) -> Tuple[List[Dict[str, Any]], Dict[str, Any] | None]:
+    if not path.is_file():
+        return [], None
+    rel = workspace_rel_path(path, workspace)
+    source = {"path": rel, "kind": convention_doc_kind(path)}
+    rules: List[Dict[str, Any]] = []
+    in_conventions = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        header = stripped.lower().lstrip("#").strip()
+        if stripped.startswith("#") and "convention" in header:
+            in_conventions = True
+            source["section"] = stripped.lstrip("#").strip()
+            continue
+        if in_conventions and stripped.startswith("#") and "convention" not in header:
+            in_conventions = False
+        normalized = f" {clean_markdown_rule(stripped).lower()} "
+        if not stripped.startswith(("-", "*")):
+            continue
+        if not in_conventions and not any(signal in normalized for signal in MUST_RULE_SIGNALS):
+            continue
+        if not any(signal in normalized for signal in MUST_RULE_SIGNALS):
+            continue
+        rule = clean_markdown_rule(stripped)
+        if not rule:
+            continue
+        rules.append(
+            {
+                "id": f"{path.stem.upper()}_MUST_{len(rules) + 1:03d}",
+                "source_path": rel,
+                "rule": rule,
+                "verification_predicate": verification_predicate_for_rule(rule),
+                "severity": "must",
+                "applies_to": ["changed_files"],
+            }
+        )
+    return rules, source if rules else None
+
+
+def repo_conventions_payload(workspace: Path) -> Dict[str, Any]:
+    sources: List[Dict[str, Any]] = []
+    rules: List[Dict[str, Any]] = []
+    for name in CONVENTION_DOCS:
+        extracted, source = extract_convention_rules_from_doc(workspace / name, workspace)
+        if source:
+            sources.append(source)
+        rules.extend(extracted)
+    if not rules:
+        return {
+            "status": "none_found",
+            "explicit_empty_marker": "no_conventions_found",
+            "sources": [],
+            "rules": [],
+        }
+    return {
+        "status": "extracted",
+        "sources": sources,
+        "rules": rules,
+    }
+
+
+def command_repo_conventions(args: argparse.Namespace) -> int:
+    workspace = resolve_workspace(args.workspace)
+    payload = repo_conventions_payload(workspace)
+    if args.output:
+        output_path = resolve_under_workspace(args.output, workspace, ".adlc/repo_conventions.json")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"repo-conventions: {payload['status']} ({len(payload['rules'])} rule(s))")
+    return 0
 
 
 def learning_candidates_from_args(args: argparse.Namespace, workspace: Path) -> Tuple[List[Dict[str, Any]], List[str]]:
@@ -8143,6 +8251,18 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("repo-conventions"),
+            "description": command_description("repo-conventions"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("ci"),
             "description": command_description("ci"),
             "inputSchema": {
@@ -8779,6 +8899,18 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     if name == "adlc_health_check":
         payload = health_check_payload(include_optional=bool(arguments.get("include_optional", False)))
         return tool_result(payload, is_error=payload["summary"]["failed_required"] != 0)
+    if name == "adlc_repo_conventions":
+        args = argparse.Namespace(
+            workspace=arguments.get("workspace"),
+            output=arguments.get("output"),
+            json=True,
+        )
+        payload = repo_conventions_payload(resolve_workspace(args.workspace))
+        if args.output:
+            output_path = resolve_under_workspace(args.output, resolve_workspace(args.workspace), ".adlc/repo_conventions.json")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return tool_result(payload)
     if name == "adlc_ci":
         suites_arg = arguments.get("suite")
         suites = suites_arg if isinstance(suites_arg, list) else None
@@ -9313,6 +9445,12 @@ def build_parser() -> argparse.ArgumentParser:
     health.add_argument("--include-optional", action="store_true", help="Include optional audit and PDF tooling checks.")
     health.add_argument("--json", action="store_true", help="Emit JSON.")
     health.set_defaults(func=command_health_check)
+
+    repo_conventions = subparsers.add_parser("repo-conventions", help=command_description("repo-conventions"))
+    repo_conventions.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
+    repo_conventions.add_argument("--output", help="Optional repo_conventions JSON output path.")
+    repo_conventions.add_argument("--json", action="store_true", help="Emit JSON.")
+    repo_conventions.set_defaults(func=command_repo_conventions)
 
     ci = subparsers.add_parser("ci", help=command_description("ci"))
     ci.add_argument(

@@ -1330,5 +1330,11 @@
         "Task fingerprints must not skip work unless verifier state and input hash match."
       ]
     }
+  },
+  "repo_conventions": {
+    "status": "none_found",
+    "explicit_empty_marker": "no_conventions_found",
+    "sources": [],
+    "rules": []
   }
 }

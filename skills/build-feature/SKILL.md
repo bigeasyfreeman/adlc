@@ -19,10 +19,10 @@ This orchestration skill chains core ADLC skills into the complete Build Loop se
 
 ```
 Step 1: PRD (fork — interactive)
-Step 2: Build Brief + scalable-code primitives
+Step 2: Build Brief + repo conventions + scalable-code primitives
 Step 3: Eval Council (HEAVY)  ←── revision loop (max 3)
 Step 4: Scaffold (if needed)
-Step 5: Codegen Context Assembly
+Step 5: Codegen Context Assembly (repo conventions become hard constraints)
 Step 6: Per-task execution (parallel where independent):
   6a: LDD gate
   6b: Verifier-led TDD mode by task class
@@ -43,8 +43,9 @@ Step 10: Create PR
 ### Step 2: Build Brief
 - **Skill:** `build-brief` (ADLC Build Brief Agent)
 - **Input:** Structured PRD + codebase context
-- **Output:** Technical design with per-task: acceptance criteria (G/W/T), `task_classification`, `change_surface`, `verification_spec`, `applicability_manifest`, construct-map refs, paved-road refs, intent refs, production invariant coverage, reuse analysis, antipatterns, Definition of Done
+- **Output:** Technical design with top-level `repo_conventions` and per-task: acceptance criteria (G/W/T), `task_classification`, `change_surface`, `verification_spec`, `applicability_manifest`, construct-map refs, paved-road refs, intent refs, production invariant coverage, reuse analysis, antipatterns, Definition of Done
 - **Includes:** `paved-road-registry`, `reuse-analysis`, `security-review` only when the security overlay is active, and `observability-contract` only when the observability overlay is active
+- **Repo conventions:** Run `bin/adlc repo-conventions --workspace <target-repo> --json` against the target repo. If CLAUDE.md, AGENTS.md, or CONTRIBUTING.md exists, the Build Brief `repo_conventions.rules[]` MUST list every extracted rule with a verification predicate. If none exist, the brief MUST carry `status: none_found` and `explicit_empty_marker: no_conventions_found`; absence is invalid.
 
 ### Step 3: Eval Council — Post-Brief
 - **Skill:** `eval-council` (HEAVY — manifest-aware core personas + active overlays, 3 rounds)
@@ -58,7 +59,7 @@ Step 10: Create PR
 
 ### Step 5: Codegen Context Assembly
 - **Skill:** `codegen-context`
-- **Output:** Per-task self-contained prompt with: mission, G/W/T, verification_spec, tests, files (inlined), construct-map refs, paved-road refs, intent contract, production invariant coverage, reference implementations, reusable functions, schema, "What NOT to Do", security contract, observability contract, lint config, scale considerations, integration wiring, anti-slop rules, verification commands, DoD checklist, applicability_manifest
+- **Output:** Per-task self-contained prompt with: mission, G/W/T, verification_spec, tests, files (inlined), repo_conventions rules, construct-map refs, paved-road refs, intent contract, production invariant coverage, reference implementations, reusable functions, schema, "What NOT to Do", security contract, observability contract, lint config, scale considerations, integration wiring, anti-slop rules, verification commands, DoD checklist, applicability_manifest
 - **Parallel dispatch:** Independent tasks get separate prompts for simultaneous execution
 
 ### Step 6: Execution (per task)

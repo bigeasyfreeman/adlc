@@ -40,7 +40,9 @@
       "contradicted": []
     },
     "contamination": {
-      "flags": ["low_specificity"],
+      "flags": [
+        "low_specificity"
+      ],
       "supported_claims": [
         "A user-facing operator workflow is in scope."
       ],
@@ -163,5 +165,11 @@
     "10_rollout": null,
     "11_validation_plan": "Validation is intentionally incomplete to exercise the specificity gate.",
     "12_skill_trigger_configuration": null
+  },
+  "repo_conventions": {
+    "status": "none_found",
+    "explicit_empty_marker": "no_conventions_found",
+    "sources": [],
+    "rules": []
   }
 }

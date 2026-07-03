@@ -1330,5 +1330,11 @@
         "Generated graphify-out artifacts should remain untracked unless the project decides to version them."
       ]
     }
+  },
+  "repo_conventions": {
+    "status": "none_found",
+    "explicit_empty_marker": "no_conventions_found",
+    "sources": [],
+    "rules": []
   }
 }

@@ -11,6 +11,7 @@
     "prd_id",
     "applicability_manifest",
     "enterprise_readiness_contract",
+    "repo_conventions",
     "sections"
   ],
   "properties": {
@@ -78,6 +79,9 @@
     },
     "enterprise_readiness_contract": {
       "$ref": "#/definitions/enterprise_readiness_contract"
+    },
+    "repo_conventions": {
+      "$ref": "#/definitions/repo_conventions"
     },
     "sections": {
       "type": "object",
@@ -298,6 +302,147 @@
     }
   ],
   "definitions": {
+    "repo_conventions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources",
+        "rules"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "extracted",
+            "none_found"
+          ]
+        },
+        "explicit_empty_marker": {
+          "type": "string",
+          "const": "no_conventions_found"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "kind"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "CLAUDE.md",
+                  "AGENTS.md",
+                  "CONTRIBUTING.md",
+                  "other"
+                ]
+              },
+              "section": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "source_path",
+              "rule",
+              "verification_predicate",
+              "severity"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Z0-9_-]+$"
+              },
+              "source_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "rule": {
+                "type": "string",
+                "minLength": 1
+              },
+              "verification_predicate": {
+                "type": "string",
+                "minLength": 1
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "must",
+                  "should"
+                ]
+              },
+              "applies_to": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "none_found"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "explicit_empty_marker"
+            ],
+            "properties": {
+              "sources": {
+                "maxItems": 0
+              },
+              "rules": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "extracted"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sources": {
+                "minItems": 1
+              },
+              "rules": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
     "task": {
       "type": "object",
       "additionalProperties": false,
