@@ -800,7 +800,8 @@
           ],
           "overlays": [
             "architect",
-            "operator"
+            "operator",
+            "security_auditor"
           ]
         },
         "test_strength": {
@@ -1233,6 +1234,28 @@
             "src/legacy/cli_retry.rs"
           ],
           "expected_failure_mode": "AssertionError: retry budget mismatch"
+        },
+        "repo_conventions": {
+          "status": "extracted",
+          "sources": [
+            {
+              "path": "CLAUDE.md",
+              "kind": "CLAUDE.md",
+              "section": "Conventions"
+            }
+          ],
+          "rules": [
+            {
+              "id": "CLAUDE_MUST_001",
+              "source_path": "CLAUDE.md",
+              "rule": "Every Rust module must state one responsibility in its first module doc line.",
+              "verification_predicate": "Review changed Rust files for one responsibility and cite line ranges.",
+              "severity": "must",
+              "applies_to": [
+                "changed_files"
+              ]
+            }
+          ]
         }
       },
       "expected_stage_outputs": {
@@ -1262,7 +1285,8 @@
             "first_principles"
           ],
           "overlays": [
-            "architect"
+            "architect",
+            "convention_auditor"
           ]
         },
         "test_strength": {

@@ -115,21 +115,21 @@
               "minItems": 1,
               "items": {
                 "type": "string",
-                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor"]
+                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor", "convention_auditor"]
               }
             },
             "overlay_personas": {
               "type": "array",
               "items": {
                 "type": "string",
-                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor"]
+                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor", "convention_auditor"]
               }
             },
             "suppressed_overlays": {
               "type": "array",
               "items": {
                 "type": "string",
-                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor"]
+                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor", "convention_auditor"]
               }
             }
           }
@@ -148,7 +148,7 @@
             "properties": {
               "name": {
                 "type": "string",
-                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor"]
+                "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor", "convention_auditor"]
               },
               "verdict": {
                 "type": "string",
@@ -217,7 +217,7 @@
         "properties": {
           "persona": {
             "type": "string",
-            "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor"]
+            "enum": ["architect", "skeptic", "operator", "executioner", "first_principles", "security_auditor", "convention_auditor"]
           },
           "vote": {
             "type": "string",
