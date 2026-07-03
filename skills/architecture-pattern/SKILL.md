@@ -43,6 +43,7 @@ Activated when coding starts (after brief approval and ticket creation). Consume
     {
       "path": "string",
       "type": "port | adapter | factory | config | test_helper",
+      "responsibility": "one-line single-responsibility statement intended to become the file's module doc",
       "content": "string",
       "pattern": "string (which architecture pattern)",
       "todos": ["string (what the coding agent needs to implement)"]
@@ -55,6 +56,24 @@ Activated when coding starts (after brief approval and ticket creation). Consume
 ```
 
 ## Behavior
+
+### 0. Apply Target Repo Conventions First
+
+If the Build Brief carries target repo conventions, scaffolding must consume those rules before proposing files. For repos with the Interralis-style rule set, every planned file gets a one-line responsibility statement intended to become the file's module doc verbatim. If that line needs `and`, split the planned file before codegen receives it.
+
+Recursive rule: when a scaffolded file's responsibility grows sub-parts during implementation, the executor must split it into a directory module following the same shape immediately, not as cleanup. A grown file becomes:
+
+```text
+feature.rs          # thin coordinator: module doc index, shared rules, curated re-exports
+feature/
+  parser.rs         # one responsibility
+  evaluator.rs      # one responsibility
+  impure_shell.rs   # side effects, documented as impure shell
+```
+
+Catch-all names and roles are antipatterns: `utils`, `helpers`, `common`, `project`, `collect`, `misc`, and files whose responsibility is "data and logic" or "parse and execute" must be split or renamed to the single job they own.
+
+Worked example: if `collect.rs` starts as "collect project metadata" but grows filesystem reads, process execution, parsing, and summarization, it must become a directory module such as `collect/fs_impure_shell.rs`, `collect/process_impure_shell.rs`, `collect/parser.rs`, and `collect/summary.rs`, with `collect.rs` left as the thin coordinator. The fix is not to keep the file because it is short; size and line count are not architecture criteria.
 
 ### 1. Analyze Reference Implementations
 
@@ -182,6 +201,17 @@ src/
         └── WidgetFactory.ts   # NEW: test factory
 ```
 
+For every planned source file, include the responsibility line in the scaffold output. For Rust modules, that line is intended to become the first `//!` line. For coordinator files, include a one-line index of submodules and their jobs and keep the coordinator re-export-only or orchestration-only.
+
+### 6.5 Generate Architecture Tests When Native Tests Exist
+
+When the target repo has a test suite, scaffolding must emit or instruct emitting architecture tests that enforce the generated layout. The reference pattern is Interralis `tests/integration/*_architecture.rs`:
+
+- coordinator files stay re-export-only or thin orchestration files
+- declared-pure files contain no filesystem, subprocess, environment, database, or network calls
+- side-effect calls live in files whose module doc declares an impure shell
+- no architecture test may use file size or line count as a criterion
+
 ### 7. Generate Implementation Guide
 
 Produce a markdown guide that coding agents consume:
@@ -190,17 +220,22 @@ Produce a markdown guide that coding agents consume:
 ## Implementation Guide for [Feature Name]
 
 ### Files to Implement (in order)
-1. `domain/entities/Widget.ts` — Define the Widget entity with validation
-2. `domain/repos/WidgetRepo.ts` — Port interface scaffold; verify method shape
-3. `server/adapters/PostgresWidgetRepo.ts` — Implement the adapter fully from the generated tests and pattern rules; no placeholder methods allowed
+1. `domain/entities/Widget.ts` — Responsibility: define the Widget entity with validation
+2. `domain/repos/WidgetRepo.ts` — Responsibility: declare the Widget persistence port
+3. `server/adapters/PostgresWidgetRepo.ts` — Responsibility: implement the Widget persistence adapter from generated tests and pattern rules
 4. `server/routes/WidgetRouter.ts` — Add endpoints per task [JIRA-124]
-5. `tests/widget.test.ts` — Run QA-generated tests after implementation
+5. `tests/widget_architecture.test.ts` — Enforce generated coordinator, pure-core, and impure-shell boundaries
+6. `tests/widget.test.ts` — Run QA-generated tests after implementation
 
 ### Pattern Rules
 - Domain layer MUST NOT import from server layer
 - Adapters MUST implement the full port interface
 - All errors MUST use typed errors from domain/errors/
 - All new dependencies MUST be injected, not imported directly
+- If any planned file grows sub-parts, split it into a directory module immediately and preserve one responsibility per file.
+- Coordinator files stay thin; worker logic moves into submodules.
+- Pure files contain no filesystem, subprocess, environment, database, or network calls.
+- File size and line count are never architecture criteria.
 
 ### Reference Implementations
 - Similar port: [file path]
@@ -287,11 +322,15 @@ adlc-scaffold guide --brief ./build-brief.md --repo ./my-repo --output ./impleme
 - [ ] Every adapter extends/implements its port correctly
 - [ ] Scaffolded files compile (type check passes)
 - [ ] Directory structure follows existing conventions
+- [ ] Every scaffolded source file has a one-line single-responsibility statement intended for its module doc
+- [ ] Recursive split rule is documented for any file that may grow sub-parts
 - [ ] Domain layer has no imports from infrastructure layer
 - [ ] Wiring/registration is generated if DI is used
 - [ ] Implementation guide references correct file paths
 - [ ] No generated scaffold is treated as complete work
 - [ ] Validation fails if scaffold artifacts remain at task completion
+- [ ] Architecture tests or explicit instructions enforce coordinator-thin, pure-core, and impure-shell boundaries when the repo has tests
+- [ ] No quality gate uses file size or line count
 
 ## Framework Hardening Addendum
 
