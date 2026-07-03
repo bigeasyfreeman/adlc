@@ -8,9 +8,9 @@ The shipped framework is intentionally evidence-bound: ADLC can propose, plan, q
 
 ```
 Signal Loop: repo/ticket/signal → candidate ranking → loop template → queue/worktree → verifier → human review
-Build Loop:  PRD → compound preflight → graph research → brief → council → scaffold → tests → code → QA → PR
-Fix Loop:    capture → confirm → investigate → fix → prove → council → PR
-Feedback:    human edits → diff capture → pattern distill → skill or memory update
+Build Loop:  PRD → compound preflight → graph research → conventions → brief → council → scaffold → tests → code → QA → PR hygiene → PR
+Fix Loop:    capture → confirm → investigate → conventions → fix → prove → council → PR hygiene → PR
+Feedback:    human edits + maintainer PR comments → diff capture → pattern distill → skill, convention, vocabulary, or memory update
 ```
 
 Works with Claude Code, Codex, Cursor, Antigravity, and Factory.
@@ -94,6 +94,7 @@ The shipped framework layers are:
 | Productionization Gate | Bounded production claim with Coverage State, evidence, rollback/observability/security posture, reliability risks, and No-Overclaim boundaries | Active when a task claims production support or production readiness |
 | Slop Quality Gate | Output-side benchmark, threshold, eval cases, and failure action for generated-output surfaces | Active when a task changes prompt/model/agent/generated content behavior |
 | Loop Contract | LLM action-loop contract: job, win condition, allowed tools, real feedback, required tests, progress, control channel, safe checkpoint, independent truth, escalation, and optional `budget_guard` evidence | Active when a task delegates decisions, tool use, test selection, retry/repair, escalation, or maturity claims to an LLM loop |
+| Target Repo Conventions | `repo_conventions`, product vocabulary, structural convention scans, explicit waivers, and PR hygiene checks | Extracted before Build Brief planning; consumed by context assembly, LDD, DoD, Eval Council, and PR closeout |
 
 The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, retry caps, workflow state, compound context, readiness gates, test-strength checks, Loop Contract admission gates, and execution-backed required-test evidence when `loop-test-result` artifacts are supplied. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, failure handling, or budget evidence. Missing, stale, warning, alert, or exhausted `budget_status` blocks `self_autonomous`; healthy local budget evidence is necessary but not sufficient. Tag-only Loop Contract coverage is intentionally capped below robust.
 
@@ -107,6 +108,7 @@ What is automatic today:
 - deterministic `loop-budget-check` CLI/MCP budget guard for LLM-backed Loop Actions
 - strict Loop Contract required-test proof through `docs/schemas/loop-test-result.schema.json` and `loop-test-selection --require-test-results`
 - schema-backed work queue status, task claims, completion/block/escalation state, dirty-checks, file-overlap checks, and worktree prepare/status/cleanup dry-runs
+- target-repo convention extraction, structural convention scans, and PR hygiene scans for pipeline artifacts, banned internal tokens, local paths, removed gates, and undocumented stacked bases
 - evidence-backed architecture memory writes, memory-health stale/overclaim/duplicate primitive checks, and champion/holdout promotion gates for prompt or skill changes
 - packaged assisted-loop template inspection and install plans through `loop-library` and `loop-template-install`
 - bounded self-actioning task selection and execution planning through `meta-harness-plan`
@@ -138,17 +140,20 @@ to an LLM-driven loop. Inactive overlays are skipped or recorded as explicit
 no-ops; they are not filler sections every task must satisfy.
 `compound_preflight` also no-ops explicitly when `docs/solutions` or
 `graphify-out` is missing, so new repos do not pay setup tax before research.
+Target-repo conventions are extracted before Build Brief decomposition,
+inlined into codegen context, checked in LDD/DoD, audited by Eval Council, and
+verified again during PR hygiene closeout.
 
 ### Fix Loop (parallel)
 
 ```
-error_capture → confirm → investigate → fix → prove → light_council → pr
+error_capture → confirm → investigate → conventions → fix → prove → light_council → pr_hygiene → pr
 ```
 
 ### Feedback Loop (nightly)
 
 ```
-human_edits → diff_capture → pattern_distill → skill_update
+human_edits + maintainer_pr_comments → diff_capture → pattern_distill → skill_update + repo_conventions
 ```
 
 Agent nodes are LLM calls with injected skills. Tool nodes are shell commands. Zero tokens. Fan-out runs coding tasks in parallel. Human gate is you at the end.
@@ -193,6 +198,9 @@ bin/adlc list-phases --json
 bin/adlc health-check --json
 bin/adlc ci --json
 bin/adlc validate-artifact --schema build-brief --input .adlc/build_brief.json --json
+bin/adlc repo-conventions --workspace . --output .adlc/repo_conventions.json --json
+bin/adlc convention-scan --workspace . --file src/lib.rs --json
+bin/adlc pr-hygiene-scan --workspace . --build-brief .adlc/build_brief.json --base origin/main --base-branch feature --default-branch main --dependency PR-123 --json
 bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase context_assembly --build-brief .adlc/build_brief.json --workspace . --json
@@ -382,11 +390,12 @@ adlc/
 5. **Fan-out by default.** Serial execution of independent work is a velocity bug.
 6. **Cap every loop.** Runaway agents cost more than asking a human.
 7. **Zero-read.** Coding agents get everything inlined. No searching. No guessing.
-8. **One human gate.** Machines catch structure. You catch judgment.
-9. **Bring your own agent.** Claude, Codex, Cursor, Antigravity, Factory. Skills don't care.
-10. **Composable.** Swap work-item or document emitters without changing the Build Brief task schema.
-11. **Security baked in, not bolted on.** STRIDE and OWASP activate when the task touches a real security surface.
-12. **BLE-compliant.** Specify outcomes, not procedures. Design for removal as models improve.
+8. **Target repo conventions travel with the work.** Planning extracts them, codegen receives them, LDD/DoD scans them, and PR hygiene proves they did not leak ADLC artifacts.
+9. **One human gate.** Machines catch structure. You catch judgment.
+10. **Bring your own agent.** Claude, Codex, Cursor, Antigravity, Factory. Skills don't care.
+11. **Composable.** Swap work-item or document emitters without changing the Build Brief task schema.
+12. **Security baked in, not bolted on.** STRIDE and OWASP activate when the task touches a real security surface.
+13. **BLE-compliant.** Specify outcomes, not procedures. Design for removal as models improve.
 
 ## Docs
 

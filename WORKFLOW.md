@@ -155,12 +155,13 @@ scaffold:
 context_assembly:
   command: |
     bin/adlc run-phase context_assembly --workspace "${WORKSPACE:-.}" --build-brief "${BUILD_BRIEF:?}" --json
-    # Emits per-task context packages with queue, worktree, tracker, verifier, and contract refs.
+    # Emits per-task context packages with queue, worktree, tracker, verifier, repo_conventions, product_vocabulary, and contract refs.
 
 qa:
   command: |
     bin/adlc run-phase qa --workspace "${WORKSPACE:-.}" --json
     # Verifier commands come from --verifier, Build Brief verification_spec, or TEST_COMMAND/LINT_COMMAND/BUILD_COMMAND.
+    # Target-repo structural checks run with bin/adlc convention-scan when repo_conventions.status == extracted.
 
 slop_gate:
   command: |
@@ -172,12 +173,18 @@ learning_capture:
     # Write mode requires verified reusable learning candidates, redaction evidence, action admission, and validation.
 ```
 
+PR closeout also runs `bin/adlc pr-hygiene-scan` before publish. The scan blocks
+goal prompts, Build Brief drafts, council scratch artifacts, absolute local
+paths, banned internal vocabulary, removed target-repo gates, and undocumented
+stacked PR bases.
+
 ### Fan-Out Configuration
 
 The `code` node fans out across tasks. Each task gets:
 - Its own assembled context (from `context_assembly`)
 - Its own workspace branch
 - TDD enforcement: RED → GREEN → REFACTOR per G/W/T criterion
+- Target repo `repo_conventions` and `product_vocabulary` inlined into its context package
 
 ```yaml
 code:

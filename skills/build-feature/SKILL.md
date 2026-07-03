@@ -20,18 +20,31 @@ This orchestration skill chains core ADLC skills into the complete Build Loop se
 ```
 Step 1: PRD (fork — interactive)
 Step 2: Build Brief + repo conventions + product vocabulary + scalable-code primitives
-Step 3: Eval Council (HEAVY)  ←── revision loop (max 3)
+Step 3: Eval Council (HEAVY, convention-aware decomposition check)  ←── revision loop (max 3)
 Step 4: Scaffold (if needed)
 Step 5: Codegen Context Assembly (repo conventions become hard constraints)
 Step 6: Per-task execution (parallel where independent):
-  6a: LDD gate
+  6a: LDD gate + structural convention scan
   6b: Verifier-led TDD mode by task class
   6c: Implementation
-Step 7: Definition of Done verification
-Step 8: Eval Council (HEAVY — post-execution)  ←── revision loop (max 3)
+Step 7: Definition of Done verification, including repo-convention items
+Step 8: Eval Council (HEAVY — post-execution, includes Convention Auditor)  ←── revision loop (max 3)
 Step 9: Stop Slop + PR hygiene scan
 Step 10: Create PR from default branch unless a dependency is documented
 ```
+
+Convention flow map:
+
+| Step | Convention Contract |
+|------|---------------------|
+| 2 | Ingest target repo `repo_conventions` and `product_vocabulary` before decomposition. |
+| 3 | Council audits planned task/file boundaries against extracted conventions. |
+| 5 | Context assembly inlines conventions as hard constraints for each task package. |
+| 6a | LDD runs structural convention scans; file size and line count are not split criteria. |
+| 7 | Definition of Done includes active repo-convention checks and explicit waivers. |
+| 8 | Post-execution council audits implementation against the same convention evidence. |
+| 9 | PR hygiene scans for ADLC artifacts, banned vocabulary, local paths, removed gates, and undocumented stacked bases. |
+| 10 | PR creation uses the default branch unless a real code dependency is documented. |
 
 ### Step 1: PRD Agent
 - **Skill:** `prd-generation`

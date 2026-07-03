@@ -71,6 +71,26 @@ labels: [lgtm, revise]
 3. Visualize: `dot -Tpng WORKFLOW.dot -o pipeline.png`
 4. Update `README.md` if the pipeline structure changed
 
+## Target Repo Conventions
+
+ADLC treats every target repository as a standards source. Any ADLC change that
+affects planning, decomposition, codegen, QA, review, or PR closeout must
+preserve the target repo convention contract:
+
+1. Build Briefs carry top-level `repo_conventions` and `product_vocabulary`.
+2. Missing convention docs are represented explicitly with
+   `repo_conventions.status = "none_found"` and
+   `explicit_empty_marker = "no_conventions_found"`.
+3. New or changed skills that touch target-repo work must consume
+   `repo_conventions` where relevant instead of inventing local convention
+   prompts.
+4. Codegen context must carry every extracted rule and every banned vocabulary
+   token into task packages.
+5. Structural gates must not use file size, line count, or SLOC as a split or
+   quality criterion.
+6. PRs must run `bin/adlc pr-hygiene-scan` and keep ADLC goal prompts, Build
+   Brief drafts, council scratch artifacts, and local paths out of target diffs.
+
 ## Code Style
 
 - Agent configs: YAML frontmatter + concise markdown
