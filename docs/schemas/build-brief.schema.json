@@ -454,6 +454,31 @@
               }
             }
           }
+        },
+        "waivers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "rule",
+              "reason"
+            ],
+            "properties": {
+              "rule": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       },
       "allOf": [
