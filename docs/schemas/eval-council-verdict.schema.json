@@ -58,7 +58,8 @@
               "executioner",
               "first_principles",
               "security_auditor",
-              "convention_auditor"
+              "convention_auditor",
+              "over_engineering_minimalist"
             ]
           },
           "verdict": {

@@ -85,6 +85,18 @@ Failure mode: if the PRD does not contain enough user-outcome language to popula
 
 The narrative contract is the human-readable surface of the Build Brief. Everything below it (Scalable AI Code Primitives, Implementation Interface Contracts, Productionization Gates, Loop Contracts, Slop Quality Gates) is agent-readable contract data. Both audiences are served by the same brief.
 
+## Ponytail Minimality Contract
+
+For every executable task, decide minimality once during decomposition and emit exactly:
+
+```json
+{ "rung": "reuse_existing | stdlib | native_platform | installed_dependency | minimum_code", "decision": "one-line settled decision" }
+```
+
+Do not duplicate reuse-analysis evidence inside the contract. Cite reuse-analysis output through the normal evidence refs when needed.
+
+Precedence: `repo_conventions` and `module_plan` govern file and module structure. Ponytail governs behavior scope, dependency additions, and speculative abstraction. A convention-required directory module, coordinator, `types` file, or pure/impure split is not over-engineering.
+
 ### Voice Contract (NON-NEGOTIABLE for the four narrative fields)
 
 The narrative is written in the founder's voice, not generic AI voice. Canonical source: `magnus/config/eric-voice-profile.md` and `magnus/config/magnus-brand-foundation.md`. The rules below are inlined for portability; the Magnus files are the source of truth where they conflict.

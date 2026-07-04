@@ -773,6 +773,7 @@ def context_packages_for_brief(
                     "module_plan": module_plan,
                     "module_plan_source": module_plan_source,
                     "task_sizing": task.get("task_sizing"),
+                    "minimality_contract": task.get("minimality_contract"),
                     "paved_road_pattern": paved_road_pattern_context(matched_pattern),
                     "repo_conventions": brief.get("repo_conventions"),
                     "product_vocabulary": brief.get("product_vocabulary"),
@@ -6807,6 +6808,231 @@ def has_nonempty_list(value: Any) -> bool:
     return isinstance(value, list) and len(value) > 0
 
 
+PONYTAIL_RUNGS = {
+    "does_not_need_to_exist",
+    "reuse_existing",
+    "stdlib",
+    "native_platform",
+    "installed_dependency",
+    "minimum_code",
+}
+
+PONYTAIL_STRUCTURAL_CONFLICT_RE = re.compile(
+    r"\b(single file|one file|avoid files?|skip files?|no split|avoid split|no coordinator|no types file|over-?engineer(?:ed|ing)? files?)\b",
+    re.IGNORECASE,
+)
+
+DEPENDENCY_MANIFEST_NAMES = {
+    "cargo.toml",
+    "cargo.lock",
+    "go.mod",
+    "go.sum",
+    "gemfile",
+    "gemfile.lock",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "poetry.lock",
+    "pyproject.toml",
+    "requirements.txt",
+    "requirements-dev.txt",
+    "uv.lock",
+    "yarn.lock",
+}
+
+ANATOMY_REMOVAL_PATTERNS = {
+    "input_validation": re.compile(r"(?:\b(?:validate|validation|sanitize|schema|required|type check|trust boundary|user input)\b|validate_)", re.IGNORECASE),
+    "error_handling": re.compile(r"\b(except|catch|raise|error|rollback|return err|result<|try:|finally)\b", re.IGNORECASE),
+    "security": re.compile(r"\b(auth|csrf|xss|encrypt|decrypt|secret|token|permission|capability|redact|sanitize)\b", re.IGNORECASE),
+    "accessibility": re.compile(r"\b(aria-|alt=|role=|tabindex|accessib|screen reader|label for=)\b", re.IGNORECASE),
+}
+
+
+def ponytail_issue(task: Dict[str, Any], rule: str, message: str) -> Dict[str, Any]:
+    return {
+        "severity": "blocking",
+        "rule": rule,
+        "task_id": str(task.get("task_id") or "<unknown>"),
+        "message": message,
+    }
+
+
+def ponytail_contract_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not task_executable(task):
+        return []
+
+    contract = task.get("minimality_contract")
+    if not isinstance(contract, dict):
+        return [
+            ponytail_issue(
+                task,
+                "missing_minimality_contract",
+                "executable tasks must carry minimality_contract with rung and one-line decision",
+            )
+        ]
+
+    issues: List[Dict[str, Any]] = []
+    if contract.get("rung") not in PONYTAIL_RUNGS:
+        issues.append(ponytail_issue(task, "missing_ponytail_rung", "minimality_contract.rung must identify the settled Ponytail ladder rung"))
+    decision = contract.get("decision")
+    if not isinstance(decision, str) or not decision.strip():
+        issues.append(ponytail_issue(task, "missing_ponytail_decision", "minimality_contract.decision must be a one-line settled decomposition decision"))
+    return issues
+
+
+def minimality_structure_precedence_issues_for_task(task: Dict[str, Any], plan: Dict[str, Any] | None) -> List[Dict[str, Any]]:
+    if not task_executable(task) or not isinstance(plan, dict) or plan.get("applicability") != "required":
+        return []
+    contract = task.get("minimality_contract")
+    if not isinstance(contract, dict):
+        return []
+    files = plan.get("files")
+    if not isinstance(files, list) or len(files) <= 1:
+        return []
+    decision = str(contract.get("decision") or "")
+    if not PONYTAIL_STRUCTURAL_CONFLICT_RE.search(decision):
+        return []
+    return [
+        ponytail_issue(
+            task,
+            "minimality_structural_precedence_violation",
+            "repo_conventions and module_plan govern required file/module structure; minimality may not skip a conventions-mandated structural split",
+        )
+    ]
+
+
+def unified_diff_entries(diff_text: str) -> List[Dict[str, Any]]:
+    entries: List[Dict[str, Any]] = []
+    old_path = ""
+    new_path = ""
+    old_line = 0
+    new_line = 0
+    for raw_line in diff_text.splitlines():
+        if raw_line.startswith("--- "):
+            old_path = raw_line[4:].strip()
+            if old_path.startswith("a/"):
+                old_path = old_path[2:]
+            continue
+        if raw_line.startswith("+++ "):
+            new_path = raw_line[4:].strip()
+            if new_path.startswith("b/"):
+                new_path = new_path[2:]
+            continue
+        if raw_line.startswith("@@"):
+            match = re.search(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", raw_line)
+            if match:
+                old_line = int(match.group(1))
+                new_line = int(match.group(2))
+            continue
+        if raw_line.startswith("+") and not raw_line.startswith("+++"):
+            entries.append({"kind": "added", "path": new_path, "line": new_line, "text": raw_line[1:]})
+            new_line += 1
+            continue
+        if raw_line.startswith("-") and not raw_line.startswith("---"):
+            entries.append({"kind": "removed", "path": old_path or new_path, "line": old_line, "text": raw_line[1:]})
+            old_line += 1
+            continue
+        if raw_line.startswith(" "):
+            old_line += 1
+            new_line += 1
+    return entries
+
+
+def dependency_manifest_path(path: str) -> bool:
+    name = Path(path).name.lower()
+    if name in DEPENDENCY_MANIFEST_NAMES:
+        return True
+    return name.startswith("requirements") and name.endswith(".txt")
+
+
+def dependency_addition_line(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped or stripped.startswith(("#", "//")):
+        return False
+    if stripped in {"[dependencies]", "[dev-dependencies]", "[tool.poetry.dependencies]"}:
+        return False
+    return bool(re.search(r"[A-Za-z0-9_.-]", stripped))
+
+
+def mechanical_issue(rule: str, message: str, path: str, line: int, category: str, approval_ref: str | None = None, waiver_ref: str | None = None) -> Dict[str, Any]:
+    issue = {
+        "severity": "blocking",
+        "rule": rule,
+        "task_id": "<diff>",
+        "message": message,
+        "path": path,
+        "line": line,
+        "category": category,
+    }
+    if approval_ref:
+        issue["approval_ref"] = approval_ref
+    if waiver_ref:
+        issue["waiver_ref"] = waiver_ref
+    return issue
+
+
+def dependency_diff_gate(entries: List[Dict[str, Any]], approval_refs: List[str]) -> Dict[str, Any]:
+    findings: List[Dict[str, Any]] = []
+    approved = bool([ref for ref in approval_refs if str(ref).strip()])
+    for entry in entries:
+        if entry["kind"] != "added" or not dependency_manifest_path(entry["path"]):
+            continue
+        if not dependency_addition_line(entry["text"]):
+            continue
+        if not approved:
+            findings.append(
+                mechanical_issue(
+                    "unapproved_dependency_diff",
+                    "dependency manifest or lockfile additions require an approval ref",
+                    entry["path"],
+                    int(entry["line"]),
+                    "dependency_diff",
+                )
+            )
+    return {"status": "blocked" if findings else "pass", "findings": findings}
+
+
+def anatomy_waiver_map(raw_waivers: List[str]) -> Dict[str, str]:
+    result: Dict[str, str] = {}
+    for raw in raw_waivers:
+        if not isinstance(raw, str) or ":" not in raw:
+            continue
+        key, ref = raw.split(":", 1)
+        key = key.strip()
+        ref = ref.strip()
+        if key and ref:
+            result[key] = ref
+    return result
+
+
+def diff_anatomy_gate(entries: List[Dict[str, Any]], waivers: List[str]) -> Tuple[Dict[str, Any], int]:
+    waiver_refs = anatomy_waiver_map(waivers)
+    findings: List[Dict[str, Any]] = []
+    waived = 0
+    for entry in entries:
+        if entry["kind"] != "removed":
+            continue
+        text = str(entry["text"] or "")
+        for category, pattern in ANATOMY_REMOVAL_PATTERNS.items():
+            if not pattern.search(text):
+                continue
+            rule = f"anatomy_removed_{category}"
+            waiver_ref = waiver_refs.get(rule) or waiver_refs.get(category)
+            if waiver_ref:
+                waived += 1
+                continue
+            findings.append(
+                mechanical_issue(
+                    rule,
+                    "final diff removes validation, error handling, security, or accessibility anatomy without a waiver",
+                    entry["path"],
+                    int(entry["line"]),
+                    category,
+                )
+            )
+    return {"status": "blocked" if findings else "pass", "findings": findings}, waived
+
+
 def task_has_generated_output_surface(task: Dict[str, Any]) -> bool:
     surface = task.get("generated_output_surface")
     if isinstance(surface, bool):
@@ -7561,6 +7787,7 @@ def module_plan_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
                 }
             )
 
+    issues.extend(minimality_structure_precedence_issues_for_task(task, plan))
     return issues
 
 
@@ -7818,6 +8045,345 @@ def command_module_plan_check(args: argparse.Namespace) -> int:
     return 0 if payload["status"] == "pass" else 1
 
 
+def ponytail_admission_payload(
+    brief_path: Path,
+    diff_path: Path | None = None,
+    dependency_approval_refs: List[str] | None = None,
+    anatomy_waivers: List[str] | None = None,
+) -> Dict[str, Any]:
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+
+    brief = read_json(brief_path)
+    tasks = build_brief_tasks(brief)
+    issues: List[Dict[str, Any]] = []
+    task_results: List[Dict[str, Any]] = []
+    for task in tasks:
+        task_issues = ponytail_contract_issues_for_task(task)
+        issues.extend(task_issues)
+        contract = task.get("minimality_contract")
+        if not task_executable(task):
+            status = "not_applicable"
+        elif task_issues:
+            status = "blocked"
+        else:
+            status = "pass"
+        task_results.append(
+            {
+                "task_id": str(task.get("task_id") or "<unknown>"),
+                "artifact_type": str(task.get("artifact_type") or "unknown"),
+                "executable": task_executable(task),
+                "status": status,
+                "minimality_contract": contract if isinstance(contract, dict) else None,
+                "issues": task_issues,
+            }
+        )
+
+    dependency_gate = {"status": "not_run", "findings": []}
+    anatomy_gate = {"status": "not_run", "findings": []}
+    waived_anatomy_findings = 0
+    if diff_path is not None:
+        diff_text = diff_path.read_text(encoding="utf-8")
+        entries = unified_diff_entries(diff_text)
+        dependency_gate = dependency_diff_gate(entries, dependency_approval_refs or [])
+        anatomy_gate, waived_anatomy_findings = diff_anatomy_gate(entries, anatomy_waivers or [])
+        issues.extend(dependency_gate["findings"])
+        issues.extend(anatomy_gate["findings"])
+
+    payload = {
+        "contract_version": "1.0.0",
+        "status": "blocked" if issues else "pass",
+        "build_brief_id": str(brief.get("brief_id") or "unknown"),
+        "input": rel_path(brief_path),
+        "tasks": task_results,
+        "issues": issues,
+        "mechanical_gates": {
+            "dependency_diff": dependency_gate,
+            "diff_anatomy": anatomy_gate,
+        },
+        "summary": {
+            "tasks": len(tasks),
+            "executable_tasks": sum(1 for task in tasks if task_executable(task)),
+            "passed": sum(1 for item in task_results if item["status"] in {"pass", "not_applicable"}),
+            "blocked": sum(1 for item in task_results if item["status"] == "blocked"),
+            "issues": len(issues),
+            "dependency_findings": len(dependency_gate["findings"]),
+            "anatomy_findings": len(anatomy_gate["findings"]),
+            "waived_anatomy_findings": waived_anatomy_findings,
+        },
+        "boundary": {
+            "does_not": [
+                "install the upstream Ponytail plugin",
+                "vendor third-party skill text",
+                "approve dependency additions without an approval ref",
+                "let minimality override repo_conventions or module_plan structure",
+            ]
+        },
+    }
+    report_errors = validate_artifact_payload(resolve_schema("ponytail-admission-report"), payload)
+    if report_errors:
+        raise ValueError("generated Ponytail admission report failed schema validation: " + "; ".join(report_errors))
+    return payload
+
+
+def command_ponytail_admit(args: argparse.Namespace) -> int:
+    try:
+        brief_path = resolve_input_path(args.build_brief, Path.cwd())
+        diff_path = resolve_input_path(args.diff_file, Path.cwd()) if args.diff_file else None
+        payload = ponytail_admission_payload(
+            brief_path,
+            diff_path,
+            dependency_approval_refs=getattr(args, "dependency_approval_ref", None) or [],
+            anatomy_waivers=getattr(args, "anatomy_waiver", None) or [],
+        )
+        if getattr(args, "output", None):
+            write_artifact(cli_input_path(args.output), payload, "ponytail-admission-report")
+    except (RuntimeError, ValueError, FileNotFoundError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"ponytail-admit: {payload['status']} ({payload['summary']['issues']} issue(s))")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def canary_script_line_count(source: str) -> int:
+    return len([line for line in source.splitlines() if line.strip()])
+
+
+def run_ponytail_canary_script(workspace: Path, variant: Dict[str, Any]) -> Dict[str, Any]:
+    script_path = workspace / variant["script"]
+    script_path.parent.mkdir(parents=True, exist_ok=True)
+    script_path.write_text(str(variant["code"]).rstrip() + "\n", encoding="utf-8")
+    command = [str(part).replace("{script}", str(script_path)) for part in variant.get("command", ["python3", "{script}"])]
+    started = monotonic()
+    result = subprocess.run(command, cwd=str(workspace), text=True, capture_output=True, check=False)
+    duration_ms = int((monotonic() - started) * 1000)
+    return {
+        "script": rel_path(script_path),
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip()[-2000:],
+        "duration_ms": duration_ms,
+        "lines_of_code": canary_script_line_count(str(variant["code"])),
+    }
+
+
+def canary_task_from_template(template: Dict[str, Any], scenario: Dict[str, Any], variant: Dict[str, Any], with_ponytail: bool) -> Dict[str, Any]:
+    task = json.loads(json.dumps(template))
+    scenario_id = str(scenario["scenario_id"])
+    task["task_id"] = scenario_id
+    task["artifact_type"] = "implementation_task"
+    task["task_classification"] = "feature"
+    task["title"] = str(scenario["task"])
+    task["objective"] = str(scenario["task"])
+    task["scope"] = [f"Build {variant['script']} for {scenario_id}."]
+    task["out_of_scope"] = ["Do not add packages, frameworks, or multi-file scaffolding for the canary."]
+    task["dependencies"] = []
+    task["acceptance_criteria"] = [f"{variant['script']} prints {scenario['expected_stdout']} for the supplied input."]
+    task["implementation_notes"] = [f"Ponytail scenario canary variant: {'with' if with_ponytail else 'without'}."]
+    task["verification_spec"]["primary_verifier"]["target"] = " ".join(str(part) for part in variant.get("command", ["python3", "{script}"]))
+    task["verification_spec"]["primary_verifier"]["target_files"] = [variant["script"]]
+    task["verification_spec"]["primary_verifier"]["expected_failure_mode"] = "script exits non-zero or stdout differs from expected_stdout"
+    task["verification_spec"]["primary_verifier"]["rationale"] = "Ponytail scenario canary executes the generated script and compares stdout."
+    task["verification_spec"]["scope_note"] = "Canary-generated script only; no repo mutation."
+    task["tech_debt_boundaries"] = {
+        "prerequisite_debt": "none",
+        "deferred_debt": "none",
+        "deferral_safety": "Canary scripts are written to an ephemeral temp workspace.",
+    }
+    task["compatibility_contract"] = {
+        "backward": "No external interface; canary is local and ephemeral.",
+        "forward": "The scenario fixture can add cases without changing the CLI contract.",
+        "migration_or_rollout": "No rollout; this is a deterministic local canary.",
+    }
+    task["evidence_responsibilities"] = ["ponytail-scenario-canary report"]
+    task["definition_of_done"] = ["Script exits 0, stdout matches expected, and ADLC readiness behaves as expected."]
+    task["failure_modes"] = ["wrong stdout", "readiness gate admits missing minimality contract"]
+    task["files_to_create"] = [variant["script"]]
+    task["files_to_modify"] = []
+    task["reference_impl"] = "tests/fixtures/ponytail/scenarios.json"
+    task["work_item_metadata"] = {
+        "area": "canary",
+        "area_label": "canary",
+        "phase_label": "ponytail",
+        "target_project": "adlc",
+        "labels": ["ponytail", "minimality", "canary"],
+        "external_refs": [scenario_id],
+    }
+    command = " ".join(str(part) for part in variant.get("command", ["python3", "{script}"])).replace("{script}", variant["script"])
+    task["module_plan"] = {
+        "applicability": "required",
+        "reason": "Canary creates one ephemeral script as the full planned file-set.",
+        "files": [
+            {
+                "path": variant["script"],
+                "responsibility": "Implement the deterministic Ponytail scenario script",
+                "purity": "pure",
+                "capabilities": ["compute"],
+            }
+        ],
+        "architecture_test": {
+            "test_path": variant["script"],
+            "command": command,
+            "assertions": ["the canary script remains a single planned file"],
+            "write_first": True,
+        },
+    }
+    task["task_sizing"] = {
+        "applicability": "required",
+        "reason": "Canary implementation is one planned script file.",
+        "basis": ["module_plan", "coherent_file_set"],
+        "change_surface": {
+            "surface_kind": "single_module",
+            "primary_module": variant["script"],
+            "touched_modules": [variant["script"]],
+            "touched_files": [variant["script"]],
+            "coherence": "The canary script is the complete implementation surface.",
+        },
+        "split_decision": {
+            "required": False,
+            "rationale": "Splitting the canary script would add scaffolding without a verifier need.",
+        },
+    }
+    task["honesty_contract"] = {"applicability": "not_applicable", "reason": "Canary emits no external claims."}
+    task["performance_envelope"] = {"applicability": "not_applicable", "reason": "Canary has no data path or benchmarkable production surface."}
+    if with_ponytail:
+        task["minimality_contract"] = variant["minimality_contract"]
+    else:
+        task.pop("minimality_contract", None)
+    return task
+
+
+def canary_brief_from_scenario(base_brief: Dict[str, Any], scenario: Dict[str, Any], variant: Dict[str, Any], with_ponytail: bool) -> Dict[str, Any]:
+    brief = json.loads(json.dumps(base_brief))
+    template = next(task for task in build_brief_tasks(brief) if task.get("artifact_type") == "implementation_task")
+    task = canary_task_from_template(template, scenario, variant, with_ponytail)
+    brief["brief_id"] = f"PONYTAIL-CANARY-{scenario['scenario_id']}"
+    brief["prd_id"] = f"PONYTAIL-CANARY-{scenario['scenario_id']}"
+    brief["adlc_mode"] = "prd_only"
+    brief["enterprise_readiness_contract"]["validation_tasks"] = []
+    brief["sections"]["1_context"] = f"Ponytail scenario canary: {scenario['task']}"
+    brief["sections"]["8_task_tickets"] = [task]
+    return brief
+
+
+def canary_readiness_for_brief(brief: Dict[str, Any], brief_path: Path, target: str = "linear") -> Tuple[Dict[str, Any], bool]:
+    tasks = build_brief_tasks(brief)
+    readiness = compute_readiness_report(brief, tasks, phase_project_map=None)
+    ticket_inherits = False
+    if readiness["status"] == "ready":
+        payload = normalized_work_item_payload(brief_path, target)
+        ticket_inherits = any(isinstance(artifact.get("minimality_contract"), dict) for artifact in payload.get("artifacts", []))
+    return readiness, ticket_inherits
+
+
+def ponytail_scenario_canary_payload(input_path: Path) -> Dict[str, Any]:
+    scenario_set = read_json(input_path)
+    scenarios = scenario_set.get("scenarios", []) if isinstance(scenario_set, dict) else []
+    base_brief_path = ROOT / "tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json"
+    base_brief = read_json(base_brief_path)
+    scenario_results: List[Dict[str, Any]] = []
+
+    with tempfile.TemporaryDirectory(prefix="adlc-ponytail-canary-") as raw_tmp:
+        workspace = Path(raw_tmp)
+        for scenario in scenarios:
+            without_variant = scenario["without_ponytail"]
+            with_variant = scenario["with_ponytail"]
+            without_script = run_ponytail_canary_script(workspace / "without", without_variant)
+            with_script = run_ponytail_canary_script(workspace / "with", with_variant)
+            without_brief = canary_brief_from_scenario(base_brief, scenario, without_variant, with_ponytail=False)
+            with_brief = canary_brief_from_scenario(base_brief, scenario, with_variant, with_ponytail=True)
+            without_brief_path = workspace / f"{scenario['scenario_id']}-without-build-brief.json"
+            with_brief_path = workspace / f"{scenario['scenario_id']}-with-build-brief.json"
+            without_brief_path.write_text(json.dumps(without_brief, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            with_brief_path.write_text(json.dumps(with_brief, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+            without_readiness, without_ticket_inherits = canary_readiness_for_brief(without_brief, without_brief_path)
+            with_readiness, with_ticket_inherits = canary_readiness_for_brief(with_brief, with_brief_path)
+            expected = str(scenario["expected_stdout"])
+            scripts_pass = (
+                without_script["exit_code"] == 0
+                and with_script["exit_code"] == 0
+                and without_script["stdout"] == expected
+                and with_script["stdout"] == expected
+            )
+            readiness_pass = without_readiness["status"] == "blocked" and with_readiness["status"] == "ready" and with_ticket_inherits
+            smaller_or_equal = with_script["lines_of_code"] <= without_script["lines_of_code"]
+            result = "pass" if scripts_pass and readiness_pass and smaller_or_equal else "blocked"
+            scenario_results.append(
+                {
+                    "scenario_id": str(scenario["scenario_id"]),
+                    "task": str(scenario["task"]),
+                    "without_ponytail": {
+                        "script": without_script["script"],
+                        "exit_code": without_script["exit_code"],
+                        "stdout": without_script["stdout"],
+                        "lines_of_code": without_script["lines_of_code"],
+                        "adlc_ready": without_readiness["status"] == "ready",
+                        "readiness_issues": [issue["rule"] for issue in without_readiness.get("issues", [])],
+                        "ticket_inherits_minimality_contract": without_ticket_inherits,
+                    },
+                    "with_ponytail": {
+                        "script": with_script["script"],
+                        "exit_code": with_script["exit_code"],
+                        "stdout": with_script["stdout"],
+                        "lines_of_code": with_script["lines_of_code"],
+                        "adlc_ready": with_readiness["status"] == "ready",
+                        "readiness_issues": [issue["rule"] for issue in with_readiness.get("issues", [])],
+                        "ticket_inherits_minimality_contract": with_ticket_inherits,
+                    },
+                    "result": result,
+                }
+            )
+
+    payload = {
+        "contract_version": "1.0.0",
+        "status": "blocked" if any(item["result"] != "pass" for item in scenario_results) else "pass",
+        "scenario_set_id": str(scenario_set.get("scenario_set_id") or "ponytail-scenarios"),
+        "input": rel_path(input_path),
+        "scenarios": scenario_results,
+        "summary": {
+            "scenarios": len(scenario_results),
+            "passed": sum(1 for item in scenario_results if item["result"] == "pass"),
+            "blocked": sum(1 for item in scenario_results if item["result"] != "pass"),
+            "without_ponytail_ready": sum(1 for item in scenario_results if item["without_ponytail"]["adlc_ready"]),
+            "with_ponytail_ready": sum(1 for item in scenario_results if item["with_ponytail"]["adlc_ready"]),
+            "scripts_passed": sum(1 for item in scenario_results if item["without_ponytail"]["exit_code"] == 0 and item["with_ponytail"]["exit_code"] == 0),
+        },
+        "boundary": {
+            "does_not": [
+                "mutate the source checkout",
+                "install dependencies",
+                "dispatch agents",
+                "call external model providers",
+            ]
+        },
+    }
+    report_errors = validate_artifact_payload(resolve_schema("ponytail-scenario-canary-report"), payload)
+    if report_errors:
+        raise ValueError("generated Ponytail scenario canary report failed schema validation: " + "; ".join(report_errors))
+    return payload
+
+
+def command_ponytail_scenario_canary(args: argparse.Namespace) -> int:
+    try:
+        input_path = cli_input_path(args.input or "tests/fixtures/ponytail/scenarios.json")
+        payload = ponytail_scenario_canary_payload(input_path)
+        if getattr(args, "output", None):
+            write_artifact(cli_input_path(args.output), payload, "ponytail-scenario-canary-report")
+    except (RuntimeError, ValueError, FileNotFoundError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"ponytail-scenario-canary: {payload['status']} ({payload['summary']['passed']}/{payload['summary']['scenarios']} passed)")
+    return 0 if payload["status"] == "pass" else 1
+
+
 def paved_road_patterns_payload(pattern_id: str | None = None) -> Dict[str, Any]:
     registry_path = paved_road_pattern_registry_path()
     errors = validate_artifact(resolve_schema("paved-road-pattern-registry"), registry_path)
@@ -8044,6 +8610,7 @@ def compute_readiness_report(
             issues.extend(performance_envelope_issues_for_task(task))
             issues.extend(module_plan_issues_for_task(task))
             issues.extend(task_sizing_issues_for_task(task))
+            issues.extend(ponytail_contract_issues_for_task(task))
 
     if phase_project_map:
         for task in tasks:
@@ -8143,6 +8710,7 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "module_plan": module_plan,
             "module_plan_source": module_plan_source,
             "task_sizing": task.get("task_sizing"),
+            "minimality_contract": task.get("minimality_contract"),
             "paved_road_pattern": paved_road_pattern_context(matched_pattern),
             "tech_debt_boundaries": task.get("tech_debt_boundaries"),
             "compatibility_contract": task.get("compatibility_contract"),
@@ -10853,6 +11421,34 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("ponytail-admit"),
+            "description": command_description("ponytail-admit"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "diff_file": {"type": "string", "minLength": 1},
+                    "dependency_approval_ref": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "anatomy_waiver": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("ponytail-scenario-canary"),
+            "description": command_description("ponytail-scenario-canary"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("pr-hygiene-scan"),
             "description": command_description("pr-hygiene-scan"),
             "inputSchema": {
@@ -11592,6 +12188,26 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         pattern_id = arguments.get("pattern_id")
         payload = paved_road_patterns_payload(pattern_id if isinstance(pattern_id, str) else None)
         return tool_result(payload)
+    if name == "adlc_ponytail_admit":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_ponytail_admit requires build_brief")
+        diff_file = arguments.get("diff_file")
+        payload = ponytail_admission_payload(
+            resolve_input_path(build_brief, Path.cwd()),
+            resolve_input_path(diff_file, Path.cwd()) if isinstance(diff_file, str) else None,
+            dependency_approval_refs=arguments.get("dependency_approval_ref") if isinstance(arguments.get("dependency_approval_ref"), list) else [],
+            anatomy_waivers=arguments.get("anatomy_waiver") if isinstance(arguments.get("anatomy_waiver"), list) else [],
+        )
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload, "ponytail-admission-report")
+        return tool_result(payload, is_error=payload.get("status") != "pass")
+    if name == "adlc_ponytail_scenario_canary":
+        input_path = cli_input_path(arguments.get("input") if isinstance(arguments.get("input"), str) else "tests/fixtures/ponytail/scenarios.json")
+        payload = ponytail_scenario_canary_payload(input_path)
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload, "ponytail-scenario-canary-report")
+        return tool_result(payload, is_error=payload.get("status") != "pass")
     if name == "adlc_pr_hygiene_scan":
         args = argparse.Namespace(
             workspace=arguments.get("workspace"),
@@ -12206,6 +12822,21 @@ def build_parser() -> argparse.ArgumentParser:
     paved_road_patterns.add_argument("--pattern-id", help="Inspect one structural paved-road pattern by ID.")
     paved_road_patterns.add_argument("--json", action="store_true", help="Emit JSON.")
     paved_road_patterns.set_defaults(func=command_paved_road_patterns)
+
+    ponytail_admit = subparsers.add_parser("ponytail-admit", help=command_description("ponytail-admit"))
+    ponytail_admit.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
+    ponytail_admit.add_argument("--diff-file", help="Optional unified diff file for dependency and anatomy gates.")
+    ponytail_admit.add_argument("--dependency-approval-ref", action="append", help="Approval ref for dependency manifest or lockfile additions. Can be passed multiple times.")
+    ponytail_admit.add_argument("--anatomy-waiver", action="append", help="Diff anatomy waiver in category:ref or rule:ref form. Can be passed multiple times.")
+    ponytail_admit.add_argument("--output", help="Optional Ponytail admission report path.")
+    ponytail_admit.add_argument("--json", action="store_true", help="Emit JSON.")
+    ponytail_admit.set_defaults(func=command_ponytail_admit)
+
+    ponytail_canary = subparsers.add_parser("ponytail-scenario-canary", help=command_description("ponytail-scenario-canary"))
+    ponytail_canary.add_argument("--input", help="Ponytail scenario fixture path. Defaults to tests/fixtures/ponytail/scenarios.json.")
+    ponytail_canary.add_argument("--output", help="Optional Ponytail scenario canary report path.")
+    ponytail_canary.add_argument("--json", action="store_true", help="Emit JSON.")
+    ponytail_canary.set_defaults(func=command_ponytail_scenario_canary)
 
     pr_hygiene = subparsers.add_parser("pr-hygiene-scan", help=command_description("pr-hygiene-scan"))
     pr_hygiene.add_argument("--workspace", help="Target repository root. Defaults to cwd.")

@@ -408,6 +408,9 @@ Emitters must stop with one of:
 - `missing_honesty_contract`
 - `missing_performance_envelope`
 - `missing_task_sizing`
+- `missing_minimality_contract`
+- `missing_ponytail_rung`
+- `missing_ponytail_decision`
 - `task_sizing_split_required`
 - `task_sizing_broad_surface`
 - `missing_benchmark_evidence`
@@ -418,6 +421,6 @@ Emitters must stop with one of:
 
 ## Verification Expectations
 
-- Work-item emitters are verified by artifact template completeness, artifact taxonomy preservation, decision-gate blocking semantics, automatic validation task preservation, honesty-contract preservation, performance-envelope preservation, benchmark-results preservation, and field preservation.
+- Work-item emitters are verified by artifact template completeness, artifact taxonomy preservation, decision-gate blocking semantics, automatic validation task preservation, honesty-contract preservation, performance-envelope preservation, minimality-contract preservation, benchmark-results preservation, and field preservation.
 - Document emitters are verified by section coverage, hierarchy correctness, doc honesty section preservation, and applicability-manifest fidelity.
 - No emitter may pass by publishing placeholder titles, empty sections, tickets lacking verifier contracts, or artifacts that drop reuse/debt constraints from the brief.

@@ -22,6 +22,7 @@ You review code produced by coding agents. Catch correctness and comprehension i
 **Scalable code primitives** — Medium+ blast-radius changes cite construct-map refs, follow paved-road refs or justify `no_paved_road_found`, preserve intent, preserve Implementation Interface semantics, and cover relevant production invariants.
 **Productionization gate** — Production support claims stay inside the task's Coverage State, validation evidence, rollback/observability posture, security/privacy posture, reliability failure modes, and No-Overclaim boundaries.
 **Slop quality gate** — Generated-output changes carry benchmark cases, metrics, threshold, regression tolerance when available, and failure promotion evidence.
+**Ponytail minimality** — Executable tasks carry the settled `minimality_contract.rung` and one-line `decision`; diffs add no unapproved dependency and remove no validation, error-handling, security, or accessibility anatomy without a waiver.
 **Target repo conventions** — Changed files obey extracted `repo_conventions`, convention evidence cites file/line ranges, and explicit waivers cite file/rule/reason.
 
 ## Comprehension Gate
@@ -41,6 +42,9 @@ Run `comprehension-gate` after the normal review checklist.
 - If `slop_quality_gate.applicability = required` but eval cases, metrics, threshold, or failure action are missing, return `revise` with the missing field named.
 - If the slop score is below threshold or regresses beyond the stated tolerance without captured human approval, return `revise`.
 - If a human edit, council rejection, runtime failure, or production sample exposed slop and no candidate eval case was recorded, return `revise` with reason `missing_slop_case_promotion`.
+- If an executable task lacks `minimality_contract`, return `revise` with reason `missing_minimality_contract`.
+- If the diff adds a dependency without `ponytail-admit --dependency-approval-ref`, return `revise` with reason `unapproved_dependency_diff`.
+- If the diff removes validation, error-handling, security, or accessibility anatomy without `ponytail-admit --anatomy-waiver`, return `revise` with the `anatomy_removed_*` reason.
 - If `repo_conventions.status = extracted` and convention evidence is missing for changed files, return `revise` with reason `missing_repo_convention_evidence`.
 - If a convention waiver lacks file, rule, and reason, return `revise` with reason `silent_convention_waiver`.
 - If the comprehension verdict is `HOLD`, return `revise` even when tests pass.

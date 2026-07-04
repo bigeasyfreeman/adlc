@@ -288,6 +288,23 @@ Missing or weak convention inputs return:
 
 Do not accept file-size, line-count, or SLOC gates as convention enforcement.
 
+### Ponytail Over-Engineering Checks
+
+For executable tasks, activate the Over-Engineering Minimalist persona.
+
+- Review `minimality_contract.rung` and one-line `decision` against the actual task evidence.
+- Return `REVISION_REQUIRED` with cited evidence when the rung is too high, the implementation introduces speculative abstraction, or the diff adds a dependency without `ponytail-admit --dependency-approval-ref`.
+- Return `REVISION_REQUIRED` when the final diff removes input validation, error handling, security checks, or accessibility affordances without a recorded `ponytail-admit --anatomy-waiver`.
+- Do not flag repo-convention-required module splits, coordinators, `types` files, pure/impure boundaries, or architecture-test-first files as over-engineering. `repo_conventions` and `module_plan` govern structure; Ponytail governs behavior scope, dependency additions, and speculative abstraction.
+
+Missing or weak Ponytail inputs return:
+
+- `missing_minimality_contract` when an executable task lacks the two-field contract.
+- `ponytail_rung_mismatch` when the selected rung is not supported by evidence.
+- `speculative_abstraction` when abstraction appears without current task need.
+- `unapproved_dependency_diff` when a dependency manifest or lockfile addition lacks approval.
+- `anatomy_removed_without_waiver` when safety anatomy is removed without waiver evidence.
+
 ### Implementation Interface And Productionization Gate Checks
 
 For every task that changes an integration boundary, schema, emitter payload, workflow state, CLI contract, provider edge, or reusable framework surface:

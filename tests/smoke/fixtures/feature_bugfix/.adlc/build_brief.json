@@ -287,6 +287,10 @@
             }
           ],
           "benchmark_required": false
+        },
+        "minimality_contract": {
+          "rung": "minimum_code",
+          "decision": "Implement only this task contract with existing repo patterns and no new dependency."
         }
       },
       {
@@ -462,6 +466,10 @@
             ],
             "expected_signal": "benchmark report shows scoreboard rendering within the brief envelope"
           }
+        },
+        "minimality_contract": {
+          "rung": "minimum_code",
+          "decision": "Implement only this task contract with existing repo patterns and no new dependency."
         }
       },
       {
@@ -559,6 +567,10 @@
         "performance_envelope": {
           "applicability": "not_applicable",
           "reason": "Validation-only task with no data path."
+        },
+        "minimality_contract": {
+          "rung": "reuse_existing",
+          "decision": "Run existing ADLC validation gates without adding implementation scope."
         }
       }
     ],

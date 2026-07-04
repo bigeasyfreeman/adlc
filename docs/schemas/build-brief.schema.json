@@ -1032,6 +1032,31 @@
         }
       ]
     },
+    "minimality_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rung",
+        "decision"
+      ],
+      "properties": {
+        "rung": {
+          "type": "string",
+          "enum": [
+            "does_not_need_to_exist",
+            "reuse_existing",
+            "stdlib",
+            "native_platform",
+            "installed_dependency",
+            "minimum_code"
+          ]
+        },
+        "decision": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "honesty_contract": {
       "type": "object",
       "additionalProperties": false,
@@ -1671,6 +1696,9 @@
         },
         "task_sizing": {
           "$ref": "#/definitions/task_sizing"
+        },
+        "minimality_contract": {
+          "$ref": "#/definitions/minimality_contract"
         },
         "work_item_metadata": {
           "type": "object",
