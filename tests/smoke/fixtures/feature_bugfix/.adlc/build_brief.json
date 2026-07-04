@@ -235,6 +235,10 @@
           "external_refs": [
             "EXT-1"
           ]
+        },
+        "honesty_contract": {
+          "applicability": "not_applicable",
+          "reason": "Pure internal bugfix with no external claims."
         }
       },
       {
@@ -351,7 +355,11 @@
         "files_to_create": [
           "tests/test_render_scoreboard.py"
         ],
-        "reference_impl": "src/scoreboard.py"
+        "reference_impl": "src/scoreboard.py",
+        "honesty_contract": {
+          "applicability": "not_applicable",
+          "reason": "Internal scoreboard behavior change with no external claims."
+        }
       },
       {
         "artifact_type": "validation_task",
@@ -432,7 +440,11 @@
         "owner": "smoke-harness",
         "files_to_modify": [],
         "files_to_create": [],
-        "reference_impl": "src/scoreboard.py"
+        "reference_impl": "src/scoreboard.py",
+        "honesty_contract": {
+          "applicability": "not_applicable",
+          "reason": "Validation-only task with no external claims."
+        }
       }
     ],
     "9_risks": [

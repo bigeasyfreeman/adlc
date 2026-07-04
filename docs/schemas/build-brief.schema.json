@@ -828,6 +828,187 @@
         }
       ]
     },
+    "honesty_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applicability",
+        "reason"
+      ],
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "required",
+            "not_applicable"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "does_not_do": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "unsafe_claims": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "output_surfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "docs",
+              "artifact",
+              "external_claim",
+              "human_facing_output"
+            ]
+          }
+        },
+        "required_output_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "doc_honesty_section",
+              "no_overclaim",
+              "limitations"
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "applicability": {
+                "const": "required"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "does_not_do",
+              "limitations",
+              "unsafe_claims",
+              "output_surfaces",
+              "required_output_fields"
+            ],
+            "properties": {
+              "does_not_do": {
+                "minItems": 1
+              },
+              "limitations": {
+                "minItems": 1
+              },
+              "unsafe_claims": {
+                "minItems": 1
+              },
+              "output_surfaces": {
+                "minItems": 1
+              },
+              "required_output_fields": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "applicability": {
+                "const": "not_applicable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "does_not_do": {
+                "maxItems": 0
+              },
+              "limitations": {
+                "maxItems": 0
+              },
+              "unsafe_claims": {
+                "maxItems": 0
+              },
+              "output_surfaces": {
+                "maxItems": 0
+              },
+              "required_output_fields": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "output_surfaces": {
+                "contains": {
+                  "const": "artifact"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "required_output_fields": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "no_overclaim"
+                    }
+                  },
+                  {
+                    "contains": {
+                      "const": "limitations"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "output_surfaces": {
+                "contains": {
+                  "const": "docs"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "required_output_fields": {
+                "contains": {
+                  "const": "doc_honesty_section"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
     "task": {
       "type": "object",
       "additionalProperties": false,
@@ -1214,6 +1395,9 @@
         },
         "productionization_gate": {
           "$ref": "#/definitions/productionization_gate"
+        },
+        "honesty_contract": {
+          "$ref": "#/definitions/honesty_contract"
         },
         "slop_quality_gate": {
           "$ref": "#/definitions/slop_quality_gate"

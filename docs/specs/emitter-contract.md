@@ -96,6 +96,16 @@ Repo configuration binds ADLC's logical emitter capabilities to whatever tool na
       "area": "backend | frontend | infra | observability",
       "phase": 1,
       "linked_failure_modes": ["FM-001"],
+      "honesty_contract": {
+        "applicability": "required | not_applicable",
+        "does_not_do": [],
+        "limitations": [],
+        "unsafe_claims": [],
+        "output_surfaces": [],
+        "required_output_fields": []
+      },
+      "no_overclaim": [],
+      "limitations": [],
       "idempotency_key": "string"
     }
   ],
@@ -186,6 +196,8 @@ Every work-item emitter must carry these fields forward from the Build Brief tas
 - `files_to_create` and `files_to_modify`
 - `tech_debt_boundaries`
 - `compatibility_contract`
+- `honesty_contract`; if it is `required`, the artifact description must keep the "does not do", limitations, unsafe claims, output surfaces, and required output fields visible to the executing agent
+- `no_overclaim` and `limitations` when the task's `honesty_contract.output_surfaces` includes `artifact`
 - `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, and `production_invariant_coverage` when present
 - `implementation_interface_contract` when present, including reuse, consumes, emits, minimum fields, invariants, integration points, validation gates, failure semantics, and privacy/redaction posture
 - `productionization_gate` when present, including claim, Coverage State, validation evidence, No-Overclaim boundaries, reliability failure modes, operational readiness, rollback/runbook/observability posture, and security/privacy posture
@@ -205,6 +217,7 @@ Every document emitter must preserve:
 - failure mode roll-up
 - decision log and open questions
 - task breakdown and verifier contract
+- doc honesty sections when a task's `honesty_contract.required_output_fields` includes `doc_honesty_section`
 - tech-debt paydown, sequencing, or deferral notes when the brief includes them
 - suppressed-section rationale where omission could look accidental
 
@@ -261,6 +274,7 @@ Platform-specific config may extend the shared contract, but it must not redefin
 4.7. Reject unresolved dependency aliases before mutation. Every dependency must resolve to a Build Brief artifact ID or an already-emitted target artifact ID recorded in terminal workflow state for the same Build Brief, target, work-item emitter tool, and `upsert_artifact` operation.
 4.8. Ensure decomposition-mode payloads include automatic validation tasks in the enterprise readiness contract, and emit those validation tasks as first-class work items when the target supports work-item artifacts.
 4.9. Preserve implementation-interface contracts and productionization gates without broadening their claims. Emitters must not translate `evidence_only`, `monitor_only`, `not_yet_ga`, or `governed` into production-ready ticket language.
+4.10. Preserve honesty contracts without weakening them. Artifact-emitting tasks must expose `no_overclaim` and `limitations`; document emitters must render a visible honesty or limitations section when `doc_honesty_section` is required. `not_applicable` skips are valid only when the reason explicitly says there are no external claims.
 5. Compute per-artifact idempotency keys before any external mutation.
 6. Emit permission logging entries before and after every mutating external action.
 7. Return created artifact metadata and dedupe status in a structured response.
@@ -334,11 +348,13 @@ The readiness checker validates:
    - `failure_modes`
    - `implementation_interface_contract` for active integration or reusable framework surfaces
    - `productionization_gate` for active production support claims
+   - `honesty_contract`, unless the executable task declares `not_applicable` with a no-external-claims reason
    - `slop_quality_gate` when `generated_output_surface.active=true`; if the brief includes `slop_quality_gate` for an inactive surface it must use `applicability=not_applicable` with a concrete reason
    - Loop Contract refs when LLM-driven action, test-selection, control-channel, escalation, or maturity evidence is active
 6. **Production-ready claim checks** — `productionization_gate.coverage_state=production_ready` requires an `implementation_interface_contract`, validation evidence, No-Overclaim boundaries, reliability failure modes, owner, rollback path, runbook/alerting/dashboard/SLO posture where applicable, and security/privacy redaction posture. Missing proof returns `overclaimed_production_ready`.
 7. **Loop action checks** — LLM-driven action tickets must preserve loop refs and name the deterministic verifier (`loop-test-selection`, `loop-action-validate`, or `loop-maturity-audit`) that admits or blocks the action.
 8. **Phase-project map** — when a `--phase-project-map` is provided, any task with a `phase_label` that exists in the map must have a matching `target_project` in `work_item_metadata`.
+9. **Honesty contract checks** — executable tasks must carry `honesty_contract`. Required contracts must include `does_not_do`, `limitations`, `unsafe_claims`, `output_surfaces`, and `required_output_fields`; artifact surfaces require `no_overclaim` plus `limitations`, and docs surfaces require `doc_honesty_section`.
 
 ### CLI Flags
 
@@ -363,6 +379,7 @@ Emitters must stop with one of:
 - `unresolved_decision_blocks_implementation`
 - `missing_implementation_interface_contract`
 - `missing_productionization_gate`
+- `missing_honesty_contract`
 - `overclaimed_production_ready`
 - `missing_intent_validation` — emitted when `contract_version >= 1.1.x` and `narrative_contract.human_validated_at` is missing
 - `external_mutation_partial`
@@ -370,6 +387,6 @@ Emitters must stop with one of:
 
 ## Verification Expectations
 
-- Work-item emitters are verified by artifact template completeness, artifact taxonomy preservation, decision-gate blocking semantics, automatic validation task preservation, and field preservation.
-- Document emitters are verified by section coverage, hierarchy correctness, and applicability-manifest fidelity.
+- Work-item emitters are verified by artifact template completeness, artifact taxonomy preservation, decision-gate blocking semantics, automatic validation task preservation, honesty-contract preservation, and field preservation.
+- Document emitters are verified by section coverage, hierarchy correctness, doc honesty section preservation, and applicability-manifest fidelity.
 - No emitter may pass by publishing placeholder titles, empty sections, tickets lacking verifier contracts, or artifacts that drop reuse/debt constraints from the brief.

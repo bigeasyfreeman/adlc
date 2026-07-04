@@ -186,6 +186,25 @@
           "external_refs": [
             "XIA-Socraticode-indexing"
           ]
+        },
+        "honesty_contract": {
+          "applicability": "required",
+          "reason": "Task creates documentation that could be read as a product claim.",
+          "does_not_do": [
+            "Does not implement a live Socraticode indexer."
+          ],
+          "limitations": [
+            "Documents the indexing contract and readiness symbols only."
+          ],
+          "unsafe_claims": [
+            "Do not claim runtime indexing, hosted search, or production coverage."
+          ],
+          "output_surfaces": [
+            "docs"
+          ],
+          "required_output_fields": [
+            "doc_honesty_section"
+          ]
         }
       },
       {
@@ -278,6 +297,10 @@
           "external_refs": [
             "XIA-Linear-reconciliation"
           ]
+        },
+        "honesty_contract": {
+          "applicability": "not_applicable",
+          "reason": "Internal task with no external claims."
         }
       },
       {
@@ -461,6 +484,10 @@
           "external_refs": [
             "XIA-alias-cleanup"
           ]
+        },
+        "honesty_contract": {
+          "applicability": "not_applicable",
+          "reason": "Internal task with no external claims."
         }
       },
       {
@@ -562,6 +589,26 @@
           "external_refs": [
             "XIA-ADLC-readiness-gate"
           ]
+        },
+        "honesty_contract": {
+          "applicability": "required",
+          "reason": "Task changes emitted readiness artifacts and must bound claims in the payload.",
+          "does_not_do": [
+            "Does not prove external tracker mutation or hosted provider readiness."
+          ],
+          "limitations": [
+            "Readiness is limited to local schema and dry-run emitter evidence."
+          ],
+          "unsafe_claims": [
+            "Do not claim Linear, GitHub, or Jira provider mutation is production-ready."
+          ],
+          "output_surfaces": [
+            "artifact"
+          ],
+          "required_output_fields": [
+            "no_overclaim",
+            "limitations"
+          ]
         }
       },
       {
@@ -657,6 +704,10 @@
           "external_refs": [
             "XIA-validation-split"
           ]
+        },
+        "honesty_contract": {
+          "applicability": "not_applicable",
+          "reason": "Internal task with no external claims."
         }
       }
     ],
