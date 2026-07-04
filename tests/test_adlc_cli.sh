@@ -89,18 +89,31 @@ cat > "$tmp_dir/hygiene-brief.json" <<'JSON'
   }
 }
 JSON
-cat > "$tmp_dir/pr-diff.patch" <<'PATCH'
+local_path_root="Users"
+cat > "$tmp_dir/pr-diff.patch" <<PATCH
 diff --git a/docs/build-briefs/leak.json b/docs/build-briefs/leak.json
 new file mode 100644
 --- /dev/null
 +++ b/docs/build-briefs/leak.json
 @@
-+HMETA leaked from /Users/eric/adlc and reintroduced file-size gate
++HMETA leaked from /${local_path_root}/eric/adlc and reintroduced file-size gate
+PATCH
+cat > "$tmp_dir/removed-hygiene-findings.patch" <<PATCH
+diff --git a/src/lib.rs b/src/lib.rs
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@
+-HMETA leaked from /${local_path_root}/eric/adlc and reintroduced file-size gate
++clean public wording
 PATCH
 assert "pr-hygiene-scan blocks artifacts banned tokens local paths removed gates and stacked bases" "if '$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --build-brief '$tmp_dir/hygiene-brief.json' --diff-file '$tmp_dir/pr-diff.patch' --title 'HMETA phase label' --base-branch feature/child --default-branch main --json >'$tmp_dir/pr-hygiene.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"pipeline_artifact_in_pr\") and any(.issues[]; .rule == \"banned_internal_token\") and any(.issues[]; .rule == \"absolute_local_path\") and any(.issues[]; .rule == \"removed_gate_reintroduced\") and any(.issues[]; .rule == \"stacked_pr_without_dependency\")' '$tmp_dir/pr-hygiene.json' >/dev/null; fi"
-assert "pr-hygiene-scan allows documented dependent base without other findings" "'$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --diff-file /dev/null --base-branch feature/child --default-branch main --dependency PR-123 --json | jq -e '.status == \"pass\" and .summary.issues == 0' >/dev/null"
-assert "pr-hygiene-scan rejects unresolved dependency references" "if '$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --diff-file /dev/null --base-branch feature/child --default-branch main --dependency feature/parent --json >'$tmp_dir/unresolved-pr-dependency.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"unresolved_dependency_reference\")' '$tmp_dir/unresolved-pr-dependency.json' >/dev/null; fi"
+assert "pr-hygiene-scan ignores removed-only hygiene findings" "'$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --build-brief '$tmp_dir/hygiene-brief.json' --diff-file '$tmp_dir/removed-hygiene-findings.patch' --base-branch main --default-branch main --json | jq -e '.status == \"pass\" and .summary.issues == 0' >/dev/null"
+assert "pr-hygiene-scan allows documented dependent base without other findings" "'$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --build-brief '$tmp_dir/hygiene-brief.json' --diff-file /dev/null --base-branch feature/child --default-branch main --dependency PR-123 --json | jq -e '.status == \"pass\" and .summary.issues == 0' >/dev/null"
+assert "pr-hygiene-scan rejects unresolved dependency references" "if '$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --build-brief '$tmp_dir/hygiene-brief.json' --diff-file /dev/null --base-branch feature/child --default-branch main --dependency feature/parent --json >'$tmp_dir/unresolved-pr-dependency.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"unresolved_dependency_reference\")' '$tmp_dir/unresolved-pr-dependency.json' >/dev/null; fi"
 assert "pr-hygiene-scan blocks missing branch context loudly" "if '$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --diff-file /dev/null --json >'$tmp_dir/missing-pr-branch-context.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"default_branch_unresolved\") and any(.issues[]; .rule == \"base_branch_unresolved\")' '$tmp_dir/missing-pr-branch-context.json' >/dev/null; fi"
+assert "pr-hygiene-scan requires banned-token source" "if '$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --diff-file /dev/null --base-branch main --default-branch main --json >'$tmp_dir/missing-pr-vocab-context.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"banned_token_source_missing\")' '$tmp_dir/missing-pr-vocab-context.json' >/dev/null; fi"
+assert "pr-hygiene-scan records waivers with who and why" "'$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --diff-file /dev/null --base-branch main --default-branch main --waiver 'banned_token_source_missing:eric:test fixture has no product vocabulary source' --json | jq -e '.status == \"pass\" and .summary.waived_issues == 1 and any(.issues[]; .rule == \"banned_token_source_missing\" and .status == \"waived\" and .waiver.who == \"eric\" and (.waiver.reason | contains(\"product vocabulary source\")))' >/dev/null"
+assert "pr-hygiene-scan allows waived stacked base only with who and why" "'$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --build-brief '$tmp_dir/hygiene-brief.json' --diff-file /dev/null --base-branch feature/child --default-branch main --waiver 'stacked_pr_without_dependency:eric:temporary stacked review dependency recorded elsewhere' --json | jq -e '.status == \"pass\" and .summary.waived_issues == 1 and any(.issues[]; .rule == \"stacked_pr_without_dependency\" and .status == \"waived\" and .waiver.who == \"eric\" and (.waiver.reason | contains(\"temporary stacked\")))' >/dev/null"
 auto_repo="$tmp_dir/hygiene-auto-repo"
 mkdir -p "$auto_repo"
 git -C "$auto_repo" init -q
@@ -114,7 +127,8 @@ git -C "$auto_repo" update-ref refs/remotes/origin/main HEAD
 git -C "$auto_repo" symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
 git -C "$auto_repo" checkout -qb feature/pr-hygiene
 printf 'change\n' >> "$auto_repo/file.txt"
-assert "pr-hygiene-scan auto-detects default base from git" "'$ROOT/bin/adlc' pr-hygiene-scan --workspace '$auto_repo' --title 'Feature branch change' --body 'Ready for review' --json | jq -e '.status == \"pass\" and .base == \"origin/main\" and .base_branch == \"main\" and .default_branch == \"main\" and .branch_context.default_branch_source == \"origin_head\"' >/dev/null"
+assert "pr-hygiene-scan auto-detects default base from git" "'$ROOT/bin/adlc' pr-hygiene-scan --workspace '$auto_repo' --build-brief '$tmp_dir/hygiene-brief.json' --title 'Feature branch change' --body 'Ready for review' --json | jq -e '.status == \"pass\" and .base == \"origin/main\" and .base_branch == \"main\" and .default_branch == \"main\" and .branch_context.default_branch_source == \"origin_head\"' >/dev/null"
+assert "pr-hygiene-scan requires base input for supplied diffs" "if '$ROOT/bin/adlc' pr-hygiene-scan --workspace '$auto_repo' --build-brief '$tmp_dir/hygiene-brief.json' --diff-file /dev/null --json >'$tmp_dir/missing-pr-base-input.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"pr_base_input_missing\")' '$tmp_dir/missing-pr-base-input.json' >/dev/null; fi"
 
 echo ""
 echo "--- Repo Convention Extraction ---"

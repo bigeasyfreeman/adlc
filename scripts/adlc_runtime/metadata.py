@@ -104,7 +104,7 @@ COMMAND_METADATA = {
     },
     "pr-hygiene-scan": {
         "mcp_name": "adlc_pr_hygiene_scan",
-        "description": "Scan PR diff, title, and body for pipeline artifacts, banned internal tokens, local paths, removed gates, unresolved branch context, and undocumented stacked bases.",
+        "description": "Scan PR diff, title, and body for pipeline artifacts, banned internal tokens, local paths, removed gates, unresolved branch context, undocumented stacked bases, and missing non-skippable gate inputs.",
     },
     "ci": {
         "mcp_name": "adlc_ci",

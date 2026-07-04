@@ -723,16 +723,17 @@ PR_DEPENDENCY_REF_RE = re.compile(
 )
 
 
-def build_brief_banned_tokens(path_arg: str | None, workspace: Path) -> Tuple[List[str], List[str]]:
+def build_brief_banned_tokens(path_arg: str | None, workspace: Path) -> Tuple[List[str], List[str], bool]:
     if not path_arg:
-        return [], []
+        return [], [], False
     path = resolve_input_path(path_arg, workspace)
     brief = read_json(path)
     vocab = brief.get("product_vocabulary", {}) if isinstance(brief, dict) else {}
     conventions = brief.get("repo_conventions", {}) if isinstance(brief, dict) else {}
+    has_banned_token_source = isinstance(vocab, dict) and isinstance(vocab.get("banned_tokens"), list)
     tokens = [str(token) for token in vocab.get("banned_tokens", []) if str(token).strip()] if isinstance(vocab, dict) else []
     removed = [str(token) for token in conventions.get("removed_ci_gates", []) if str(token).strip()] if isinstance(conventions, dict) else []
-    return tokens, removed
+    return tokens, removed, has_banned_token_source
 
 
 def git_stdout(workspace: Path, args: List[str]) -> str | None:
@@ -834,6 +835,14 @@ def pr_hygiene_branch_context(args: argparse.Namespace, workspace: Path) -> Dict
                 "message": "No diff file or git diff base is available for PR hygiene scanning",
             }
         )
+    if args.diff_file and not args.base and not args.base_branch:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "pr_base_input_missing",
+                "message": "Diff-file PR hygiene scans require --base or --base-branch so the stacked-base check cannot be skipped",
+            }
+        )
     return {
         "base": base_ref,
         "base_branch": base_branch,
@@ -873,13 +882,50 @@ def git_diff_text(workspace: Path, base_ref: str) -> Tuple[str, str, List[Dict[s
     return name_result.stdout, diff_result.stdout, issues
 
 
+def pr_hygiene_added_diff_text(diff_text: str) -> str:
+    return "\n".join(line[1:] for line in diff_text.splitlines() if line.startswith("+") and not line.startswith("+++"))
+
+
+def parse_pr_hygiene_waivers(values: Iterable[str] | None) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]]]:
+    waivers: List[Dict[str, str]] = []
+    issues: List[Dict[str, Any]] = []
+    for raw in values or []:
+        parts = str(raw or "").split(":", 2)
+        if len(parts) != 3 or not all(part.strip() for part in parts):
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "malformed_pr_hygiene_waiver",
+                    "message": "PR hygiene waivers must use rule:who:why format",
+                    "waiver": str(raw or ""),
+                }
+            )
+            continue
+        rule, who, reason = (part.strip() for part in parts)
+        waivers.append({"rule": rule, "who": who, "reason": reason})
+    return waivers, issues
+
+
+def apply_pr_hygiene_waivers(issues: List[Dict[str, Any]], waivers: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+    waived: List[Dict[str, Any]] = []
+    for issue in issues:
+        rule = str(issue.get("rule") or "")
+        waiver = next((entry for entry in waivers if entry.get("rule") == rule), None)
+        if waiver:
+            waived.append({**issue, "status": "waived", "waiver": waiver})
+        else:
+            waived.append(issue)
+    return waived
+
+
 def pr_hygiene_payload(args: argparse.Namespace) -> Dict[str, Any]:
     workspace = resolve_workspace(args.workspace)
     branch_context = pr_hygiene_branch_context(args, workspace)
     explicit_tokens = [str(token) for token in args.banned_token or [] if str(token).strip()]
-    brief_tokens, removed_gates = build_brief_banned_tokens(args.build_brief, workspace)
+    brief_tokens, removed_gates, has_brief_banned_token_source = build_brief_banned_tokens(args.build_brief, workspace)
     banned_tokens = list(dict.fromkeys([*explicit_tokens, *brief_tokens]))
     removed_gate_tokens = list(dict.fromkeys([*(args.removed_gate_token or []), *removed_gates]))
+    waivers, waiver_issues = parse_pr_hygiene_waivers(getattr(args, "waiver", None))
     if args.diff_file:
         diff_path = resolve_input_path(args.diff_file, workspace)
         diff_text = diff_path.read_text(encoding="utf-8")
@@ -891,8 +937,16 @@ def pr_hygiene_payload(args: argparse.Namespace) -> Dict[str, Any]:
             name_text, diff_text, diff_issues = "", "", []
     title = args.title or ""
     body = args.body or ""
-    combined = "\n".join([name_text, diff_text, title, body])
-    issues: List[Dict[str, Any]] = [*branch_context["issues"], *(diff_issues if not args.diff_file else [])]
+    combined = "\n".join([name_text, pr_hygiene_added_diff_text(diff_text), title, body])
+    issues: List[Dict[str, Any]] = [*branch_context["issues"], *waiver_issues, *(diff_issues if not args.diff_file else [])]
+    if not explicit_tokens and not has_brief_banned_token_source:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "banned_token_source_missing",
+                "message": "PR hygiene requires a Build Brief product_vocabulary.banned_tokens list or explicit --banned-token input",
+            }
+        )
     for pattern in PIPELINE_ARTIFACT_PATTERNS:
         match = pattern.search(combined)
         if match:
@@ -954,9 +1008,11 @@ def pr_hygiene_payload(args: argparse.Namespace) -> Dict[str, Any]:
                 "default_branch": branch_context["default_branch"],
             }
         )
+    issues = apply_pr_hygiene_waivers(issues, waivers)
+    open_issues = [issue for issue in issues if issue.get("status") != "waived"]
     return {
         "contract_version": "1.0.0",
-        "status": "blocked" if issues else "pass",
+        "status": "blocked" if open_issues else "pass",
         "workspace": str(workspace),
         "base": branch_context["base"],
         "base_branch": branch_context["base_branch"],
@@ -968,11 +1024,15 @@ def pr_hygiene_payload(args: argparse.Namespace) -> Dict[str, Any]:
         "dependency": dependency or None,
         "banned_tokens": banned_tokens,
         "removed_gate_tokens": removed_gate_tokens,
+        "waivers": waivers,
         "issues": issues,
         "summary": {
-            "issues": len(issues),
+            "issues": len(open_issues),
+            "waived_issues": len(issues) - len(open_issues),
+            "total_issues": len(issues),
             "banned_tokens": len(banned_tokens),
             "removed_gate_tokens": len(removed_gate_tokens),
+            "waivers": len(waivers),
         },
     }
 
@@ -9306,6 +9366,7 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "base_branch": {"type": "string", "minLength": 1},
                     "default_branch": {"type": "string", "minLength": 1},
                     "dependency": {"type": "string", "minLength": 1},
+                    "waiver": {"type": "array", "items": {"type": "string", "minLength": 1}},
                     "output": {"type": "string", "minLength": 1},
                 },
             },
@@ -10000,6 +10061,7 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             base_branch=arguments.get("base_branch"),
             default_branch=arguments.get("default_branch"),
             dependency=arguments.get("dependency"),
+            waiver=arguments.get("waiver") if isinstance(arguments.get("waiver"), list) else [],
             output=arguments.get("output"),
             json=True,
         )
@@ -10582,6 +10644,7 @@ def build_parser() -> argparse.ArgumentParser:
     pr_hygiene.add_argument("--base-branch", help="Proposed PR base branch. Auto-detected from --base or default branch when omitted.")
     pr_hygiene.add_argument("--default-branch", help="Target repo default branch. Auto-detected from git when omitted.")
     pr_hygiene.add_argument("--dependency", help="Documented dependent PR or issue reference when base differs from default.")
+    pr_hygiene.add_argument("--waiver", action="append", help="Explicit PR hygiene waiver in rule:who:why form. Can be passed multiple times.")
     pr_hygiene.add_argument("--output", help="Optional PR hygiene report path.")
     pr_hygiene.add_argument("--json", action="store_true", help="Emit JSON.")
     pr_hygiene.set_defaults(func=command_pr_hygiene_scan)
