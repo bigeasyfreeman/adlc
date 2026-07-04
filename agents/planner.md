@@ -43,7 +43,10 @@ Rules:
 - Run or consume `bin/adlc repo-conventions --workspace <target-repo> --json`.
 - If `CLAUDE.md`, `AGENTS.md`, or `CONTRIBUTING.md` has conventions, emit every
   extracted rule as `repo_conventions.rules[]` with a verification predicate.
-- If no convention docs or rules exist, emit `repo_conventions.status =
+- If those files exist but contain no normative rules, emit
+  `repo_conventions.status = "files_present_but_no_normative_rules"` and record
+  the files read in `sources[]`.
+- If no convention docs exist, emit `repo_conventions.status =
   "none_found"` with `explicit_empty_marker = "no_conventions_found"`.
 
 The planner must carry this field into task decomposition and codegen context.
