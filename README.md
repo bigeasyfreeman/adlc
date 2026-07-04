@@ -174,6 +174,7 @@ The shipped framework layers are:
 | Task Sizing | Decomposition-time proof that each executable task is one module, one coherent module-plan file-set, or explicitly atomic cross-module work | Required for executable tasks; split-required work blocks emission and returns proposed splits |
 | Slop Quality Gate | Output-side benchmark, threshold, eval cases, and failure action for generated-output surfaces | Active when a task changes prompt/model/agent/generated content behavior |
 | Loop Contract | LLM action-loop contract: job, win condition, allowed tools, real feedback, required tests, progress, control channel, safe checkpoint, independent truth, escalation, and optional `budget_guard` evidence | Active when a task delegates decisions, tool use, test selection, retry/repair, escalation, or maturity claims to an LLM loop |
+| Kitchen Loop Coverage Admission | Enumerable spec surfaces, bounded scenario coverage plans, independent regression oracles, and drift pause gates | Active when a task claims Kitchen Loop behavior, coverage admission, or coverage exhaustion |
 | Target Repo Conventions | `repo_conventions`, product vocabulary, structural convention scans, explicit waivers, and PR hygiene checks | Extracted before Build Brief planning; consumed by context assembly, LDD, DoD, Eval Council, and PR closeout |
 
 The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, retry caps, workflow state, compound context, readiness gates, test-strength checks, Loop Contract admission gates, and execution-backed required-test evidence when `loop-test-result` artifacts are supplied. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, failure handling, or budget evidence. Missing, stale, warning, alert, or exhausted `budget_status` blocks `self_autonomous`; healthy local budget evidence is necessary but not sufficient. Tag-only Loop Contract coverage is intentionally capped below robust.
@@ -187,6 +188,7 @@ What is automatic today:
 - Loop Contract test-selection, action-admission, and maturity-audit CLI/MCP tools
 - deterministic `loop-budget-check` CLI/MCP budget guard for LLM-backed Loop Actions
 - strict Loop Contract required-test proof through `docs/schemas/loop-test-result.schema.json` and `loop-test-selection --require-test-results`
+- Kitchen Loop coverage-admission readiness checks when tasks opt into `spec-surface`, `scenario-coverage-plan`, `regression-oracle`, and `drift-gate-report` refs
 - schema-backed work queue status, task claims, completion/block/escalation state, dirty-checks, file-overlap checks, and worktree prepare/status/cleanup dry-runs
 - target-repo convention extraction, structural convention scans, and PR hygiene scans for pipeline artifacts, banned internal tokens, local paths, removed gates, and undocumented stacked bases
 - right-sized Ponytail minimality admission through `bin/adlc ponytail-admit --build-brief <brief> --diff-file <final.diff> --json`, with executable tasks carrying only `rung` and one-line `decision`, dependency diffs requiring approval refs, and regex-based safety-anatomy removals requiring waivers; see `docs/specs/ponytail-minimality-contract.md` for exact limits and false-positive risk
@@ -299,6 +301,10 @@ bin/adlc beads-status --workspace . --json
 bin/adlc looper-status --workspace . --json
 bin/adlc loop-design-validate --input .adlc/loops/task/loop_design.json --json
 bin/adlc loop-contract-from-design --loop-design .adlc/loops/task/loop_design.json --output .adlc/loops/task/loop_contract.json --json
+bin/adlc coverage-surface-validate --input .adlc/kitchen_loop/spec_surface.json --json
+bin/adlc scenario-coverage-plan --input .adlc/kitchen_loop/scenario_coverage_plan.json --spec-surface .adlc/kitchen_loop/spec_surface.json --json
+bin/adlc regression-oracle-validate --input .adlc/kitchen_loop/regression_oracle.json --json
+bin/adlc drift-gate-evaluate --input .adlc/kitchen_loop/drift_gate_report.json --json
 bin/adlc loop-library --json
 bin/adlc loop-library --template-id ci-triage --json
 bin/adlc loop-template-install --template-id ci-triage --workspace . --dry-run --json

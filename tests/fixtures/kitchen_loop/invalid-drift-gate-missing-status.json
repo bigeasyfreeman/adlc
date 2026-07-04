@@ -1,0 +1,25 @@
+{
+  "contract_version": "1.0.0",
+  "gate_id": "drift-gate:adlc:kitchen-loop-missing-status",
+  "surface_id": "surface:adlc:kitchen-loop-fixture",
+  "oracle_id": "oracle:kitchen-loop-fixture",
+  "metrics": [
+    {
+      "name": "schema_regressions",
+      "current": 0,
+      "threshold": 0,
+      "direction": "max"
+    }
+  ],
+  "summary": {
+    "regression_delta": 0,
+    "quality_trend_delta": 0,
+    "starvation_count": 0,
+    "no_work_count": 0,
+    "blocked_combinations": 0,
+    "oracle_coverage": 1
+  },
+  "next_action": "This invalid fixture omits status.",
+  "evidence_refs": ["tests/fixtures/kitchen_loop/valid-regression-oracle.json"],
+  "redaction_posture": "No secrets."
+}
