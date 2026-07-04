@@ -64,7 +64,7 @@ ADLC does not ship a JIRA client. This skill targets a locally installed MCP pro
 }
 ```
 
-Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `honesty_contract`, artifact honesty fields (`no_overclaim`, `limitations`) when required, `performance_envelope`, `benchmark_results` when present, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `implementation_interface_contract`, `productionization_gate`, `slop_quality_gate`, Loop Contract refs (`loop_contract_path`, `loop_action_path`, `loop_maturity_report_path`), `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims, unsafe claims blocked by the honesty contract, and non-sequitur guardrail lines do not become ticket scope.
+Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `honesty_contract`, artifact honesty fields (`no_overclaim`, `limitations`) when required, `performance_envelope`, `benchmark_results` when present, `task_sizing`, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `implementation_interface_contract`, `productionization_gate`, `slop_quality_gate`, Loop Contract refs (`loop_contract_path`, `loop_action_path`, `loop_maturity_report_path`), `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims, unsafe claims blocked by the honesty contract, and non-sequitur guardrail lines do not become ticket scope.
 
 ## Mixed Acceptance Criteria Shapes
 
@@ -272,8 +272,8 @@ h2. Failure Modes
 || ID || Failure || Likelihood || Prevention ||
 | [FM-ID] | [description] | [L/M/H] | [prevention measure] |
 
-h2. Estimated Hours
-[X]h -- decompose into sub-tasks if > 2h
+h2. Task Sizing
+[Preserve task_sizing. If split_decision.required=true, create the proposed split tickets instead of one broad ticket.]
 
 h2. Links
 * Build Brief: [Confluence or Notion link]
@@ -300,10 +300,10 @@ Analyze task descriptions and phase ordering to create JIRA links:
 - Observability tasks that depend on backend endpoints: `is_blocked_by`
 - Cross-cutting tasks: `relates_to`
 
-### 5. Create Sub-tasks for Large Tasks
+### 5. Create Sub-tasks for Split-Required Tasks
 
-If estimated hours > 2h, decompose into sub-tasks:
-- Each sub-task ≤ 2h
+If `task_sizing.split_decision.required=true`, decompose into the proposed sub-tasks:
+- Each sub-task owns one module or one coherent module-plan file-set
 - Sub-tasks inherit the parent's acceptance criteria subset
 - Sub-tasks inherit the parent's architecture pattern reference
 
@@ -427,7 +427,7 @@ ADLC expects a locally installed MCP provider. Provider tool names may differ; r
 - [ ] All tickets reference an architecture pattern from Section 2
 - [ ] Phase 1 tickets are in the sprint
 - [ ] Dependency links exist between blocking tasks
-- [ ] No ticket exceeds 2h estimate (decomposed into sub-tasks)
+- [ ] No broad ticket ignores `task_sizing.split_decision.required` or drops proposed splits
 - [ ] Failure mode cross-references are linked
 - [ ] Tickets preserve reference implementations, reuse rules, and debt-boundary notes from the brief
 - [ ] Configured local MCP provider exposes the required logical capability bindings.

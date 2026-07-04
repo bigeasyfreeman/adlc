@@ -143,6 +143,24 @@ This skill runs before the coding agent starts. Its output is the coding agent's
         "write_first": true
       }
     },
+    "task_sizing": {
+      "applicability": "required | not_applicable",
+      "reason": "string; not_applicable must declare validation-only or no implementation/change surface",
+      "basis": ["responsibility_boundary | module_plan | coherent_file_set | atomicity | validation_scope"],
+      "change_surface": {
+        "surface_kind": "single_module | coherent_file_set | atomic_cross_module",
+        "primary_module": "string",
+        "touched_modules": ["module or coherent file-set names"],
+        "touched_files": ["file paths"],
+        "coherence": "why this is one ready task"
+      },
+      "split_decision": {
+        "required": false,
+        "rationale": "why this passes or must split",
+        "proposed_splits": [{"title": "string", "module_or_file_set": "string", "reason": "string", "files": ["file paths"]}]
+      },
+      "atomic_work_reason": "required only for atomic_cross_module work"
+    },
     "evidence_responsibilities": [],
     "definition_of_done": [],
     "verification_spec": {
@@ -274,6 +292,7 @@ Hard rule:
 - If a task's `paved_road_refs` match a structural pattern in `skills/paved-road-registry/patterns.json`, `bin/adlc module-plan-check` may supply the effective `module_plan` from that pattern. Treat `module_plan_source=pattern` exactly like an explicit required plan, and inline the matched pattern's exemplar structure.
 - If a matched structural pattern has an explicit `module_plan` that differs from the registry template, require `pattern_deviation_reason`; otherwise return `stuck` with reason `missing_pattern_deviation_reason`.
 - For `module_plan.applicability=required`, inline it as binding instructions. The `responsibility` text is destined to become the file's module doc verbatim, `purity` controls where side effects may live, and `architecture_test.write_first` means the architecture test is authored before production code.
+- Every executable task must include a `task_sizing` decision. If it is absent, return `stuck` with reason `missing_task_sizing`. If `applicability=not_applicable`, the reason must declare validation-only or no implementation/change surface. If `applicability=required`, the change surface must be one module, one coherent `module_plan` file-set, or explicitly `atomic_cross_module` with an atomic-work reason. If `split_decision.required=true`, return `stuck` and surface the proposed splits. Size, line count, or SLOC alone are never valid split or pass criteria.
 
 What gets inlined:
 - Reference implementation code
@@ -405,6 +424,9 @@ These are the exact files this task touches.
 [If `module_plan.applicability=required`, paste the exact effective module plan. If `module_plan_source=pattern`, say which registry pattern generated it and paste the matched exemplar's repo/path/commit plus real file structure. Treat each `responsibility` as the module doc line to write verbatim. Write the `architecture_test.test_path` first, run `architecture_test.command`, and keep it failing for the documented layout reason before production code changes. Do not put fs/process/env/db/network capabilities in pure files. Do not create support/helpers/util/common catch-all files.]
 
 If `module_plan.applicability=not_applicable`, paste the reason and do not invent structure beyond `files_to_create` / `files_to_modify`.
+
+## 5A. Task Sizing
+[Paste `task_sizing` for every executable task. If `applicability=required`, paste the change surface, split decision, and any atomic-work reason. Proceed only when the task is one module, one coherent `module_plan` file-set, or explicitly atomic cross-module work. If `split_decision.required=true`, do not assemble a coding prompt; return the proposed splits. Do not use file size, line count, or SLOC as a split or pass criterion.]
 
 ## 6. Reference Implementations
 [Paste the actual reference code and only the patterns needed for this task.]

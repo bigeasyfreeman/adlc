@@ -68,6 +68,7 @@ Extraction rules:
 | 28 | Repo convention waivers explicit | `automatable` | core | Convention scan or task output records file, rule, and reason for every waiver | Silent convention waiver, missing reason, or waived rule not tied to a file |
 | 29 | Honesty contract satisfied | `automatable` | core | Build Brief schema plus `emit-work-items --require-ready`; artifact outputs expose `no_overclaim` and `limitations` when required | Missing `honesty_contract`, missing no-external-claims skip reason, missing docs honesty section requirement, or missing artifact `no_overclaim` / `limitations` fields |
 | 30 | Performance envelope satisfied | `automatable` | core | Build Brief schema plus `emit-work-items --require-ready`; benchmark-required tasks record benchmark evidence before closeout | Missing `performance_envelope`, missing no-data-path skip reason, missing input scale or hot-path complexity, missing benchmark spec, or missing benchmark evidence |
+| 31 | Task sizing satisfied | `automatable` | core | Build Brief schema plus `emit-work-items --require-ready`; task_sizing declares one module, one coherent module_plan file-set, or an atomic cross-module reason | Missing `task_sizing`, split-required task, broad multi-module surface without coherent file-set or atomic reason, or size-only split/pass rationale |
 
 No DoD check may use file size, line count, or SLOC as a criterion. Split decisions are based on responsibility, side effects, coordinator boundaries, and repo conventions, never size.
 
@@ -156,6 +157,7 @@ No DoD check may use file size, line count, or SLOC as a criterion. Split decisi
     "repo_convention_waivers_explicit": { "status": true, "evidence": "0 waivers, or each waiver records file/rule/reason" },
     "honesty_contract_satisfied": { "status": true, "evidence": "honesty_contract present; artifact outputs include no_overclaim and limitations when required" },
     "performance_envelope_satisfied": { "status": true, "evidence": "performance_envelope present; data-path tasks define scale and complexity, benchmark_required decisions are explicit, and required benchmark evidence is recorded" },
+    "task_sizing_satisfied": { "status": true, "evidence": "task_sizing present; work is one module, a coherent module_plan file-set, or atomic cross-module work with an explicit reason" },
     "antipatterns_cleared": { "status": true, "violations": 0 },
     "wiring_complete": { "status": true, "upstream": 2, "downstream": 1 },
     "scalability_documented": { "status": true },
@@ -183,4 +185,5 @@ No DoD check may use file size, line count, or SLOC as a criterion. Split decisi
 - Repo-convention failures block DoD unless every waiver is explicit and present in task output.
 - Honesty contracts block DoD unless each executable task either carries does-not-do / limitations / unsafe-claims requirements or explicitly declares no external claims.
 - Performance envelopes block DoD unless each executable task either defines expected input scale, hot-path complexity, benchmark requirement, and benchmark evidence when required, or explicitly declares no data path.
+- Task sizing blocks DoD unless each executable task declares one module, one coherent module_plan file-set, or atomic cross-module work with an atomicity reason; split-required tasks stay blocked until decomposed.
 - File size, line count, and SLOC are not valid DoD criteria.

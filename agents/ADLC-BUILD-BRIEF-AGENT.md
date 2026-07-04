@@ -597,9 +597,10 @@ For each area -- Backend, Frontend, Infra, Observability -- collect:
 | Evidence Responsibilities | Which artifact owns tests, logs, screenshots, audit output, or deploy evidence |
 | Honesty Contract | For executable artifacts: what the feature does not do, known limitations, unsafe claims, and required output surfaces. Pure internal work may set `not_applicable` only with a no-external-claims reason. |
 | Performance Envelope | For executable artifacts: expected input scale, hot-path complexity bounds, and benchmark requirement. Non-data-path work may set `not_applicable` only with a no-data-path reason. |
+| Task Sizing | For executable artifacts: one module, one coherent module-plan file-set, or explicitly atomic cross-module work. Split-required tasks include proposed splits and stay blocked. |
 | Definition of Done | Binary completion proof, including verifier and compatibility evidence |
 | Constraints | Must do / Must not do / Escalation triggers |
-| Estimated Hours | Target 2h or less per task. Decompose if larger. |
+| Estimated Effort | Planning signal only. Never use size, line count, SLOC, or hours as the split/pass criterion. |
 | Architecture Pattern | Which pattern from Phase 2 applies, with file path reference |
 | Reference Implementation | Existing file in the codebase that demonstrates the pattern |
 | Failure Modes | What could fail? Likelihood? Early warning? |
@@ -628,6 +629,7 @@ Good: "Given a POST to /api/v1/widgets with an empty name field, When the reques
 - State invariants positively first. Use "must not" for grounded boundaries and known bad shortcuts.
 - Every `implementation_task` and `validation_task` must carry an `honesty_contract`. Required contracts list `does_not_do`, `limitations`, `unsafe_claims`, `output_surfaces`, and `required_output_fields`. Artifact-emitting tasks require `no_overclaim` and `limitations`; docs-output tasks require `doc_honesty_section`. Pure internal refactors may set `applicability=not_applicable` only when the reason explicitly says there are no external claims.
 - Every `implementation_task` and `validation_task` must carry a `performance_envelope`. Required envelopes list `expected_input_scale`, `hot_paths` with complexity bounds, and `benchmark_required`. If `benchmark_required=true`, include the benchmark command and expected signal. Pure non-data-path work may set `applicability=not_applicable` only when the reason explicitly says no data path.
+- Every `implementation_task` and `validation_task` must carry `task_sizing`. Required sizing names `basis`, `change_surface`, and `split_decision`; ready work is one module, one coherent `module_plan` file-set, or `atomic_cross_module` with `atomic_work_reason`. If `split_decision.required=true`, include proposed splits and keep the task blocked for emission. Size, line count, SLOC, or hours alone are never valid criteria.
 - Production readiness means backwards and forwards compatibility, observability, rollback/degradation, realistic failure modes, and evidence. Compliance posture is considered through the evidence suite, but it must not explode implementation scope unless required by the PRD or repo.
 
 **Parallelism flags:** Mark tasks as independent when they don't share state or depend on each other's output. Independent tasks can be executed by multiple coding agents simultaneously. This is how you get 3x velocity from the same task list.
@@ -804,7 +806,7 @@ Before generating the Build Brief, verify all of these are present. Reject the d
 - [ ] Independent tasks flagged for parallel execution
 - [ ] Self-containment check: a coding agent with only the ticket could produce working, wired code
 - [ ] No task permits stub-only, scaffold-only, or partial-wiring completion
-- [ ] No task exceeds 2h estimate (decomposed if larger)
+- [ ] Every executable task passes task sizing: one module, one coherent module-plan file-set, or explicitly atomic cross-module work
 
 **Decisions & Process:**
 - [ ] All decisions tagged Type 1 or Type 2
@@ -1195,6 +1197,7 @@ Before generating the Build Brief, verify all of these are present. Reject the d
 - [ ] Every task has: ID, agent type, description, files, reference impl, dependencies, task classification, verification spec, G/W/T
 - [ ] Every executable task has an `honesty_contract`; artifact-emitting contracts require `no_overclaim` and `limitations`, docs-output contracts require `doc_honesty_section`, and skips explicitly say no external claims
 - [ ] Every executable task has a `performance_envelope`; data-path tasks include scale, complexity bounds, benchmark_required, and benchmark spec when required; skips explicitly say no data path
+- [ ] Every executable task has `task_sizing`; ready tasks are one module, one coherent module-plan file-set, or explicitly `atomic_cross_module`; split-required tasks include proposed splits
 - [ ] Every task referencing existing code has a reference impl file path
 - [ ] Dependencies form a valid DAG (no circular dependencies)
 - [ ] Independent tasks flagged for parallel execution

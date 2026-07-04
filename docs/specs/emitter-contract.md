@@ -118,6 +118,12 @@ Repo configuration binds ADLC's logical emitter capabilities to whatever tool na
       "benchmark_required": false,
       "benchmark_command": "string",
       "benchmark_results": [],
+      "task_sizing": {
+        "applicability": "required | not_applicable",
+        "change_surface": {},
+        "split_decision": {},
+        "atomic_work_reason": "string"
+      },
       "idempotency_key": "string"
     }
   ],
@@ -212,6 +218,7 @@ Every work-item emitter must carry these fields forward from the Build Brief tas
 - `no_overclaim` and `limitations` when the task's `honesty_contract.output_surfaces` includes `artifact`
 - `performance_envelope`; if it is `required`, the artifact description must keep expected input scale, hot paths, complexity bounds, benchmark decision, and benchmark spec visible to the executing agent
 - `benchmark_results` when present, and benchmark-required artifacts must preserve benchmark command or evidence refs without converting them into generic verification prose
+- `task_sizing`; if it is `required`, the artifact description must keep the change surface, split decision, proposed splits when blocked, and atomic-work reason visible to the executing agent
 - `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, and `production_invariant_coverage` when present
 - `implementation_interface_contract` when present, including reuse, consumes, emits, minimum fields, invariants, integration points, validation gates, failure semantics, and privacy/redaction posture
 - `productionization_gate` when present, including claim, Coverage State, validation evidence, No-Overclaim boundaries, reliability failure modes, operational readiness, rollback/runbook/observability posture, and security/privacy posture
@@ -365,6 +372,7 @@ The readiness checker validates:
    - `productionization_gate` for active production support claims
    - `honesty_contract`, unless the executable task declares `not_applicable` with a no-external-claims reason
    - `performance_envelope`, unless the executable task declares `not_applicable` with a no-data-path reason
+   - `module_plan` and `task_sizing`, unless the executable task declares the relevant surface `not_applicable` with a concrete no-change-surface or no-structure reason
    - `slop_quality_gate` when `generated_output_surface.active=true`; if the brief includes `slop_quality_gate` for an inactive surface it must use `applicability=not_applicable` with a concrete reason
    - Loop Contract refs when LLM-driven action, test-selection, control-channel, escalation, or maturity evidence is active
 6. **Production-ready claim checks** — `productionization_gate.coverage_state=production_ready` requires an `implementation_interface_contract`, validation evidence, No-Overclaim boundaries, reliability failure modes, owner, rollback path, runbook/alerting/dashboard/SLO posture where applicable, and security/privacy redaction posture. Missing proof returns `overclaimed_production_ready`.
@@ -372,6 +380,7 @@ The readiness checker validates:
 8. **Phase-project map** — when a `--phase-project-map` is provided, any task with a `phase_label` that exists in the map must have a matching `target_project` in `work_item_metadata`.
 9. **Honesty contract checks** — executable tasks must carry `honesty_contract`. Required contracts must include `does_not_do`, `limitations`, `unsafe_claims`, `output_surfaces`, and `required_output_fields`; artifact surfaces require `no_overclaim` plus `limitations`, and docs surfaces require `doc_honesty_section`.
 10. **Performance envelope checks** — executable tasks must carry `performance_envelope`. Data-path tasks require expected input scale, hot-path complexity bounds, and an explicit `benchmark_required` decision; benchmark-required tasks require `benchmark_spec.command` and must preserve benchmark evidence when present. No-data-path skips are valid only when the reason explicitly says there is no data path.
+11. **Task sizing checks** — executable tasks must carry `task_sizing`. A ready task covers one module, one coherent `module_plan` file-set, or explicit atomic cross-module work. Split-required tasks must return the proposed split and must not mutate providers. Size, line count, and SLOC alone are not valid criteria.
 
 ### CLI Flags
 
@@ -398,6 +407,9 @@ Emitters must stop with one of:
 - `missing_productionization_gate`
 - `missing_honesty_contract`
 - `missing_performance_envelope`
+- `missing_task_sizing`
+- `task_sizing_split_required`
+- `task_sizing_broad_surface`
 - `missing_benchmark_evidence`
 - `overclaimed_production_ready`
 - `missing_intent_validation` — emitted when `contract_version >= 1.1.x` and `narrative_contract.human_validated_at` is missing

@@ -808,7 +808,7 @@
       "activation": {
         "mode": "core_plus_overlays",
         "consumes_manifest": true,
-        "core_checks": ["1", "2", "3", "4", "15", "16", "17", "28", "29", "30"],
+        "core_checks": ["1", "2", "3", "4", "15", "16", "17", "28", "29", "30", "31"],
         "overlay_checks": ["5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "18", "19", "20", "21", "22"]
       },
       "dag_nodes": ["code_review", "pr_prep"]

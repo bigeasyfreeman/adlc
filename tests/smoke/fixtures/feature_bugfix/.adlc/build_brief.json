@@ -173,7 +173,7 @@
         },
         "implementation_notes": [
           "Keep the behavior in src/scoreboard.py.",
-          "Do not add helper modules or third-party libraries."
+          "Do not add helper files or third-party libraries."
         ],
         "verification_spec": {
           "primary_verifier": {
@@ -223,6 +223,33 @@
           "tests/test_average_score.py"
         ],
         "reference_impl": "src/scoreboard.py",
+        "module_plan": {
+          "applicability": "not_applicable",
+          "reason": "Behavior bugfix modifies the existing scoreboard module and creates no module structure."
+        },
+        "task_sizing": {
+          "applicability": "required",
+          "reason": "Bugfix is one coherent scoreboard module change plus its focused test.",
+          "basis": [
+            "responsibility_boundary"
+          ],
+          "change_surface": {
+            "surface_kind": "single_module",
+            "primary_module": "src/scoreboard.py",
+            "touched_modules": [
+              "src/scoreboard.py"
+            ],
+            "touched_files": [
+              "src/scoreboard.py",
+              "tests/test_average_score.py"
+            ],
+            "coherence": "The test and implementation both target average_score behavior in the existing scoreboard module."
+          },
+          "split_decision": {
+            "required": false,
+            "rationale": "Only one module responsibility changes."
+          }
+        },
         "work_item_metadata": {
           "area": "backend",
           "area_label": "backend",
@@ -377,6 +404,33 @@
           "tests/test_render_scoreboard.py"
         ],
         "reference_impl": "src/scoreboard.py",
+        "module_plan": {
+          "applicability": "not_applicable",
+          "reason": "Feature extends existing scoreboard behavior and creates no module structure."
+        },
+        "task_sizing": {
+          "applicability": "required",
+          "reason": "Feature is one coherent scoreboard rendering change plus its focused test.",
+          "basis": [
+            "responsibility_boundary"
+          ],
+          "change_surface": {
+            "surface_kind": "single_module",
+            "primary_module": "src/scoreboard.py",
+            "touched_modules": [
+              "src/scoreboard.py"
+            ],
+            "touched_files": [
+              "src/scoreboard.py",
+              "tests/test_render_scoreboard.py"
+            ],
+            "coherence": "The test and implementation both target render_scoreboard behavior in the existing scoreboard module."
+          },
+          "split_decision": {
+            "required": false,
+            "rationale": "Only one module responsibility changes."
+          }
+        },
         "honesty_contract": {
           "applicability": "not_applicable",
           "reason": "Internal scoreboard behavior change with no external claims."
@@ -490,6 +544,14 @@
         "files_to_modify": [],
         "files_to_create": [],
         "reference_impl": "src/scoreboard.py",
+        "module_plan": {
+          "applicability": "not_applicable",
+          "reason": "Validation task only and creates no module structure."
+        },
+        "task_sizing": {
+          "applicability": "not_applicable",
+          "reason": "Validation only with no implementation surface and no change surface."
+        },
         "honesty_contract": {
           "applicability": "not_applicable",
           "reason": "Validation-only task with no external claims."
