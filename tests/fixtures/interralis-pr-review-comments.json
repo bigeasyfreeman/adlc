@@ -1,0 +1,35 @@
+{
+  "repository": "interralis/interralis",
+  "comments": [
+    {
+      "source_ref": "interralis#225",
+      "url": "https://github.com/interralis/interralis/pull/225",
+      "author": "Aether-",
+      "quote": "One responsibility per file \u2014 the doc line needs an \"and\" (registry and discovery inventory), and it bundles three jobs (registry types/data, id inference, FS discovery walker). Per the rule, that's a split, not one file."
+    },
+    {
+      "source_ref": "interralis#225",
+      "url": "https://github.com/interralis/interralis/pull/225",
+      "author": "Aether-",
+      "quote": "Pure core / impure shell \u2014 the std::fs walker sits in the same file as the pure registry types and pure infer/normalize helpers."
+    },
+    {
+      "source_ref": "interralis#226",
+      "url": "https://github.com/interralis/interralis/pull/226",
+      "author": "Aether-",
+      "quote": "One responsibility per file \u2014 clearly violated. In one file: the enums/descriptors, persona catalog data, suite runner, LLM subprocess driver, report file I/O, and report explanation."
+    },
+    {
+      "source_ref": "interralis#226",
+      "url": "https://github.com/interralis/interralis/pull/226",
+      "author": "Aether-",
+      "quote": "Should be a directory module. 1367 lines with an LLM driver + probes + reporting should be persona_ux/ with catalog.rs, runner.rs, driver.rs (impure subprocess), report.rs (impure fs), and pure types.rs."
+    },
+    {
+      "source_ref": "interralis#226",
+      "url": "https://github.com/interralis/interralis/pull/226",
+      "author": "Aether-",
+      "quote": "Pure core / impure shell not separated. Subprocess spawning and fs::write sit alongside the pure type/catalog/probe logic."
+    }
+  ]
+}
