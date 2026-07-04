@@ -44,7 +44,7 @@ If the changed files span multiple supported languages, audit the language that 
 5. Detect the repo language and the standard mutation tool for that language.
 6. Run mutation analysis on the changed files only.
 7. If mutants survive, batch the surviving-mutant diffs and classify each survivor with `mutant-materiality-judge` as `trivial` or `material`.
-8. Write `.adlc/test_strength_report.json` with thresholds, per-file coverage, mutant counts, surviving-mutant classifications, language detection rationale, and the verdict.
+8. Write `.adlc/test_strength_report.json` with thresholds, per-file coverage, mutant counts, surviving-mutant classifications, language detection rationale, and the verdict, then write the canonical audit copy to the path returned by `bin/adlc process-artifact-path --target-repo <target-repo> --task <task-id> --artifact-type audit --filename test-strength.json --json`.
 
 ## Gates
 
@@ -67,7 +67,7 @@ If the changed files span multiple supported languages, audit the language that 
 
 ## Output
 
-Write `.adlc/test_strength_report.json`.
+Write `.adlc/test_strength_report.json` for the local workflow handoff and store the canonical audit copy in ADLC process artifact storage.
 
 ```json
 {
@@ -183,7 +183,8 @@ Before emitting `pass`, `weak`, or `stuck`, confirm:
 1. `.adlc/test_strength_report.json` parses against the schema in this skill.
 2. The report records `coverage_threshold` as `0.8` and `mutation_threshold` as `0.6`.
 3. The report includes a non-empty `language_detection_rationale`.
-4. No threshold is silently defaulted or omitted.
+4. The ADLC-side audit copy path was computed with `bin/adlc process-artifact-path`.
+5. No threshold is silently defaulted or omitted.
 
 ## Output Labels
 

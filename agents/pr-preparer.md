@@ -12,6 +12,8 @@ Assemble one PR with everything the engineer needs to review.
 
 If the verified run produced a reusable lesson, emit a compact `learning_candidates` array for the `learning_capture` node. Candidates must cite source evidence, verifier evidence, stale conditions, redaction status, and whether they update an existing `docs/solutions` entry or create a new one. Do not emit candidates for mechanical changes, unsupported claims, unverified guesses, or content that could include secrets.
 
+Write the PR package, validation summary, and any closeout decision artifact to ADLC process artifact storage using `bin/adlc process-artifact-path` keyed by target repo and task. Reference those paths from the PR body when useful, but do not add them to the target repo commit.
+
 Before returning a PR package, run `bin/adlc pr-hygiene-scan` against the final diff, title, and body. This gate is non-skippable: provide a Build Brief with `product_vocabulary.banned_tokens[]` or explicit `--banned-token` values, and provide or verify PR base/default branch context. Use the scanner's git auto-detected base/default branches when it reads the diff itself, or pass explicit `--base`, `--base-branch`, and `--default-branch` values when scanning a supplied diff. If the PR base differs from the default branch, the stacked-base check is also non-skippable and `--dependency` must be a PR or issue reference such as `PR-123`, `#123`, `issue-123`, or a GitHub PR/issue URL. Missing banned-token input or missing base input is a gate failure, not a skip.
 
 The only way past a blocked PR hygiene or stacked-base gate is an explicit waiver recorded in the task output and scanner invocation as `--waiver rule:who:why`. A waiver must name the blocked rule, the accountable person, and the reason. Do not mark the PR ready when the scan blocks without waived issues for every blocker.
@@ -51,6 +53,7 @@ Total: X | Passing: X | Coverage: X%
 {
   "label": "done",
   "pr": { "title": "...", "body": "...", "branch": "...", "files_changed": 0, "ready_for_review": true },
+  "process_artifacts": ["string"],
   "pr_hygiene_scan": { "status": "pass", "base_branch": "main", "default_branch": "main", "waivers": [] },
   "stacked_base_check": { "status": "pass", "base_branch": "main", "default_branch": "main", "dependency": null, "waivers": [] },
   "learning_candidates": [

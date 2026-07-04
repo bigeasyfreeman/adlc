@@ -114,6 +114,30 @@ assert "pr-hygiene-scan blocks missing branch context loudly" "if '$ROOT/bin/adl
 assert "pr-hygiene-scan requires banned-token source" "if '$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --diff-file /dev/null --base-branch main --default-branch main --json >'$tmp_dir/missing-pr-vocab-context.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"banned_token_source_missing\")' '$tmp_dir/missing-pr-vocab-context.json' >/dev/null; fi"
 assert "pr-hygiene-scan records waivers with who and why" "'$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --diff-file /dev/null --base-branch main --default-branch main --waiver 'banned_token_source_missing:eric:test fixture has no product vocabulary source' --json | jq -e '.status == \"pass\" and .summary.waived_issues == 1 and any(.issues[]; .rule == \"banned_token_source_missing\" and .status == \"waived\" and .waiver.who == \"eric\" and (.waiver.reason | contains(\"product vocabulary source\")))' >/dev/null"
 assert "pr-hygiene-scan allows waived stacked base only with who and why" "'$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --build-brief '$tmp_dir/hygiene-brief.json' --diff-file /dev/null --base-branch feature/child --default-branch main --waiver 'stacked_pr_without_dependency:eric:temporary stacked review dependency recorded elsewhere' --json | jq -e '.status == \"pass\" and .summary.waived_issues == 1 and any(.issues[]; .rule == \"stacked_pr_without_dependency\" and .status == \"waived\" and .waiver.who == \"eric\" and (.waiver.reason | contains(\"temporary stacked\")))' >/dev/null"
+assert "process-artifact-path keys storage by target repo task run and type" "'$ROOT/bin/adlc' process-artifact-path --workspace '$tmp_dir' --artifact-root '$tmp_dir/process-store' --target-repo 'https://github.com/Acme/Target.git' --task 'TASK 123: Fix Thing' --artifact-type build-brief --run-id 'Run 1' --json >'$tmp_dir/process-artifact-path.json' && jq -e --arg root '$tmp_dir/process-store' '.storage_root == \$root and .target_repo_key == \"acme--target\" and .task_key == \"task-123-fix-thing\" and .run_id == \"run-1\" and .artifact_type == \"build-brief\" and (.path | endswith(\"/acme--target/task-123-fix-thing/run-1/build-brief/build-brief.json\"))' '$tmp_dir/process-artifact-path.json' >/dev/null"
+assert "process-artifact-path rejects filename traversal" "if '$ROOT/bin/adlc' process-artifact-path --workspace '$tmp_dir' --target-repo owner/repo --task TASK-123 --artifact-type audit --filename '../audit.json' --json >'$tmp_dir/process-artifact-bad-filename.json' 2>/dev/null; then false; else true; fi"
+legacy_dir="docs/build-"
+legacy_dir="${legacy_dir}briefs"
+process_dir=".adlc/process-"
+process_dir="${process_dir}artifacts"
+tech_file="TECH_DEBT"
+tech_file="${tech_file}_AUDIT.md"
+tech_match="${tech_file%.md}"
+goal_file="ADLC_OS5_GOAL"
+goal_file="${goal_file}_PROMPT.md"
+goal_match="${goal_file%.md}"
+council_file="council"
+council_file="${council_file}-report.json"
+council_match="${council_file%.json}"
+cat > "$tmp_dir/process-artifact-diff.patch" <<PATCH
+diff --git a/$process_dir/acme/task/current/audit/audit.json b/$process_dir/acme/task/current/audit/audit.json
+new file mode 100644
+--- /dev/null
++++ b/$process_dir/acme/task/current/audit/audit.json
+@@
++Moved $legacy_dir/leak.json with $tech_file, $goal_file, and $council_file
+PATCH
+assert "pr-hygiene-scan blocks target diff process artifact paths" "if '$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --build-brief '$tmp_dir/hygiene-brief.json' --diff-file '$tmp_dir/process-artifact-diff.patch' --base-branch main --default-branch main --json >'$tmp_dir/process-artifact-hygiene.json'; then false; else jq -e --arg process_path '$process_dir/' --arg tech '$tech_match' --arg goal '$goal_match' --arg council '$council_match' '.status == \"blocked\" and any(.issues[]; .rule == \"pipeline_artifact_in_pr\" and (.match | contains(\$process_path))) and any(.issues[]; .rule == \"pipeline_artifact_in_pr\" and (.match | contains(\$tech))) and any(.issues[]; .rule == \"pipeline_artifact_in_pr\" and (.match | contains(\$goal))) and any(.issues[]; .rule == \"pipeline_artifact_in_pr\" and (.match | contains(\$council)))' '$tmp_dir/process-artifact-hygiene.json' >/dev/null; fi"
 auto_repo="$tmp_dir/hygiene-auto-repo"
 mkdir -p "$auto_repo"
 git -C "$auto_repo" init -q
@@ -790,12 +814,13 @@ assert "sync-work-item validates mutated workflow state" "'$ROOT/bin/adlc' valid
 echo ""
 echo "--- MCP Wrapper ---"
 cat > "$tmp_dir/mcp-tools-filter.jq" <<'JQ'
-(.tools | length) >= 34
+(.tools | length) >= 35
 and any(.tools[]; .name == "adlc_validate_artifact" and (.inputSchema.required | index("schema")))
 and any(.tools[]; .name == "adlc_health_check")
 and any(.tools[]; .name == "adlc_repo_conventions" and .inputSchema.properties.workspace.type == "string")
 and any(.tools[]; .name == "adlc_convention_scan" and .inputSchema.properties.build_brief.type == "string" and .inputSchema.properties.file.type == "array" and .inputSchema.properties.waiver.type == "array")
 and any(.tools[]; .name == "adlc_pr_hygiene_scan" and .inputSchema.properties.banned_token.type == "array" and .inputSchema.properties.removed_gate_token.type == "array")
+and any(.tools[]; .name == "adlc_process_artifact_path" and (.inputSchema.required | index("task")) and .inputSchema.properties.artifact_type.enum[0] == "build-brief")
 and any(.tools[]; .name == "adlc_ci" and .inputSchema.properties.suite.type == "array")
 and any(.tools[]; .name == "adlc_action_admit" and (.inputSchema.required | index("tool_registry")) and .inputSchema.properties.allow_mutation.type == "boolean" and .inputSchema.properties.run_id.type == "string")
 and any(.tools[]; .name == "adlc_run_phase")

@@ -178,6 +178,12 @@ goal prompts, Build Brief drafts, council scratch artifacts, absolute local
 paths, banned internal vocabulary, removed target-repo gates, and undocumented
 stacked PR bases.
 
+Process artifacts are stored outside target-repo diffs. Writers compute the
+canonical ADLC-side path with `bin/adlc process-artifact-path`, keyed by target
+repo, task, run, and artifact type. Build Briefs, eval outputs, audits,
+validation summaries, and closeout packages reference that path instead of
+adding planning files to product commits.
+
 ### Fan-Out Configuration
 
 The `code` node fans out across tasks. Each task gets:
@@ -199,7 +205,8 @@ code:
 Each pipeline run gets:
 - Fresh repo clone or worktree
 - Skills synced to `.claude/skills/` (digest-based, idempotent)
-- `.adlc/` directory for pipeline state, artifacts, thread history
+- `.adlc/` directory for transient pipeline state and thread history
+- ADLC-side process artifact storage for briefs, eval outputs, audits, validation summaries, and closeout packages
 - Clean git state before each attempt
 
 ## Skill Injection

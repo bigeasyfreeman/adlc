@@ -442,6 +442,8 @@ Individual evaluations are synthesized into a council verdict:
 
 The council produces a structured report. It records which overlays were active, which were suppressed, and why:
 
+Store the canonical report outside the target repo with `bin/adlc process-artifact-path --target-repo <target-repo> --task <task-id> --artifact-type eval --filename eval.json --json`, then write the report to the returned `path`. PR bodies and work items may reference that path; the report itself is not part of the target-repo diff.
+
 ```markdown
 ## Eval Council Report: [Feature Name]
 
@@ -704,8 +706,11 @@ If the brief claims something that contradicts the repo map, the Skeptic persona
 ## CLI Interface
 
 ```bash
+# Compute the ADLC-side destination for this report
+EVAL_PATH="$(bin/adlc process-artifact-path --target-repo owner/repo --task TASK-123 --artifact-type eval --filename eval.json --json | jq -r '.path')"
+
 # Evaluate a build brief
-adlc-eval brief --input ./build-brief.md --repo-map ./repo-map.json --output ./eval-report.md
+adlc-eval brief --input ./build-brief.md --repo-map ./repo-map.json --output "$EVAL_PATH"
 
 # Evaluate a specific skill output
 adlc-eval skill --skill jira --input ./jira-tickets.json --repo-map ./repo-map.json
@@ -714,7 +719,7 @@ adlc-eval skill --skill jira --input ./jira-tickets.json --repo-map ./repo-map.j
 adlc-eval brief --input ./build-brief.md --exclude "first_principles:scope locked in Phase 0"
 
 # Re-evaluate after revision
-adlc-eval brief --input ./build-brief-v2.md --previous ./eval-report-v1.md
+adlc-eval brief --input ./build-brief-v2.md --previous "$EVAL_PATH"
 
 # Evaluate a Type 1 decision
 adlc-eval decision --description "Change auth provider from Clerk to Auth0" \

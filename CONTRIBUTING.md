@@ -88,6 +88,18 @@ preserve the target repo convention contract:
    token into task packages.
 5. Structural gates must not use file size, line count, or SLOC as a split or
    quality criterion.
+
+## Process Artifact Storage
+
+Build Brief drafts, approved briefs, eval outputs, audits, validation summaries,
+goal prompts, and closeout packages are ADLC process artifacts. They must not be
+added to target-repo diffs.
+
+When adding or changing a skill that writes those materials, compute the storage
+path with `bin/adlc process-artifact-path` and write the artifact under the
+ADLC-side storage contract in `docs/specs/process-artifact-storage.md`. Target
+repos may contain ignored transient state for a local run, but canonical process
+artifacts stay keyed by target repo and task in the ADLC store.
 6. PRs must run `bin/adlc pr-hygiene-scan` and keep ADLC goal prompts, Build
    Brief drafts, council scratch artifacts, and local paths out of target diffs.
 

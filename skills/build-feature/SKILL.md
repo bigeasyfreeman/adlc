@@ -57,6 +57,7 @@ Convention flow map:
 - **Skill:** `build-brief` (ADLC Build Brief Agent)
 - **Input:** Structured PRD + codebase context
 - **Output:** Technical design with top-level `repo_conventions`, top-level `product_vocabulary`, and per-task: acceptance criteria (G/W/T), `task_classification`, `change_surface`, `verification_spec`, `applicability_manifest`, construct-map refs, paved-road refs, intent refs, production invariant coverage, reuse analysis, antipatterns, Definition of Done
+- **Storage:** Write the canonical Build Brief outside the target repo at the path returned by `bin/adlc process-artifact-path --target-repo <target-repo> --task <brief-or-task-id> --artifact-type build-brief --filename build-brief.json --json`.
 - **Includes:** `paved-road-registry`, `reuse-analysis`, `security-review` only when the security overlay is active, and `observability-contract` only when the observability overlay is active
 - **Repo conventions:** Run `bin/adlc repo-conventions --workspace <target-repo> --json` against the target repo. If CLAUDE.md, AGENTS.md, or CONTRIBUTING.md exists, the Build Brief `repo_conventions.rules[]` MUST list every extracted rule with a verification predicate. If those files exist but contain no normative rules, the brief MUST carry `status: files_present_but_no_normative_rules` and record the files read in `sources[]`. If no convention files exist, the brief MUST carry `status: none_found` and `explicit_empty_marker: no_conventions_found`; absence is invalid.
 - **Vocabulary firewall:** The brief MUST carry `product_vocabulary.mappings[]` and one shared `product_vocabulary.banned_tokens[]` list for internal ticket IDs, codenames, stack labels, and phase names that must not reach public identifiers, schemas, filenames, tests, comments, CLI output, PR titles, or PR bodies.
@@ -65,6 +66,7 @@ Convention flow map:
 - **Skill:** `eval-council` (HEAVY — manifest-aware core personas + active overlays, 3 rounds)
 - **Personas:** Core = Skeptic, Executioner, First Principles; overlays = Architect, Operator, Security Auditor when active
 - **Pre-check:** Static checks must pass before council tokens are spent; active personas come from the applicability manifest
+- **Storage:** Store the council report in ADLC process artifact storage with `artifact-type eval`; reference it from the brief and work items instead of adding it to the target repo.
 - **Verdicts:** APPROVED → Step 4. REVISION REQUIRED → back to Step 2 (max 3 loops). BLOCKED → escalate.
 
 ### Step 4: Architecture Scaffolding
@@ -88,6 +90,7 @@ Convention flow map:
 ### Step 8: Eval Council — Post-Execution
 - **Skill:** `eval-council` (HEAVY — reviewing implementation against brief)
 - **Focus:** Did the implementation match the design? Did it stay on the paved road or justify departure? Are construct relationships, verifiers, and production invariants satisfied? Are active overlays satisfied? Is observability complete where active?
+- **Storage:** Store the post-execution council report in ADLC process artifact storage with `artifact-type eval`.
 - **Verdicts:** APPROVED → Step 9. REVISION REQUIRED → back to Step 6 (max 3 loops).
 
 ### Step 9: Stop Slop + PR Hygiene
@@ -96,7 +99,7 @@ Convention flow map:
 - **Hygiene scan:** Run `bin/adlc pr-hygiene-scan --build-brief <brief> --title <title> --body <body> --base-branch <base> --default-branch <default> --json`. It fails on pipeline artifacts, banned internal tokens, absolute local paths, removed CI gates supplied to the scan, and undocumented stacked bases.
 
 ### Step 10: Create PR
-- **Diff contract:** PR diff contains product code, tests, and user-facing docs only. Pipeline artifacts - Build Briefs, eval/council reports, tech-debt audits, closeout or validation scripts, and goal prompts - live in ADLC-side storage keyed by target repo and task, not in the target repo diff.
+- **Diff contract:** PR diff contains product code, tests, and user-facing docs only. Pipeline artifacts - Build Briefs, eval/council reports, tech-debt audits, closeout or validation scripts, and goal prompts - live in ADLC process artifact storage keyed by target repo and task, not in the target repo diff.
 - **Base policy:** Cut from the target repo default branch. A non-default base is allowed only when the brief documents a genuine code dependency on an unmerged PR; dependent PRs remain drafts and name the dependency in the body.
 - **Language contract:** PR title/body use product language from `product_vocabulary`; internal codenames, ticket IDs, stack labels, and phase names are banned.
 - **Output:** PR with: summary, active overlay summaries, DoD checklist, council verdict, test results, risk tier, PR hygiene scan result

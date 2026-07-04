@@ -22,7 +22,7 @@ Define the minimum contract an external agent or orchestrator needs to discover,
 | `docs/specs/learning-architecture-memory.md` | Learning, architecture memory, stale/overclaim, duplicate primitive, and champion/holdout contracts |
 | `docs/specs/packaged-loop-library.md` | Harness-installable loop template catalog, generated contracts, and install gates |
 | `docs/specs/self-actioning-meta-harness.md` | Bounded candidate ranking, loop selection, queue seed, tracker-sync, and planned-command contract |
-| `.adlc/` | Per-run workspace state and artifacts such as `test_plan.json`, `loop_test_result.json`, `pre_change_run.txt`, and `test_strength_report.json` |
+| `.adlc/` | Per-run transient workspace state such as `test_plan.json`, `loop_test_result.json`, `pre_change_run.txt`, and `test_strength_report.json`; durable process artifacts use `docs/specs/process-artifact-storage.md` |
 
 ## Quick Hook Contract
 

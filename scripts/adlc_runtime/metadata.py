@@ -106,6 +106,10 @@ COMMAND_METADATA = {
         "mcp_name": "adlc_pr_hygiene_scan",
         "description": "Scan PR diff, title, and body for pipeline artifacts, banned internal tokens, local paths, removed gates, unresolved branch context, undocumented stacked bases, and missing non-skippable gate inputs.",
     },
+    "process-artifact-path": {
+        "mcp_name": "adlc_process_artifact_path",
+        "description": "Compute the canonical ADLC-side process artifact path keyed by target repository, task, run, and artifact type without writing files.",
+    },
     "ci": {
         "mcp_name": "adlc_ci",
         "description": "Run the canonical local ADLC verification suite and emit a structured summary.",

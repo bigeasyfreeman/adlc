@@ -113,6 +113,7 @@ What is automatic today:
 - strict Loop Contract required-test proof through `docs/schemas/loop-test-result.schema.json` and `loop-test-selection --require-test-results`
 - schema-backed work queue status, task claims, completion/block/escalation state, dirty-checks, file-overlap checks, and worktree prepare/status/cleanup dry-runs
 - target-repo convention extraction, structural convention scans, and PR hygiene scans for pipeline artifacts, banned internal tokens, local paths, removed gates, and undocumented stacked bases
+- ADLC-side process artifact storage for Build Briefs, eval outputs, audits, validation summaries, and closeout packages keyed by target repo and task through `bin/adlc process-artifact-path`
 - evidence-backed architecture memory writes, memory-health stale/overclaim/duplicate primitive checks, and champion/holdout promotion gates for prompt or skill changes
 - packaged assisted-loop template inspection and install plans through `loop-library` and `loop-template-install`
 - bounded self-actioning task selection and execution planning through `meta-harness-plan`
