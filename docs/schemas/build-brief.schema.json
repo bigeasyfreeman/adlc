@@ -439,6 +439,14 @@
                 "type": "integer",
                 "minimum": 1
               },
+              "line_start": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "line_end": {
+                "type": "integer",
+                "minimum": 1
+              },
               "verification_predicate": {
                 "type": "string",
                 "minLength": 1

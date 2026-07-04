@@ -1064,6 +1064,13 @@ MUST_RULE_SIGNALS = (
     " do not ",
     " don't ",
     " no ",
+    " not ",
+    " should ",
+    " always ",
+    " can't ",
+    " cannot ",
+    " keep ",
+    " use ",
     " forbidden",
     " when a responsibility grows",
 )
@@ -1072,6 +1079,7 @@ REMOVED_CI_GATE_LABEL_RE = re.compile(r"\b(removed|retired|disabled|deleted)\b.*
 
 def clean_markdown_rule(line: str) -> str:
     text = re.sub(r"^\s*[-*]\s+", "", line).strip()
+    text = re.sub(r"^\[[ xX]\]\s+", "", text).strip()
     text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
     text = re.sub(r"`([^`]+)`", r"\1", text)
     return re.sub(r"\s+", " ", text).strip()
@@ -1113,6 +1121,17 @@ def convention_warning(rule: str, path: str, line: int, message: str) -> Dict[st
 
 def markdown_table_cells(line: str) -> List[str]:
     return [cell.strip(" `*") for cell in line.strip().strip("|").split("|")]
+
+
+def markdown_header_level(line: str) -> int | None:
+    match = re.match(r"^(#{1,6})\s+", line.strip())
+    return len(match.group(1)) if match else None
+
+
+def markdown_table_separator(line: str) -> bool:
+    cells = markdown_table_cells(line)
+    meaningful = [cell.strip() for cell in cells if cell.strip()]
+    return bool(meaningful) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in meaningful)
 
 
 def removed_ci_gates_from_line(line: str) -> List[str]:
@@ -1160,19 +1179,22 @@ def extract_convention_rules_from_doc(path: Path, workspace: Path) -> Tuple[List
     warnings_out: List[Dict[str, Any]] = []
     removed_ci_gates: List[str] = []
     in_conventions = False
+    convention_header_level: int | None = None
+    in_code_block = False
     current_rule_lines: List[str] = []
     current_rule_line = 0
+    current_rule_end_line = 0
     current_rule_in_conventions = False
+    current_rule_kind = "bullet"
 
     def flush_rule() -> None:
-        nonlocal current_rule_lines, current_rule_line, current_rule_in_conventions
+        nonlocal current_rule_lines, current_rule_line, current_rule_end_line, current_rule_in_conventions, current_rule_kind
         if not current_rule_lines:
             return
         rule = clean_markdown_rule(" ".join(current_rule_lines))
         normalized = f" {rule.lower()} "
-        if rule and (current_rule_in_conventions or any(signal in normalized for signal in MUST_RULE_SIGNALS)) and any(
-            signal in normalized for signal in MUST_RULE_SIGNALS
-        ):
+        has_signal = any(signal in normalized for signal in MUST_RULE_SIGNALS)
+        if rule and (current_rule_in_conventions or has_signal) and (has_signal or current_rule_kind == "checklist"):
             rules.append(
                 {
                     "id": convention_rule_id(rel, len(rules) + 1),
@@ -1182,32 +1204,93 @@ def extract_convention_rules_from_doc(path: Path, workspace: Path) -> Tuple[List
                     "severity": "must",
                     "applies_to": ["changed_files"],
                     "line": current_rule_line,
+                    "line_start": current_rule_line,
+                    "line_end": current_rule_end_line or current_rule_line,
                 }
             )
         current_rule_lines = []
         current_rule_line = 0
+        current_rule_end_line = 0
         current_rule_in_conventions = False
+        current_rule_kind = "bullet"
 
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         stripped = line.strip()
+        if stripped.startswith("```"):
+            flush_rule()
+            in_code_block = not in_code_block
+            continue
+        if in_code_block:
+            continue
         header = stripped.lower().lstrip("#").strip()
         removed_ci_gates.extend(removed_ci_gates_from_line(stripped))
-        if stripped.startswith("#") and "convention" in header:
+        header_level = markdown_header_level(stripped)
+        if header_level and "convention" in header:
             flush_rule()
             in_conventions = True
+            convention_header_level = header_level
             source["section"] = stripped.lstrip("#").strip()
             continue
-        if in_conventions and stripped.startswith("#") and "convention" not in header:
+        if in_conventions and header_level and convention_header_level and header_level <= convention_header_level and "convention" not in header:
             flush_rule()
             in_conventions = False
+            convention_header_level = None
+            continue
+        if in_conventions and header_level:
+            flush_rule()
+            continue
+        if not stripped:
+            flush_rule()
+            continue
+        if in_conventions and stripped.startswith("|") and not markdown_table_separator(stripped):
+            flush_rule()
+            cells = [cell for cell in markdown_table_cells(stripped) if cell]
+            if cells:
+                normalized = f" {clean_markdown_rule(' '.join(cells)).lower()} "
+                if any(signal in normalized for signal in MUST_RULE_SIGNALS):
+                    warnings_out.append(convention_warning("table_convention_candidate", rel, line_number, "Table row contains convention language; extracted as a deterministic rule."))
+                current_rule_lines = [" | ".join(cells)]
+                current_rule_line = line_number
+                current_rule_end_line = line_number
+                current_rule_in_conventions = True
+                current_rule_kind = "table"
+                flush_rule()
+            continue
+        if in_conventions and markdown_table_separator(stripped):
+            flush_rule()
+            continue
         if re.match(r"^[-*]\s+", stripped):
             flush_rule()
             current_rule_lines = [stripped]
             current_rule_line = line_number
+            current_rule_end_line = line_number
             current_rule_in_conventions = in_conventions
+            current_rule_kind = "checklist" if re.match(r"^[-*]\s+\[[ xX]\]\s+", stripped) else "bullet"
             continue
         if current_rule_lines and (line.startswith((" ", "\t")) and stripped and not stripped.startswith(("#", "|", "-", "*"))):
             current_rule_lines.append(stripped)
+            current_rule_end_line = line_number
+            continue
+        if in_conventions and stripped and not stripped.startswith("#"):
+            normalized = f" {clean_markdown_rule(stripped).lower()} "
+            if any(signal in normalized for signal in MUST_RULE_SIGNALS):
+                warnings_out.append(convention_warning("prose_convention_candidate", rel, line_number, "Prose contains convention language; extracted as a deterministic rule."))
+                if current_rule_kind != "prose":
+                    flush_rule()
+                    current_rule_lines = [stripped]
+                    current_rule_line = line_number
+                    current_rule_end_line = line_number
+                    current_rule_in_conventions = True
+                    current_rule_kind = "prose"
+                else:
+                    current_rule_lines.append(stripped)
+                    current_rule_end_line = line_number
+                continue
+            if current_rule_kind == "prose" and current_rule_lines:
+                current_rule_lines.append(stripped)
+                current_rule_end_line = line_number
+                continue
+            flush_rule()
             continue
         flush_rule()
         normalized = f" {clean_markdown_rule(stripped).lower()} "
