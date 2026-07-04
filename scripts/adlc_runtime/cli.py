@@ -754,6 +754,7 @@ def context_packages_for_brief(
     work_item_links = [item for item in state.get("work_item_links", []) if isinstance(item, dict)]
     for task in build_brief_tasks(brief):
         task_id = str(task.get("task_id") or "unknown-task")
+        module_plan, module_plan_source, matched_pattern, _generation_issue = task_effective_module_plan(task)
         packages.append(
             {
                 "task_id": task_id,
@@ -767,7 +768,9 @@ def context_packages_for_brief(
                     "compatibility_contract": task.get("compatibility_contract"),
                     "implementation_interface_contract": task.get("implementation_interface_contract"),
                     "productionization_gate": task.get("productionization_gate"),
-                    "module_plan": task.get("module_plan"),
+                    "module_plan": module_plan,
+                    "module_plan_source": module_plan_source,
+                    "paved_road_pattern": paved_road_pattern_context(matched_pattern),
                     "repo_conventions": brief.get("repo_conventions"),
                     "product_vocabulary": brief.get("product_vocabulary"),
                 },
@@ -6981,10 +6984,254 @@ MODULE_PLAN_STRUCTURAL_TERMS = (
     "architecture",
 )
 
+PAVED_ROAD_PATTERN_REGISTRY_REL = Path("skills/paved-road-registry/patterns.json")
+PAVED_ROAD_PATTERN_REF_PREFIXES = (
+    "pattern:",
+    "skill:paved-road-registry#",
+)
+
+
+def paved_road_pattern_registry_path() -> Path:
+    return ROOT / PAVED_ROAD_PATTERN_REGISTRY_REL
+
+
+def load_paved_road_pattern_registry(path: Path | None = None) -> Dict[str, Any]:
+    registry_path = path or paved_road_pattern_registry_path()
+    registry = read_json(registry_path)
+    if not isinstance(registry, dict):
+        raise ValueError(f"paved-road pattern registry must be an object: {registry_path}")
+    patterns = registry.get("patterns")
+    if not isinstance(patterns, list):
+        raise ValueError(f"paved-road pattern registry missing patterns array: {registry_path}")
+    return registry
+
+
+def paved_road_patterns_by_id() -> Dict[str, Dict[str, Any]]:
+    registry = load_paved_road_pattern_registry()
+    return {
+        str(pattern.get("id")): pattern
+        for pattern in registry.get("patterns", [])
+        if isinstance(pattern, dict) and pattern.get("id")
+    }
+
+
+def paved_road_pattern_ref_parts(raw_ref: str) -> Tuple[str, Dict[str, str]]:
+    ref, _, query = raw_ref.partition("?")
+    params: Dict[str, str] = {}
+    if query:
+        for item in query.split("&"):
+            key, sep, value = item.partition("=")
+            if sep and key:
+                params[key] = value
+    return ref.strip(), params
+
+
+def pattern_id_from_ref(raw_ref: str, patterns_by_id: Dict[str, Dict[str, Any]]) -> str | None:
+    ref, _params = paved_road_pattern_ref_parts(raw_ref)
+    candidates = [ref]
+    for prefix in PAVED_ROAD_PATTERN_REF_PREFIXES:
+        if ref.startswith(prefix):
+            candidates.append(ref[len(prefix) :])
+    for pattern_id, pattern in patterns_by_id.items():
+        refs = pattern.get("match", {}).get("refs", [])
+        if ref in refs or pattern_id in candidates:
+            return pattern_id
+    return None
+
+
+def matched_paved_road_pattern_for_task(task: Dict[str, Any]) -> Dict[str, Any] | None:
+    patterns_by_id = paved_road_patterns_by_id()
+    for raw_ref in task.get("paved_road_refs", []) or []:
+        if not isinstance(raw_ref, str):
+            continue
+        pattern_id = pattern_id_from_ref(raw_ref, patterns_by_id)
+        if pattern_id:
+            return patterns_by_id[pattern_id]
+    return None
+
+
+def pattern_module_root_from_ref(task: Dict[str, Any], pattern: Dict[str, Any]) -> str | None:
+    pattern_id = str(pattern.get("id"))
+    patterns_by_id = {pattern_id: pattern}
+    for raw_ref in task.get("paved_road_refs", []) or []:
+        if not isinstance(raw_ref, str):
+            continue
+        matched_id = pattern_id_from_ref(raw_ref, patterns_by_id)
+        if matched_id != pattern_id:
+            continue
+        _ref, params = paved_road_pattern_ref_parts(raw_ref)
+        module_root = params.get("module_root") or params.get("root")
+        if module_root and module_root.strip():
+            return module_root.strip().rstrip("/")
+    return None
+
+
+def pattern_template_suffix(path_template: str) -> str | None:
+    marker = "{module_root}/"
+    if marker not in path_template:
+        return None
+    return path_template.split(marker, 1)[1]
+
+
+def infer_pattern_module_root_from_paths(paths: List[str], pattern: Dict[str, Any]) -> str | None:
+    template_files = pattern.get("module_plan_template", {}).get("files", [])
+    suffixes = [
+        pattern_template_suffix(str(template.get("path_template")))
+        for template in template_files
+        if isinstance(template, dict)
+    ]
+    suffixes = [suffix for suffix in suffixes if suffix]
+    roots: List[str] = []
+    for raw_path in paths:
+        if not isinstance(raw_path, str):
+            continue
+        cleaned = raw_path.strip().rstrip("/")
+        for suffix in suffixes:
+            suffix_marker = "/" + suffix
+            if cleaned.endswith(suffix_marker):
+                root = cleaned[: -len(suffix_marker)]
+                if root and root not in roots:
+                    roots.append(root)
+            elif cleaned == suffix:
+                return "."
+    return roots[0] if roots else None
+
+
+def task_pattern_module_root(task: Dict[str, Any], pattern: Dict[str, Any], plan: Dict[str, Any] | None = None) -> str | None:
+    module_root = pattern_module_root_from_ref(task, pattern)
+    if module_root:
+        return module_root
+    plan_files = plan.get("files", []) if isinstance(plan, dict) else []
+    plan_paths = [
+        str(file_item.get("path"))
+        for file_item in plan_files
+        if isinstance(file_item, dict) and file_item.get("path")
+    ]
+    module_root = infer_pattern_module_root_from_paths(plan_paths, pattern)
+    if module_root:
+        return module_root
+    task_paths = [
+        str(path)
+        for path in (task.get("files_to_create", []) or []) + (task.get("files_to_modify", []) or [])
+        if isinstance(path, str)
+    ]
+    return infer_pattern_module_root_from_paths(task_paths, pattern)
+
+
+def module_slug_from_root(module_root: str) -> str:
+    name = Path(module_root).name or module_root
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_").lower()
+    return slug or "module"
+
+
+def format_pattern_template(value: str, module_root: str) -> str:
+    module_slug = module_slug_from_root(module_root)
+    return value.format(module_root=module_root.rstrip("/"), module_slug=module_slug)
+
+
+def module_plan_pattern_ref(pattern: Dict[str, Any]) -> Dict[str, Any]:
+    exemplar = pattern.get("exemplar", {})
+    return {
+        "pattern_id": pattern.get("id"),
+        "registry_path": str(PAVED_ROAD_PATTERN_REGISTRY_REL),
+        "exemplar_repo": exemplar.get("repo"),
+        "exemplar_path": exemplar.get("path"),
+        "exemplar_commit": exemplar.get("commit"),
+        "architecture_test_path": exemplar.get("architecture_test_path"),
+    }
+
+
+def generate_module_plan_from_pattern(task: Dict[str, Any], pattern: Dict[str, Any]) -> Tuple[Dict[str, Any] | None, Dict[str, Any] | None]:
+    module_root = task_pattern_module_root(task, pattern)
+    task_id = task.get("task_id", "unknown-task")
+    if not module_root:
+        return None, {
+            "severity": "blocking",
+            "rule": "pattern_module_root_unresolved",
+            "task_id": task_id,
+            "pattern_id": pattern.get("id"),
+            "message": "matched paved-road pattern requires a module_root query param or files_to_create paths matching the pattern templates",
+        }
+    template = pattern.get("module_plan_template", {})
+    files = []
+    for template_file in template.get("files", []) or []:
+        if not isinstance(template_file, dict):
+            continue
+        files.append(
+            {
+                "path": format_pattern_template(str(template_file.get("path_template")), module_root),
+                "responsibility": template_file.get("responsibility"),
+                "purity": template_file.get("purity"),
+                "capabilities": template_file.get("capabilities", []),
+            }
+        )
+    architecture_template = template.get("architecture_test", {})
+    architecture_test = {
+        "test_path": format_pattern_template(str(architecture_template.get("test_path_template")), module_root),
+        "command": format_pattern_template(str(architecture_template.get("command_template")), module_root),
+        "assertions": architecture_template.get("assertions", []),
+        "write_first": True,
+    }
+    return {
+        "applicability": "required",
+        "reason": template.get("reason") or f"Generated from paved-road pattern {pattern.get('id')}.",
+        "files": files,
+        "architecture_test": architecture_test,
+        "pattern_id": pattern.get("id"),
+        "pattern_ref": module_plan_pattern_ref(pattern),
+    }, None
+
+
+def module_plan_deviates_from_pattern(plan: Dict[str, Any], generated: Dict[str, Any]) -> bool:
+    if plan.get("applicability") != generated.get("applicability"):
+        return True
+    plan_paths = sorted(
+        str(item.get("path"))
+        for item in plan.get("files", []) or []
+        if isinstance(item, dict) and item.get("path")
+    )
+    generated_paths = sorted(
+        str(item.get("path"))
+        for item in generated.get("files", []) or []
+        if isinstance(item, dict) and item.get("path")
+    )
+    if plan_paths != generated_paths:
+        return True
+    plan_test = plan.get("architecture_test") if isinstance(plan.get("architecture_test"), dict) else {}
+    generated_test = generated.get("architecture_test", {})
+    return plan_test.get("test_path") != generated_test.get("test_path")
+
+
+def paved_road_pattern_context(pattern: Dict[str, Any] | None) -> Dict[str, Any] | None:
+    if not pattern:
+        return None
+    return {
+        "id": pattern.get("id"),
+        "name": pattern.get("name"),
+        "status": pattern.get("status"),
+        "capability": pattern.get("capability"),
+        "exemplar": pattern.get("exemplar"),
+        "exemplar_structure": pattern.get("exemplar_structure", []),
+        "allowed_departure": pattern.get("allowed_departure"),
+    }
+
 
 def task_module_plan_decision(task: Dict[str, Any]) -> Dict[str, Any] | None:
     plan = task.get("module_plan")
     return plan if isinstance(plan, dict) else None
+
+
+def task_effective_module_plan(task: Dict[str, Any]) -> Tuple[Dict[str, Any] | None, str, Dict[str, Any] | None, Dict[str, Any] | None]:
+    explicit_plan = task_module_plan_decision(task)
+    pattern = matched_paved_road_pattern_for_task(task)
+    if explicit_plan is not None:
+        return explicit_plan, "explicit", pattern, None
+    if pattern:
+        generated_plan, issue = generate_module_plan_from_pattern(task, pattern)
+        if generated_plan is not None:
+            return generated_plan, "pattern", pattern, None
+        return None, "missing", pattern, issue
+    return None, "missing", None, None
 
 
 def module_plan_structural_created_path(raw_path: str) -> bool:
@@ -7035,9 +7282,12 @@ def module_plan_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
         return []
 
     task_id = task["task_id"]
-    plan = task_module_plan_decision(task)
+    explicit_plan = task_module_plan_decision(task)
+    plan, _plan_source, matched_pattern, generation_issue = task_effective_module_plan(task)
     requires_plan = task_requires_module_plan(task)
     if plan is None:
+        if generation_issue:
+            return [generation_issue]
         return [
             {
                 "severity": "blocking",
@@ -7048,18 +7298,34 @@ def module_plan_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
         ]
 
     applicability = plan.get("applicability")
+    issues: List[Dict[str, Any]] = []
+    if matched_pattern and explicit_plan is not None:
+        generated_plan, generated_issue = generate_module_plan_from_pattern(task, matched_pattern)
+        if generated_issue:
+            issues.append(generated_issue)
+        elif generated_plan and module_plan_deviates_from_pattern(plan, generated_plan):
+            if not str(plan.get("pattern_deviation_reason") or "").strip():
+                issues.append(
+                    {
+                        "severity": "blocking",
+                        "rule": "missing_pattern_deviation_reason",
+                        "task_id": task_id,
+                        "pattern_id": matched_pattern.get("id"),
+                        "message": "task matches a registered paved-road pattern but its explicit module_plan deviates without pattern_deviation_reason",
+                    }
+                )
+
     if requires_plan and applicability != "required":
-        return [
+        issues.append(
             {
                 "severity": "blocking",
                 "rule": "missing_required_module_plan",
                 "task_id": task_id,
                 "message": "task creates or reshapes modules and must carry a required module_plan",
             }
-        ]
+        )
 
     if applicability == "required":
-        issues: List[Dict[str, Any]] = []
         if not isinstance(plan.get("files"), list) or not plan.get("files"):
             issues.append(
                 {
@@ -7088,9 +7354,8 @@ def module_plan_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "message": "module_plan architecture_test.write_first must be true",
                 }
             )
-        return issues
 
-    return []
+    return issues
 
 
 def module_plan_check_payload(brief_path: Path) -> Dict[str, Any]:
@@ -7105,12 +7370,17 @@ def module_plan_check_payload(brief_path: Path) -> Dict[str, Any]:
     for task in tasks:
         task_issues = module_plan_issues_for_task(task)
         issues.extend(task_issues)
-        plan = task_module_plan_decision(task)
+        plan, plan_source, matched_pattern, generation_issue = task_effective_module_plan(task)
+        if generation_issue and generation_issue not in task_issues:
+            issues.append(generation_issue)
+            task_issues = [*task_issues, generation_issue]
         task_results.append(
             {
                 "task_id": task["task_id"],
                 "requires_module_plan": task_requires_module_plan(task),
                 "module_plan_applicability": plan.get("applicability") if plan else None,
+                "module_plan_source": plan_source,
+                "matched_pattern_id": matched_pattern.get("id") if matched_pattern else None,
                 "status": "blocked" if task_issues else "pass",
                 "issues": task_issues,
             }
@@ -7126,6 +7396,7 @@ def module_plan_check_payload(brief_path: Path) -> Dict[str, Any]:
             "tasks": len(tasks),
             "required": sum(1 for item in task_results if item["module_plan_applicability"] == "required"),
             "not_applicable": sum(1 for item in task_results if item["module_plan_applicability"] == "not_applicable"),
+            "pattern_generated": sum(1 for item in task_results if item["module_plan_source"] == "pattern"),
             "blocked": sum(1 for item in task_results if item["status"] == "blocked"),
             "issues": len(issues),
         },
@@ -7143,6 +7414,44 @@ def command_module_plan_check(args: argparse.Namespace) -> int:
     else:
         print(f"module-plan-check: {payload['status']} ({payload['summary']['issues']} issue(s))")
     return 0 if payload["status"] == "pass" else 1
+
+
+def paved_road_patterns_payload(pattern_id: str | None = None) -> Dict[str, Any]:
+    registry_path = paved_road_pattern_registry_path()
+    errors = validate_artifact(resolve_schema("paved-road-pattern-registry"), registry_path)
+    if errors:
+        raise ValueError("paved-road pattern registry failed schema validation: " + "; ".join(errors))
+    registry = load_paved_road_pattern_registry(registry_path)
+    patterns = registry.get("patterns", [])
+    if pattern_id:
+        patterns = [
+            pattern
+            for pattern in patterns
+            if isinstance(pattern, dict) and pattern.get("id") == pattern_id
+        ]
+        if not patterns:
+            raise ValueError(f"unknown paved-road pattern: {pattern_id}")
+    return {
+        "contract_version": registry.get("contract_version"),
+        "registry_path": str(PAVED_ROAD_PATTERN_REGISTRY_REL),
+        "count": len(patterns),
+        "patterns": patterns,
+        "pattern": patterns[0] if pattern_id and patterns else None,
+    }
+
+
+def command_paved_road_patterns(args: argparse.Namespace) -> int:
+    try:
+        payload = paved_road_patterns_payload(args.pattern_id)
+    except (RuntimeError, ValueError, FileNotFoundError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        for pattern in payload["patterns"]:
+            print(f"{pattern['id']}\t{pattern['status']}\t{pattern['exemplar']['repo']}:{pattern['exemplar']['path']}")
+    return 0
 
 
 def slop_gate_payload(brief_path: Path) -> Dict[str, Any]:
@@ -7395,6 +7704,7 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
         task_id = task["task_id"]
         meta = task.get("work_item_metadata", {})
         idempotency_key = f"{brief_id}:{target}:{task_id}:upsert"
+        module_plan, module_plan_source, matched_pattern, _generation_issue = task_effective_module_plan(task)
         artifact = {
             "id": task_id,
             "title": task.get("title", task_id),
@@ -7424,7 +7734,9 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "reference_impl": task.get("reference_impl"),
             "files_to_create": task.get("files_to_create", []),
             "files_to_modify": task.get("files_to_modify", []),
-            "module_plan": task.get("module_plan"),
+            "module_plan": module_plan,
+            "module_plan_source": module_plan_source,
+            "paved_road_pattern": paved_road_pattern_context(matched_pattern),
             "tech_debt_boundaries": task.get("tech_debt_boundaries"),
             "compatibility_contract": task.get("compatibility_contract"),
             "construct_map_refs": task.get("construct_map_refs", []),
@@ -10109,6 +10421,17 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("paved-road-patterns"),
+            "description": command_description("paved-road-patterns"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "pattern_id": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("pr-hygiene-scan"),
             "description": command_description("pr-hygiene-scan"),
             "inputSchema": {
@@ -10843,6 +11166,10 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             raise ValueError("adlc_module_plan_check requires build_brief")
         payload = module_plan_check_payload(resolve_input_path(build_brief, Path.cwd()))
         return tool_result(payload, is_error=payload.get("status") != "pass")
+    if name == "adlc_paved_road_patterns":
+        pattern_id = arguments.get("pattern_id")
+        payload = paved_road_patterns_payload(pattern_id if isinstance(pattern_id, str) else None)
+        return tool_result(payload)
     if name == "adlc_pr_hygiene_scan":
         args = argparse.Namespace(
             workspace=arguments.get("workspace"),
@@ -11451,6 +11778,11 @@ def build_parser() -> argparse.ArgumentParser:
     module_plan_check.add_argument("--build-brief", required=True, help="Build Brief JSON path to validate for module_plan coverage.")
     module_plan_check.add_argument("--json", action="store_true", help="Emit JSON.")
     module_plan_check.set_defaults(func=command_module_plan_check)
+
+    paved_road_patterns = subparsers.add_parser("paved-road-patterns", help=command_description("paved-road-patterns"))
+    paved_road_patterns.add_argument("--pattern-id", help="Inspect one structural paved-road pattern by ID.")
+    paved_road_patterns.add_argument("--json", action="store_true", help="Emit JSON.")
+    paved_road_patterns.set_defaults(func=command_paved_road_patterns)
 
     pr_hygiene = subparsers.add_parser("pr-hygiene-scan", help=command_description("pr-hygiene-scan"))
     pr_hygiene.add_argument("--workspace", help="Target repository root. Defaults to cwd.")

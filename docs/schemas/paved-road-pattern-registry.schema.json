@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adlc.local/schemas/paved-road-pattern-registry.schema.json",
+  "title": "ADLC Paved-Road Pattern Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "patterns"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "patterns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/pattern"
+      }
+    }
+  },
+  "definitions": {
+    "pattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "status",
+        "capability",
+        "match",
+        "exemplar",
+        "module_plan_template",
+        "exemplar_structure",
+        "allowed_departure",
+        "registration"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_.-]*:[a-z0-9][a-z0-9_.-]*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "structural_module"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "preferred",
+            "deprecated"
+          ]
+        },
+        "capability": {
+          "type": "string",
+          "minLength": 1
+        },
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "refs",
+            "keywords"
+          ],
+          "properties": {
+            "refs": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "keywords": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "exemplar": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repo",
+            "path",
+            "commit",
+            "architecture_test_path"
+          ],
+          "properties": {
+            "repo": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "merged_pr": {
+              "type": "string",
+              "minLength": 1
+            },
+            "architecture_test_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "module_plan_template": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason",
+            "files",
+            "architecture_test"
+          ],
+          "properties": {
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            },
+            "files": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/template_file"
+              }
+            },
+            "architecture_test": {
+              "$ref": "#/definitions/template_architecture_test"
+            }
+          }
+        },
+        "exemplar_structure": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/exemplar_file"
+          }
+        },
+        "allowed_departure": {
+          "type": "string",
+          "minLength": 1
+        },
+        "registration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requires_human_approval",
+            "approval_record",
+            "steps"
+          ],
+          "properties": {
+            "requires_human_approval": {
+              "const": true
+            },
+            "approval_record": {
+              "type": "string",
+              "minLength": 1
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "template_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "path_template",
+        "responsibility",
+        "purity",
+        "capabilities"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path_template": {
+          "type": "string",
+          "pattern": "\\{module_root\\}"
+        },
+        "responsibility": {
+          "type": "string",
+          "minLength": 1
+        },
+        "purity": {
+          "type": "string",
+          "enum": [
+            "pure",
+            "impure"
+          ]
+        },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "none",
+              "compute",
+              "parse",
+              "render",
+              "fs",
+              "process",
+              "env",
+              "db",
+              "network",
+              "test",
+              "other"
+            ]
+          }
+        }
+      }
+    },
+    "template_architecture_test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "test_path_template",
+        "command_template",
+        "assertions",
+        "write_first"
+      ],
+      "properties": {
+        "test_path_template": {
+          "type": "string",
+          "pattern": "\\{module_slug\\}"
+        },
+        "command_template": {
+          "type": "string",
+          "pattern": "\\{module_slug\\}"
+        },
+        "assertions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "write_first": {
+          "const": true
+        }
+      }
+    },
+    "exemplar_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "role",
+        "purity",
+        "responsibility"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "purity": {
+          "type": "string",
+          "enum": [
+            "pure",
+            "impure",
+            "facade",
+            "test"
+          ]
+        },
+        "responsibility": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

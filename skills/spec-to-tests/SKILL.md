@@ -31,7 +31,7 @@ Use exactly these inputs:
 - per-task `acceptance_criteria`
 - `files_to_create/modify`
 - `reference_impl` path
-- optional `module_plan`; required when the task creates or reshapes modules
+- optional `module_plan`; required when the task creates or reshapes modules unless `module-plan-check` generated one from a registered paved-road pattern
 - optional `loop_contract_path` when the task changes an LLM-driven loop, action admission, test selection, control events, no-progress detection, escalation, or loop maturity
 - repo test conventions discovered at runtime
 
@@ -43,6 +43,7 @@ If any acceptance criterion arrives as an unstructured string with no normalized
 - When `module_plan.applicability=required`, the architecture test named in
   `module_plan.architecture_test.test_path` is authored before production code
   and before behavior tests that depend on the new layout.
+- When `module_plan_source=pattern`, the architecture test must also preserve the matched pattern's pure/impure split and exemplar structure. If an explicit plan departs from the pattern, test the stated `pattern_deviation_reason`.
 - `.adlc/test_plan.json` mapping `ac_id -> test_path -> expected_pre_change_failure_reason`
 - When a Loop Contract is active, each generated test also records `coverage_tags` and `covers_required_tests` so `bin/adlc loop-test-selection` can mechanically prove the mandatory floor and task-signal tests are covered.
 - When required Loop Contract tests have actually run, record the independent result refs in `execution_evidence_refs` and top-level `test_result_refs`, then use `bin/adlc loop-test-selection --require-test-results [path]` so coverage cannot pass on tags alone.
@@ -51,7 +52,7 @@ If any acceptance criterion arrives as an unstructured string with no normalized
 ## Authoring Workflow
 
 1. Read the task's `verification_spec`, `acceptance_criteria`, `files_to_create/modify`, and `reference_impl`.
-2. If `module_plan.applicability=required`, author `module_plan.architecture_test` first. The test must enforce the listed files, one-line responsibilities, pure/impure markings, and forbidden catch-all names before any production code is written.
+2. If `module_plan.applicability=required`, author `module_plan.architecture_test` first. The test must enforce the listed files, one-line responsibilities, pure/impure markings, registered pattern constraints when `module_plan_source=pattern`, and forbidden catch-all names before any production code is written.
 3. Discover the repo's native test root, framework, helper layout, fixture style, and test naming conventions at runtime.
 4. Normalize verifier scope against `verification_spec.target_files` when present.
 5. If `loop_contract_path` is active, read the Loop Contract and list its `test_selection.mandatory_floor` and `test_selection.required_from_task_signals` test IDs before authoring tests.

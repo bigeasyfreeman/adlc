@@ -712,6 +712,43 @@
         }
       }
     },
+    "module_plan_pattern_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pattern_id",
+        "registry_path",
+        "exemplar_repo",
+        "exemplar_path",
+        "exemplar_commit"
+      ],
+      "properties": {
+        "pattern_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "registry_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exemplar_repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exemplar_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exemplar_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "architecture_test_path": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "module_plan": {
       "type": "object",
       "additionalProperties": false,
@@ -739,6 +776,17 @@
         },
         "architecture_test": {
           "$ref": "#/definitions/module_plan_architecture_test"
+        },
+        "pattern_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pattern_ref": {
+          "$ref": "#/definitions/module_plan_pattern_ref"
+        },
+        "pattern_deviation_reason": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "allOf": [

@@ -90,6 +90,15 @@ This skill runs before the coding agent starts. Its output is the coding agent's
     "module_plan": {
       "applicability": "required | not_applicable",
       "reason": "string",
+      "pattern_id": "string when generated from or tied to a structural paved-road pattern",
+      "pattern_ref": {
+        "pattern_id": "string",
+        "registry_path": "skills/paved-road-registry/patterns.json",
+        "exemplar_repo": "github.com/interralis/interralis",
+        "exemplar_path": "src/observability/ingestion/harness_sources",
+        "exemplar_commit": "40-char merged commit"
+      },
+      "pattern_deviation_reason": "required when a matched pattern is intentionally not followed",
       "files": [
         {
           "path": "src/module.rs",
@@ -231,6 +240,8 @@ Hard rule:
 - Every task that delegates decisions, test selection, repair, retry, escalation, or tool use to an LLM-driven loop must include `loop_contract_path`. If missing for an active autonomous surface, return `stuck` with reason `missing_loop_contract`. If the task includes a proposed LLM action, inline `loop_action_path` and require `bin/adlc loop-action-validate` before execution.
 - Every task that changes generated-output behavior must include its `slop_quality_gate`, including eval cases, metrics, threshold, failure action, and case-promotion sources. If missing for a generated-output surface, return `stuck` with reason `missing_slop_quality_gate`.
 - Every executable task must include a `module_plan` decision. If the task creates or reshapes modules, `module_plan.applicability` must be `required`; otherwise it must be `not_applicable` with a reason. If a structural task is missing a required plan, return `stuck` with reason `missing_module_plan`.
+- If a task's `paved_road_refs` match a structural pattern in `skills/paved-road-registry/patterns.json`, `bin/adlc module-plan-check` may supply the effective `module_plan` from that pattern. Treat `module_plan_source=pattern` exactly like an explicit required plan, and inline the matched pattern's exemplar structure.
+- If a matched structural pattern has an explicit `module_plan` that differs from the registry template, require `pattern_deviation_reason`; otherwise return `stuck` with reason `missing_pattern_deviation_reason`.
 - For `module_plan.applicability=required`, inline it as binding instructions. The `responsibility` text is destined to become the file's module doc verbatim, `purity` controls where side effects may live, and `architecture_test.write_first` means the architecture test is authored before production code.
 
 What gets inlined:
@@ -242,7 +253,7 @@ What gets inlined:
 - Scaffolded contracts and implementation guide
 - The existing pattern table from the Build Brief
 - Task-relevant construct relationships, validation surfaces, and blast-radius notes
-- Paved-road reference implementations, allowed departures, and `do_not_reimplement` rules
+- Paved-road reference implementations, allowed departures, structural pattern exemplar structure, and `do_not_reimplement` rules
 - Implementation Interface contract: reuse, consumes, emits, minimum fields, invariants, integration points, validation gates, failure semantics, and privacy/redaction posture when active
 - Intent constraints, explicit non-goals, load-bearing assumptions, and human-judgment checkpoints
 - Production invariant coverage for the task, including any gaps or review-required items
@@ -358,7 +369,7 @@ Do not modify verification artifacts unless the task class explicitly requires i
 These are the exact files this task touches.
 
 ## 5. Module Plan
-[If `module_plan.applicability=required`, paste the exact module plan. Treat each `responsibility` as the module doc line to write verbatim. Write the `architecture_test.test_path` first, run `architecture_test.command`, and keep it failing for the documented layout reason before production code changes. Do not put fs/process/env/db/network capabilities in pure files. Do not create support/helpers/util/common catch-all files.]
+[If `module_plan.applicability=required`, paste the exact effective module plan. If `module_plan_source=pattern`, say which registry pattern generated it and paste the matched exemplar's repo/path/commit plus real file structure. Treat each `responsibility` as the module doc line to write verbatim. Write the `architecture_test.test_path` first, run `architecture_test.command`, and keep it failing for the documented layout reason before production code changes. Do not put fs/process/env/db/network capabilities in pure files. Do not create support/helpers/util/common catch-all files.]
 
 If `module_plan.applicability=not_applicable`, paste the reason and do not invent structure beyond `files_to_create` / `files_to_modify`.
 
@@ -376,7 +387,7 @@ If `module_plan.applicability=not_applicable`, paste the reason and do not inven
 [Paste only construct_map_refs relevant to this task: affected constructs, relationships, validation surfaces, and direct evidence.]
 
 ### Paved Road
-[Paste paved_road_refs, reference_impl content, do_not_reimplement rules, allowed_departure, and any explicit no_paved_road_found rationale.]
+[Paste paved_road_refs, reference_impl content, structural pattern exemplar structure when present, do_not_reimplement rules, allowed_departure, and any explicit no_paved_road_found rationale. If the task deviates from a matched pattern, paste `pattern_deviation_reason` before any code instructions.]
 
 ### Intent Contract
 [Paste behavior, why, constraints, non-goals, edge cases, load-bearing assumptions, and review checkpoints.]
@@ -487,7 +498,7 @@ State explicitly what must not be duplicated, hidden, or invented.
 
 For production readiness findings, include only the specific `PROD-*` entries that the Build Brief assigned to the task. Do not ask the coding agent to implement unrelated catalog items such as queues, CDNs, replicas, load tests, or runbooks unless the finding has repo evidence, priority, and a verification path.
 
-For paved-road findings, include only repo-local reference implementations and explicit allowed departures. Do not ask the coding agent to invent a parallel framework, schema style, emitter format, or build convention unless the Build Brief names `no_paved_road_found` and records why existing patterns cannot absorb the work.
+For paved-road findings, include only repo-local reference implementations, registered structural pattern exemplars, and explicit allowed departures. Do not ask the coding agent to invent a parallel framework, schema style, emitter format, or build convention unless the Build Brief names `no_paved_road_found` or gives a `pattern_deviation_reason` for a matched pattern.
 
 For repo conventions, inline each `repo_conventions.rules[]` item in the prompt's hard constraints and verification section. If `repo_conventions.status == extracted`, the coding agent must run or cite the rule's `verification_predicate`; if a rule cannot be applied mechanically, the task output must record an explicit per-file waiver with file, rule id, and reason. If `repo_conventions` is missing, emit `missing_repo_conventions`.
 
