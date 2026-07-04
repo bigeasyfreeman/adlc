@@ -154,8 +154,9 @@ scaffold:
 
 context_assembly:
   command: |
+    bin/adlc module-plan-check --build-brief "${BUILD_BRIEF:?}" --json
     bin/adlc run-phase context_assembly --workspace "${WORKSPACE:-.}" --build-brief "${BUILD_BRIEF:?}" --json
-    # Emits per-task context packages with queue, worktree, tracker, verifier, repo_conventions, product_vocabulary, and contract refs.
+    # Emits per-task context packages with queue, worktree, tracker, verifier, module_plan, repo_conventions, product_vocabulary, and contract refs.
 
 qa:
   command: |

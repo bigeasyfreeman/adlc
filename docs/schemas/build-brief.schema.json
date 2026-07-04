@@ -578,6 +578,208 @@
         }
       ]
     },
+    "module_plan_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "responsibility",
+        "purity",
+        "capabilities"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "responsibility": {
+          "type": "string",
+          "minLength": 1
+        },
+        "purity": {
+          "type": "string",
+          "enum": [
+            "pure",
+            "impure"
+          ]
+        },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "none",
+              "compute",
+              "parse",
+              "render",
+              "fs",
+              "process",
+              "env",
+              "db",
+              "network",
+              "test",
+              "other"
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "not": {
+            "properties": {
+              "responsibility": {
+                "pattern": "(?i)(^|\\s)and(\\s|$)"
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "properties": {
+              "responsibility": {
+                "pattern": "(?i)(^|\\s)(misc|miscellaneous|various|general|utility|utilities|helpers|support|common)(\\s|$)"
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "properties": {
+              "path": {
+                "pattern": "(?i)(^|/)(support|helpers|util|utils|common)(\\.[^/]+|/mod\\.[^/]+)?$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "purity": {
+                "const": "pure"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "capabilities": {
+                "not": {
+                  "contains": {
+                    "enum": [
+                      "fs",
+                      "process",
+                      "env",
+                      "db",
+                      "network"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "module_plan_architecture_test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "test_path",
+        "command",
+        "assertions",
+        "write_first"
+      ],
+      "properties": {
+        "test_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assertions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "write_first": {
+          "const": true
+        }
+      }
+    },
+    "module_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applicability",
+        "reason"
+      ],
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "required",
+            "not_applicable"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/module_plan_file"
+          }
+        },
+        "architecture_test": {
+          "$ref": "#/definitions/module_plan_architecture_test"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "applicability": {
+                "const": "required"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "files",
+              "architecture_test"
+            ],
+            "properties": {
+              "files": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "applicability": {
+                "const": "not_applicable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "files": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
     "task": {
       "type": "object",
       "additionalProperties": false,
@@ -815,6 +1017,9 @@
         "reference_impl": {
           "type": "string",
           "minLength": 1
+        },
+        "module_plan": {
+          "$ref": "#/definitions/module_plan"
         },
         "work_item_metadata": {
           "type": "object",

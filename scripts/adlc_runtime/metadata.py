@@ -102,6 +102,10 @@ COMMAND_METADATA = {
         "mcp_name": "adlc_feedback_conventions",
         "description": "Distill fixture or fetched maintainer PR comments into target-repo convention rules, skill-rule candidates, and ignored non-rule evidence with provenance.",
     },
+    "module-plan-check": {
+        "mcp_name": "adlc_module_plan_check",
+        "description": "Validate Build Brief task module_plan decisions, required structural plans, and architecture-test-first contracts.",
+    },
     "pr-hygiene-scan": {
         "mcp_name": "adlc_pr_hygiene_scan",
         "description": "Scan PR diff, title, and body for pipeline artifacts, banned internal tokens, local paths, removed gates, unresolved branch context, undocumented stacked bases, and missing non-skippable gate inputs.",

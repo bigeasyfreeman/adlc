@@ -87,6 +87,24 @@ This skill runs before the coding agent starts. Its output is the coding agent's
       "failure_action": "block | revise | human_approval | monitor",
       "case_promotion_sources": ["human_edit", "council_rejection", "production_sample"]
     },
+    "module_plan": {
+      "applicability": "required | not_applicable",
+      "reason": "string",
+      "files": [
+        {
+          "path": "src/module.rs",
+          "responsibility": "One-line module doc text, without 'and'",
+          "purity": "pure | impure",
+          "capabilities": ["compute | parse | render | fs | process | env | db | network | test | other"]
+        }
+      ],
+      "architecture_test": {
+        "test_path": "tests/module_architecture.test",
+        "command": "repo-native architecture test command",
+        "assertions": ["layout, pure/impure, and responsibility checks"],
+        "write_first": true
+      }
+    },
     "evidence_responsibilities": [],
     "definition_of_done": [],
     "verification_spec": {
@@ -212,6 +230,8 @@ Hard rule:
 - Every task that makes or changes a production support claim must include its `productionization_gate`. If missing for an active claim, return `stuck` with reason `missing_productionization_gate`. If `coverage_state` is `production_ready` but validation evidence, no-overclaim boundaries, rollback/owner/runbook or observability posture, reliability failure modes, or security/privacy posture are missing, return `stuck` with reason `overclaimed_production_ready`.
 - Every task that delegates decisions, test selection, repair, retry, escalation, or tool use to an LLM-driven loop must include `loop_contract_path`. If missing for an active autonomous surface, return `stuck` with reason `missing_loop_contract`. If the task includes a proposed LLM action, inline `loop_action_path` and require `bin/adlc loop-action-validate` before execution.
 - Every task that changes generated-output behavior must include its `slop_quality_gate`, including eval cases, metrics, threshold, failure action, and case-promotion sources. If missing for a generated-output surface, return `stuck` with reason `missing_slop_quality_gate`.
+- Every executable task must include a `module_plan` decision. If the task creates or reshapes modules, `module_plan.applicability` must be `required`; otherwise it must be `not_applicable` with a reason. If a structural task is missing a required plan, return `stuck` with reason `missing_module_plan`.
+- For `module_plan.applicability=required`, inline it as binding instructions. The `responsibility` text is destined to become the file's module doc verbatim, `purity` controls where side effects may live, and `architecture_test.write_first` means the architecture test is authored before production code.
 
 What gets inlined:
 - Reference implementation code
@@ -229,6 +249,7 @@ What gets inlined:
 - Productionization Gate: Coverage State, claim, validation evidence, No-Overclaim boundaries, reliability failure modes, operational readiness, rollback/runbook/observability posture, and security/privacy posture when active
 - Loop Contract: job/win condition, allowed tools, feedback channels, mandatory floor, required tests, additive-only agent tests, safe bail state, progress signal, control channel, independent truth, escalation rules, and any loop action or maturity report evidence when active
 - Slop quality gate cases, rubrics, metrics, threshold, baseline score, regression tolerance, and failure-promotion instructions when active
+- Module plan file list, one-line responsibilities, pure/impure markings, capabilities, and architecture-test-first command when active
 - Relevant learning refs from `docs/solutions`: ID, path, title, short summary, verifier ref, source evidence, stale conditions, and direct-verification caveat
 - Compatibility constraints and performance budget when active
 - Graph research evidence relevant to compatibility, reuse, and blast radius
@@ -336,16 +357,21 @@ Do not modify verification artifacts unless the task class explicitly requires i
 ## 4. Files to Modify or Create
 These are the exact files this task touches.
 
-## 5. Reference Implementations
+## 5. Module Plan
+[If `module_plan.applicability=required`, paste the exact module plan. Treat each `responsibility` as the module doc line to write verbatim. Write the `architecture_test.test_path` first, run `architecture_test.command`, and keep it failing for the documented layout reason before production code changes. Do not put fs/process/env/db/network capabilities in pure files. Do not create support/helpers/util/common catch-all files.]
+
+If `module_plan.applicability=not_applicable`, paste the reason and do not invent structure beyond `files_to_create` / `files_to_modify`.
+
+## 6. Reference Implementations
 [Paste the actual reference code and only the patterns needed for this task.]
 
-## 6. Existing Patterns
+## 7. Existing Patterns
 [Paste only the relevant pattern table entries from the Build Brief.]
 
-## 7. Compatibility Constraints
+## 8. Compatibility Constraints
 [Paste the task `compatibility_contract`, active enterprise readiness compatibility constraints, and any rollout or migration expectations.]
 
-## 8. Scalable AI Code Primitives
+## 9. Scalable AI Code Primitives
 ### Construct Map
 [Paste only construct_map_refs relevant to this task: affected constructs, relationships, validation surfaces, and direct evidence.]
 
@@ -367,16 +393,16 @@ These are the exact files this task touches.
 ### Loop Contract
 [Include this section only when active. Paste `loop_contract_path`, the full Loop Contract, required test IDs, allowed tool/action pairs, real feedback sources, safe checkpoint, progress/no-progress signal, control events, escalation context, independent truth, compact `budget_guard` refs, `budget_status`, and the exact `bin/adlc loop-test-selection`, `bin/adlc loop-budget-check`, `bin/adlc loop-action-validate`, or `bin/adlc loop-maturity-audit` command that gates this task. LLM discretion may add tests, never remove the mandatory floor or required tests. Pass budget refs and aggregate token totals only; do not paste raw prompts, provider logs, API keys, bearer tokens, or billing account IDs.]
 
-## 9. Tech Debt Boundaries
+## 10. Tech Debt Boundaries
 [Paste prerequisite debt, deferred debt, and safe-deferral rationale. Do not ask the coding agent to implement unrelated catalog items.]
 
-## 10. Comprehension Context
+## 11. Comprehension Context
 [Paste relevant module manifest entries, behavioral contracts, decision-log warnings, graph research evidence, and unresolved context gaps.]
 
-## 11. Repo Conventions
+## 12. Repo Conventions
 [Paste `repo_conventions.rules[]` as hard requirements. If status is `none_found`, paste the explicit empty marker.]
 
-## 12. Product Vocabulary
+## 13. Product Vocabulary
 [Paste `product_vocabulary.mappings[]` and `banned_tokens[]`; internal terms are forbidden in identifiers, schema/version strings, CLI output, comments, filenames, tests, and PR materials.]
 
 ## 13. Evidence and Definition of Done

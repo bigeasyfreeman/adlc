@@ -31,6 +31,7 @@ Use exactly these inputs:
 - per-task `acceptance_criteria`
 - `files_to_create/modify`
 - `reference_impl` path
+- optional `module_plan`; required when the task creates or reshapes modules
 - optional `loop_contract_path` when the task changes an LLM-driven loop, action admission, test selection, control events, no-progress detection, escalation, or loop maturity
 - repo test conventions discovered at runtime
 
@@ -39,6 +40,9 @@ If any acceptance criterion arrives as an unstructured string with no normalized
 ## Outputs
 
 - Test files written under the repo's native test root and naming conventions
+- When `module_plan.applicability=required`, the architecture test named in
+  `module_plan.architecture_test.test_path` is authored before production code
+  and before behavior tests that depend on the new layout.
 - `.adlc/test_plan.json` mapping `ac_id -> test_path -> expected_pre_change_failure_reason`
 - When a Loop Contract is active, each generated test also records `coverage_tags` and `covers_required_tests` so `bin/adlc loop-test-selection` can mechanically prove the mandatory floor and task-signal tests are covered.
 - When required Loop Contract tests have actually run, record the independent result refs in `execution_evidence_refs` and top-level `test_result_refs`, then use `bin/adlc loop-test-selection --require-test-results [path]` so coverage cannot pass on tags alone.
@@ -47,16 +51,17 @@ If any acceptance criterion arrives as an unstructured string with no normalized
 ## Authoring Workflow
 
 1. Read the task's `verification_spec`, `acceptance_criteria`, `files_to_create/modify`, and `reference_impl`.
-2. Discover the repo's native test root, framework, helper layout, fixture style, and test naming conventions at runtime.
-3. Normalize verifier scope against `verification_spec.target_files` when present.
-4. If `loop_contract_path` is active, read the Loop Contract and list its `test_selection.mandatory_floor` and `test_selection.required_from_task_signals` test IDs before authoring tests.
-5. Author the smallest failing tests or reproducers that make each acceptance criterion falsifiable before code changes.
-6. Tag generated tests with `coverage_tags` and `covers_required_tests` when they satisfy a Loop Contract test ID.
-7. Run `bin/adlc loop-test-selection --loop-contract [loop_contract_path] --test-plan .adlc/test_plan.json --json` before returning `done` when a Loop Contract is active.
-8. If a `loop-test-result` artifact exists for required tests, run `bin/adlc loop-test-selection --loop-contract [loop_contract_path] --test-plan .adlc/test_plan.json --require-test-results [loop-test-result path] --json` before returning `done`.
-9. Run the generated verifier set before editing production code.
-10. Record the failing stdout in `.adlc/pre_change_run.txt`.
-11. Emit `.adlc/test_plan.json` only after the self-check passes.
+2. If `module_plan.applicability=required`, author `module_plan.architecture_test` first. The test must enforce the listed files, one-line responsibilities, pure/impure markings, and forbidden catch-all names before any production code is written.
+3. Discover the repo's native test root, framework, helper layout, fixture style, and test naming conventions at runtime.
+4. Normalize verifier scope against `verification_spec.target_files` when present.
+5. If `loop_contract_path` is active, read the Loop Contract and list its `test_selection.mandatory_floor` and `test_selection.required_from_task_signals` test IDs before authoring tests.
+6. Author the smallest failing tests or reproducers that make each acceptance criterion falsifiable before code changes.
+7. Tag generated tests with `coverage_tags` and `covers_required_tests` when they satisfy a Loop Contract test ID.
+8. Run `bin/adlc loop-test-selection --loop-contract [loop_contract_path] --test-plan .adlc/test_plan.json --json` before returning `done` when a Loop Contract is active.
+9. If a `loop-test-result` artifact exists for required tests, run `bin/adlc loop-test-selection --loop-contract [loop_contract_path] --test-plan .adlc/test_plan.json --require-test-results [loop-test-result path] --json` before returning `done`.
+10. Run the generated verifier set before editing production code.
+11. Record the failing stdout in `.adlc/pre_change_run.txt`.
+12. Emit `.adlc/test_plan.json` only after the self-check passes.
 
 ## Behavior by Task Class
 
