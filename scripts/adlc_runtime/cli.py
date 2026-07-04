@@ -767,6 +767,7 @@ def context_packages_for_brief(
                     "compatibility_contract": task.get("compatibility_contract"),
                     "implementation_interface_contract": task.get("implementation_interface_contract"),
                     "productionization_gate": task.get("productionization_gate"),
+                    "module_plan": task.get("module_plan"),
                     "repo_conventions": brief.get("repo_conventions"),
                     "product_vocabulary": brief.get("product_vocabulary"),
                 },
@@ -6948,6 +6949,202 @@ def productionization_gate_issues_for_task(task: Dict[str, Any]) -> List[Dict[st
     return issues
 
 
+MODULE_PLAN_CODE_EXTENSIONS = {
+    ".c",
+    ".cc",
+    ".cpp",
+    ".cs",
+    ".go",
+    ".java",
+    ".js",
+    ".jsx",
+    ".kt",
+    ".php",
+    ".py",
+    ".rb",
+    ".rs",
+    ".scala",
+    ".swift",
+    ".ts",
+    ".tsx",
+}
+
+MODULE_PLAN_STRUCTURAL_TERMS = (
+    "module",
+    "directory module",
+    "split",
+    "refactor",
+    "reorganize",
+    "reshape",
+    "pure core",
+    "impure shell",
+    "architecture",
+)
+
+
+def task_module_plan_decision(task: Dict[str, Any]) -> Dict[str, Any] | None:
+    plan = task.get("module_plan")
+    return plan if isinstance(plan, dict) else None
+
+
+def module_plan_structural_created_path(raw_path: str) -> bool:
+    path = Path(raw_path)
+    suffix = path.suffix.lower()
+    if suffix not in MODULE_PLAN_CODE_EXTENSIONS:
+        return False
+
+    parts = {part.lower() for part in path.parts}
+    if parts.intersection({"test", "tests", "spec", "specs", "__tests__"}):
+        return False
+
+    name = path.name.lower()
+    if name.startswith("test_") or name.endswith("_test" + suffix) or f".test{suffix}" in name:
+        return False
+
+    return True
+
+
+def task_has_code_file_creation(task: Dict[str, Any]) -> bool:
+    for raw_path in task.get("files_to_create", []) or []:
+        if isinstance(raw_path, str) and module_plan_structural_created_path(raw_path):
+            return True
+    return False
+
+
+def task_structural_text(task: Dict[str, Any]) -> str:
+    fields = [
+        task.get("title"),
+        task.get("objective"),
+        " ".join(str(item) for item in task.get("scope", []) if isinstance(item, str)),
+        " ".join(str(item) for item in task.get("implementation_notes", []) if isinstance(item, str)),
+    ]
+    return " ".join(str(item).lower() for item in fields if item)
+
+
+def task_requires_module_plan(task: Dict[str, Any]) -> bool:
+    if not task_executable(task):
+        return False
+    if task_has_code_file_creation(task):
+        return True
+    text = task_structural_text(task)
+    return any(term in text for term in MODULE_PLAN_STRUCTURAL_TERMS)
+
+
+def module_plan_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not task_executable(task):
+        return []
+
+    task_id = task["task_id"]
+    plan = task_module_plan_decision(task)
+    requires_plan = task_requires_module_plan(task)
+    if plan is None:
+        return [
+            {
+                "severity": "blocking",
+                "rule": "missing_module_plan_decision",
+                "task_id": task_id,
+                "message": "executable tasks must carry module_plan.applicability=required or an explicit not_applicable reason",
+            }
+        ]
+
+    applicability = plan.get("applicability")
+    if requires_plan and applicability != "required":
+        return [
+            {
+                "severity": "blocking",
+                "rule": "missing_required_module_plan",
+                "task_id": task_id,
+                "message": "task creates or reshapes modules and must carry a required module_plan",
+            }
+        ]
+
+    if applicability == "required":
+        issues: List[Dict[str, Any]] = []
+        if not isinstance(plan.get("files"), list) or not plan.get("files"):
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "module_plan_missing_files",
+                    "task_id": task_id,
+                    "message": "required module_plan must list planned files",
+                }
+            )
+        architecture_test = plan.get("architecture_test")
+        if not isinstance(architecture_test, dict):
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "module_plan_missing_architecture_test",
+                    "task_id": task_id,
+                    "message": "required module_plan must include an architecture_test spec",
+                }
+            )
+        elif architecture_test.get("write_first") is not True:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "module_plan_architecture_test_not_first",
+                    "task_id": task_id,
+                    "message": "module_plan architecture_test.write_first must be true",
+                }
+            )
+        return issues
+
+    return []
+
+
+def module_plan_check_payload(brief_path: Path) -> Dict[str, Any]:
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+
+    brief = read_json(brief_path)
+    tasks = build_brief_tasks(brief)
+    issues: List[Dict[str, Any]] = []
+    task_results: List[Dict[str, Any]] = []
+    for task in tasks:
+        task_issues = module_plan_issues_for_task(task)
+        issues.extend(task_issues)
+        plan = task_module_plan_decision(task)
+        task_results.append(
+            {
+                "task_id": task["task_id"],
+                "requires_module_plan": task_requires_module_plan(task),
+                "module_plan_applicability": plan.get("applicability") if plan else None,
+                "status": "blocked" if task_issues else "pass",
+                "issues": task_issues,
+            }
+        )
+
+    return {
+        "contract_version": "1.0.0",
+        "status": "blocked" if issues else "pass",
+        "build_brief": rel_path(brief_path),
+        "tasks": task_results,
+        "issues": issues,
+        "summary": {
+            "tasks": len(tasks),
+            "required": sum(1 for item in task_results if item["module_plan_applicability"] == "required"),
+            "not_applicable": sum(1 for item in task_results if item["module_plan_applicability"] == "not_applicable"),
+            "blocked": sum(1 for item in task_results if item["status"] == "blocked"),
+            "issues": len(issues),
+        },
+    }
+
+
+def command_module_plan_check(args: argparse.Namespace) -> int:
+    try:
+        payload = module_plan_check_payload(resolve_input_path(args.build_brief, Path.cwd()))
+    except (RuntimeError, ValueError, FileNotFoundError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"module-plan-check: {payload['status']} ({payload['summary']['issues']} issue(s))")
+    return 0 if payload["status"] == "pass" else 1
+
+
 def slop_gate_payload(brief_path: Path) -> Dict[str, Any]:
     errors = validate_artifact(resolve_schema("build-brief"), brief_path)
     if errors:
@@ -7227,6 +7424,7 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "reference_impl": task.get("reference_impl"),
             "files_to_create": task.get("files_to_create", []),
             "files_to_modify": task.get("files_to_modify", []),
+            "module_plan": task.get("module_plan"),
             "tech_debt_boundaries": task.get("tech_debt_boundaries"),
             "compatibility_contract": task.get("compatibility_contract"),
             "construct_map_refs": task.get("construct_map_refs", []),
@@ -9899,6 +10097,18 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("module-plan-check"),
+            "description": command_description("module-plan-check"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("pr-hygiene-scan"),
             "description": command_description("pr-hygiene-scan"),
             "inputSchema": {
@@ -10627,6 +10837,12 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return tool_result(payload, is_error=payload.get("status") != "pass")
+    if name == "adlc_module_plan_check":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_module_plan_check requires build_brief")
+        payload = module_plan_check_payload(resolve_input_path(build_brief, Path.cwd()))
+        return tool_result(payload, is_error=payload.get("status") != "pass")
     if name == "adlc_pr_hygiene_scan":
         args = argparse.Namespace(
             workspace=arguments.get("workspace"),
@@ -11230,6 +11446,11 @@ def build_parser() -> argparse.ArgumentParser:
     feedback_conventions.add_argument("--output", help="Optional feedback conventions report path.")
     feedback_conventions.add_argument("--json", action="store_true", help="Emit JSON.")
     feedback_conventions.set_defaults(func=command_feedback_conventions)
+
+    module_plan_check = subparsers.add_parser("module-plan-check", help=command_description("module-plan-check"))
+    module_plan_check.add_argument("--build-brief", required=True, help="Build Brief JSON path to validate for module_plan coverage.")
+    module_plan_check.add_argument("--json", action="store_true", help="Emit JSON.")
+    module_plan_check.set_defaults(func=command_module_plan_check)
 
     pr_hygiene = subparsers.add_parser("pr-hygiene-scan", help=command_description("pr-hygiene-scan"))
     pr_hygiene.add_argument("--workspace", help="Target repository root. Defaults to cwd.")

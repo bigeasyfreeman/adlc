@@ -590,6 +590,7 @@ For each area -- Backend, Frontend, Infra, Observability -- collect:
 | Decision Contract | Type 1/Type 2 status, owner, deadline, blocking effect, and resolution |
 | Acceptance Criteria | **Given/When/Then format required.** Maps directly to test assertions. |
 | Verification Contract | Primary verifier with task-class-aware phrasing. Feature work uses intended-behavior tests; bugfix/build/lint work uses direct reproducers or commands. |
+| Module Plan | Required for module creation or reshaping: files, one-line responsibilities, pure/impure markings, capabilities, and architecture test. Otherwise explicit not_applicable reason. |
 | Anti-Slop Rules | Explicit banned placeholder/stub patterns and wiring-completeness rules. Mandatory on every task. |
 | Tech Debt Boundaries | Prerequisite debt, deferred debt, and why any deferral is safe |
 | Compatibility Contract | Backward compatibility, forward compatibility, and rollout/migration path |
@@ -1126,6 +1127,7 @@ Every task in Section 9 MUST have ALL of these. The Eval Council Executioner rej
 | Evidence responsibilities | Yes | Verifier, observability, deploy, or compliance evidence owned by this artifact |
 | Definition of Done | Yes | Concrete proof required before the artifact can close |
 | Verification spec | Yes | Primary verifier + fail-before/pass-after contract |
+| Module plan | Yes | `required` for structural work; `not_applicable` with reason for non-structural work |
 | Acceptance criteria | Yes | G/W/T format, minimum 2 per task |
 | Feature flag | Conditional | If project uses feature flags |
 | Manual test plan | Conditional | For auth flows, integrations, visual UI, cross-service flows |

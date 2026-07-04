@@ -211,6 +211,131 @@ assert_build_brief_1_1_requires_narrative_contract() {
   return "$status"
 }
 
+write_module_plan_valid_brief() {
+  local output="$1"
+  local fixture_dir="$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc"
+  local fixture_file="build_brief.json"
+  jq '
+    (.sections."8_task_tickets"[0].title) = "Split scoreboard module persistence" |
+    (.sections."8_task_tickets"[0].objective) = "Split scoreboard module persistence boundary." |
+    (.sections."8_task_tickets"[0].files_to_create) = ["src/scoreboard/persist.py"] |
+    (.sections."8_task_tickets"[0].module_plan) = {
+      "applicability": "required",
+      "reason": "Task creates a persistence module for scoreboard storage.",
+      "files": [
+        {
+          "path": "src/scoreboard.py",
+          "responsibility": "Score submissions",
+          "purity": "pure",
+          "capabilities": ["compute"]
+        },
+        {
+          "path": "src/scoreboard/persist.py",
+          "responsibility": "Persist score records",
+          "purity": "impure",
+          "capabilities": ["fs"]
+        }
+      ],
+      "architecture_test": {
+        "test_path": "tests/test_scoreboard_architecture.py",
+        "command": "pytest tests/test_scoreboard_architecture.py",
+        "assertions": [
+          "scoreboard persistence lives in src/scoreboard/persist.py",
+          "pure scoreboard module has no filesystem capability"
+        ],
+        "write_first": true
+      }
+    } |
+    (.sections."8_task_tickets"[1].module_plan) = {
+      "applicability": "not_applicable",
+      "reason": "Existing behavior bugfix changes only current files."
+    } |
+    (.sections."8_task_tickets"[2].module_plan) = {
+      "applicability": "not_applicable",
+      "reason": "Validation task only and creates no module structure."
+    }
+  ' "$fixture_dir/$fixture_file" > "$output"
+}
+
+assert_build_brief_accepts_valid_module_plan() {
+  local tmp status
+  tmp="$(mktemp)"
+  write_module_plan_valid_brief "$tmp"
+  status=0
+  "$ROOT/bin/adlc" validate-artifact --schema build-brief --input "$tmp" --json |
+    jq -e '.valid == true and (.errors | length) == 0' >/dev/null || status=$?
+  rm -f "$tmp"
+  return "$status"
+}
+
+assert_build_brief_rejects_module_plan_and_responsibility() {
+  local tmp invalid result status
+  tmp="$(mktemp)"
+  invalid="$(mktemp)"
+  result="$(mktemp)"
+  write_module_plan_valid_brief "$tmp"
+  jq '(.sections."8_task_tickets"[0].module_plan.files[0].responsibility) = "Read and write records"' "$tmp" > "$invalid"
+  status=0
+  if "$ROOT/bin/adlc" validate-artifact --schema build-brief --input "$invalid" --json > "$result" 2>/dev/null; then
+    status=1
+  else
+    jq -e '.valid == false' "$result" >/dev/null || status=$?
+  fi
+  rm -f "$tmp" "$invalid" "$result"
+  return "$status"
+}
+
+assert_build_brief_rejects_module_plan_pure_side_effects() {
+  local tmp invalid result status
+  tmp="$(mktemp)"
+  invalid="$(mktemp)"
+  result="$(mktemp)"
+  write_module_plan_valid_brief "$tmp"
+  jq '(.sections."8_task_tickets"[0].module_plan.files[0].capabilities) = ["compute", "fs"]' "$tmp" > "$invalid"
+  status=0
+  if "$ROOT/bin/adlc" validate-artifact --schema build-brief --input "$invalid" --json > "$result" 2>/dev/null; then
+    status=1
+  else
+    jq -e '.valid == false' "$result" >/dev/null || status=$?
+  fi
+  rm -f "$tmp" "$invalid" "$result"
+  return "$status"
+}
+
+assert_build_brief_rejects_module_plan_catch_all_path() {
+  local tmp invalid result status
+  tmp="$(mktemp)"
+  invalid="$(mktemp)"
+  result="$(mktemp)"
+  write_module_plan_valid_brief "$tmp"
+  jq '(.sections."8_task_tickets"[0].module_plan.files[0].path) = "src/helpers.py"' "$tmp" > "$invalid"
+  status=0
+  if "$ROOT/bin/adlc" validate-artifact --schema build-brief --input "$invalid" --json > "$result" 2>/dev/null; then
+    status=1
+  else
+    jq -e '.valid == false' "$result" >/dev/null || status=$?
+  fi
+  rm -f "$tmp" "$invalid" "$result"
+  return "$status"
+}
+
+assert_build_brief_rejects_module_plan_misc_responsibility() {
+  local tmp invalid result status
+  tmp="$(mktemp)"
+  invalid="$(mktemp)"
+  result="$(mktemp)"
+  write_module_plan_valid_brief "$tmp"
+  jq '(.sections."8_task_tickets"[0].module_plan.files[0].responsibility) = "Miscellaneous helpers"' "$tmp" > "$invalid"
+  status=0
+  if "$ROOT/bin/adlc" validate-artifact --schema build-brief --input "$invalid" --json > "$result" 2>/dev/null; then
+    status=1
+  else
+    jq -e '.valid == false' "$result" >/dev/null || status=$?
+  fi
+  rm -f "$tmp" "$invalid" "$result"
+  return "$status"
+}
+
 assert_emit_preserves_slop_quality_gate() {
   local tmp
   tmp="$(mktemp)"
@@ -557,6 +682,13 @@ assert "task schema supports slop quality gates" "jq -e '.definitions.task.prope
 assert "build brief schema supports product vocabulary firewall" "jq -e '.definitions.product_vocabulary.required == [\"status\", \"mappings\", \"banned_tokens\"] and (.definitions.product_vocabulary.properties.status.enum | index(\"defined\")) and (.definitions.product_vocabulary.properties.status.enum | index(\"none_declared\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports explicit generated-output surfaces" "jq -e '.definitions.task.properties.generated_output_surface[\"\$ref\"] == \"#/definitions/generated_output_surface\" and (.definitions.generated_output_surface.required | index(\"active\")) and (.definitions.generated_output_surface.required | index(\"reason\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports implementation interface and productionization gates" "jq -e '.definitions.task.properties.implementation_interface_contract[\"\$ref\"] == \"#/definitions/implementation_interface_contract\" and .definitions.task.properties.productionization_gate[\"\$ref\"] == \"#/definitions/productionization_gate\" and (.properties.sections.properties | has(\"16_implementation_interfaces\")) and (.properties.sections.properties | has(\"17_productionization_gates\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "task schema supports module plans" "jq -e '.definitions.task.properties.module_plan[\"\$ref\"] == \"#/definitions/module_plan\" and .definitions.module_plan.required == [\"applicability\", \"reason\"] and (.definitions.module_plan.properties.applicability.enum | index(\"required\")) and (.definitions.module_plan.properties.applicability.enum | index(\"not_applicable\")) and (.definitions.module_plan.allOf[] | select(.if.properties.applicability.const == \"required\") | (.then.required | index(\"files\")) and (.then.required | index(\"architecture_test\")))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "module plan file schema forbids catch-all names pure side effects and conjunction responsibilities" "jq -e '.definitions.module_plan_file.required == [\"path\",\"responsibility\",\"purity\",\"capabilities\"] and .definitions.module_plan_file.properties.capabilities.minItems == 1 and (.definitions.module_plan_file.properties.capabilities.items.enum | index(\"fs\")) and (.definitions.module_plan_architecture_test.required | index(\"write_first\")) and .definitions.module_plan_architecture_test.properties.write_first.const == true' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "build brief accepts valid module plan" "assert_build_brief_accepts_valid_module_plan"
+assert "build brief rejects module plan responsibility using and" "assert_build_brief_rejects_module_plan_and_responsibility"
+assert "build brief rejects pure module plan side effects" "assert_build_brief_rejects_module_plan_pure_side_effects"
+assert "build brief rejects catch-all module plan file names" "assert_build_brief_rejects_module_plan_catch_all_path"
+assert "build brief rejects miscellaneous module responsibilities" "assert_build_brief_rejects_module_plan_misc_responsibility"
 assert "task metadata supports loop contract refs" "jq -e '.definitions.task.properties.work_item_metadata.properties.loop_contract_path.type == \"string\" and .definitions.task.properties.work_item_metadata.properties.loop_action_path.type == \"string\" and .definitions.task.properties.work_item_metadata.properties.loop_maturity_report_path.type == \"string\"' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "implementation interface schema captures interface contract shape" "jq -e '.definitions.implementation_interface_contract.oneOf[0].required as \$r | (\$r | index(\"reuse\")) and (\$r | index(\"consumes\")) and (\$r | index(\"emits\")) and (\$r | index(\"minimum_fields\")) and (\$r | index(\"invariants\")) and (\$r | index(\"integration_points\")) and (\$r | index(\"validation_gates\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "productionization gate schema supports coverage state and no-overclaim" "jq -e '(.definitions.productionization_gate.oneOf[0].properties.coverage_state.enum | index(\"production_ready\")) and (.definitions.productionization_gate.oneOf[0].properties.coverage_state.enum | index(\"monitor_only\")) and (.definitions.productionization_gate.oneOf[0].required | index(\"no_overclaim\")) and (.definitions.productionization_gate.oneOf[0].properties.operational_readiness.properties | has(\"rollback_path\")) and (.definitions.productionization_gate.oneOf[0].properties.security_privacy.properties | has(\"redaction_posture\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
@@ -650,6 +782,7 @@ assert "planner emits slop quality gates for generated outputs" "rg -q 'Slop Qua
 assert "planner omits slop quality gates when not applicable" "rg -q 'omit .*slop_quality_gate|Do not add the gate as ceremony' '$ROOT/agents/planner.md'"
 assert "planner emits repo conventions" "rg -q 'repo-conventions' '$ROOT/agents/planner.md' && rg -q 'repo_conventions' '$ROOT/agents/planner.md' && rg -q 'no_conventions_found' '$ROOT/agents/planner.md'"
 assert "planner emits product vocabulary firewall" "rg -q 'Product Vocabulary' '$ROOT/agents/planner.md' && rg -q 'product_vocabulary' '$ROOT/agents/planner.md' && rg -q 'banned_tokens' '$ROOT/agents/planner.md' && rg -q 'none_declared' '$ROOT/agents/planner.md' && rg -q 'Product vocabulary' '$ROOT/agents/ADLC-BUILD-BRIEF-AGENT.md' && rg -q 'codenames' '$ROOT/agents/ADLC-BUILD-BRIEF-AGENT.md' && rg -q 'ticket IDs' '$ROOT/agents/ADLC-BUILD-BRIEF-AGENT.md'"
+assert "planner and Build Brief agent emit module plan decisions" "rg -q 'module_plan' '$ROOT/agents/planner.md' && rg -q 'write_first=true' '$ROOT/agents/planner.md' && rg -q 'Module Plan' '$ROOT/agents/ADLC-BUILD-BRIEF-AGENT.md'"
 assert "code reviewer runs comprehension gate" "rg -q 'Comprehension Gate|comprehension_artifact|REVIEW REQUIRED|HOLD' '$ROOT/agents/code-reviewer.md'"
 assert "code reviewer checks scalable AI code primitives" "rg -q 'Scalable code primitives|construct-map refs|paved-road refs|production invariant coverage' '$ROOT/agents/code-reviewer.md'"
 assert "code reviewer checks implementation interface and productionization gates" "rg -q 'missing_implementation_interface_contract|missing_productionization_gate|overclaimed_production_ready|production_claim_overreach' '$ROOT/agents/code-reviewer.md'"
@@ -662,12 +795,15 @@ assert "codegen context inlines scalable AI code primitives" "rg -q 'missing_sca
 assert "codegen context inlines implementation interface and productionization gates" "rg -q 'missing_implementation_interface_contract|missing_productionization_gate|overclaimed_production_ready|Implementation Interface|Productionization Gate' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context inlines loop contracts and action gates" "rg -q 'missing_loop_contract|Loop Contract|loop-test-selection|loop-action-validate|loop-maturity-audit' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context inlines slop quality gates" "rg -q 'missing_slop_quality_gate|Slop Quality Gate|slop_quality_gate|case-promotion sources' '$ROOT/skills/codegen-context/SKILL.md'"
+assert "codegen context inlines module plans and architecture-test-first instructions" "rg -q 'missing_module_plan|module_plan|architecture_test.write_first|architecture_test.test_path|Do not create support/helpers/util/common' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context enforces product vocabulary" "rg -q 'product_vocabulary' '$ROOT/skills/codegen-context/SKILL.md' && rg -q 'banned_tokens' '$ROOT/skills/codegen-context/SKILL.md' && rg -q 'missing_product_vocabulary' '$ROOT/skills/codegen-context/SKILL.md' && rg -q 'schema/version strings' '$ROOT/skills/codegen-context/SKILL.md' && rg -q 'pr-hygiene-scan' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "build and fix loops require PR hygiene" "rg -q 'pr-hygiene-scan' '$ROOT/skills/build-feature/SKILL.md' && rg -q 'Diff contract' '$ROOT/skills/build-feature/SKILL.md' && rg -q 'Base policy' '$ROOT/skills/build-feature/SKILL.md' && rg -q 'Language contract' '$ROOT/skills/build-feature/SKILL.md' && rg -q 'pr-hygiene-scan' '$ROOT/skills/fix-bug/SKILL.md' && rg -q 'product_vocabulary' '$ROOT/skills/fix-bug/SKILL.md' && rg -q 'base branch' '$ROOT/skills/fix-bug/SKILL.md'"
 assert "process artifact storage contract is documented and discoverable" "[ -f '$ROOT/docs/specs/process-artifact-storage.md' ] && rg -q 'ADLC Process Artifact Storage|target_repo_key|task_key|process-artifact-path' '$ROOT/docs/specs/process-artifact-storage.md' && '$ROOT/bin/adlc' process-artifact-path --target-repo owner/repo --task TASK-1 --artifact-type build-brief --json | jq -e '.target_repo_key == \"owner--repo\" and .task_key == \"task-1\" and .artifact_type == \"build-brief\"' >/dev/null"
 assert "process artifact storage is wired into process-writing skills" "rg -q 'process-artifact-path|process artifact storage' '$ROOT/skills/build-feature/SKILL.md' && rg -q 'process-artifact-path|process artifact storage' '$ROOT/skills/fix-bug/SKILL.md' && rg -q 'process-artifact-path' '$ROOT/skills/eval-council/SKILL.md' && rg -q 'process-artifact-path' '$ROOT/skills/test-strength/SKILL.md' && rg -q 'process-artifact-path' '$ROOT/skills/dark-code-audit/SKILL.md' && rg -q 'process-artifact-path' '$ROOT/skills/learning-capture/SKILL.md' && rg -q 'process-artifact-path' '$ROOT/agents/pr-preparer.md' && rg -q 'process-artifact-path' '$ROOT/agents/ADLC-BUILD-BRIEF-AGENT.md'"
 assert "codegen context consumes compact learning refs" "rg -q 'compound_context|learning_refs|Full solution-note bodies|Prior Learnings' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context carries repo conventions" "rg -q 'missing_repo_conventions|repo_conventions|no_conventions_found|Repo Conventions' '$ROOT/skills/codegen-context/SKILL.md'"
+assert "spec-to-tests enforces module plan architecture tests first" "rg -q 'module_plan.architecture_test|before production code|forbidden catch-all names|pure/impure markings' '$ROOT/skills/spec-to-tests/SKILL.md'"
+assert "docs document module plan closeout" "rg -q 'module_plan|module-plan-check' '$ROOT/README.md' && rg -q 'module_plan|module-plan-check' '$ROOT/WORKFLOW.md'"
 assert "docs document target repo convention closeout" "rg -Fq 'Target Repo Conventions' '$ROOT/CONTRIBUTING.md' && rg -Fq 'repo_conventions' '$ROOT/CONTRIBUTING.md' && rg -Fq 'pr-hygiene-scan' '$ROOT/CONTRIBUTING.md' && rg -Fq 'repo_conventions' '$ROOT/WORKFLOW.md' && rg -Fq 'convention-scan' '$ROOT/WORKFLOW.md' && rg -Fq 'pr-hygiene-scan' '$ROOT/WORKFLOW.md' && rg -Fq 'Target Repo Conventions' '$ROOT/README.md' && rg -Fq 'convention-scan' '$ROOT/README.md' && rg -Fq 'pr-hygiene-scan' '$ROOT/README.md' && rg -Fq 'Step 2: Build Brief + repo conventions' '$ROOT/skills/build-feature/SKILL.md' && rg -Fq '6a: LDD gate + structural convention scan' '$ROOT/skills/build-feature/SKILL.md' && rg -Fq 'Step 9: Stop Slop + PR hygiene scan' '$ROOT/skills/build-feature/SKILL.md'"
 assert "reuse analysis checks docs solutions learning refs" "rg -q 'docs/solutions|compound_context.learning_refs|Learning Store Prior Art|no_op_reasons' '$ROOT/skills/reuse-analysis/SKILL.md'"
 assert "DoD uses core baseline and overlays" "rg -q 'core baseline|overlay' '$ROOT/skills/definition-of-done/SKILL.md'"

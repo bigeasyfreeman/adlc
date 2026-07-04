@@ -27,6 +27,52 @@ tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 mkdir -p "$tmp_dir/workflow" "$tmp_dir/emitter" "$tmp_dir/no-solutions"
 
+write_module_plan_valid_brief() {
+  local output="$1"
+  local fixture_dir="$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc"
+  local fixture_file="build_brief.json"
+  jq '
+    (.sections."8_task_tickets"[0].title) = "Split scoreboard module persistence" |
+    (.sections."8_task_tickets"[0].objective) = "Split scoreboard module persistence boundary." |
+    (.sections."8_task_tickets"[0].files_to_create) = ["src/scoreboard/persist.py"] |
+    (.sections."8_task_tickets"[0].module_plan) = {
+      "applicability": "required",
+      "reason": "Task creates a persistence module for scoreboard storage.",
+      "files": [
+        {
+          "path": "src/scoreboard.py",
+          "responsibility": "Score submissions",
+          "purity": "pure",
+          "capabilities": ["compute"]
+        },
+        {
+          "path": "src/scoreboard/persist.py",
+          "responsibility": "Persist score records",
+          "purity": "impure",
+          "capabilities": ["fs"]
+        }
+      ],
+      "architecture_test": {
+        "test_path": "tests/test_scoreboard_architecture.py",
+        "command": "pytest tests/test_scoreboard_architecture.py",
+        "assertions": [
+          "scoreboard persistence lives in src/scoreboard/persist.py",
+          "pure scoreboard module has no filesystem capability"
+        ],
+        "write_first": true
+      }
+    } |
+    (.sections."8_task_tickets"[1].module_plan) = {
+      "applicability": "not_applicable",
+      "reason": "Existing behavior bugfix changes only current files."
+    } |
+    (.sections."8_task_tickets"[2].module_plan) = {
+      "applicability": "not_applicable",
+      "reason": "Validation task only and creates no module structure."
+    }
+  ' "$fixture_dir/$fixture_file" > "$output"
+}
+
 echo "ADLC CLI Tests"
 echo "Root: $ROOT"
 echo ""
@@ -74,6 +120,13 @@ jq 'del(.repo_conventions)' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/bui
 assert "validate-artifact requires repo_conventions decision" "if '$ROOT/bin/adlc' validate-artifact --schema build-brief --input '$tmp_dir/missing-conventions-brief.json' --json >'$tmp_dir/missing-conventions-result.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"repo_conventions\"))' '$tmp_dir/missing-conventions-result.json' >/dev/null; fi"
 jq 'del(.product_vocabulary)' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/missing-vocab-brief.json"
 assert "validate-artifact requires product vocabulary decision" "if '$ROOT/bin/adlc' validate-artifact --schema build-brief --input '$tmp_dir/missing-vocab-brief.json' --json >'$tmp_dir/missing-vocab-result.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"product_vocabulary\"))' '$tmp_dir/missing-vocab-result.json' >/dev/null; fi"
+
+write_module_plan_valid_brief "$tmp_dir/module-plan-valid.json"
+jq 'del(.sections."8_task_tickets"[0].module_plan)' "$tmp_dir/module-plan-valid.json" > "$tmp_dir/module-plan-missing.json"
+jq '(.sections."8_task_tickets"[0].module_plan) = {"applicability":"not_applicable","reason":"Mistakenly declared structural work as behavior-only."}' "$tmp_dir/module-plan-valid.json" > "$tmp_dir/module-plan-structural-not-applicable.json"
+assert "module-plan-check passes explicit required and not-applicable decisions" "'$ROOT/bin/adlc' module-plan-check --build-brief '$tmp_dir/module-plan-valid.json' --json | jq -e '.status == \"pass\" and .summary.required == 1 and .summary.not_applicable == 2 and .tasks[0].requires_module_plan == true' >/dev/null"
+assert "module-plan-check blocks missing explicit decisions" "if '$ROOT/bin/adlc' module-plan-check --build-brief '$tmp_dir/module-plan-missing.json' --json >'$tmp_dir/module-plan-missing-result.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"missing_module_plan_decision\" and .task_id == \"SMOKE_BUGFIX_AVERAGE\")' '$tmp_dir/module-plan-missing-result.json' >/dev/null; fi"
+assert "module-plan-check blocks structural tasks marked not applicable" "if '$ROOT/bin/adlc' module-plan-check --build-brief '$tmp_dir/module-plan-structural-not-applicable.json' --json >'$tmp_dir/module-plan-structural-result.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"missing_required_module_plan\" and .task_id == \"SMOKE_BUGFIX_AVERAGE\")' '$tmp_dir/module-plan-structural-result.json' >/dev/null; fi"
 
 cat > "$tmp_dir/hygiene-brief.json" <<'JSON'
 {
@@ -774,6 +827,7 @@ chmod +x "$failed_provider"
 assert "emit-work-items dry-run preserves ADLC task contracts" "'$ROOT/bin/adlc' emit-work-items --target linear --build-brief '$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json' --dry-run --json | jq -e '.dry_run == true and (.artifacts | length) >= 2 and all(.artifacts[]; (.artifact_type | length) > 0 and (.decision_contract | type) == \"object\" and (.verification_spec | type) == \"object\" and (.idempotency_key | contains(\":linear:\")))' >/dev/null"
 assert "emit-work-items dry-run readiness report is ready" "'$ROOT/bin/adlc' emit-work-items --target linear --build-brief '$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json' --dry-run --json | jq -e '.readiness_report.status == \"ready\" and .readiness_report.totals.tasks >= 3' >/dev/null"
 assert "emit-work-items preserves work_item_metadata in normalized artifacts" "'$ROOT/bin/adlc' emit-work-items --target linear --build-brief '$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json' --dry-run --json | jq -e 'any(.artifacts[]; .area == \"backend\" and .phase_label == \"coding\" and .target_project == \"smoke\" and (.labels | index(\"smoke\")) >= 0 and (.external_refs | index(\"EXT-1\")) >= 0)' >/dev/null"
+assert "emit-work-items preserves module_plan in normalized artifacts" "'$ROOT/bin/adlc' emit-work-items --target linear --build-brief '$tmp_dir/module-plan-valid.json' --dry-run --json | jq -e '.artifacts[0].module_plan.applicability == \"required\" and .artifacts[0].module_plan.architecture_test.write_first == true and .artifacts[1].module_plan.applicability == \"not_applicable\"' >/dev/null"
 jq '(.sections."8_task_tickets"[0].work_item_metadata.loop_contract_path) = "tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json" | (.sections."8_task_tickets"[0].work_item_metadata.loop_action_path) = "tests/fixtures/loop_maturity/valid-loop-action.json" | (.sections."8_task_tickets"[0].work_item_metadata.loop_maturity_report_path) = "tests/fixtures/loop_maturity/assisted-loop-report.json"' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp_dir/loop-ref-brief.json"
 assert "emit-work-items preserves loop contract refs" "'$ROOT/bin/adlc' emit-work-items --target linear --build-brief '$tmp_dir/loop-ref-brief.json' --dry-run --json | jq -e '.artifacts[0].loop_contract_path == \"tests/fixtures/loop_maturity/adlc-assisted-loop-contract.json\" and .artifacts[0].loop_action_path == \"tests/fixtures/loop_maturity/valid-loop-action.json\" and .artifacts[0].loop_maturity_report_path == \"tests/fixtures/loop_maturity/assisted-loop-report.json\"' >/dev/null"
 jq '(.sections."8_task_tickets"[0].implementation_interface_contract) = {"id":"iface:cli-smoke","reuse":["scripts/adlc.py normalized_work_item_payload"],"consumes":["Build Brief task"],"emits":["normalized artifact"],"minimum_fields":[{"name":"task_id","kind":"string","constraint":"stable"}],"invariants":["optional fields remain optional"],"integration_points":["bin/adlc emit-work-items"],"validation_gates":["tests/test_adlc_cli.sh"]} | (.sections."8_task_tickets"[0].productionization_gate) = {"id":"prod:cli-smoke","claim":"CLI dry-run payload is production ready for local normalization.","coverage_state":"production_ready","operational_readiness":{"owner":"ADLC","rollback_path":"Revert the patch.","runbook_refs":["docs/specs/emitter-contract.md"]},"security_privacy":{"redaction_posture":"No secrets emitted."},"reliability_failure_modes":["Schema mismatch blocks mutation."],"validation_evidence":["tests/test_adlc_cli.sh"],"no_overclaim":["Does not prove external provider mutation."]}' "$ROOT/docs/build-briefs/xia-adlc-remediation.json" > "$tmp_dir/interface-prod-brief.json"
@@ -857,6 +911,7 @@ and any(.tools[]; .name == "adlc_validate_artifact" and (.inputSchema.required |
 and any(.tools[]; .name == "adlc_health_check")
 and any(.tools[]; .name == "adlc_repo_conventions" and .inputSchema.properties.workspace.type == "string")
 and any(.tools[]; .name == "adlc_convention_scan" and .inputSchema.properties.build_brief.type == "string" and .inputSchema.properties.file.type == "array" and .inputSchema.properties.waiver.type == "array")
+and any(.tools[]; .name == "adlc_module_plan_check" and (.inputSchema.required | index("build_brief")))
 and any(.tools[]; .name == "adlc_pr_hygiene_scan" and .inputSchema.properties.banned_token.type == "array" and .inputSchema.properties.removed_gate_token.type == "array")
 and any(.tools[]; .name == "adlc_process_artifact_path" and (.inputSchema.required | index("task")) and .inputSchema.properties.artifact_type.enum[0] == "build-brief")
 and any(.tools[]; .name == "adlc_ci" and .inputSchema.properties.suite.type == "array")
@@ -894,6 +949,7 @@ assert "mcp-serve calls health check" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\
 assert "mcp-serve calls repo conventions extraction" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":41,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_repo_conventions\",\"arguments\":{\"workspace\":\"'$tmp_dir/conventions-repo'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"extracted\" and (.result.structuredContent.rules | length) >= 3' >/dev/null"
 assert "mcp-serve calls convention scan" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_convention_scan\",\"arguments\":{\"workspace\":\"'$tmp_dir'/convention-scan-repo\",\"file\":[\"src/pure/mod.rs\"]}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and .result.structuredContent.summary.checked_files == 1' >/dev/null"
 assert "mcp-serve calls feedback conventions extraction" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":42,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_feedback_conventions\",\"arguments\":{\"input\":\"tests/fixtures/interralis-pr-review-comments.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.repo_conventions.status == \"extracted\" and .result.structuredContent.comment_count == 2 and .result.structuredContent.derived_rule_provenance.REVIEW_COMMENT_RECURSIVE_DIRECTORY_MODULE.comment_ids == [\"4849294999\"] and any(.result.structuredContent.ignored_evidence[]; .rule == \"line_count_evidence_not_rule\")' >/dev/null"
+assert "mcp-serve calls module plan check" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":43,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_module_plan_check\",\"arguments\":{\"build_brief\":\"'$tmp_dir'/module-plan-valid.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and .result.structuredContent.summary.required == 1' >/dev/null"
 assert "mcp-serve calls beads status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_beads_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
 assert "mcp-serve calls looper status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_looper_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
 assert "mcp-serve calls loop design validation" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_design_validate\",\"arguments\":{\"input\":\"tests/fixtures/loop_design/valid-looper-design.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"
