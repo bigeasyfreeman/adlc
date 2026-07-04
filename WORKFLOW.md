@@ -231,8 +231,11 @@ Skills are synced from `skills/` into the workspace before agent execution:
 
 ```
 skills/{name}/SKILL.md  →  ${WORKSPACE}/.claude/skills/{name}/SKILL.md
-                        →  ${WORKSPACE}/.codex/skills/{name}/SKILL.md
+                        →  ${WORKSPACE}/.agents/skills/{name}/SKILL.md
 ```
 
-Sync is digest-based (SHA256). Only changed skills are copied.
+Sync is digest-based (SHA256). Only changed skills are copied. Each managed
+skill destination writes `.adlc-skill-manifest`; later installs prune skills
+recorded in that manifest if they disappear from the ADLC source tree, while
+leaving unmanaged local skills alone.
 Skills are excluded from git via `.git/info/exclude`.

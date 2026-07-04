@@ -22,6 +22,22 @@ count_installable_agents() {
     ! -name "PM-PRD-AGENT.md" | wc -l | tr -d ' '
 }
 
+skill_digest() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    python3 - "$1" <<'PY'
+import hashlib
+import pathlib
+import sys
+
+print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())
+PY
+  fi
+}
+
 SOURCE_SKILL_COUNT="$(count_source_skills)"
 INSTALLABLE_AGENT_COUNT="$(count_installable_agents)"
 
@@ -64,12 +80,37 @@ sync_skills() {
   local dest="$1"
   echo "  Syncing $SOURCE_SKILL_COUNT skills → $dest"
   mkdir -p "$dest"
+  local manifest="$dest/.adlc-skill-manifest"
+  local tmp_manifest="$manifest.tmp"
+  local copied=0
+  local unchanged=0
+  local pruned=0
+  : > "$tmp_manifest"
   for skill_dir in "$ADLC_DIR"/skills/*/; do
     skill_name="$(basename "$skill_dir")"
+    source_file="$skill_dir/SKILL.md"
+    dest_file="$dest/$skill_name/SKILL.md"
+    source_hash="$(skill_digest "$source_file")"
     mkdir -p "$dest/$skill_name"
-    cp "$skill_dir/SKILL.md" "$dest/$skill_name/SKILL.md"
+    if [ ! -f "$dest_file" ] || [ "$(skill_digest "$dest_file")" != "$source_hash" ]; then
+      cp "$source_file" "$dest_file"
+      copied=$((copied + 1))
+    else
+      unchanged=$((unchanged + 1))
+    fi
+    printf '%s  %s\n' "$source_hash" "$skill_name" >> "$tmp_manifest"
   done
-  echo "  ✓ $SOURCE_SKILL_COUNT skills installed"
+  if [ -f "$manifest" ]; then
+    while read -r _ skill_name; do
+      [ -n "$skill_name" ] || continue
+      if ! awk -v name="$skill_name" '$2 == name { found = 1 } END { exit found ? 0 : 1 }' "$tmp_manifest"; then
+        rm -rf "$dest/$skill_name"
+        pruned=$((pruned + 1))
+      fi
+    done < "$manifest"
+  fi
+  mv "$tmp_manifest" "$manifest"
+  echo "  ✓ $SOURCE_SKILL_COUNT skills installed ($copied updated, $unchanged unchanged, $pruned pruned)"
 }
 
 install_claude() {
