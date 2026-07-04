@@ -1,0 +1,50 @@
+{
+  "contract_version": "1.0.0",
+  "plan_id": "coverage-plan:adlc:kitchen-loop-fixture",
+  "surface_id": "surface:adlc:kitchen-loop-fixture",
+  "bounded": true,
+  "max_scenarios": 4,
+  "scenarios": [
+    {
+      "scenario_id": "scenario:foundation:valid-spec",
+      "tier": "foundation",
+      "status": "covered",
+      "dimension_values": {
+        "artifact": "spec_surface",
+        "admission_state": "valid"
+      },
+      "expected_behavior": "The spec surface validates and coverage admission passes.",
+      "oracle_ref": "oracle:kitchen-loop-fixture",
+      "evidence_refs": ["tests/fixtures/kitchen_loop/valid-spec-surface.json"]
+    },
+    {
+      "scenario_id": "scenario:composition:blocked-plan",
+      "tier": "composition",
+      "status": "blocked",
+      "dimension_values": {
+        "artifact": "scenario_plan",
+        "admission_state": "blocked"
+      },
+      "expected_behavior": "Unbounded scenario generation is rejected.",
+      "oracle_ref": "oracle:kitchen-loop-fixture",
+      "evidence_refs": ["tests/fixtures/kitchen_loop/invalid-scenario-coverage-unbounded.json"]
+    }
+  ],
+  "blocked_combinations": [
+    {
+      "id": "combo:frontier:auto-merge",
+      "reason": "Auto-merge is outside this ADLC admission slice.",
+      "next_action": "Escalate if a future harness requests merge authority."
+    }
+  ],
+  "coverage_limitations": [
+    "Synthetic fixture coverage does not prove external product behavior."
+  ],
+  "summary": {
+    "covered": 1,
+    "missing": 0,
+    "blocked": 1,
+    "not_applicable": 0
+  },
+  "redaction_posture": "Fixtures contain only local paths."
+}

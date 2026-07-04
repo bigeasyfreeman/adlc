@@ -1,0 +1,35 @@
+{
+  "contract_version": "1.0.0",
+  "gate_id": "drift-gate:adlc:kitchen-loop-fixture",
+  "status": "pass",
+  "surface_id": "surface:adlc:kitchen-loop-fixture",
+  "oracle_id": "oracle:kitchen-loop-fixture",
+  "metrics": [
+    {
+      "name": "schema_regressions",
+      "current": 0,
+      "threshold": 0,
+      "direction": "max"
+    },
+    {
+      "name": "oracle_coverage",
+      "current": 1,
+      "threshold": 1,
+      "direction": "min"
+    }
+  ],
+  "summary": {
+    "regression_delta": 0,
+    "quality_trend_delta": 0,
+    "starvation_count": 0,
+    "no_work_count": 0,
+    "blocked_combinations": 1,
+    "oracle_coverage": 1
+  },
+  "next_action": "Proceed with the bounded fixture canary.",
+  "evidence_refs": [
+    "tests/fixtures/kitchen_loop/valid-spec-surface.json",
+    "tests/fixtures/kitchen_loop/valid-regression-oracle.json"
+  ],
+  "redaction_posture": "No secrets in drift metrics."
+}

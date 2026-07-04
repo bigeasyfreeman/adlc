@@ -1,0 +1,49 @@
+{
+  "contract_version": "1.0.0",
+  "surface_id": "surface:adlc:kitchen-loop-missing-oracle",
+  "owner": "adlc-maintainers",
+  "enumerability": {
+    "state": "bounded_with_exclusions",
+    "rationale": "This invalid fixture is bounded but omits required oracle_refs.",
+    "boundary_ref": "docs/specs/kitchen-loop-coverage-admission.md#spec-surface"
+  },
+  "capability_claims": [
+    {
+      "id": "claim:missing-oracle",
+      "claim": "This should fail because the surface has no top-level oracle refs.",
+      "scope": "Invalid fixture."
+    }
+  ],
+  "dimensions": [
+    {
+      "name": "artifact",
+      "values": ["spec_surface"]
+    }
+  ],
+  "supported_combinations": [
+    {
+      "id": "combo:missing-oracle",
+      "dimension_values": {
+        "artifact": "spec_surface"
+      },
+      "oracle_refs": ["oracle:kitchen-loop-fixture"]
+    }
+  ],
+  "success_criteria": [
+    {
+      "id": "criterion:missing-oracle",
+      "description": "The schema should reject this fixture before CLI admission.",
+      "oracle_ref": "oracle:kitchen-loop-fixture",
+      "evaluation_type": "deterministic"
+    }
+  ],
+  "unsupported_states": [
+    {
+      "state": "missing_oracle",
+      "reason": "No top-level oracle refs were declared.",
+      "failure_action": "block"
+    }
+  ],
+  "out_of_scope": ["Production coverage claim"],
+  "redaction_posture": "No secrets."
+}

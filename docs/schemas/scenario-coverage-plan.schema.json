@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/scenario-coverage-plan.schema.json",
+  "title": "ADLC Scenario Coverage Plan",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "plan_id",
+    "surface_id",
+    "bounded",
+    "max_scenarios",
+    "scenarios",
+    "blocked_combinations",
+    "coverage_limitations",
+    "summary",
+    "redaction_posture"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "plan_id": {"type": "string", "minLength": 1},
+    "surface_id": {"type": "string", "minLength": 1},
+    "bounded": {"const": true},
+    "max_scenarios": {"type": "integer", "minimum": 1},
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "scenario_id",
+          "tier",
+          "status",
+          "dimension_values",
+          "expected_behavior",
+          "oracle_ref"
+        ],
+        "properties": {
+          "scenario_id": {"type": "string", "minLength": 1},
+          "tier": {
+            "type": "string",
+            "enum": ["foundation", "composition", "frontier"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["covered", "missing", "blocked", "not_applicable"]
+          },
+          "dimension_values": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {"type": "string", "minLength": 1}
+          },
+          "expected_behavior": {"type": "string", "minLength": 1},
+          "oracle_ref": {"type": "string", "minLength": 1},
+          "evidence_refs": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "blocked_combinations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "reason", "next_action"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "reason": {"type": "string", "minLength": 1},
+          "next_action": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "coverage_limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["covered", "missing", "blocked", "not_applicable"],
+      "properties": {
+        "covered": {"type": "integer", "minimum": 0},
+        "missing": {"type": "integer", "minimum": 0},
+        "blocked": {"type": "integer", "minimum": 0},
+        "not_applicable": {"type": "integer", "minimum": 0}
+      }
+    },
+    "redaction_posture": {"type": "string", "minLength": 1}
+  }
+}

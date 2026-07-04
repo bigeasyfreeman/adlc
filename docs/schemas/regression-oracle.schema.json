@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/regression-oracle.schema.json",
+  "title": "ADLC Regression Oracle",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "oracle_id",
+    "owner",
+    "oracle_type",
+    "ground_truth_source",
+    "execution_boundary",
+    "state_delta_assertions",
+    "anti_canaries",
+    "environmental_failure_policy",
+    "pre_merge_required",
+    "post_merge_required",
+    "coverage_limitations",
+    "redaction_posture"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "oracle_id": {"type": "string", "minLength": 1},
+    "owner": {"type": "string", "minLength": 1},
+    "oracle_type": {
+      "type": "string",
+      "enum": ["fixture", "golden_command", "state_delta", "external_system_readonly", "human_verified"]
+    },
+    "ground_truth_source": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "strength", "ref"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["fixture", "golden_command", "recorded_user_trace", "external_system_readonly", "human_verified"]
+        },
+        "strength": {"const": "independent"},
+        "ref": {"type": "string", "minLength": 1}
+      }
+    },
+    "execution_boundary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["command", "mutation_policy", "network_policy"],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "mutation_policy": {
+          "type": "string",
+          "enum": ["read_only", "ephemeral_fixture_only", "explicit_action_admission_required"]
+        },
+        "network_policy": {
+          "type": "string",
+          "enum": ["none", "localhost_only", "readonly_external_allowed"]
+        }
+      }
+    },
+    "state_delta_assertions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "assertion"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "assertion": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "anti_canaries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "input_ref", "expected_failure"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "input_ref": {"type": "string", "minLength": 1},
+          "expected_failure": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "environmental_failure_policy": {
+      "type": "string",
+      "enum": ["fail_closed", "pause", "escalate"]
+    },
+    "pre_merge_required": {"type": "boolean"},
+    "post_merge_required": {"type": "boolean"},
+    "coverage_limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "redaction_posture": {"type": "string", "minLength": 1}
+  },
+  "anyOf": [
+    {"properties": {"pre_merge_required": {"const": true}}},
+    {"properties": {"post_merge_required": {"const": true}}}
+  ]
+}
