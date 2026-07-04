@@ -347,7 +347,45 @@ assert "convention-scan blocks catch-all responsibilities" "if '$ROOT/bin/adlc' 
 assert "convention-scan accepts inline waivers with reason" "'$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/waived_misc.rs --json | jq -e '.status == \"pass\" and .summary.waived_issues == 1 and any(.issues[]; .rule == \"catch_all_responsibility\" and .status == \"waived\" and (.waiver_reason | contains(\"legacy split tracked\")))' >/dev/null"
 assert "convention-scan records explicit waivers without failing" "'$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/bad.rs --waiver 'src/bad.rs:module_doc_multiple_jobs:legacy split tracked' --waiver 'src/bad.rs:side_effect_without_impure_shell:legacy split tracked' --json | jq -e '.status == \"pass\" and .summary.waived_issues == 2 and all(.issues[]; .status == \"waived\")' >/dev/null"
 assert "convention-scan passes thin Rust coordinator" "'$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/pure/mod.rs --json | jq -e '.status == \"pass\" and .summary.open_issues == 0' >/dev/null"
-assert "feedback-conventions distills interralis review comments without size rules" "'$ROOT/bin/adlc' feedback-conventions --input '$ROOT/tests/fixtures/interralis-pr-review-comments.json' --json >'$tmp_dir/interralis-comment-rules.json' && jq -e '.status == \"pass\" and .comment_count == 5 and .repo_conventions.status == \"extracted\" and ([.repo_conventions.rules[].id] | index(\"REVIEW_COMMENT_ONE_RESPONSIBILITY\") != null) and ([.repo_conventions.rules[].id] | index(\"REVIEW_COMMENT_RECURSIVE_DIRECTORY_MODULE\") != null) and ([.repo_conventions.rules[].id] | index(\"REVIEW_COMMENT_PURE_CORE_IMPURE_SHELL\") != null) and all(.repo_conventions.rules[]; (.rule | test(\"line count|file size|1367\"; \"i\") | not)) and any(.ignored_evidence[]; .rule == \"line_count_evidence_not_rule\")' '$tmp_dir/interralis-comment-rules.json' >/dev/null"
+cat > "$tmp_dir/feedback-conventions-filter.jq" <<'JQ'
+.status == "pass"
+and .comment_count == 2
+and .repo_conventions.status == "extracted"
+and any(.repo_conventions.rules[]; .id == "REVIEW_COMMENT_ONE_RESPONSIBILITY" and .rule == "Every Rust module's first //! line must state one responsibility; when review evidence names multiple jobs or needs \"and\", enumerate those roles and split the file." and .source_path == "tests/fixtures/interralis-pr-review-comments.json")
+and any(.repo_conventions.rules[]; .id == "REVIEW_COMMENT_RECURSIVE_DIRECTORY_MODULE" and .rule == "When a Rust responsibility grows sub-parts, split it into a recursive directory module instead of keeping catalog, runner, driver, report, and type roles in one flat file.")
+and any(.repo_conventions.rules[]; .id == "REVIEW_COMMENT_PURE_CORE_IMPURE_SHELL" and .rule == "Keep pure Rust type, catalog, probe, and normalization logic separate from filesystem and subprocess impure shell modules.")
+and all(.repo_conventions.rules[]; (.rule | test("1367|line count|file size|thin coordinator|database|network|environment"; "i") | not))
+and .derived_rule_provenance.REVIEW_COMMENT_ONE_RESPONSIBILITY.source_refs == ["interralis#225", "interralis#226"]
+and .derived_rule_provenance.REVIEW_COMMENT_RECURSIVE_DIRECTORY_MODULE.comment_ids == ["4849294999"]
+and .derived_rule_provenance.REVIEW_COMMENT_PURE_CORE_IMPURE_SHELL.source_refs == ["interralis#225", "interralis#226"]
+and any(.intake_records[]; .source_ref == "interralis#225" and .classification == "repo_conventions_rule" and (.derived_rule_ids | index("REVIEW_COMMENT_ONE_RESPONSIBILITY") != null) and (.derived_rule_ids | index("REVIEW_COMMENT_PURE_CORE_IMPURE_SHELL") != null))
+and any(.intake_records[]; .source_ref == "interralis#226" and .classification == "repo_conventions_rule" and (.derived_rule_ids | index("REVIEW_COMMENT_RECURSIVE_DIRECTORY_MODULE") != null))
+and any(.ignored_evidence[]; .rule == "line_count_evidence_not_rule" and .source_ref == "interralis#226" and .comment_id == "4849294999")
+and (.boundary.does_not_derive_from_pr_comments | index("thin-coordinator rule") != null)
+and (.boundary.does_not_derive_from_pr_comments | index("line count or file size criterion") != null)
+JQ
+assert "feedback-conventions distills real interralis comments with provenance" "'$ROOT/bin/adlc' feedback-conventions --input '$ROOT/tests/fixtures/interralis-pr-review-comments.json' --json >'$tmp_dir/interralis-comment-rules.json' && jq -e -f '$tmp_dir/feedback-conventions-filter.jq' '$tmp_dir/interralis-comment-rules.json' >/dev/null"
+mkdir -p "$tmp_dir/fake-gh-bin"
+cat > "$tmp_dir/fake-gh-bin/gh" <<'EOF'
+#!/usr/bin/env bash
+set -eu
+if [ "$1" = "pr" ]; then
+  printf '%s\n' '{"number":9,"title":"Fetch maintainer convention intake","url":"https://github.com/example/repo/pull/9","state":"MERGED","mergedAt":"2026-07-01T00:00:00Z","author":{"login":"agent"},"reviews":[]}'
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "repos/example/repo/issues/9/comments" ]; then
+  printf '%s\n' '[{"id":9001,"node_id":"IC_fake","html_url":"https://github.com/example/repo/pull/9#issuecomment-9001","user":{"login":"maintainer"},"author_association":"MEMBER","created_at":"2026-07-01T00:01:00Z","updated_at":"2026-07-01T00:01:00Z","body":"Build Brief Step 2 must ingest target-repo maintainer conventions before decomposition."}]'
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "repos/example/repo/pulls/9/comments" ]; then
+  printf '%s\n' '[]'
+  exit 0
+fi
+printf 'unexpected gh args: %s\n' "$*" >&2
+exit 1
+EOF
+chmod +x "$tmp_dir/fake-gh-bin/gh"
+assert "feedback-conventions fetches reviewed PR comments into skill-rule intake" "PATH='$tmp_dir/fake-gh-bin:'\"\$PATH\" '$ROOT/bin/adlc' feedback-conventions --repo example/repo --pr 9 --json >'$tmp_dir/fetched-feedback-conventions.json' && jq -e '.status == \"pass\" and .comment_count == 1 and .repo_conventions.status == \"none_found\" and (.skill_rule_changes | length) == 1 and any(.intake_records[]; .source_ref == \"example/repo#9\" and .classification == \"skill_rule_change\") and .fixture_provenance.pulls[0].maintainer_comment_count == 1' '$tmp_dir/fetched-feedback-conventions.json' >/dev/null"
 
 echo ""
 echo "--- Compound Context ---"
@@ -855,7 +893,7 @@ assert "mcp-serve calls adlc_list_agents" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\
 assert "mcp-serve calls health check" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_health_check\",\"arguments\":{}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"
 assert "mcp-serve calls repo conventions extraction" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":41,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_repo_conventions\",\"arguments\":{\"workspace\":\"'$tmp_dir/conventions-repo'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"extracted\" and (.result.structuredContent.rules | length) >= 3' >/dev/null"
 assert "mcp-serve calls convention scan" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_convention_scan\",\"arguments\":{\"workspace\":\"'$tmp_dir'/convention-scan-repo\",\"file\":[\"src/pure/mod.rs\"]}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\" and .result.structuredContent.summary.checked_files == 1' >/dev/null"
-assert "mcp-serve calls feedback conventions extraction" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":42,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_feedback_conventions\",\"arguments\":{\"input\":\"tests/fixtures/interralis-pr-review-comments.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.repo_conventions.status == \"extracted\" and any(.result.structuredContent.ignored_evidence[]; .rule == \"line_count_evidence_not_rule\")' >/dev/null"
+assert "mcp-serve calls feedback conventions extraction" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":42,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_feedback_conventions\",\"arguments\":{\"input\":\"tests/fixtures/interralis-pr-review-comments.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.repo_conventions.status == \"extracted\" and .result.structuredContent.comment_count == 2 and .result.structuredContent.derived_rule_provenance.REVIEW_COMMENT_RECURSIVE_DIRECTORY_MODULE.comment_ids == [\"4849294999\"] and any(.result.structuredContent.ignored_evidence[]; .rule == \"line_count_evidence_not_rule\")' >/dev/null"
 assert "mcp-serve calls beads status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_beads_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
 assert "mcp-serve calls looper status preflight" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_looper_status\",\"arguments\":{\"workspace\":\"'$tmp_dir'\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"not_configured\"' >/dev/null"
 assert "mcp-serve calls loop design validation" "printf '%s\n' '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"adlc_loop_design_validate\",\"arguments\":{\"input\":\"tests/fixtures/loop_design/valid-looper-design.json\"}}}' | '$ROOT/bin/adlc' mcp-serve | jq -e '.result.isError == false and .result.structuredContent.status == \"pass\"' >/dev/null"

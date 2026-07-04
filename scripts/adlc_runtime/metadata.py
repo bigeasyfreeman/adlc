@@ -100,7 +100,7 @@ COMMAND_METADATA = {
     },
     "feedback-conventions": {
         "mcp_name": "adlc_feedback_conventions",
-        "description": "Distill maintainer PR review comments into target-repo convention rules and ignored non-rule evidence.",
+        "description": "Distill fixture or fetched maintainer PR comments into target-repo convention rules, skill-rule candidates, and ignored non-rule evidence with provenance.",
     },
     "pr-hygiene-scan": {
         "mcp_name": "adlc_pr_hygiene_scan",
