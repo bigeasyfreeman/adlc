@@ -194,6 +194,7 @@ assert "run-phase blocks dishonest repo conventions before context assembly" "if
 echo ""
 echo "--- Convention Structural Scan ---"
 mkdir -p "$tmp_dir/convention-scan-repo/src/foo" "$tmp_dir/convention-scan-repo/src/pure" "$tmp_dir/no-convention-scan-repo/src"
+mkdir -p "$tmp_dir/python-convention-scan-repo"
 cat > "$tmp_dir/convention-scan-repo/CLAUDE.md" <<'EOF'
 # Scan Repo
 
@@ -204,6 +205,66 @@ cat > "$tmp_dir/convention-scan-repo/CLAUDE.md" <<'EOF'
 - **Pure core, impure shell.** Side effects live only in an impure shell.
 - **Catch-all modules are forbidden.** Split miscellaneous helpers by responsibility.
 EOF
+cat > "$tmp_dir/interralis-conventions-brief.json" <<'JSON'
+{
+  "repo_conventions": {
+    "status": "extracted",
+    "sources": [{"path": "interralis/CLAUDE.md", "kind": "CLAUDE.md"}],
+    "rules": [
+      {
+        "id": "INTERRALIS_ONE_RESPONSIBILITY",
+        "source_path": "interralis/CLAUDE.md",
+        "rule": "One responsibility per file, stated in the first line of the module's //! doc-comment. If the line needs 'and', the file is doing too much and must be split.",
+        "verification_predicate": "Run bin/adlc convention-scan --file <changed Rust file> --json and inspect module-doc first lines for multi-job wording.",
+        "severity": "must",
+        "applies_to": ["changed Rust files"]
+      },
+      {
+        "id": "INTERRALIS_THIN_COORDINATOR",
+        "source_path": "interralis/CLAUDE.md",
+        "rule": "The coordinator file is a thin coordinator, never a worker.",
+        "verification_predicate": "Run bin/adlc convention-scan --file <changed Rust file> --json and verify coordinator files stay thin instead of containing worker logic.",
+        "severity": "must",
+        "applies_to": ["changed Rust files"]
+      },
+      {
+        "id": "INTERRALIS_PURE_CORE_IMPURE_SHELL",
+        "source_path": "interralis/CLAUDE.md",
+        "rule": "Pure core, impure shell. Side effects live only in documented impure shell modules.",
+        "verification_predicate": "Run bin/adlc convention-scan --file <changed Rust file> --json and verify side-effect calls live in isolated impure shell modules.",
+        "severity": "must",
+        "applies_to": ["changed Rust files"]
+      }
+    ]
+  }
+}
+JSON
+cat > "$tmp_dir/synthetic-python-conventions-brief.json" <<'JSON'
+{
+  "repo_conventions": {
+    "status": "extracted",
+    "sources": [{"path": "PYTHON_CONVENTIONS.md", "kind": "CONTRIBUTING.md"}],
+    "rules": [
+      {
+        "id": "PYTHON_NO_PRINT",
+        "source_path": "PYTHON_CONVENTIONS.md",
+        "rule": "Python production code must not use print() for debug output.",
+        "verification_predicate": "Run bin/adlc convention-scan --file <changed Python file> --json and ensure print() calls are absent.",
+        "severity": "must",
+        "applies_to": ["changed Python files"]
+      },
+      {
+        "id": "PYTHON_REVIEW_DOCS",
+        "source_path": "PYTHON_CONVENTIONS.md",
+        "rule": "Python command handlers must describe retry idempotency in their module docs.",
+        "verification_predicate": "Reviewer confirms retry idempotency docs are complete for command handlers.",
+        "severity": "must",
+        "applies_to": ["changed Python files"]
+      }
+    ]
+  }
+}
+JSON
 cat > "$tmp_dir/convention-scan-repo/src/bad.rs" <<'EOF'
 //! Reading and writing records
 use std::fs;
@@ -245,8 +306,14 @@ cat > "$tmp_dir/no-convention-scan-repo/src/lib.rs" <<'EOF'
 //! Reading and writing records
 pub fn run() {}
 EOF
+cat > "$tmp_dir/python-convention-scan-repo/app.py" <<'EOF'
+def main():
+    print("debug")
+EOF
 assert "convention-scan is not applicable without extracted repo conventions" "'$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/no-convention-scan-repo' --file src/lib.rs --json | jq -e '.status == \"not_applicable\" and .summary.applicability == \"not_applicable\" and .repo_conventions.status == \"none_found\"' >/dev/null"
 assert "convention-scan derives active checks from extracted rules" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/bad.rs --json >'$tmp_dir/convention-scan-bad.json'; then false; else jq -e '.status == \"blocked\" and .repo_conventions.status == \"extracted\" and (.active_rules | index(\"module_doc_multiple_jobs\")) != null and (.active_rules | index(\"side_effect_without_impure_shell\")) != null and any(.issues[]; .rule == \"module_doc_multiple_jobs\" and (.source_rule_ids | length) >= 1) and any(.issues[]; .rule == \"side_effect_without_impure_shell\" and (.source_rule_ids | length) >= 1) and (.boundary.does_not | index(\"use file size as a criterion\")) != null and (.boundary.does_not | index(\"use line count as a criterion\")) != null' '$tmp_dir/convention-scan-bad.json' >/dev/null; fi"
+assert "convention-scan binds interralis Build Brief predicates" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --build-brief '$tmp_dir/interralis-conventions-brief.json' --file src/bad.rs --json >'$tmp_dir/interralis-convention-scan.json'; then false; else jq -e '.status == \"blocked\" and (.repo_conventions.source | endswith(\"interralis-conventions-brief.json\")) and (.active_rules | index(\"module_doc_multiple_jobs\")) != null and (.active_rules | index(\"side_effect_without_impure_shell\")) != null and (.active_rules | index(\"coordinator_worker_logic\")) != null and (.active_rules | index(\"python_no_print\") == null) and (.manual_review_required | length) == 0' '$tmp_dir/interralis-convention-scan.json' >/dev/null; fi"
+assert "convention-scan binds synthetic non-Rust predicates and reports manual review" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/python-convention-scan-repo' --build-brief '$tmp_dir/synthetic-python-conventions-brief.json' --file app.py --json >'$tmp_dir/python-convention-scan.json'; then false; else jq -e '.status == \"blocked\" and (.active_rules | index(\"python_no_print\")) != null and (.active_rules | index(\"module_doc_multiple_jobs\") == null) and any(.issues[]; .rule == \"python_no_print\" and (.source_rule_ids | index(\"PYTHON_NO_PRINT\") != null)) and any(.issues[]; .rule == \"manual_review_required\" and .status == \"manual_review_required\" and (.source_rule_ids | index(\"PYTHON_REVIEW_DOCS\") != null)) and (.manual_review_required | length) == 1 and .summary.manual_review_required == 1' '$tmp_dir/python-convention-scan.json' >/dev/null; fi"
 assert "convention-scan blocks coordinator worker logic" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/foo.rs --json >'$tmp_dir/convention-scan-coordinator.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"coordinator_worker_logic\")' '$tmp_dir/convention-scan-coordinator.json' >/dev/null; fi"
 assert "convention-scan does not allow doc keyword self exemption" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/self_exempt.rs --json >'$tmp_dir/convention-scan-self-exempt.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"side_effect_without_impure_shell\")' '$tmp_dir/convention-scan-self-exempt.json' >/dev/null; fi"
 assert "convention-scan blocks catch-all responsibilities" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/misc.rs --json >'$tmp_dir/convention-scan-catch-all.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"catch_all_responsibility\")' '$tmp_dir/convention-scan-catch-all.json' >/dev/null; fi"
@@ -724,7 +791,7 @@ cat > "$tmp_dir/mcp-tools-filter.jq" <<'JQ'
 and any(.tools[]; .name == "adlc_validate_artifact" and (.inputSchema.required | index("schema")))
 and any(.tools[]; .name == "adlc_health_check")
 and any(.tools[]; .name == "adlc_repo_conventions" and .inputSchema.properties.workspace.type == "string")
-and any(.tools[]; .name == "adlc_convention_scan" and .inputSchema.properties.file.type == "array" and .inputSchema.properties.waiver.type == "array")
+and any(.tools[]; .name == "adlc_convention_scan" and .inputSchema.properties.build_brief.type == "string" and .inputSchema.properties.file.type == "array" and .inputSchema.properties.waiver.type == "array")
 and any(.tools[]; .name == "adlc_pr_hygiene_scan" and .inputSchema.properties.banned_token.type == "array" and .inputSchema.properties.removed_gate_token.type == "array")
 and any(.tools[]; .name == "adlc_ci" and .inputSchema.properties.suite.type == "array")
 and any(.tools[]; .name == "adlc_action_admit" and (.inputSchema.required | index("tool_registry")) and .inputSchema.properties.allow_mutation.type == "boolean" and .inputSchema.properties.run_id.type == "string")
