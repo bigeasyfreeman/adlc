@@ -28,6 +28,8 @@ SCHEMA_ALIASES = {
     "looper-status-report": "docs/schemas/looper-status-report.schema.json",
     "memory-health-report": "docs/schemas/memory-health-report.schema.json",
     "permission-audit-trail": "docs/schemas/permission-audit-trail.schema.json",
+    "ponytail-admission-report": "docs/schemas/ponytail-admission-report.schema.json",
+    "ponytail-scenario-canary-report": "docs/schemas/ponytail-scenario-canary-report.schema.json",
     "paved-road-pattern-registry": "docs/schemas/paved-road-pattern-registry.schema.json",
     "prd-template": "docs/schemas/prd-template.schema.json",
     "repo-map": "docs/schemas/repo-map.schema.json",
@@ -110,6 +112,14 @@ COMMAND_METADATA = {
     "paved-road-patterns": {
         "mcp_name": "adlc_paved_road_patterns",
         "description": "List or inspect approved structural paved-road patterns and their merged exemplar refs.",
+    },
+    "ponytail-admit": {
+        "mcp_name": "adlc_ponytail_admit",
+        "description": "Validate right-sized task minimality contracts and optional dependency/anatomy diff gates.",
+    },
+    "ponytail-scenario-canary": {
+        "mcp_name": "adlc_ponytail_scenario_canary",
+        "description": "Run deterministic with/without Ponytail scenario canaries against the ADLC readiness gate.",
     },
     "pr-hygiene-scan": {
         "mcp_name": "adlc_pr_hygiene_scan",

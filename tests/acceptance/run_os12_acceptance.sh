@@ -120,7 +120,7 @@ brief["enterprise_readiness_contract"] = {
     ],
     "definition_of_done": [
         "Build Brief validates and emits ready work items.",
-        "Context assembly includes repo conventions, module_plan, honesty, performance, and task_sizing.",
+        "Context assembly includes repo conventions, module_plan, honesty, performance, task_sizing, and minimality.",
         "One-shot generated code passes architecture, convention, QA, and PR hygiene gates.",
     ],
     "validation_tasks": ["OS12_VALIDATE_ACCEPTANCE"],
@@ -211,7 +211,7 @@ implementation_task = {
     },
     "evidence_responsibilities": [
         "Capture the pre-change architecture failure.",
-        "Capture context assembly containing module_plan, honesty, performance, and task_sizing.",
+        "Capture context assembly containing module_plan, honesty, performance, task_sizing, and minimality.",
         "Capture passing convention, QA, and PR hygiene outputs.",
         "Capture negative controls for flat file, process artifact, banned token, and split-required task.",
     ],
@@ -297,6 +297,10 @@ implementation_task = {
             "rationale": "The required module_plan describes one coherent directory module file-set.",
         },
     },
+    "minimality_contract": {
+        "rung": "minimum_code",
+        "decision": "Build only the planned score module files without new dependency or extra abstraction.",
+    },
     "work_item_metadata": {
         "area": "acceptance",
         "area_label": "acceptance",
@@ -357,6 +361,10 @@ validation_task.update({
         "applicability": "not_applicable",
         "reason": "Validation-only task with no data path.",
     },
+    "minimality_contract": {
+        "rung": "reuse_existing",
+        "decision": "Run existing OS-12 validation gates without adding implementation scope.",
+    },
 })
 validation_task["verification_spec"] = {
     "primary_verifier": {
@@ -388,6 +396,9 @@ jq -e '.status == "pass"' "$TMP_ROOT/repo_conventions_check.json" >/dev/null
 "$ADLC" module-plan-check --build-brief "$BRIEF" --json > "$TMP_ROOT/module_plan_check.json"
 jq -e '.status == "pass" and any(.tasks[]; .task_id == "OS12_SCORE_MODULE" and .module_plan_applicability == "required")' \
   "$TMP_ROOT/module_plan_check.json" >/dev/null
+"$ADLC" ponytail-admit --build-brief "$BRIEF" --json > "$TMP_ROOT/ponytail_admission.json"
+jq -e '.status == "pass" and all(.tasks[]; (.minimality_contract | keys | sort) == ["decision", "rung"])' \
+  "$TMP_ROOT/ponytail_admission.json" >/dev/null
 
 step "Emit right-sized work items and assemble codegen context"
 "$ADLC" emit-work-items \
@@ -400,6 +411,7 @@ step "Emit right-sized work items and assemble codegen context"
 jq -e '
   .readiness_report.status == "ready" and
   any(.artifacts[]; .id == "OS12_SCORE_MODULE" and .module_plan.applicability == "required" and .task_sizing.change_surface.surface_kind == "coherent_file_set") and
+  any(.artifacts[]; .id == "OS12_SCORE_MODULE" and .minimality_contract.rung == "minimum_code") and
   any(.artifacts[]; .id == "OS12_VALIDATE_ACCEPTANCE" and .task_sizing.applicability == "not_applicable")
 ' "$TMP_ROOT/work_items.json" >/dev/null
 "$ADLC" run-phase context_assembly \
@@ -414,6 +426,7 @@ jq -e '
     .constraints.repo_conventions.status == "extracted" and
     .constraints.module_plan.applicability == "required" and
     .constraints.task_sizing.change_surface.surface_kind == "coherent_file_set" and
+    .constraints.minimality_contract.rung == "minimum_code" and
     .constraints.performance_envelope.applicability == "required" and
     .constraints.honesty_contract.applicability == "not_applicable"
   )

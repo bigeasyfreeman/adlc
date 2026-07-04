@@ -51,6 +51,10 @@ The assembled context includes `.adlc/test_plan.json` from the `test-author` age
 
 Everything is in the assembled context. Do not search the codebase. If something is missing, emit `stuck`.
 
+## Minimality
+
+If the context includes `minimality_contract`, treat its `rung` and `decision` as settled scope. Do not re-run the ladder or reopen the decomposition decision. Keep behavior, dependencies, and speculative abstractions inside that decision while still following every `repo_conventions` and `module_plan` structural requirement.
+
 ## Output
 
 ```json

@@ -462,6 +462,9 @@ If `module_plan.applicability=not_applicable`, paste the reason and do not inven
 ### Performance Envelope
 [Paste `performance_envelope` for every executable task. If `applicability=required`, paste `expected_input_scale`, `hot_paths`, complexity bounds, `benchmark_required`, and `benchmark_spec.command` when required. If `benchmark_required=true`, run the benchmark before closeout, record `benchmark_results` or equivalent task-output evidence, and complete any queue task with `queue-complete --benchmark`. If `applicability=not_applicable`, paste the no-data-path reason and do not invent benchmark ceremony.]
 
+### Ponytail Minimality
+[Paste `minimality_contract` as the settled two-field constraint: `rung` and one-line `decision`. Do not ask the coding agent to re-deliberate the ladder. Repo conventions and `module_plan` still govern file/module structure; minimality governs behavior scope, dependencies, and speculative abstraction.]
+
 ### Loop Contract
 [Include this section only when active. Paste `loop_contract_path`, the full Loop Contract, required test IDs, allowed tool/action pairs, real feedback sources, safe checkpoint, progress/no-progress signal, control events, escalation context, independent truth, compact `budget_guard` refs, `budget_status`, and the exact `bin/adlc loop-test-selection`, `bin/adlc loop-budget-check`, `bin/adlc loop-action-validate`, or `bin/adlc loop-maturity-audit` command that gates this task. LLM discretion may add tests, never remove the mandatory floor or required tests. Pass budget refs and aggregate token totals only; do not paste raw prompts, provider logs, API keys, bearer tokens, or billing account IDs.]
 
