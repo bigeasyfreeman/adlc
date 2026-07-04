@@ -3676,6 +3676,10 @@ CI_SUITES = {
         "description": "Provider-free public control-plane acceptance test",
         "command": ["bash", "tests/acceptance/run_public_acceptance.sh"],
     },
+    "os12-acceptance": {
+        "description": "OS-12 end-to-end one-shot acceptance proof",
+        "command": ["bash", "tests/acceptance/run_os12_acceptance.sh"],
+    },
     "backtest": {
         "description": "Deterministic evaluator backtest",
         "command": ["bash", "tests/backtest/run_backtest.sh"],
@@ -3686,7 +3690,7 @@ CI_SUITES = {
     },
 }
 
-DEFAULT_CI_SUITE_ORDER = ("health-check", "cli", "contracts", "setup", "acceptance", "backtest", "py-compile")
+DEFAULT_CI_SUITE_ORDER = ("health-check", "cli", "contracts", "setup", "acceptance", "os12-acceptance", "backtest", "py-compile")
 
 
 def ci_command_for_suite(suite_name: str) -> List[str]:
