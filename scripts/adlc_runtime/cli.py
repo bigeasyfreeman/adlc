@@ -1603,6 +1603,117 @@ def command_convention_scan(args: argparse.Namespace) -> int:
     return 0 if payload["status"] in {"pass", "not_applicable"} else 1
 
 
+def feedback_comment_items(payload: Any) -> List[Dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        comments = payload.get("comments", [])
+        return [item for item in comments if isinstance(item, dict)] if isinstance(comments, list) else []
+    return []
+
+
+def feedback_comment_text(comment: Dict[str, Any]) -> str:
+    return "\n".join(str(comment.get(field) or "") for field in ("quote", "body", "text"))
+
+
+def feedback_rule(
+    rule_id: str,
+    rule: str,
+    verification_predicate: str,
+    applies_to: List[str],
+    source_path: str,
+) -> Dict[str, Any]:
+    return {
+        "id": rule_id,
+        "source_path": source_path,
+        "rule": rule,
+        "verification_predicate": verification_predicate,
+        "severity": "must",
+        "applies_to": applies_to,
+    }
+
+
+def feedback_conventions_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    input_path = resolve_input_path(args.input, Path.cwd())
+    payload = read_json(input_path)
+    comments = feedback_comment_items(payload)
+    combined = "\n".join(feedback_comment_text(comment) for comment in comments)
+    normalized = normalize_convention_text(combined)
+    source_path = rel_path(input_path)
+    source_refs = list(dict.fromkeys(str(comment.get("source_ref") or "").strip() for comment in comments if str(comment.get("source_ref") or "").strip()))
+    rules: List[Dict[str, Any]] = []
+    if "one responsibility" in normalized or "three jobs" in normalized or "responsibilities" in normalized:
+        rules.append(
+            feedback_rule(
+                "REVIEW_COMMENT_ONE_RESPONSIBILITY",
+                "Every Rust module's first //! line must state one responsibility; split files whose doc line needs 'and' or whose implementation combines multiple jobs.",
+                "Run bin/adlc convention-scan --file <changed Rust file> --json and inspect module-doc first lines for multi-job wording.",
+                ["changed Rust files"],
+                source_path,
+            )
+        )
+    if "directory module" in normalized or "flat persona_ux" in normalized or "catalog.rs" in normalized:
+        rules.append(
+            feedback_rule(
+                "REVIEW_COMMENT_RECURSIVE_DIRECTORY_MODULE",
+                "When a Rust module grows sub-parts, split it into a recursive directory module instead of keeping catalog, runner, driver, report, and type roles in one flat file.",
+                "Review scaffold and changed files for catch-all roles such as catalog plus runner plus driver plus report in one file.",
+                ["planned files", "changed Rust files"],
+                source_path,
+            )
+        )
+    if "pure core" in normalized or "impure shell" in normalized or "subprocess" in normalized or "filesystem" in normalized:
+        rules.append(
+            feedback_rule(
+                "REVIEW_COMMENT_PURE_CORE_IMPURE_SHELL",
+                "Keep pure core logic separate from filesystem, subprocess, environment, database, and network impure shells.",
+                "Run bin/adlc convention-scan --file <changed Rust file> --json and verify side-effect calls live in isolated impure shell modules.",
+                ["changed Rust files"],
+                source_path,
+            )
+        )
+    ignored_evidence = []
+    if re.search(r"\b\d+\s+lines?\b|\bline count\b|\bfile size\b", combined, flags=re.IGNORECASE):
+        ignored_evidence.append(
+            {
+                "rule": "line_count_evidence_not_rule",
+                "message": "Line-count or file-size wording is retained only as evidence that responsibilities grew; it must not become a size gate.",
+                "source_refs": source_refs,
+            }
+        )
+    if rules:
+        repo_conventions = {
+            "status": "extracted",
+            "sources": [{"path": source_path, "kind": "other"}],
+            "rules": rules,
+        }
+    else:
+        repo_conventions = {
+            "status": "none_found",
+            "explicit_empty_marker": "no_conventions_found",
+            "sources": [],
+            "rules": [],
+        }
+    return {
+        "contract_version": "1.0.0",
+        "status": "pass",
+        "input": source_path,
+        "source_refs": source_refs,
+        "comment_count": len(comments),
+        "repo_conventions": repo_conventions,
+        "ignored_evidence": ignored_evidence,
+    }
+
+
+def command_feedback_conventions(args: argparse.Namespace) -> int:
+    payload = feedback_conventions_payload(args)
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"feedback-conventions: {payload['repo_conventions']['status']} ({len(payload['repo_conventions']['rules'])} rule(s))")
+    return 0
+
+
 def learning_candidates_from_args(args: argparse.Namespace, workspace: Path) -> Tuple[List[Dict[str, Any]], List[str]]:
     warnings: List[str] = []
     input_path = phase_arg_path(getattr(args, "input", None), workspace)
@@ -9128,6 +9239,18 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("feedback-conventions"),
+            "description": command_description("feedback-conventions"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["input"],
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("pr-hygiene-scan"),
             "description": command_description("pr-hygiene-scan"),
             "inputSchema": {
@@ -9820,6 +9943,12 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return tool_result(payload, is_error=payload.get("status") != "pass")
+    if name == "adlc_feedback_conventions":
+        input_path = arguments.get("input")
+        if not isinstance(input_path, str):
+            raise ValueError("adlc_feedback_conventions requires input")
+        payload = feedback_conventions_payload(argparse.Namespace(input=input_path, json=True))
+        return tool_result(payload, is_error=payload.get("status") != "pass")
     if name == "adlc_pr_hygiene_scan":
         args = argparse.Namespace(
             workspace=arguments.get("workspace"),
@@ -10397,6 +10526,11 @@ def build_parser() -> argparse.ArgumentParser:
     convention_scan.add_argument("--output", help="Optional convention scan report path.")
     convention_scan.add_argument("--json", action="store_true", help="Emit JSON.")
     convention_scan.set_defaults(func=command_convention_scan)
+
+    feedback_conventions = subparsers.add_parser("feedback-conventions", help=command_description("feedback-conventions"))
+    feedback_conventions.add_argument("--input", required=True, help="JSON file with maintainer PR review comments.")
+    feedback_conventions.add_argument("--json", action="store_true", help="Emit JSON.")
+    feedback_conventions.set_defaults(func=command_feedback_conventions)
 
     pr_hygiene = subparsers.add_parser("pr-hygiene-scan", help=command_description("pr-hygiene-scan"))
     pr_hygiene.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
