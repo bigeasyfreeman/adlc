@@ -64,7 +64,7 @@ ADLC does not ship a JIRA client. This skill targets a locally installed MCP pro
 }
 ```
 
-Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `honesty_contract`, artifact honesty fields (`no_overclaim`, `limitations`) when required, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `implementation_interface_contract`, `productionization_gate`, `slop_quality_gate`, Loop Contract refs (`loop_contract_path`, `loop_action_path`, `loop_maturity_report_path`), `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims, unsafe claims blocked by the honesty contract, and non-sequitur guardrail lines do not become ticket scope.
+Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `honesty_contract`, artifact honesty fields (`no_overclaim`, `limitations`) when required, `performance_envelope`, `benchmark_results` when present, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `implementation_interface_contract`, `productionization_gate`, `slop_quality_gate`, Loop Contract refs (`loop_contract_path`, `loop_action_path`, `loop_maturity_report_path`), `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims, unsafe claims blocked by the honesty contract, and non-sequitur guardrail lines do not become ticket scope.
 
 ## Mixed Acceptance Criteria Shapes
 
@@ -186,6 +186,15 @@ h2. Honesty Contract
 * Output surfaces: [docs | artifact | external_claim | human_facing_output]
 * Required output fields: [doc_honesty_section | no_overclaim | limitations]
 * No-Overclaim: [required when artifact output is active]
+
+h2. Performance Envelope
+* Applicability: [required | not_applicable]
+* Reason: [no data path reason when not_applicable]
+* Expected input scale: [names, expected sizes, units, and worst cases]
+* Hot paths and complexity: [operation, file, complexity bound, rationale]
+* Benchmark required: [true/false]
+* Benchmark spec: [command and expected signal when required]
+* Benchmark results: [command/status/evidence refs when present]
 
 h2. Tech Debt / Cleanup Boundaries
 * Prerequisite debt: [blocking debt to pay down first, or "none"]

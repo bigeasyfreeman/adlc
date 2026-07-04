@@ -1009,6 +1009,221 @@
         }
       ]
     },
+    "performance_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applicability",
+        "reason"
+      ],
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "required",
+            "not_applicable"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_input_scale": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "expected",
+              "unit"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "expected": {
+                "type": "string",
+                "minLength": 1
+              },
+              "worst_case": {
+                "type": "string",
+                "minLength": 1
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "hot_paths": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operation",
+              "complexity",
+              "rationale"
+            ],
+            "properties": {
+              "operation": {
+                "type": "string",
+                "minLength": 1
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "complexity": {
+                "type": "string",
+                "minLength": 1
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "benchmark_required": {
+          "type": "boolean"
+        },
+        "benchmark_spec": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "command",
+            "expected_signal"
+          ],
+          "properties": {
+            "command": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_files": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "expected_signal": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "benchmark_results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "command",
+              "status",
+              "summary",
+              "evidence_refs"
+            ],
+            "properties": {
+              "command": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail"
+                ]
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_refs": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "applicability": {
+                "const": "required"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "expected_input_scale",
+              "hot_paths",
+              "benchmark_required"
+            ],
+            "properties": {
+              "expected_input_scale": {
+                "minItems": 1
+              },
+              "hot_paths": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "applicability": {
+                "const": "not_applicable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "expected_input_scale": {
+                "maxItems": 0
+              },
+              "hot_paths": {
+                "maxItems": 0
+              },
+              "benchmark_required": {
+                "const": false
+              },
+              "benchmark_results": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "benchmark_required"
+            ],
+            "properties": {
+              "benchmark_required": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "benchmark_spec"
+            ]
+          }
+        }
+      ]
+    },
     "task": {
       "type": "object",
       "additionalProperties": false,
@@ -1398,6 +1613,9 @@
         },
         "honesty_contract": {
           "$ref": "#/definitions/honesty_contract"
+        },
+        "performance_envelope": {
+          "$ref": "#/definitions/performance_envelope"
         },
         "slop_quality_gate": {
           "$ref": "#/definitions/slop_quality_gate"

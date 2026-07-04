@@ -769,6 +769,7 @@ def context_packages_for_brief(
                     "implementation_interface_contract": task.get("implementation_interface_contract"),
                     "productionization_gate": task.get("productionization_gate"),
                     "honesty_contract": task.get("honesty_contract"),
+                    "performance_envelope": task.get("performance_envelope"),
                     "module_plan": module_plan,
                     "module_plan_source": module_plan_source,
                     "paved_road_pattern": paved_road_pattern_context(matched_pattern),
@@ -4197,6 +4198,11 @@ def evidence_args(args: argparse.Namespace) -> List[str]:
     return [str(value) for value in values if str(value).strip()]
 
 
+def benchmark_args(args: argparse.Namespace) -> List[str]:
+    values = getattr(args, "benchmark", None) or []
+    return [str(value) for value in values if str(value).strip()]
+
+
 def queue_transition_payload(args: argparse.Namespace, operation: str) -> Tuple[int, Dict[str, Any]]:
     workspace = resolve_workspace(args.workspace)
     queue_path = resolve_queue_path(args.queue, workspace)
@@ -4208,6 +4214,7 @@ def queue_transition_payload(args: argparse.Namespace, operation: str) -> Tuple[
     now = utc_now()
     agent_id = getattr(args, "agent_id", None) or identity.get("session_id") or os.environ.get("USER") or "adlc-agent"
     evidence = evidence_args(args)
+    benchmarks = benchmark_args(args)
     base: Dict[str, Any] = {
         "contract_version": "1.0.0",
         "dry_run": dry_run,
@@ -4291,10 +4298,19 @@ def queue_transition_payload(args: argparse.Namespace, operation: str) -> Tuple[
                 [{"rule": "missing_verifier_evidence", "message": "queue-complete requires --evidence for tasks with verifier_refs or evidence_required"}],
                 base,
             )
+        existing_benchmarks = [str(value) for value in task.get("benchmark_refs", []) if str(value).strip()] if isinstance(task.get("benchmark_refs"), list) else []
+        if task.get("benchmark_required") is True and not benchmarks and not existing_benchmarks:
+            return queue_block_payload(
+                "missing_benchmark_evidence",
+                [{"rule": "missing_benchmark_evidence", "message": "queue-complete requires --benchmark for benchmark-required tasks"}],
+                base,
+            )
         planned_task = dict(task)
         planned_task["status"] = "done"
         planned_task["updated_at"] = now
         planned_task["evidence_refs"] = sorted(set(existing_evidence + evidence))
+        if task.get("benchmark_required") is True or benchmarks or existing_benchmarks:
+            planned_task["benchmark_refs"] = sorted(set(existing_benchmarks + benchmarks))
         planned_task.pop("claim", None)
         result = {**base, "status": "pass", "planned_task": planned_task, "issues": []}
         new_state_status = "done"
@@ -6893,6 +6909,92 @@ def honesty_contract_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any
     return issues
 
 
+def performance_envelope_benchmark_required(envelope: Dict[str, Any]) -> bool:
+    return envelope.get("applicability") == "required" and envelope.get("benchmark_required") is True
+
+
+def performance_envelope_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not task_executable(task):
+        return []
+
+    task_id = task["task_id"]
+    envelope = task.get("performance_envelope")
+    if not isinstance(envelope, dict):
+        return [
+            {
+                "severity": "blocking",
+                "rule": "missing_performance_envelope",
+                "task_id": task_id,
+                "message": "executable tasks must include performance_envelope or an explicit no-data-path skip",
+            }
+        ]
+
+    applicability = envelope.get("applicability")
+    if applicability == "not_applicable":
+        reason = str(envelope.get("reason") or "").lower()
+        if "no data path" not in reason:
+            return [
+                {
+                    "severity": "blocking",
+                    "rule": "performance_envelope_skip_without_no_data_path",
+                    "task_id": task_id,
+                    "message": "performance_envelope.applicability=not_applicable must declare no data path",
+                }
+            ]
+        return []
+
+    if applicability != "required":
+        return [
+            {
+                "severity": "blocking",
+                "rule": "invalid_performance_envelope_applicability",
+                "task_id": task_id,
+                "message": "performance_envelope.applicability must be required or not_applicable",
+            }
+        ]
+
+    issues: List[Dict[str, Any]] = []
+    if not has_nonempty_list(envelope.get("expected_input_scale")):
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_performance_input_scale",
+                "task_id": task_id,
+                "message": "required performance_envelope must declare expected_input_scale",
+            }
+        )
+    if not has_nonempty_list(envelope.get("hot_paths")):
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_performance_hot_paths",
+                "task_id": task_id,
+                "message": "required performance_envelope must declare hot_paths and complexity bounds",
+            }
+        )
+    if not isinstance(envelope.get("benchmark_required"), bool):
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_performance_benchmark_decision",
+                "task_id": task_id,
+                "message": "required performance_envelope must set benchmark_required true or false",
+            }
+        )
+    if performance_envelope_benchmark_required(envelope):
+        benchmark_spec = envelope.get("benchmark_spec")
+        if not isinstance(benchmark_spec, dict) or not str(benchmark_spec.get("command") or "").strip():
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "missing_performance_benchmark_spec",
+                    "task_id": task_id,
+                    "message": "benchmark-required performance_envelope must include benchmark_spec.command",
+                }
+            )
+    return issues
+
+
 def slop_gate_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
     if not task_executable(task) or not task_has_generated_output_surface(task):
         return []
@@ -7738,6 +7840,7 @@ def compute_readiness_report(
             issues.extend(slop_gate_issues_for_task(task))
             issues.extend(productionization_gate_issues_for_task(task))
             issues.extend(honesty_contract_issues_for_task(task))
+            issues.extend(performance_envelope_issues_for_task(task))
 
     if phase_project_map:
         for task in tasks:
@@ -7853,6 +7956,14 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             if honesty_contract.get("applicability") == "required" and "artifact" in task_honesty_contract_surfaces(honesty_contract):
                 artifact["no_overclaim"] = honesty_contract.get("unsafe_claims", [])
                 artifact["limitations"] = honesty_contract.get("limitations", [])
+        performance_envelope = task.get("performance_envelope")
+        if isinstance(performance_envelope, dict):
+            artifact["performance_envelope"] = performance_envelope
+            if performance_envelope_benchmark_required(performance_envelope):
+                artifact["benchmark_required"] = True
+                artifact["benchmark_command"] = performance_envelope.get("benchmark_spec", {}).get("command")
+            if performance_envelope.get("benchmark_results") is not None:
+                artifact["benchmark_results"] = performance_envelope["benchmark_results"]
         if task.get("implementation_interface_contract") is not None:
             artifact["implementation_interface_contract"] = task["implementation_interface_contract"]
         if task.get("productionization_gate") is not None:
@@ -10777,6 +10888,7 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "workspace": {"type": "string", "minLength": 1},
                     "state": {"type": "string", "minLength": 1},
                     "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "benchmark": {"type": "array", "items": {"type": "string", "minLength": 1}},
                     "dry_run": {"type": "boolean", "default": True},
                     "allow_mutation": {"type": "boolean", "default": False},
                     "tool_registry": {"type": "string", "minLength": 1},
@@ -11542,6 +11654,7 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             reason=arguments.get("reason"),
             next_action=arguments.get("next_action"),
             evidence=arguments.get("evidence") if isinstance(arguments.get("evidence"), list) else [],
+            benchmark=arguments.get("benchmark") if isinstance(arguments.get("benchmark"), list) else [],
             dry_run=arguments.get("dry_run", True),
             allow_mutation=arguments.get("allow_mutation", False),
             tool_registry=arguments.get("tool_registry"),
@@ -12198,6 +12311,7 @@ def build_parser() -> argparse.ArgumentParser:
     queue_complete = subparsers.add_parser("queue-complete", help=command_description("queue-complete"))
     queue_complete.add_argument("--task-id", required=True, help="Stable queue task ID to complete.")
     queue_complete.add_argument("--evidence", action="append", help="Verifier command, artifact path, or evidence ref proving completion.")
+    queue_complete.add_argument("--benchmark", action="append", help="Benchmark command, report path, or evidence ref for benchmark-required tasks.")
     add_queue_base_arguments(queue_complete)
     queue_complete.set_defaults(func=command_queue_complete)
 
