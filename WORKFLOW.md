@@ -238,4 +238,6 @@ Sync is digest-based (SHA256). Only changed skills are copied. Each managed
 skill destination writes `.adlc-skill-manifest`; later installs prune skills
 recorded in that manifest if they disappear from the ADLC source tree, while
 leaving unmanaged local skills alone.
+Run `./setup.sh verify-claude ${WORKSPACE}` during Claude closeout to check
+installed skill digests without mutating the target workspace.
 Skills are excluded from git via `.git/info/exclude`.

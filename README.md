@@ -43,6 +43,7 @@ cd adlc
 ./setup.sh antigravity ~/my-project  # Antigravity
 ./setup.sh factory ~/my-project      # Factory
 ./setup.sh all ~/my-project          # All platforms
+./setup.sh verify-claude ~/my-project # Verify Claude skill digests
 ```
 
 | Platform | Skills | Agents | Instructions |
@@ -62,6 +63,9 @@ cp -r skills/codebase-research/ ~/my-project/.claude/skills/codebase-research/
 sets `ADLC_ROOT` back to this checkout and runs the deterministic ADLC CLI, so a
 target repo can validate schemas, readiness, Loop Contracts, and MCP tool
 metadata without copying the runtime source.
+For Claude Code closeout, `./setup.sh verify-claude <target>` checks that every
+ADLC-managed installed skill digest matches this checkout while ignoring
+unmanaged local skills.
 
 The shipped usage path is the runtime CLI plus installed agents/skills. Repo-local
 goal prompts or decomposition scratch files are not required to install or run ADLC.
