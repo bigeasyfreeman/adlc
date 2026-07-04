@@ -72,6 +72,15 @@ This skill runs before the coding agent starts. Its output is the coding agent's
       "validation_evidence": [],
       "no_overclaim": []
     },
+    "honesty_contract": {
+      "applicability": "required | not_applicable",
+      "reason": "string; not_applicable must declare no external claims",
+      "does_not_do": ["what the feature explicitly does not do"],
+      "limitations": ["current limitations or unsupported states"],
+      "unsafe_claims": ["claims the implementation, docs, PR, or artifact must not make"],
+      "output_surfaces": ["docs | artifact | external_claim | human_facing_output"],
+      "required_output_fields": ["doc_honesty_section | no_overclaim | limitations"]
+    },
     "loop_contract_path": "docs/loop-contracts/task-loop.json",
     "loop_action_path": "docs/loop-contracts/task-action.json",
     "loop_maturity_report_path": "docs/loop-contracts/task-maturity-report.json",
@@ -237,6 +246,7 @@ Hard rule:
 - Every code-changing implementation task must include its construct-map refs, paved-road refs or explicit `no_paved_road_found`, intent contract refs, and production invariant coverage. If these are missing for a medium+ blast-radius code path, return `stuck` with reason `missing_scalable_code_primitives`.
 - Every task that changes an integration boundary, schema, emitter payload, workflow state, CLI contract, provider edge, or reusable framework surface must include its `implementation_interface_contract`. If missing for an active surface, return `stuck` with reason `missing_implementation_interface_contract`.
 - Every task that makes or changes a production support claim must include its `productionization_gate`. If missing for an active claim, return `stuck` with reason `missing_productionization_gate`. If `coverage_state` is `production_ready` but validation evidence, no-overclaim boundaries, rollback/owner/runbook or observability posture, reliability failure modes, or security/privacy posture are missing, return `stuck` with reason `overclaimed_production_ready`.
+- Every executable task must include an `honesty_contract`. If it is absent, return `stuck` with reason `missing_honesty_contract`. If `applicability=not_applicable`, the reason must explicitly say the task has no external claims. If `output_surfaces` includes `docs`, require `doc_honesty_section`; if it includes `artifact`, require `no_overclaim` and `limitations` output fields.
 - Every task that delegates decisions, test selection, repair, retry, escalation, or tool use to an LLM-driven loop must include `loop_contract_path`. If missing for an active autonomous surface, return `stuck` with reason `missing_loop_contract`. If the task includes a proposed LLM action, inline `loop_action_path` and require `bin/adlc loop-action-validate` before execution.
 - Every task that changes generated-output behavior must include its `slop_quality_gate`, including eval cases, metrics, threshold, failure action, and case-promotion sources. If missing for a generated-output surface, return `stuck` with reason `missing_slop_quality_gate`.
 - Every executable task must include a `module_plan` decision. If the task creates or reshapes modules, `module_plan.applicability` must be `required`; otherwise it must be `not_applicable` with a reason. If a structural task is missing a required plan, return `stuck` with reason `missing_module_plan`.
@@ -258,6 +268,7 @@ What gets inlined:
 - Intent constraints, explicit non-goals, load-bearing assumptions, and human-judgment checkpoints
 - Production invariant coverage for the task, including any gaps or review-required items
 - Productionization Gate: Coverage State, claim, validation evidence, No-Overclaim boundaries, reliability failure modes, operational readiness, rollback/runbook/observability posture, and security/privacy posture when active
+- Honesty Contract: what the feature does not do, current limitations, unsafe claims, and required concrete outputs such as documentation honesty sections or artifact `no_overclaim` / `limitations` fields
 - Loop Contract: job/win condition, allowed tools, feedback channels, mandatory floor, required tests, additive-only agent tests, safe bail state, progress signal, control channel, independent truth, escalation rules, and any loop action or maturity report evidence when active
 - Slop quality gate cases, rubrics, metrics, threshold, baseline score, regression tolerance, and failure-promotion instructions when active
 - Module plan file list, one-line responsibilities, pure/impure markings, capabilities, and architecture-test-first command when active
@@ -400,6 +411,9 @@ If `module_plan.applicability=not_applicable`, paste the reason and do not inven
 
 ### Productionization Gate
 [Include this section only when active. Paste `productionization_gate`: claim, Coverage State, validation evidence, No-Overclaim boundaries, reliability failure modes, owner, rollback path, runbook/alerting/dashboard/SLO refs where applicable, security/privacy posture, and known unsupported states. Do not let the coding agent expand production claims beyond this gate.]
+
+### Honesty Contract
+[Paste `honesty_contract` for every executable task. If `applicability=required`, the implementation, docs, tests, PR body, and emitted artifacts must not claim anything listed in `unsafe_claims`; docs outputs must include a visible honesty/limitations section when `doc_honesty_section` is required; artifact-emitting code must emit `no_overclaim` and `limitations` fields from the contract. If `applicability=not_applicable`, paste the no-external-claims reason and do not invent external claims.]
 
 ### Loop Contract
 [Include this section only when active. Paste `loop_contract_path`, the full Loop Contract, required test IDs, allowed tool/action pairs, real feedback sources, safe checkpoint, progress/no-progress signal, control events, escalation context, independent truth, compact `budget_guard` refs, `budget_status`, and the exact `bin/adlc loop-test-selection`, `bin/adlc loop-budget-check`, `bin/adlc loop-action-validate`, or `bin/adlc loop-maturity-audit` command that gates this task. LLM discretion may add tests, never remove the mandatory floor or required tests. Pass budget refs and aggregate token totals only; do not paste raw prompts, provider logs, API keys, bearer tokens, or billing account IDs.]

@@ -768,6 +768,7 @@ def context_packages_for_brief(
                     "compatibility_contract": task.get("compatibility_contract"),
                     "implementation_interface_contract": task.get("implementation_interface_contract"),
                     "productionization_gate": task.get("productionization_gate"),
+                    "honesty_contract": task.get("honesty_contract"),
                     "module_plan": module_plan,
                     "module_plan_source": module_plan_source,
                     "paved_road_pattern": paved_road_pattern_context(matched_pattern),
@@ -6794,6 +6795,104 @@ def task_has_generated_output_surface(task: Dict[str, Any]) -> bool:
     return False
 
 
+def task_honesty_contract_surfaces(contract: Dict[str, Any]) -> set:
+    surfaces = contract.get("output_surfaces")
+    if not isinstance(surfaces, list):
+        return set()
+    return {str(surface) for surface in surfaces if str(surface).strip()}
+
+
+def task_honesty_required_output_fields(contract: Dict[str, Any]) -> set:
+    fields = contract.get("required_output_fields")
+    if not isinstance(fields, list):
+        return set()
+    return {str(field) for field in fields if str(field).strip()}
+
+
+def honesty_contract_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not task_executable(task):
+        return []
+
+    task_id = task["task_id"]
+    contract = task.get("honesty_contract")
+    if not isinstance(contract, dict):
+        return [
+            {
+                "severity": "blocking",
+                "rule": "missing_honesty_contract",
+                "task_id": task_id,
+                "message": "executable tasks must include honesty_contract or an explicit no-external-claims skip",
+            }
+        ]
+
+    applicability = contract.get("applicability")
+    if applicability == "not_applicable":
+        reason = str(contract.get("reason") or "").lower()
+        if "no external claim" not in reason:
+            return [
+                {
+                    "severity": "blocking",
+                    "rule": "honesty_contract_skip_without_no_external_claims",
+                    "task_id": task_id,
+                    "message": "honesty_contract.applicability=not_applicable must declare no external claims",
+                }
+            ]
+        return []
+
+    if applicability != "required":
+        return [
+            {
+                "severity": "blocking",
+                "rule": "invalid_honesty_contract_applicability",
+                "task_id": task_id,
+                "message": "honesty_contract.applicability must be required or not_applicable",
+            }
+        ]
+
+    issues: List[Dict[str, Any]] = []
+    required_lists = {
+        "does_not_do": "missing_honesty_does_not_do",
+        "limitations": "missing_honesty_limitations",
+        "unsafe_claims": "missing_honesty_unsafe_claims",
+        "output_surfaces": "missing_honesty_output_surfaces",
+        "required_output_fields": "missing_honesty_required_output_fields",
+    }
+    for field_name, rule in required_lists.items():
+        if not has_nonempty_list(contract.get(field_name)):
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": rule,
+                    "task_id": task_id,
+                    "message": f"honesty_contract is missing {field_name}",
+                }
+            )
+
+    surfaces = task_honesty_contract_surfaces(contract)
+    output_fields = task_honesty_required_output_fields(contract)
+    if "artifact" in surfaces:
+        missing = sorted({"no_overclaim", "limitations"} - output_fields)
+        if missing:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "missing_honesty_artifact_output_fields",
+                    "task_id": task_id,
+                    "message": "artifact-emitting honesty contracts require output fields: " + ", ".join(missing),
+                }
+            )
+    if "docs" in surfaces and "doc_honesty_section" not in output_fields:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_honesty_doc_section",
+                "task_id": task_id,
+                "message": "docs honesty contracts require a doc_honesty_section output field",
+            }
+        )
+    return issues
+
+
 def slop_gate_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
     if not task_executable(task) or not task_has_generated_output_surface(task):
         return []
@@ -7638,6 +7737,7 @@ def compute_readiness_report(
 
             issues.extend(slop_gate_issues_for_task(task))
             issues.extend(productionization_gate_issues_for_task(task))
+            issues.extend(honesty_contract_issues_for_task(task))
 
     if phase_project_map:
         for task in tasks:
@@ -7747,6 +7847,12 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "definition_of_done": task.get("definition_of_done", []),
             "failure_modes": task.get("failure_modes", []),
         }
+        honesty_contract = task.get("honesty_contract")
+        if isinstance(honesty_contract, dict):
+            artifact["honesty_contract"] = honesty_contract
+            if honesty_contract.get("applicability") == "required" and "artifact" in task_honesty_contract_surfaces(honesty_contract):
+                artifact["no_overclaim"] = honesty_contract.get("unsafe_claims", [])
+                artifact["limitations"] = honesty_contract.get("limitations", [])
         if task.get("implementation_interface_contract") is not None:
             artifact["implementation_interface_contract"] = task["implementation_interface_contract"]
         if task.get("productionization_gate") is not None:

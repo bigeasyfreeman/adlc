@@ -304,6 +304,26 @@
           "known_unsupported_states": [
             "External tracker API transport is out of scope."
           ]
+        },
+        "honesty_contract": {
+          "applicability": "required",
+          "reason": "Task emits normalized work-item artifacts and must bound payload claims.",
+          "does_not_do": [
+            "Does not prove external provider mutation."
+          ],
+          "limitations": [
+            "Only local dry-run normalization and readiness behavior are covered."
+          ],
+          "unsafe_claims": [
+            "Do not claim Linear, GitHub, or Jira provider readiness."
+          ],
+          "output_surfaces": [
+            "artifact"
+          ],
+          "required_output_fields": [
+            "no_overclaim",
+            "limitations"
+          ]
         }
       },
       {
@@ -395,6 +415,10 @@
         "productionization_gate": {
           "applicability": "not_applicable",
           "reason": "Validation task does not make a production support claim."
+        },
+        "honesty_contract": {
+          "applicability": "not_applicable",
+          "reason": "Validation-only task with no external claims."
         }
       }
     ],

@@ -64,7 +64,7 @@ ADLC does not ship a JIRA client. This skill targets a locally installed MCP pro
 }
 ```
 
-Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `implementation_interface_contract`, `productionization_gate`, `slop_quality_gate`, Loop Contract refs (`loop_contract_path`, `loop_action_path`, `loop_maturity_report_path`), `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims and non-sequitur guardrail lines do not become ticket scope.
+Every emitted ticket must preserve the task's `artifact_type`, `task_classification`, `decision_contract`, `verification_spec`, `reference_impl`, explicit reuse instructions, `tech_debt_boundaries`, `compatibility_contract`, `honesty_contract`, artifact honesty fields (`no_overclaim`, `limitations`) when required, `construct_map_refs`, `paved_road_refs`, `intent_contract_refs`, `production_invariant_coverage`, `implementation_interface_contract`, `productionization_gate`, `slop_quality_gate`, Loop Contract refs (`loop_contract_path`, `loop_action_path`, `loop_maturity_report_path`), `evidence_responsibilities`, `definition_of_done`, and any active overlay expectations from the brief's `applicability_manifest`. If the brief includes prerequisite debt-paydown work or deferred-cleanup notes, those must remain visible in the emitted ticket. The top-level `enterprise_readiness_contract` must remain visible from the epic and referenced by validation tickets. Suppressed sections do not become filler ticket content. Unsupported claims, unsafe claims blocked by the honesty contract, and non-sequitur guardrail lines do not become ticket scope.
 
 ## Mixed Acceptance Criteria Shapes
 
@@ -176,6 +176,16 @@ h2. Constraints
 * Must Not: [must not do items]
 * Escalate If: [escalation triggers]
 * Task Classification: [feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security]
+
+h2. Honesty Contract
+* Applicability: [required | not_applicable]
+* Reason: [no external claims reason when not_applicable]
+* Does not do: [feature non-goals]
+* Limitations: [known limitations]
+* Unsafe claims: [claims this ticket must not make]
+* Output surfaces: [docs | artifact | external_claim | human_facing_output]
+* Required output fields: [doc_honesty_section | no_overclaim | limitations]
+* No-Overclaim: [required when artifact output is active]
 
 h2. Tech Debt / Cleanup Boundaries
 * Prerequisite debt: [blocking debt to pay down first, or "none"]
@@ -399,7 +409,7 @@ ADLC expects a locally installed MCP provider. Provider tool names may differ; r
 ## Quality Gates
 
 - [ ] Every task in Section 8 has a corresponding JIRA ticket
-- [ ] Ticket bodies preserve `artifact_type`, `decision_contract`, compatibility contracts, construct-map refs, paved-road refs, intent refs, production invariant coverage, evidence responsibilities, and Definition of Done.
+- [ ] Ticket bodies preserve `artifact_type`, `decision_contract`, compatibility contracts, honesty contracts, artifact `no_overclaim`/`limitations`, construct-map refs, paved-road refs, intent refs, production invariant coverage, evidence responsibilities, and Definition of Done.
 - [ ] Scope-lock epics are context-only and do not carry executable file-change instructions.
 - [ ] Decision-gate tickets block dependent implementation tickets until resolved.
 - [ ] Validation tasks are emitted automatically for decomposition-mode briefs and reference the enterprise readiness contract.

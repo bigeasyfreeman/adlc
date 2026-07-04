@@ -595,6 +595,7 @@ For each area -- Backend, Frontend, Infra, Observability -- collect:
 | Tech Debt Boundaries | Prerequisite debt, deferred debt, and why any deferral is safe |
 | Compatibility Contract | Backward compatibility, forward compatibility, and rollout/migration path |
 | Evidence Responsibilities | Which artifact owns tests, logs, screenshots, audit output, or deploy evidence |
+| Honesty Contract | For executable artifacts: what the feature does not do, known limitations, unsafe claims, and required output surfaces. Pure internal work may set `not_applicable` only with a no-external-claims reason. |
 | Definition of Done | Binary completion proof, including verifier and compatibility evidence |
 | Constraints | Must do / Must not do / Escalation triggers |
 | Estimated Hours | Target 2h or less per task. Decompose if larger. |
@@ -624,6 +625,7 @@ Good: "Given a POST to /api/v1/widgets with an empty name field, When the reques
 - Bugfix/build-validation/lint-cleanup RED steps use the narrowest reproducer or failing command.
 - Strip unsupported comparison lines and non-sequiturs from the task body; keep them only in contamination or prior-attempt notes when evidenced.
 - State invariants positively first. Use "must not" for grounded boundaries and known bad shortcuts.
+- Every `implementation_task` and `validation_task` must carry an `honesty_contract`. Required contracts list `does_not_do`, `limitations`, `unsafe_claims`, `output_surfaces`, and `required_output_fields`. Artifact-emitting tasks require `no_overclaim` and `limitations`; docs-output tasks require `doc_honesty_section`. Pure internal refactors may set `applicability=not_applicable` only when the reason explicitly says there are no external claims.
 - Production readiness means backwards and forwards compatibility, observability, rollback/degradation, realistic failure modes, and evidence. Compliance posture is considered through the evidence suite, but it must not explode implementation scope unless required by the PRD or repo.
 
 **Parallelism flags:** Mark tasks as independent when they don't share state or depend on each other's output. Independent tasks can be executed by multiple coding agents simultaneously. This is how you get 3x velocity from the same task list.
@@ -642,6 +644,7 @@ Good: "Given a POST to /api/v1/widgets with an empty name field, When the reques
 - [ ] Pattern to follow is named with a reference implementation file path
 - [ ] Acceptance criteria are in Given/When/Then and testable as assertions
 - [ ] Anti-slop rules are explicit and binary
+- [ ] Executable tasks include an honesty contract or a no-external-claims skip reason
 - [ ] Dependencies on other tasks are explicit by task ID
 - [ ] A coding agent reading only this ticket could produce working code
 - [ ] A coding agent reading only this ticket could not satisfy it with scaffolding, placeholders, or partial wiring
@@ -991,6 +994,7 @@ Store the canonical Build Brief outside the target repo at the path returned by 
 | **Tech debt boundaries** | [prerequisite debt, deferred debt, deferral safety] |
 | **Compatibility contract** | [backward, forward, migration or rollout] |
 | **Evidence responsibilities** | [tests/logs/screenshots/audit/deploy evidence this artifact owns] |
+| **Honesty contract** | [required: does_not_do, limitations, unsafe_claims, output_surfaces, required_output_fields; or not_applicable because this is internal work with no external claims] |
 | **Feature flag** | [flag name if gated, or N/A] |
 
 **Description:** [What to build. Specific enough that a coding agent with only this ticket produces working code. Include: what pattern to follow, what library to use, what existing code to extend. No ambiguity.]
@@ -1012,6 +1016,7 @@ Lead with the concrete behavior the system must have after the change. Architect
 - [binary completion check]
 - [compatibility evidence]
 - [verification evidence]
+- [honesty contract evidence: docs include an honesty/limitations section when required; artifact payloads expose no_overclaim and limitations when required]
 
 **Manual Test Plan:** [CONDITIONAL — include for auth flows, integrations, visual UI]
 1. [Step-by-step manual verification procedure]
@@ -1128,6 +1133,7 @@ Every task in Section 9 MUST have ALL of these. The Eval Council Executioner rej
 | Definition of Done | Yes | Concrete proof required before the artifact can close |
 | Verification spec | Yes | Primary verifier + fail-before/pass-after contract |
 | Module plan | Yes | `required` for structural work; `not_applicable` with reason for non-structural work |
+| Honesty contract | Yes (executable tasks) | `required` with does_not_do, limitations, unsafe_claims, output_surfaces, and required_output_fields; or `not_applicable` only with a no-external-claims reason |
 | Acceptance criteria | Yes | G/W/T format, minimum 2 per task |
 | Feature flag | Conditional | If project uses feature flags |
 | Manual test plan | Conditional | For auth flows, integrations, visual UI, cross-service flows |
@@ -1181,6 +1187,7 @@ Before generating the Build Brief, verify all of these are present. Reject the d
 
 **Task Breakdown (always required):**
 - [ ] Every task has: ID, agent type, description, files, reference impl, dependencies, task classification, verification spec, G/W/T
+- [ ] Every executable task has an `honesty_contract`; artifact-emitting contracts require `no_overclaim` and `limitations`, docs-output contracts require `doc_honesty_section`, and skips explicitly say no external claims
 - [ ] Every task referencing existing code has a reference impl file path
 - [ ] Dependencies form a valid DAG (no circular dependencies)
 - [ ] Independent tasks flagged for parallel execution

@@ -66,6 +66,7 @@ Extraction rules:
 | 16 | Existing conventions followed | `automatable` | core | Automated: `bin/adlc convention-scan --file <changed-file> --json` when target repo conventions are present | Open convention-scan issue |
 | 17 | Antipattern checklist cleared | `automatable` | core | Automated: anti-slop plus antipattern scanner outputs | Known antipattern used |
 | 28 | Repo convention waivers explicit | `automatable` | core | Convention scan or task output records file, rule, and reason for every waiver | Silent convention waiver, missing reason, or waived rule not tied to a file |
+| 29 | Honesty contract satisfied | `automatable` | core | Build Brief schema plus `emit-work-items --require-ready`; artifact outputs expose `no_overclaim` and `limitations` when required | Missing `honesty_contract`, missing no-external-claims skip reason, missing docs honesty section requirement, or missing artifact `no_overclaim` / `limitations` fields |
 
 No DoD check may use file size, line count, or SLOC as a criterion. Split decisions are based on responsibility, side effects, coordinator boundaries, and repo conventions, never size.
 
@@ -152,6 +153,7 @@ No DoD check may use file size, line count, or SLOC as a criterion. Split decisi
     "reuse_confirmed": { "status": true, "reimplementations": 0 },
     "conventions_followed": { "status": true, "evidence": "convention-scan: pass for changed Rust files" },
     "repo_convention_waivers_explicit": { "status": true, "evidence": "0 waivers, or each waiver records file/rule/reason" },
+    "honesty_contract_satisfied": { "status": true, "evidence": "honesty_contract present; artifact outputs include no_overclaim and limitations when required" },
     "antipatterns_cleared": { "status": true, "violations": 0 },
     "wiring_complete": { "status": true, "upstream": 2, "downstream": 1 },
     "scalability_documented": { "status": true },
@@ -177,4 +179,5 @@ No DoD check may use file size, line count, or SLOC as a criterion. Split decisi
 - Scaffolding artifacts are never considered done. Any remaining stub, placeholder, or partial wiring fails DoD.
 - Mixed acceptance-criteria handlers that lose an upstream `id` or `measurable_post_condition` fail DoD verification.
 - Repo-convention failures block DoD unless every waiver is explicit and present in task output.
+- Honesty contracts block DoD unless each executable task either carries does-not-do / limitations / unsafe-claims requirements or explicitly declares no external claims.
 - File size, line count, and SLOC are not valid DoD criteria.
