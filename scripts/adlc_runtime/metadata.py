@@ -28,6 +28,7 @@ SCHEMA_ALIASES = {
     "looper-status-report": "docs/schemas/looper-status-report.schema.json",
     "memory-health-report": "docs/schemas/memory-health-report.schema.json",
     "permission-audit-trail": "docs/schemas/permission-audit-trail.schema.json",
+    "paved-road-pattern-registry": "docs/schemas/paved-road-pattern-registry.schema.json",
     "prd-template": "docs/schemas/prd-template.schema.json",
     "repo-map": "docs/schemas/repo-map.schema.json",
     "security-assessment": "docs/schemas/security-assessment.schema.json",
@@ -105,6 +106,10 @@ COMMAND_METADATA = {
     "module-plan-check": {
         "mcp_name": "adlc_module_plan_check",
         "description": "Validate Build Brief task module_plan decisions, required structural plans, and architecture-test-first contracts.",
+    },
+    "paved-road-patterns": {
+        "mcp_name": "adlc_paved_road_patterns",
+        "description": "List or inspect approved structural paved-road patterns and their merged exemplar refs.",
     },
     "pr-hygiene-scan": {
         "mcp_name": "adlc_pr_hygiene_scan",

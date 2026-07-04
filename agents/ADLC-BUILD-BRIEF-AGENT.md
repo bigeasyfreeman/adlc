@@ -590,7 +590,7 @@ For each area -- Backend, Frontend, Infra, Observability -- collect:
 | Decision Contract | Type 1/Type 2 status, owner, deadline, blocking effect, and resolution |
 | Acceptance Criteria | **Given/When/Then format required.** Maps directly to test assertions. |
 | Verification Contract | Primary verifier with task-class-aware phrasing. Feature work uses intended-behavior tests; bugfix/build/lint work uses direct reproducers or commands. |
-| Module Plan | Required for module creation or reshaping: files, one-line responsibilities, pure/impure markings, capabilities, and architecture test. Otherwise explicit not_applicable reason. |
+| Module Plan | Required for module creation or reshaping: files, one-line responsibilities, pure/impure markings, capabilities, and architecture test. A registered structural paved-road pattern may generate this from `paved_road_refs`; pattern departures require `pattern_deviation_reason`. Otherwise explicit not_applicable reason. |
 | Anti-Slop Rules | Explicit banned placeholder/stub patterns and wiring-completeness rules. Mandatory on every task. |
 | Tech Debt Boundaries | Prerequisite debt, deferred debt, and why any deferral is safe |
 | Compatibility Contract | Backward compatibility, forward compatibility, and rollout/migration path |

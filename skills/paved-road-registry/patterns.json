@@ -1,0 +1,147 @@
+{
+  "contract_version": "1.0.0",
+  "patterns": [
+    {
+      "id": "interralis:evidence-module",
+      "name": "Interralis evidence module",
+      "kind": "structural_module",
+      "status": "approved",
+      "capability": "evidence capture, projection, labeling, and privacy handling",
+      "match": {
+        "refs": [
+          "pattern:interralis:evidence-module",
+          "skill:paved-road-registry#interralis:evidence-module"
+        ],
+        "keywords": [
+          "evidence module",
+          "metadata evidence",
+          "collect evidence",
+          "privacy gate"
+        ]
+      },
+      "exemplar": {
+        "repo": "github.com/interralis/interralis",
+        "path": "src/observability/ingestion/harness_sources",
+        "commit": "acad66428a1b5c872a5796cb779787f7d39403a3",
+        "merged_pr": "https://github.com/interralis/interralis/pull/225",
+        "architecture_test_path": "tests/integration/harness_metadata_architecture.rs"
+      },
+      "module_plan_template": {
+        "reason": "Generated from the approved Interralis evidence-module paved road: keep types, collection, projection, labels, and privacy responsibilities split, with side effects isolated in collection.",
+        "files": [
+          {
+            "role": "types",
+            "path_template": "{module_root}/types.rs",
+            "responsibility": "Define evidence records",
+            "purity": "pure",
+            "capabilities": [
+              "none"
+            ]
+          },
+          {
+            "role": "collect",
+            "path_template": "{module_root}/collect.rs",
+            "responsibility": "Collect evidence records",
+            "purity": "impure",
+            "capabilities": [
+              "fs"
+            ]
+          },
+          {
+            "role": "project",
+            "path_template": "{module_root}/project.rs",
+            "responsibility": "Project evidence records",
+            "purity": "pure",
+            "capabilities": [
+              "compute"
+            ]
+          },
+          {
+            "role": "labels",
+            "path_template": "{module_root}/labels.rs",
+            "responsibility": "Classify evidence labels",
+            "purity": "pure",
+            "capabilities": [
+              "compute"
+            ]
+          },
+          {
+            "role": "privacy",
+            "path_template": "{module_root}/privacy.rs",
+            "responsibility": "Evaluate evidence privacy",
+            "purity": "pure",
+            "capabilities": [
+              "compute"
+            ]
+          }
+        ],
+        "architecture_test": {
+          "test_path_template": "tests/integration/{module_slug}_architecture.rs",
+          "command_template": "cargo test --test integration {module_slug}_architecture",
+          "assertions": [
+            "types, project, labels, and privacy modules contain no filesystem, process, network, env, db, or shell side effects",
+            "collect is the only module that may use filesystem or process capabilities",
+            "the module facade re-exports focused public APIs and does not own collection, projection, labeling, or privacy logic",
+            "all five responsibility files exist under the module root"
+          ],
+          "write_first": true
+        }
+      },
+      "exemplar_structure": [
+        {
+          "path": "src/observability/ingestion/harness_sources/mod.rs",
+          "role": "facade",
+          "purity": "facade",
+          "responsibility": "Re-export the public discovery and registry surface while keeping logic out of the facade"
+        },
+        {
+          "path": "src/observability/ingestion/harness_sources/discovery.rs",
+          "role": "collect",
+          "purity": "impure",
+          "responsibility": "Inventory local harness metadata sources through the filesystem shell"
+        },
+        {
+          "path": "src/observability/ingestion/harness_sources/registry.rs",
+          "role": "types",
+          "purity": "pure",
+          "responsibility": "Define source registry records, source formats, and default patterns"
+        },
+        {
+          "path": "src/observability/ingestion/harness_sources/identity.rs",
+          "role": "project",
+          "purity": "pure",
+          "responsibility": "Infer stable harness identities from paths and registry rules"
+        },
+        {
+          "path": "src/observability/ingestion/harness_sources/classify.rs",
+          "role": "labels",
+          "purity": "pure",
+          "responsibility": "Classify source formats and metadata-directory labels"
+        },
+        {
+          "path": "src/observability/ingestion/harness_sources/normalize.rs",
+          "role": "project",
+          "purity": "pure",
+          "responsibility": "Normalize harness identifiers and path components"
+        },
+        {
+          "path": "tests/integration/harness_metadata_architecture.rs",
+          "role": "architecture_test",
+          "purity": "test",
+          "responsibility": "Assert facade purity, dependency direction, pure-core side-effect bans, and shell isolation"
+        }
+      ],
+      "allowed_departure": "A task may rename roles or add files only when the brief carries pattern_deviation_reason explaining which invariant still proves pure/impure separation, privacy handling, and architecture-test coverage.",
+      "registration": {
+        "requires_human_approval": true,
+        "approval_record": "Human approval is recorded by adding the pattern entry and reviewer-approved exemplar commit in this registry.",
+        "steps": [
+          "Add one pattern object to skills/paved-road-registry/patterns.json with an approved merged exemplar commit.",
+          "Run bin/adlc validate-artifact --schema paved-road-pattern-registry --input skills/paved-road-registry/patterns.json --json.",
+          "Run bin/adlc paved-road-patterns --pattern-id <id> --json to confirm the registry payload.",
+          "Update the paved-road-registry skill when the new pattern needs non-obvious matching or departure guidance."
+        ]
+      }
+    }
+  ]
+}
