@@ -4,13 +4,14 @@ set -euo pipefail
 # ADLC Setup — Install skills and agents into your AI coding tool
 # Usage: ./setup.sh <platform> [target-repo-path]
 #
-# Platforms: claude | codex | cursor | antigravity | factory | all
+# Platforms: claude | codex | cursor | antigravity | factory | all | verify-claude
 # If target-repo-path is omitted, installs to current directory.
 
 ADLC_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLATFORM="${1:-}"
 TARGET="${2:-.}"
 TARGET="$(cd "$TARGET" && pwd)"
+INSTALL_RUNTIME=1
 
 count_source_skills() {
   find "$ADLC_DIR/skills" -mindepth 2 -maxdepth 2 -type f -name SKILL.md | wc -l | tr -d ' '
@@ -53,6 +54,7 @@ usage() {
   echo "  antigravity   → .agent/skills/ + agents.md"
   echo "  factory       → .factory/droids/ + .factory/docs/skills/"
   echo "  all           → Install for all platforms"
+  echo "  verify-claude → Verify .claude/skills/ digests without installing"
   echo ""
   echo "Examples:"
   echo "  ./setup.sh claude              # Install to current dir for Claude Code"
@@ -111,6 +113,60 @@ sync_skills() {
   fi
   mv "$tmp_manifest" "$manifest"
   echo "  ✓ $SOURCE_SKILL_COUNT skills installed ($copied updated, $unchanged unchanged, $pruned pruned)"
+  verify_skills "$dest"
+}
+
+verify_skills() {
+  local dest="$1"
+  local manifest="$dest/.adlc-skill-manifest"
+  local failures=0
+  local verified=0
+  local source_file
+  local source_hash
+  local dest_file
+  local dest_hash
+  local skill_dir
+  local skill_name
+  echo "  Verifying $SOURCE_SKILL_COUNT skill digests → $dest"
+  for skill_dir in "$ADLC_DIR"/skills/*/; do
+    skill_name="$(basename "$skill_dir")"
+    source_file="$skill_dir/SKILL.md"
+    dest_file="$dest/$skill_name/SKILL.md"
+    if [ ! -f "$dest_file" ]; then
+      echo "  ✗ missing skill: $skill_name"
+      failures=$((failures + 1))
+      continue
+    fi
+    source_hash="$(skill_digest "$source_file")"
+    dest_hash="$(skill_digest "$dest_file")"
+    if [ "$dest_hash" != "$source_hash" ]; then
+      echo "  ✗ digest mismatch: $skill_name"
+      failures=$((failures + 1))
+    else
+      verified=$((verified + 1))
+    fi
+  done
+  if [ -f "$manifest" ]; then
+    while read -r recorded_hash skill_name; do
+      [ -n "$skill_name" ] || continue
+      source_file="$ADLC_DIR/skills/$skill_name/SKILL.md"
+      if [ ! -f "$source_file" ]; then
+        echo "  ✗ stale managed skill in manifest: $skill_name"
+        failures=$((failures + 1))
+        continue
+      fi
+      source_hash="$(skill_digest "$source_file")"
+      if [ "$recorded_hash" != "$source_hash" ]; then
+        echo "  ✗ stale manifest digest: $skill_name"
+        failures=$((failures + 1))
+      fi
+    done < "$manifest"
+  fi
+  if [ "$failures" -ne 0 ]; then
+    echo "  ✗ skill verification failed: $failures issue(s)"
+    return 1
+  fi
+  echo "  ✓ $verified skill digests verified"
 }
 
 install_claude() {
@@ -239,6 +295,13 @@ install_factory() {
   echo "  ✓ Factory setup complete"
 }
 
+verify_claude() {
+  INSTALL_RUNTIME=0
+  echo "→ Claude Code skill verification"
+  verify_skills "$TARGET/.claude/skills"
+  echo "  ✓ Claude Code skills match ADLC source"
+}
+
 echo "ADLC Setup"
 echo "Source: $ADLC_DIR"
 echo "Target: $TARGET"
@@ -250,6 +313,7 @@ case "$PLATFORM" in
   cursor)       install_cursor ;;
   antigravity)  install_antigravity ;;
   factory)      install_factory ;;
+  verify-claude) verify_claude ;;
   all)
     install_claude
     install_codex
@@ -260,7 +324,9 @@ case "$PLATFORM" in
   *) usage ;;
 esac
 
-install_runtime
+if [ "$INSTALL_RUNTIME" -eq 1 ]; then
+  install_runtime
+fi
 
 echo ""
 echo "Done. See README.md for usage instructions."

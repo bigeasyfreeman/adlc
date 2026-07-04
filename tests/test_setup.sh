@@ -108,6 +108,7 @@ assert ".adlc/bin/adlc can run health-check" "'$TARGET/.adlc/bin/adlc' health-ch
 assert_file_count "$SKILL_COUNT skills installed" "$TARGET/.claude/skills" "SKILL.md" "$SKILL_COUNT"
 assert_file_count "$AGENT_COUNT installable agents installed" "$TARGET/.claude/agents" "*.md" "$AGENT_COUNT"
 assert_file_exists "CLAUDE.md created" "$TARGET/CLAUDE.md"
+assert "verify-claude passes after Claude install" "'$ADLC_DIR/setup.sh' verify-claude '$TARGET' > /dev/null 2>&1"
 
 # Verify specific skills
 assert_file_exists "codebase-research skill" "$TARGET/.claude/skills/codebase-research/SKILL.md"
@@ -276,6 +277,11 @@ assert "Unchanged ADLC skill was not recopied" "[ '$BEFORE_MTIME' = '$AFTER_MTIM
 assert_file_exists "Unmanaged local skill preserved" "$TARGET/.claude/skills/local-only/SKILL.md"
 assert "Previously managed removed skill pruned" "[ ! -d '$TARGET/.claude/skills/removed-managed' ]"
 assert "Managed skill manifest records every source skill" "[ \"$(awk 'END { print NR }' "$TARGET/.claude/skills/.adlc-skill-manifest")\" -eq '$SKILL_COUNT' ]"
+assert "verify-claude passes with unmanaged local skill" "'$ADLC_DIR/setup.sh' verify-claude '$TARGET' > /dev/null 2>&1"
+printf '# Corrupted managed skill\n' > "$MANAGED_SKILL"
+assert "verify-claude detects modified managed skill" "! '$ADLC_DIR/setup.sh' verify-claude '$TARGET' > /dev/null 2>&1"
+"$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
+assert "verify-claude passes after repair" "'$ADLC_DIR/setup.sh' verify-claude '$TARGET' > /dev/null 2>&1"
 
 echo ""
 
