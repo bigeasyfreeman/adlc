@@ -108,6 +108,8 @@ Look for authored code nobody understood:
 
 Produce a Dark Code Risk Assessment:
 
+Store the canonical assessment in ADLC process artifact storage with `bin/adlc process-artifact-path --target-repo <target-repo> --task <task-id> --artifact-type audit --filename dark-code.json --json`. Do not add the assessment to the target-repo diff unless it is intentionally converted into user-facing product documentation.
+
 1. **Executive Summary** - 3-4 sentences with overall risk level: Critical, High, Moderate, or Low.
 2. **Dark Code Hotspot Map** - table with Component/Area, Dark Code Type, Severity, Owner, Key Risk Description.
 3. **Highest-Risk Scenarios** - top 3 concrete failure scenarios, diagnosis difficulty, blast radius, and whether the behavior could be explained to a regulator or customer.
@@ -122,4 +124,3 @@ Produce a Dark Code Risk Assessment:
 - Distinguish confirmed facts from risks that need investigation.
 - Be direct. Critical means critical.
 - Do not recommend "add more monitoring" or "add a supervisory layer" as a primary fix. Recommend comprehension infrastructure: specs, context layers, comprehension gates, ownership assignments, and explicit contracts.
-

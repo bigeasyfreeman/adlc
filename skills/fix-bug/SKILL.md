@@ -51,6 +51,7 @@ Create a single-task brief that includes:
 - `product_vocabulary` with mappings and `banned_tokens[]`, or `none_declared`
 
 Do not decompose into feature-style subwork unless the bug truly reveals a larger feature gap.
+Write the canonical light brief outside the target repo using `bin/adlc process-artifact-path --target-repo <target-repo> --task <task-id> --artifact-type build-brief --filename build-brief.json --json`.
 
 ### Step 3: Apply Only Relevant Gates
 
@@ -99,6 +100,8 @@ Include:
 - severity classification
 
 Before publishing, run `bin/adlc pr-hygiene-scan` with the Build Brief. The PR diff and body must contain only the scoped code/docs change, not ADLC goal prompts, Build Brief drafts, local paths, council scratch artifacts, or removed target-repo gates. If the base branch is not the default branch, document the dependency explicitly.
+
+Store verifier summaries, council output, and closeout notes in ADLC process artifact storage keyed by target repo and task. Reference those artifacts from the PR body; do not add them to the target repo commit.
 
 ---
 

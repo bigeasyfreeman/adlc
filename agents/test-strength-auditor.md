@@ -20,7 +20,8 @@ This agent is a tool-invocation wrapper. Do not spend LLM judgement on measureme
 5. Apply the deterministic thresholds.
 6. If mutants survive, batch the surviving-mutant diffs and hand only that batch to `mutant-materiality-judge`.
 7. Write `.adlc/test_strength_report.json`.
-8. Emit `pass`, `weak`, or `stuck` with a concrete reason.
+8. Write a canonical audit copy to the path returned by `bin/adlc process-artifact-path --target-repo <target-repo> --task <task-id> --artifact-type audit --filename test-strength.json --json` when target repo and task context are available.
+9. Emit `pass`, `weak`, or `stuck` with a concrete reason.
 
 For Python tooling, prefer module invocation over shell entrypoints:
 - coverage: `python3 -m coverage ...`

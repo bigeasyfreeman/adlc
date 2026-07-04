@@ -39,7 +39,8 @@ Skip when:
 3. Write one compact markdown entry using `docs/solutions/_template.md`.
 4. Include `source_evidence`, `verifier`, `redaction_review`, and `stale_conditions`.
 5. Run `python3 scripts/validate_learning_entry.py <entry>`.
-6. Emit `pass` only when validation passes; emit `skipped` when there is no reusable verified learning.
+6. Write the closeout decision JSON to ADLC process artifact storage with `bin/adlc process-artifact-path --target-repo <target-repo> --task <task-id> --artifact-type closeout --filename learning-capture.json --json`.
+7. Emit `pass` only when validation passes; emit `skipped` when there is no reusable verified learning.
 
 ## Output
 
@@ -51,6 +52,7 @@ Skip when:
     "path": "docs/solutions/slug.md | null",
     "reason": "string",
     "verifier": "python3 scripts/validate_learning_entry.py docs/solutions/slug.md",
+    "closeout_artifact_path": "string",
     "redaction_status": "passed | needs_review"
   }
 }

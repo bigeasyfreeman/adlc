@@ -40,6 +40,16 @@ from adlc_runtime.metadata import (
 
 
 ROOT = Path(os.environ.get("ADLC_ROOT", Path(__file__).resolve().parents[2]))
+PROCESS_ARTIFACT_ROOT_ENV = "ADLC_PROCESS_ARTIFACT_ROOT"
+PROCESS_ARTIFACT_TYPES = ("build-brief", "eval", "audit", "closeout", "validation", "prompt")
+DEFAULT_PROCESS_ARTIFACT_FILENAMES = {
+    "build-brief": "build-brief.json",
+    "eval": "eval.json",
+    "audit": "audit.json",
+    "closeout": "closeout.md",
+    "validation": "validation.json",
+    "prompt": "prompt.md",
+}
 
 
 def read_json(path: Path) -> Any:
@@ -57,6 +67,71 @@ def rel_path(path: Path) -> str:
         return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
+
+
+def slugify_storage_key(value: str | None, fallback: str) -> str:
+    raw = str(value or "").strip().lower()
+    slug = re.sub(r"[^a-z0-9_.-]+", "-", raw)
+    slug = slug.strip(".-_")
+    return slug or fallback
+
+
+def process_artifact_root(path_arg: str | None = None) -> Path:
+    raw = path_arg or os.environ.get(PROCESS_ARTIFACT_ROOT_ENV)
+    if raw:
+        root = Path(raw).expanduser()
+        return root if root.is_absolute() else ROOT / root
+    return ROOT / ".adlc" / "process-artifacts"
+
+
+def process_artifact_target_key(target_repo: str | None, workspace: Path) -> str:
+    raw = str(target_repo or workspace).strip()
+    normalized = raw.rstrip("/")
+    github_match = re.search(r"github\.com[:/](?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+?)(?:\.git)?$", normalized)
+    if github_match:
+        owner = github_match.group("owner")
+        repo = github_match.group("repo")
+        return slugify_storage_key(f"{owner}--{repo}", "target-repo")
+    if re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?", normalized):
+        owner, repo = normalized.split("/", 1)
+        return slugify_storage_key(f"{owner}--{repo.removesuffix('.git')}", "target-repo")
+
+    path = Path(normalized).expanduser()
+    if not path.is_absolute():
+        path = workspace / path
+    resolved = path.resolve(strict=False)
+    digest = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:8]
+    basename = slugify_storage_key(resolved.name, "target-repo")
+    return f"{basename}-{digest}"
+
+
+def process_artifact_path_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    workspace = resolve_workspace(args.workspace)
+    artifact_type = args.artifact_type
+    if artifact_type not in PROCESS_ARTIFACT_TYPES:
+        raise ValueError(f"artifact type must be one of: {', '.join(PROCESS_ARTIFACT_TYPES)}")
+    filename = args.filename or DEFAULT_PROCESS_ARTIFACT_FILENAMES[artifact_type]
+    if Path(filename).name != filename or filename in {".", ".."}:
+        raise ValueError("filename must be a simple file name, not a path")
+    root = process_artifact_root(args.artifact_root)
+    target_key = process_artifact_target_key(args.target_repo, workspace)
+    task_key = slugify_storage_key(args.task, "task")
+    run_id = slugify_storage_key(args.run_id or "current", "current")
+    path = root / target_key / task_key / run_id / artifact_type / filename
+    return {
+        "contract_version": "1.0.0",
+        "storage_root": str(root),
+        "target_repo": str(args.target_repo or workspace),
+        "target_repo_key": target_key,
+        "task": str(args.task),
+        "task_key": task_key,
+        "run_id": run_id,
+        "artifact_type": artifact_type,
+        "filename": filename,
+        "path": str(path),
+        "path_ref": rel_path(path),
+        "layout": "{storage_root}/{target_repo_key}/{task_key}/{run_id}/{artifact_type}/{filename}",
+    }
 
 
 def manifest() -> Dict[str, Any]:
@@ -711,10 +786,13 @@ def context_packages_for_brief(
 
 PIPELINE_ARTIFACT_PATTERNS = (
     re.compile(r"docs/build-briefs/"),
-    re.compile(r"\bTECH_DEBT_AUDIT\b"),
-    re.compile(r"\bGOAL_PROMPT\b"),
+    re.compile(r"\.adlc/process[-_]artifacts/"),
+    re.compile(r"\.adlc/(?:outputs/)?(?:build[-_]brief|(?:eval|council)[-_]report|tech[-_]debt[-_]audit|closeout[-_]report|validation[-_]report|goal[-_]prompt)", re.IGNORECASE),
+    re.compile(r"\bTECH_DEBT" r"_AUDIT\b"),
+    re.compile(r"\bADLC_[A-Z0-9_]*_GOAL" r"_PROMPT\b"),
+    re.compile(r"\bGOAL" r"_PROMPT\b"),
     re.compile(r"\b(closeout|validation)[-_]?(script|report)\b", re.IGNORECASE),
-    re.compile(r"\beval[-_]council\b|\bcouncil[-_]report\b", re.IGNORECASE),
+    re.compile(r"\beval[-_]council[-_]?(report|verdict|scratch)\b|\bcouncil[-_]report\b", re.IGNORECASE),
 )
 ABSOLUTE_LOCAL_PATH_RE = re.compile(r"(?<![A-Za-z0-9_.-])/(Users|home)/[A-Za-z0-9_.-]+")
 PR_DEPENDENCY_REF_RE = re.compile(
@@ -1048,6 +1126,19 @@ def command_pr_hygiene_scan(args: argparse.Namespace) -> int:
     else:
         print(f"pr-hygiene-scan: {payload['status']} ({payload['summary']['issues']} issue(s))")
     return 0 if payload["status"] == "pass" else 1
+
+
+def command_process_artifact_path(args: argparse.Namespace) -> int:
+    try:
+        payload = process_artifact_path_payload(args)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(payload["path"])
+    return 0
 
 
 CONVENTION_DOCS = ("CLAUDE.md", "AGENTS.md", "CONTRIBUTING.md")
@@ -9552,6 +9643,24 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("process-artifact-path"),
+            "description": command_description("process-artifact-path"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["task", "artifact_type"],
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "target_repo": {"type": "string", "minLength": 1},
+                    "task": {"type": "string", "minLength": 1},
+                    "artifact_type": {"type": "string", "enum": list(PROCESS_ARTIFACT_TYPES)},
+                    "filename": {"type": "string", "minLength": 1},
+                    "run_id": {"type": "string", "minLength": 1},
+                    "artifact_root": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("ci"),
             "description": command_description("ci"),
             "inputSchema": {
@@ -10253,6 +10362,22 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_process_artifact_path":
+        task = arguments.get("task")
+        artifact_type = arguments.get("artifact_type")
+        if not isinstance(task, str) or not isinstance(artifact_type, str):
+            raise ValueError("adlc_process_artifact_path requires task and artifact_type")
+        args = argparse.Namespace(
+            workspace=arguments.get("workspace"),
+            target_repo=arguments.get("target_repo"),
+            task=task,
+            artifact_type=artifact_type,
+            filename=arguments.get("filename"),
+            run_id=arguments.get("run_id"),
+            artifact_root=arguments.get("artifact_root"),
+            json=True,
+        )
+        return tool_result(process_artifact_path_payload(args))
     if name == "adlc_ci":
         suites_arg = arguments.get("suite")
         suites = suites_arg if isinstance(suites_arg, list) else None
@@ -10830,6 +10955,17 @@ def build_parser() -> argparse.ArgumentParser:
     pr_hygiene.add_argument("--output", help="Optional PR hygiene report path.")
     pr_hygiene.add_argument("--json", action="store_true", help="Emit JSON.")
     pr_hygiene.set_defaults(func=command_pr_hygiene_scan)
+
+    process_artifact = subparsers.add_parser("process-artifact-path", help=command_description("process-artifact-path"))
+    process_artifact.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
+    process_artifact.add_argument("--target-repo", help="Target repository path, owner/repo slug, or GitHub URL. Defaults to --workspace.")
+    process_artifact.add_argument("--task", required=True, help="Build Brief task ID, tracker key, or closeout task key.")
+    process_artifact.add_argument("--artifact-type", required=True, choices=PROCESS_ARTIFACT_TYPES, help="Process artifact family.")
+    process_artifact.add_argument("--filename", help="Output filename. Defaults by artifact type.")
+    process_artifact.add_argument("--run-id", help="Run/session key. Defaults to current.")
+    process_artifact.add_argument("--artifact-root", help=f"Storage root. Defaults to ${PROCESS_ARTIFACT_ROOT_ENV} or ADLC root .adlc storage.")
+    process_artifact.add_argument("--json", action="store_true", help="Emit JSON.")
+    process_artifact.set_defaults(func=command_process_artifact_path)
 
     ci = subparsers.add_parser("ci", help=command_description("ci"))
     ci.add_argument(

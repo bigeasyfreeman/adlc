@@ -814,6 +814,8 @@ If anything is missing, go back and ask. Do not generate an incomplete brief.
 
 When all sections are complete, generate the Build Brief as a single markdown document using this structure. **Sections marked [CONDITIONAL] are included only when applicable to the project type.** All other sections are mandatory.
 
+Store the canonical Build Brief outside the target repo at the path returned by `bin/adlc process-artifact-path --target-repo <repo> --task <brief-id-or-task-id> --artifact-type build-brief --filename build-brief.md --json`. Do not place Build Brief drafts or council scratch output in the target repo diff.
+
 ```markdown
 # Build Brief: [Feature Name]
 
