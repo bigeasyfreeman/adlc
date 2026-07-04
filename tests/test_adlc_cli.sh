@@ -167,7 +167,17 @@ assert "run-phase blocks dishonest repo conventions before context assembly" "if
 
 echo ""
 echo "--- Convention Structural Scan ---"
-mkdir -p "$tmp_dir/convention-scan-repo/src/foo" "$tmp_dir/convention-scan-repo/src/pure"
+mkdir -p "$tmp_dir/convention-scan-repo/src/foo" "$tmp_dir/convention-scan-repo/src/pure" "$tmp_dir/no-convention-scan-repo/src"
+cat > "$tmp_dir/convention-scan-repo/CLAUDE.md" <<'EOF'
+# Scan Repo
+
+## Code conventions
+
+- **One responsibility per file**, stated in the first line of the module doc-comment.
+- **The coordinator file is a thin coordinator, never a worker.**
+- **Pure core, impure shell.** Side effects live only in an impure shell.
+- **Catch-all modules are forbidden.** Split miscellaneous helpers by responsibility.
+EOF
 cat > "$tmp_dir/convention-scan-repo/src/bad.rs" <<'EOF'
 //! Reading and writing records
 use std::fs;
@@ -184,12 +194,37 @@ pub fn do_work() {
     let _value = 1 + 1;
 }
 EOF
+cat > "$tmp_dir/convention-scan-repo/src/self_exempt.rs" <<'EOF'
+//! Impure shell
+use std::fs;
+
+pub fn read() {
+    let _ = fs::read_to_string("state.txt");
+}
+EOF
+cat > "$tmp_dir/convention-scan-repo/src/misc.rs" <<'EOF'
+//! Catch-all utilities
+pub fn help() {}
+EOF
+cat > "$tmp_dir/convention-scan-repo/src/waived_misc.rs" <<'EOF'
+//! Catch-all utilities
+// adlc-conventions: waive catch_all_responsibility: legacy split tracked separately
+pub fn help() {}
+EOF
 cat > "$tmp_dir/convention-scan-repo/src/pure/mod.rs" <<'EOF'
 //! Pure math
 pub mod add;
 EOF
-assert "convention-scan blocks Rust module doc and impure-shell violations" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/bad.rs --json >'$tmp_dir/convention-scan-bad.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"module_doc_multiple_jobs\") and any(.issues[]; .rule == \"side_effect_without_impure_shell\") and (.boundary.does_not | index(\"use file size as a criterion\")) != null and (.boundary.does_not | index(\"use line count as a criterion\")) != null' '$tmp_dir/convention-scan-bad.json' >/dev/null; fi"
+cat > "$tmp_dir/no-convention-scan-repo/src/lib.rs" <<'EOF'
+//! Reading and writing records
+pub fn run() {}
+EOF
+assert "convention-scan is not applicable without extracted repo conventions" "'$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/no-convention-scan-repo' --file src/lib.rs --json | jq -e '.status == \"not_applicable\" and .summary.applicability == \"not_applicable\" and .repo_conventions.status == \"none_found\"' >/dev/null"
+assert "convention-scan derives active checks from extracted rules" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/bad.rs --json >'$tmp_dir/convention-scan-bad.json'; then false; else jq -e '.status == \"blocked\" and .repo_conventions.status == \"extracted\" and (.active_rules | index(\"module_doc_multiple_jobs\")) != null and (.active_rules | index(\"side_effect_without_impure_shell\")) != null and any(.issues[]; .rule == \"module_doc_multiple_jobs\" and (.source_rule_ids | length) >= 1) and any(.issues[]; .rule == \"side_effect_without_impure_shell\" and (.source_rule_ids | length) >= 1) and (.boundary.does_not | index(\"use file size as a criterion\")) != null and (.boundary.does_not | index(\"use line count as a criterion\")) != null' '$tmp_dir/convention-scan-bad.json' >/dev/null; fi"
 assert "convention-scan blocks coordinator worker logic" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/foo.rs --json >'$tmp_dir/convention-scan-coordinator.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"coordinator_worker_logic\")' '$tmp_dir/convention-scan-coordinator.json' >/dev/null; fi"
+assert "convention-scan does not allow doc keyword self exemption" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/self_exempt.rs --json >'$tmp_dir/convention-scan-self-exempt.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"side_effect_without_impure_shell\")' '$tmp_dir/convention-scan-self-exempt.json' >/dev/null; fi"
+assert "convention-scan blocks catch-all responsibilities" "if '$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/misc.rs --json >'$tmp_dir/convention-scan-catch-all.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"catch_all_responsibility\")' '$tmp_dir/convention-scan-catch-all.json' >/dev/null; fi"
+assert "convention-scan accepts inline waivers with reason" "'$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/waived_misc.rs --json | jq -e '.status == \"pass\" and .summary.waived_issues == 1 and any(.issues[]; .rule == \"catch_all_responsibility\" and .status == \"waived\" and (.waiver_reason | contains(\"legacy split tracked\")))' >/dev/null"
 assert "convention-scan records explicit waivers without failing" "'$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/bad.rs --waiver 'src/bad.rs:module_doc_multiple_jobs:legacy split tracked' --waiver 'src/bad.rs:side_effect_without_impure_shell:legacy split tracked' --json | jq -e '.status == \"pass\" and .summary.waived_issues == 2 and all(.issues[]; .status == \"waived\")' >/dev/null"
 assert "convention-scan passes thin Rust coordinator" "'$ROOT/bin/adlc' convention-scan --workspace '$tmp_dir/convention-scan-repo' --file src/pure/mod.rs --json | jq -e '.status == \"pass\" and .summary.open_issues == 0' >/dev/null"
 
