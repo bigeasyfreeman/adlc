@@ -1385,30 +1385,86 @@ def apply_convention_waiver(issue: Dict[str, Any], source: str, waivers: Dict[Tu
     return issue
 
 
+def convention_scan_rule_profile(repo_conventions: Dict[str, Any]) -> Dict[str, List[str]]:
+    profile: Dict[str, List[str]] = {
+        "module_doc_multiple_jobs": [],
+        "side_effect_without_impure_shell": [],
+        "coordinator_worker_logic": [],
+        "catch_all_responsibility": [],
+    }
+    for rule in repo_conventions.get("rules", []):
+        if not isinstance(rule, dict):
+            continue
+        rule_id = str(rule.get("id") or "")
+        text = normalize_convention_text(rule.get("rule"))
+        if not rule_id or not text:
+            continue
+        if "one responsibility" in text or "multiple job" in text:
+            profile["module_doc_multiple_jobs"].append(rule_id)
+            profile["catch_all_responsibility"].append(rule_id)
+        if "pure core" in text or "impure shell" in text or "side effect" in text:
+            profile["side_effect_without_impure_shell"].append(rule_id)
+        if "coordinator" in text:
+            profile["coordinator_worker_logic"].append(rule_id)
+        if "catch all" in text or "catch-all" in text:
+            profile["catch_all_responsibility"].append(rule_id)
+    return {rule: list(dict.fromkeys(rule_ids)) for rule, rule_ids in profile.items() if rule_ids}
+
+
+def rust_impure_shell_path(path: Path, workspace: Path) -> bool:
+    rel = workspace_rel_path(path, workspace).lower()
+    parts = re.split(r"[/_.-]+", rel)
+    return any(part in {"impure", "shell", "effects", "effect"} for part in parts)
+
+
+def catch_all_responsibility(source: str, path: Path, workspace: Path) -> Tuple[int | None, str | None]:
+    rel = workspace_rel_path(path, workspace)
+    for line_number, line in enumerate(source.splitlines(), start=1):
+        if re.search(r"\b(catch[- ]?all|miscellaneous|everything|all[- ]purpose|god module)\b", line, flags=re.IGNORECASE):
+            return line_number, "module text uses catch-all responsibility language"
+    if re.search(r"(^|[/_.-])(misc|utils?|helpers?)([/_.-]|$)", rel, flags=re.IGNORECASE):
+        return 1, "file path uses catch-all utility naming"
+    return None, None
+
+
 def rust_coordinator_file(path: Path) -> bool:
     if path.name == "mod.rs":
         return True
     return path.suffix == ".rs" and (path.parent / path.stem).is_dir()
 
 
-def scan_rust_conventions(path: Path, workspace: Path, waivers: Dict[Tuple[str, str], str]) -> List[Dict[str, Any]]:
+def scan_rust_conventions(path: Path, workspace: Path, waivers: Dict[Tuple[str, str], str], active_rules: Dict[str, List[str]]) -> List[Dict[str, Any]]:
     source = path.read_text(encoding="utf-8")
     rel = workspace_rel_path(path, workspace)
     doc_line, doc_lineno = rust_module_doc_first_line(source)
     issues: List[Dict[str, Any]] = []
-    if doc_line and re.search(r"\band\b", doc_line, flags=re.IGNORECASE):
+    if active_rules.get("module_doc_multiple_jobs") and doc_line and re.search(r"\band\b", doc_line, flags=re.IGNORECASE):
         issues.append(
             {
                 "severity": "blocking",
                 "status": "open",
                 "rule": "module_doc_multiple_jobs",
+                "source_rule_ids": active_rules["module_doc_multiple_jobs"],
                 "path": rel,
                 "line": doc_lineno,
                 "message": "module doc first line appears to describe multiple jobs with `and`",
             }
         )
-    impure_declared = bool(re.search(r"\bimpure\b|\bshell\b|\bside[- ]effect", doc_line, flags=re.IGNORECASE))
-    if not impure_declared:
+    if active_rules.get("catch_all_responsibility"):
+        catch_all_line, catch_all_message = catch_all_responsibility(source, path, workspace)
+        if catch_all_line:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "status": "open",
+                    "rule": "catch_all_responsibility",
+                    "source_rule_ids": active_rules["catch_all_responsibility"],
+                    "path": rel,
+                    "line": catch_all_line,
+                    "message": catch_all_message,
+                }
+            )
+    if active_rules.get("side_effect_without_impure_shell") and not rust_impure_shell_path(path, workspace):
         for pattern, kind in RUST_SIDE_EFFECT_PATTERNS:
             match = pattern.search(source)
             if match:
@@ -1417,13 +1473,14 @@ def scan_rust_conventions(path: Path, workspace: Path, waivers: Dict[Tuple[str, 
                         "severity": "blocking",
                         "status": "open",
                         "rule": "side_effect_without_impure_shell",
+                        "source_rule_ids": active_rules["side_effect_without_impure_shell"],
                         "path": rel,
                         "line": line_number_for_offset(source, match.start()),
                         "message": f"{kind} side-effect call appears in a module that does not declare an impure shell",
                     }
                 )
                 break
-    if rust_coordinator_file(path):
+    if active_rules.get("coordinator_worker_logic") and rust_coordinator_file(path):
         match = re.search(r"(?m)^\s*(pub\s+)?fn\s+\w+\s*\([^)]*\)\s*(?:->\s*[^{]+)?\{", source)
         if match:
             issues.append(
@@ -1431,6 +1488,7 @@ def scan_rust_conventions(path: Path, workspace: Path, waivers: Dict[Tuple[str, 
                     "severity": "blocking",
                     "status": "open",
                     "rule": "coordinator_worker_logic",
+                    "source_rule_ids": active_rules["coordinator_worker_logic"],
                     "path": rel,
                     "line": line_number_for_offset(source, match.start()),
                     "message": "coordinator file contains function-body worker logic instead of staying thin",
@@ -1464,13 +1522,45 @@ def convention_scan_files(args: argparse.Namespace, workspace: Path) -> List[Pat
 def convention_scan_payload(args: argparse.Namespace) -> Dict[str, Any]:
     workspace = resolve_workspace(args.workspace)
     waivers = parse_convention_waivers(args.waiver)
+    repo_conventions = repo_conventions_payload(workspace)
+    active_rules = convention_scan_rule_profile(repo_conventions) if repo_conventions.get("status") == "extracted" else {}
+    if not active_rules:
+        reason = "repo_conventions_none_found" if repo_conventions.get("status") == "none_found" else "no_supported_structural_repo_conventions"
+        return {
+            "contract_version": "1.0.0",
+            "status": "not_applicable",
+            "workspace": str(workspace),
+            "language": "rust",
+            "checked_files": [],
+            "issues": [],
+            "repo_conventions": {
+                "status": repo_conventions.get("status"),
+                "rule_count": len(repo_conventions.get("rules", [])),
+            },
+            "active_rules": [],
+            "summary": {
+                "checked_files": 0,
+                "issues": 0,
+                "open_issues": 0,
+                "waived_issues": 0,
+                "applicability": "not_applicable",
+                "reason": reason,
+            },
+            "boundary": {
+                "does_not": [
+                    "use file size as a criterion",
+                    "use line count as a criterion",
+                    "perform LLM judgement",
+                ]
+            },
+        }
     issues: List[Dict[str, Any]] = []
     checked: List[str] = []
     for path in convention_scan_files(args, workspace):
         if path.suffix != ".rs":
             continue
         checked.append(workspace_rel_path(path, workspace))
-        issues.extend(scan_rust_conventions(path, workspace, waivers))
+        issues.extend(scan_rust_conventions(path, workspace, waivers, active_rules))
     open_issues = [issue for issue in issues if issue.get("status") != "waived"]
     return {
         "contract_version": "1.0.0",
@@ -1479,6 +1569,11 @@ def convention_scan_payload(args: argparse.Namespace) -> Dict[str, Any]:
         "language": "rust",
         "checked_files": checked,
         "issues": issues,
+        "repo_conventions": {
+            "status": repo_conventions.get("status"),
+            "rule_count": len(repo_conventions.get("rules", [])),
+        },
+        "active_rules": sorted(active_rules),
         "summary": {
             "checked_files": len(checked),
             "issues": len(issues),
@@ -1505,7 +1600,7 @@ def command_convention_scan(args: argparse.Namespace) -> int:
         write_json(payload)
     else:
         print(f"convention-scan: {payload['status']} ({payload['summary']['open_issues']} open issue(s))")
-    return 0 if payload["status"] == "pass" else 1
+    return 0 if payload["status"] in {"pass", "not_applicable"} else 1
 
 
 def learning_candidates_from_args(args: argparse.Namespace, workspace: Path) -> Tuple[List[Dict[str, Any]], List[str]]:
