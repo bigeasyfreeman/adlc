@@ -972,7 +972,7 @@ assert "mcp-tools exposes control-plane dogfood loop" "'$ROOT/bin/adlc' mcp-tool
 assert "mcp-tools exposes learning architecture memory commands" "'$ROOT/bin/adlc' mcp-tools --json | jq -e 'any(.tools[]; .name == \"adlc_architecture_memory\") and any(.tools[]; .name == \"adlc_memory_health\") and any(.tools[]; .name == \"adlc_champion_holdout\")' >/dev/null"
 assert "mcp-tools exposes packaged loop library commands" "'$ROOT/bin/adlc' mcp-tools --json | jq -e 'any(.tools[]; .name == \"adlc_loop_library\") and any(.tools[]; .name == \"adlc_loop_template_install\")' >/dev/null"
 assert "mcp-tools exposes self-actioning meta-harness planner" "'$ROOT/bin/adlc' mcp-tools --json | jq -e 'any(.tools[]; .name == \"adlc_meta_harness_plan\")' >/dev/null"
-assert "mcp-tools exposes convention commands" "'$ROOT/bin/adlc' mcp-tools --json | jq -e 'any(.tools[]; .name == \"adlc_repo_conventions\") and any(.tools[]; .name == \"adlc_convention_scan\" and .inputSchema.properties.build_brief.type == \"string\") and any(.tools[]; .name == \"adlc_feedback_conventions\")' >/dev/null"
+assert "mcp-tools exposes convention commands" "'$ROOT/bin/adlc' mcp-tools --json | jq -e 'any(.tools[]; .name == \"adlc_repo_conventions\") and any(.tools[]; .name == \"adlc_convention_scan\" and .inputSchema.properties.build_brief.type == \"string\") and any(.tools[]; .name == \"adlc_feedback_conventions\" and .inputSchema.properties.repo.type == \"string\" and .inputSchema.properties.pr.items.type == \"string\")' >/dev/null"
 assert "tool pools bind enforcement to action admission" "rg -q 'action-admit|permission audit trail' '$ROOT/docs/specs/tool-pools.md'"
 
 echo ""

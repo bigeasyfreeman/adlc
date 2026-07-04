@@ -40,8 +40,10 @@ After every human edit to agent output:
 Maintainer review comments are convention input, not just one-off fixes. After
 every PR review cycle:
 
-1. Read supplied review comments or run `gh pr view <id> --comments` and inspect
-   unresolved review threads when thread state is available.
+1. Read supplied review comments or run `gh pr view <id> --comments` / `gh api`
+   against the PR issue comments and review-comment endpoints. Preserve the
+   verbatim comment body, comment URL, author, PR number, and fetch command in
+   the fixture or report provenance.
 2. Classify each actionable comment as one of:
    - `target_repo_convention`: a target-repo rule that future Build Briefs must
      carry in `repo_conventions.rules[]`.
@@ -58,25 +60,43 @@ every PR review cycle:
 5. For `adlc_skill_rule`, route the candidate through the normal Pattern
    Distillation validation path before changing a skill.
 
-Example: Interralis maintainer comments like "this file does two jobs", "split
-the coordinator from worker logic", "do not use file size as a gate", and "use
-the product term in the PR" become target repo conventions or vocabulary rules.
-They must not be buried as chat-only reminders.
+Example: Interralis maintainer comments that enumerate multiple jobs in a Rust
+file, ask for a directory module, or call out pure code mixed with filesystem or
+subprocess side effects become target repo conventions. Separate feedback such
+as "use the product term in the PR" becomes vocabulary input. Do not treat
+thin-coordinator or size-gate boundaries as coming from those PR comments unless
+the comment text explicitly says so.
 
 ### Acceptance Walkthrough: Interralis PR #225 And #226
 
-Use these review threads as the regression fixture for maintainer-comment intake:
+Use the verbatim GitHub issue-comment bodies from these merged PRs as the
+regression fixture for maintainer-comment intake. The review-comment endpoints
+for both PRs returned empty arrays, and the approving review bodies were empty,
+so the fixture source is the Aether- issue comments:
 
-- PR #225 (`Add harness metadata source discovery`) review comment identifies a
+- PR #225 (`Add harness metadata source discovery`) issue comment identifies a
   file whose first module doc describes registry and discovery inventory, then
   calls out three jobs in one file: registry data/types, id inference, and a
   filesystem discovery walker. It also flags filesystem walking mixed with pure
   registry and normalization helpers.
-- PR #226 (`Add LLM persona UX regression harness`) review comment identifies a
+- PR #226 (`Add LLM persona UX regression harness`) issue comment identifies a
   flat `persona_ux.rs` file containing catalog data, runner logic, an LLM
   subprocess driver, report file I/O, report explanation, and pure types/probes.
   It says the work should become a recursive directory module with pure files
-  and documented impure subprocess/filesystem shells.
+  and documented impure subprocess/filesystem shells, preserving the pure core logic
+  boundary the comment actually names.
+
+Do not derive these rules from PR #225 or #226:
+
+- Thin coordinators: this is supported by `CLAUDE.md` and later merge feedback,
+  not by the two maintainer comments in this fixture.
+- Line count or file size as a criterion: PR #226 mentions `1367 lines` as
+  evidence that responsibilities have accumulated, but the intake must record it
+  only as ignored evidence. The phrase "file size as a gate" is a
+  non-derivation here, not a rule.
+- Generic environment, database, or network impure-shell scope: those may be
+  supported by broader repo conventions, but these two comments only mention
+  filesystem and subprocess side effects.
 
 Expected distillation:
 
@@ -85,35 +105,34 @@ Expected distillation:
   "repo_conventions": [
     {
       "source_ref": "interralis#225",
-      "rule": "Every Rust module's first //! line must state one responsibility; if the responsibility needs 'and' or names multiple jobs, split the file.",
-      "verification_predicate": "Run bin/adlc convention-scan --file <changed Rust file> --json and inspect module-doc first lines for multi-job wording.",
+      "rule": "Every Rust module's first //! line must state one responsibility; when review evidence names multiple jobs or needs \"and\", enumerate those roles and split the file.",
+      "verification_predicate": "Run bin/adlc convention-scan --file <changed Rust file> --json and inspect module-doc first lines for multi-job wording and enumerated roles.",
       "applies_to": ["changed Rust files"]
     },
     {
       "source_ref": "interralis#226",
-      "rule": "When a Rust module grows sub-parts, split it into a directory module recursively instead of keeping a flat catch-all file.",
-      "verification_predicate": "Review scaffold and changed files for catch-all roles such as catalog plus runner plus driver plus report in one file.",
+      "rule": "When a Rust responsibility grows sub-parts, split it into a recursive directory module instead of keeping catalog, runner, driver, report, and type roles in one flat file.",
+      "verification_predicate": "Review planned and changed Rust files for catch-all roles such as catalog plus runner plus driver plus report in one flat file.",
       "applies_to": ["planned files", "changed Rust files"]
     },
     {
       "source_ref": "interralis#225,#226",
-      "rule": "Keep pure core logic separate from filesystem, subprocess, environment, database, and network impure shells.",
-      "verification_predicate": "Run bin/adlc convention-scan --file <changed Rust file> --json and verify side-effect calls live in modules documented as impure shells.",
+      "rule": "Keep pure Rust type, catalog, probe, and normalization logic separate from filesystem and subprocess impure shell modules.",
+      "verification_predicate": "Run bin/adlc convention-scan --file <changed Rust file> --json and verify filesystem or subprocess side effects live in isolated impure shell modules.",
       "applies_to": ["changed Rust files"]
     }
   ],
   "product_vocabulary": [],
-  "skill_file_rule_changes": [
-    "build-feature Step 2 must ingest target-repo maintainer conventions before Build Brief decomposition.",
-    "architecture-pattern must require recursive directory-module decomposition when a file grows sub-parts."
-  ]
+  "skill_file_rule_changes": []
 }
 ```
 
 Passing outcome: the intake can regenerate the convention set above from the PR
-comments without relying on this document's prose. Failing outcome: the comments
-are classified as `one_off`, produce no verification predicate, or create a
-generic ADLC skill rule without a target-repo `repo_conventions` rule.
+comments without relying on this document's prose, while also recording per-
+comment provenance and ignored size evidence. Failing outcome: the comments are
+classified as `one_off`, produce no verification predicate, create a generic
+ADLC skill rule without a target-repo `repo_conventions` rule, or derive
+thin-coordinator / size-gate rules from these two comments.
 
 ## Step 2: Eval Case Promotion
 

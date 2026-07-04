@@ -1,35 +1,47 @@
 {
   "repository": "interralis/interralis",
+  "fixture_provenance": {
+    "source_checkout": "read-only local interralis checkout",
+    "fetched_with": [
+      "gh pr view 225 --json number,title,url,state,mergedAt,author,reviews,comments",
+      "gh pr view 226 --json number,title,url,state,mergedAt,author,reviews,comments",
+      "gh api repos/interralis/interralis/pulls/225/comments --paginate",
+      "gh api repos/interralis/interralis/pulls/226/comments --paginate",
+      "gh api repos/interralis/interralis/issues/225/comments --paginate",
+      "gh api repos/interralis/interralis/issues/226/comments --paginate"
+    ],
+    "note": "Verbatim GitHub issue-comment bodies from maintainer Aether-. The pull review-comment endpoints returned empty arrays for both PRs; formal reviews were APPROVED with empty bodies."
+  },
   "comments": [
     {
       "source_ref": "interralis#225",
-      "url": "https://github.com/interralis/interralis/pull/225",
+      "source_kind": "issue_comment",
+      "pr_number": 225,
+      "pr_title": "[codex] Add harness metadata source discovery",
+      "pr_url": "https://github.com/interralis/interralis/pull/225",
+      "comment_id": 4849286645,
+      "node_id": "IC_kwDOR9mqzc8AAAABIQo99Q",
+      "url": "https://github.com/interralis/interralis/pull/225#issuecomment-4849286645",
       "author": "Aether-",
-      "quote": "One responsibility per file \u2014 the doc line needs an \"and\" (registry and discovery inventory), and it bundles three jobs (registry types/data, id inference, FS discovery walker). Per the rule, that's a split, not one file."
-    },
-    {
-      "source_ref": "interralis#225",
-      "url": "https://github.com/interralis/interralis/pull/225",
-      "author": "Aether-",
-      "quote": "Pure core / impure shell \u2014 the std::fs walker sits in the same file as the pure registry types and pure infer/normalize helpers."
-    },
-    {
-      "source_ref": "interralis#226",
-      "url": "https://github.com/interralis/interralis/pull/226",
-      "author": "Aether-",
-      "quote": "One responsibility per file \u2014 clearly violated. In one file: the enums/descriptors, persona catalog data, suite runner, LLM subprocess driver, report file I/O, and report explanation."
+      "author_association": "MEMBER",
+      "created_at": "2026-07-01T01:02:06Z",
+      "updated_at": "2026-07-01T01:02:06Z",
+      "body": "1. One responsibility per file \u2014 the doc line needs an \"and\" (registry and discovery inventory), and it bundles three \r\n      jobs (registry types/data, id inference, FS discovery walker). Per the rule, that's a split, not one file.\r\n   2. Pure core / impure shell \u2014 the std::fs walker sits in the same file as the pure registry types and pure \r\n      infer/normalize helpers."
     },
     {
       "source_ref": "interralis#226",
-      "url": "https://github.com/interralis/interralis/pull/226",
+      "source_kind": "issue_comment",
+      "pr_number": 226,
+      "pr_title": "Add LLM persona UX regression harness",
+      "pr_url": "https://github.com/interralis/interralis/pull/226",
+      "comment_id": 4849294999,
+      "node_id": "IC_kwDOR9mqzc8AAAABIQpelw",
+      "url": "https://github.com/interralis/interralis/pull/226#issuecomment-4849294999",
       "author": "Aether-",
-      "quote": "Should be a directory module. 1367 lines with an LLM driver + probes + reporting should be persona_ux/ with catalog.rs, runner.rs, driver.rs (impure subprocess), report.rs (impure fs), and pure types.rs."
-    },
-    {
-      "source_ref": "interralis#226",
-      "url": "https://github.com/interralis/interralis/pull/226",
-      "author": "Aether-",
-      "quote": "Pure core / impure shell not separated. Subprocess spawning and fs::write sit alongside the pure type/catalog/probe logic."
+      "author_association": "MEMBER",
+      "created_at": "2026-07-01T01:04:01Z",
+      "updated_at": "2026-07-01T01:04:01Z",
+      "body": " 1. One responsibility per file \u2014 clearly violated. In one file: the enums/descriptors (PersonaDriver, PersonaSuite, \r\n      PersonaId, PersonaScenarioResult, ...), the persona catalog data (persona_catalog), the suite runner (run_suite), \r\n      the LLM subprocess driver (Command::new(...).spawn() at L751), report file I/O (fs::create_dir_all/fs::write at \r\n      L465-469), and report explanation (explain_report). That's at least 4-5 responsibilities.\r\n\r\n   2. Should be a directory module. Per \"when a responsibility grows sub-parts, it becomes a directory module that \r\n      recursively follows the same shape,\" 1367 lines with an LLM driver + probes + reporting should be persona_ux/ with \r\n      catalog.rs, runner.rs, driver.rs (impure subprocess), report.rs (impure fs), and pure types.rs. Right now it's a \r\n      flat persona_ux.rs.\r\n\r\n   3. Pure core / impure shell not separated. Subprocess spawning (Command/Stdio) and fs::write sit alongside the pure \r\n      type/catalog/probe logic. The exemplar keeps side effects on their own documented path."
     }
   ]
 }

@@ -1984,6 +1984,30 @@ def feedback_comment_text(comment: Dict[str, Any]) -> str:
     return "\n".join(str(comment.get(field) or "") for field in ("quote", "body", "text"))
 
 
+def feedback_comment_source_ref(comment: Dict[str, Any]) -> str:
+    explicit = str(comment.get("source_ref") or "").strip()
+    if explicit:
+        return explicit
+    repo = str(comment.get("repository") or "").strip()
+    pr_number = str(comment.get("pr_number") or "").strip()
+    if repo and pr_number:
+        return f"{repo}#{pr_number}"
+    url = str(comment.get("url") or comment.get("html_url") or "").strip()
+    return url or "unknown"
+
+
+def feedback_comment_identifier(comment: Dict[str, Any], index: int) -> str:
+    for field in ("comment_id", "id", "node_id", "url", "html_url"):
+        value = comment.get(field)
+        if value not in (None, ""):
+            return str(value)
+    return f"comment-{index}"
+
+
+def feedback_compact_text(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+
 def feedback_rule(
     rule_id: str,
     rule: str,
@@ -2001,54 +2025,288 @@ def feedback_rule(
     }
 
 
-def feedback_conventions_payload(args: argparse.Namespace) -> Dict[str, Any]:
-    input_path = resolve_input_path(args.input, Path.cwd())
-    payload = read_json(input_path)
-    comments = feedback_comment_items(payload)
-    combined = "\n".join(feedback_comment_text(comment) for comment in comments)
-    normalized = normalize_convention_text(combined)
-    source_path = rel_path(input_path)
-    source_refs = list(dict.fromkeys(str(comment.get("source_ref") or "").strip() for comment in comments if str(comment.get("source_ref") or "").strip()))
-    rules: List[Dict[str, Any]] = []
-    if "one responsibility" in normalized or "three jobs" in normalized or "responsibilities" in normalized:
-        rules.append(
-            feedback_rule(
-                "REVIEW_COMMENT_ONE_RESPONSIBILITY",
-                "Every Rust module's first //! line must state one responsibility; split files whose doc line needs 'and' or whose implementation combines multiple jobs.",
-                "Run bin/adlc convention-scan --file <changed Rust file> --json and inspect module-doc first lines for multi-job wording.",
-                ["changed Rust files"],
-                source_path,
-            )
-        )
-    if "directory module" in normalized or "flat persona_ux" in normalized or "catalog.rs" in normalized:
-        rules.append(
-            feedback_rule(
-                "REVIEW_COMMENT_RECURSIVE_DIRECTORY_MODULE",
-                "When a Rust module grows sub-parts, split it into a recursive directory module instead of keeping catalog, runner, driver, report, and type roles in one flat file.",
-                "Review scaffold and changed files for catch-all roles such as catalog plus runner plus driver plus report in one file.",
-                ["planned files", "changed Rust files"],
-                source_path,
-            )
-        )
-    if "pure core" in normalized or "impure shell" in normalized or "subprocess" in normalized or "filesystem" in normalized:
-        rules.append(
-            feedback_rule(
-                "REVIEW_COMMENT_PURE_CORE_IMPURE_SHELL",
-                "Keep pure core logic separate from filesystem, subprocess, environment, database, and network impure shells.",
-                "Run bin/adlc convention-scan --file <changed Rust file> --json and verify side-effect calls live in isolated impure shell modules.",
-                ["changed Rust files"],
-                source_path,
-            )
-        )
-    ignored_evidence = []
-    if re.search(r"\b\d+\s+lines?\b|\bline count\b|\bfile size\b", combined, flags=re.IGNORECASE):
-        ignored_evidence.append(
+FEEDBACK_REPO_RULE_DEFINITIONS: Dict[str, Dict[str, Any]] = {
+    "REVIEW_COMMENT_ONE_RESPONSIBILITY": {
+        "rule": "Every Rust module's first //! line must state one responsibility; when review evidence names multiple jobs or needs \"and\", enumerate those roles and split the file.",
+        "verification_predicate": "Run bin/adlc convention-scan --file <changed Rust file> --json and inspect module-doc first lines for multi-job wording and enumerated roles.",
+        "applies_to": ["changed Rust files"],
+    },
+    "REVIEW_COMMENT_RECURSIVE_DIRECTORY_MODULE": {
+        "rule": "When a Rust responsibility grows sub-parts, split it into a recursive directory module instead of keeping catalog, runner, driver, report, and type roles in one flat file.",
+        "verification_predicate": "Review planned and changed Rust files for catch-all roles such as catalog plus runner plus driver plus report in one flat file.",
+        "applies_to": ["planned files", "changed Rust files"],
+    },
+    "REVIEW_COMMENT_PURE_CORE_IMPURE_SHELL": {
+        "rule": "Keep pure Rust type, catalog, probe, and normalization logic separate from filesystem and subprocess impure shell modules.",
+        "verification_predicate": "Run bin/adlc convention-scan --file <changed Rust file> --json and verify filesystem or subprocess side effects live in isolated impure shell modules.",
+        "applies_to": ["changed Rust files"],
+    },
+}
+
+
+def feedback_supported_repo_rule_ids(text: str) -> List[str]:
+    normalized = normalize_convention_text(text)
+    rule_ids: List[str] = []
+    if "one responsibility per file" in normalized or ("doc line" in normalized and "bundles" in normalized and "jobs" in normalized):
+        rule_ids.append("REVIEW_COMMENT_ONE_RESPONSIBILITY")
+    if "directory module" in normalized or "flat persona_ux.rs" in normalized or "persona_ux/" in normalized:
+        rule_ids.append("REVIEW_COMMENT_RECURSIVE_DIRECTORY_MODULE")
+    if "pure core / impure shell" in normalized or ("pure core" in normalized and "impure shell" in normalized):
+        rule_ids.append("REVIEW_COMMENT_PURE_CORE_IMPURE_SHELL")
+    return rule_ids
+
+
+def feedback_skill_rule_changes(comment: Dict[str, Any], text: str) -> List[Dict[str, Any]]:
+    normalized = normalize_convention_text(text)
+    if any(term in normalized for term in ("adlc", "build brief", "skill", "workflow", "agent")) and not feedback_supported_repo_rule_ids(text):
+        return [
             {
-                "rule": "line_count_evidence_not_rule",
-                "message": "Line-count or file-size wording is retained only as evidence that responsibilities grew; it must not become a size gate.",
-                "source_refs": source_refs,
+                "source_ref": feedback_comment_source_ref(comment),
+                "comment_id": str(comment.get("comment_id") or comment.get("id") or comment.get("node_id") or ""),
+                "target": "adlc_skill_rule",
+                "change": feedback_compact_text(text),
+                "status": "candidate",
+            }
+        ]
+    return []
+
+
+def feedback_source_path_for_payload(input_path: Path | None, repo: str | None, pr_numbers: List[str]) -> str:
+    if input_path:
+        return rel_path(input_path)
+    if repo and pr_numbers:
+        joined = ",".join(pr_numbers)
+        return f"github://{repo}/pulls/{joined}"
+    return "feedback-comments"
+
+
+def feedback_parse_gh_json_stream(stdout: str) -> List[Any]:
+    decoder = json.JSONDecoder()
+    values: List[Any] = []
+    index = 0
+    while index < len(stdout):
+        while index < len(stdout) and stdout[index].isspace():
+            index += 1
+        if index >= len(stdout):
+            break
+        value, index = decoder.raw_decode(stdout, index)
+        values.append(value)
+    if len(values) == 1 and isinstance(values[0], list):
+        return values[0]
+    flattened: List[Any] = []
+    for value in values:
+        if isinstance(value, list):
+            flattened.extend(value)
+        else:
+            flattened.append(value)
+    return flattened
+
+
+def feedback_gh_json(args: List[str]) -> Any:
+    result = subprocess.run(["gh", *args], text=True, capture_output=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or f"gh {' '.join(args)} failed")
+    text = result.stdout.strip()
+    if not text:
+        return None
+    return json.loads(text)
+
+
+def feedback_gh_json_list(args: List[str]) -> List[Any]:
+    result = subprocess.run(["gh", *args], text=True, capture_output=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or f"gh {' '.join(args)} failed")
+    return feedback_parse_gh_json_stream(result.stdout.strip() or "[]")
+
+
+def feedback_is_maintainer_comment(comment: Dict[str, Any], pr_author: str) -> bool:
+    author = str((comment.get("user") or {}).get("login") or (comment.get("author") or {}).get("login") or comment.get("author") or "")
+    if not author or author == pr_author:
+        return False
+    association = str(comment.get("author_association") or comment.get("authorAssociation") or "").upper()
+    return association in {"OWNER", "MEMBER", "COLLABORATOR"}
+
+
+def feedback_normalize_gh_issue_comment(repo: str, pr_view: Dict[str, Any], comment: Dict[str, Any]) -> Dict[str, Any]:
+    pr_number = pr_view.get("number")
+    user = comment.get("user") if isinstance(comment.get("user"), dict) else {}
+    return {
+        "repository": repo,
+        "source_ref": f"{repo}#{pr_number}",
+        "source_kind": "issue_comment",
+        "pr_number": pr_number,
+        "pr_title": pr_view.get("title"),
+        "pr_url": pr_view.get("url"),
+        "comment_id": comment.get("id"),
+        "node_id": comment.get("node_id"),
+        "url": comment.get("html_url") or comment.get("url"),
+        "author": user.get("login"),
+        "author_association": comment.get("author_association"),
+        "created_at": comment.get("created_at"),
+        "updated_at": comment.get("updated_at"),
+        "body": comment.get("body") or "",
+    }
+
+
+def feedback_normalize_gh_review_comment(repo: str, pr_view: Dict[str, Any], comment: Dict[str, Any]) -> Dict[str, Any]:
+    pr_number = pr_view.get("number")
+    user = comment.get("user") if isinstance(comment.get("user"), dict) else {}
+    return {
+        "repository": repo,
+        "source_ref": f"{repo}#{pr_number}",
+        "source_kind": "review_comment",
+        "pr_number": pr_number,
+        "pr_title": pr_view.get("title"),
+        "pr_url": pr_view.get("url"),
+        "comment_id": comment.get("id"),
+        "node_id": comment.get("node_id"),
+        "url": comment.get("html_url") or comment.get("url"),
+        "author": user.get("login"),
+        "author_association": comment.get("author_association"),
+        "created_at": comment.get("created_at"),
+        "updated_at": comment.get("updated_at"),
+        "path": comment.get("path"),
+        "body": comment.get("body") or "",
+    }
+
+
+def feedback_fetch_pr_comments(repo: str, pr_number: str) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    pr_view = feedback_gh_json(["pr", "view", pr_number, "--repo", repo, "--json", "number,title,url,state,mergedAt,author,reviews"])
+    pr_author = str(((pr_view or {}).get("author") or {}).get("login") or "")
+    issue_comments = feedback_gh_json_list(["api", f"repos/{repo}/issues/{pr_number}/comments", "--paginate"])
+    review_comments = feedback_gh_json_list(["api", f"repos/{repo}/pulls/{pr_number}/comments", "--paginate"])
+    comments: List[Dict[str, Any]] = []
+    for comment in issue_comments:
+        if isinstance(comment, dict) and feedback_is_maintainer_comment(comment, pr_author) and str(comment.get("body") or "").strip():
+            comments.append(feedback_normalize_gh_issue_comment(repo, pr_view, comment))
+    for comment in review_comments:
+        if isinstance(comment, dict) and feedback_is_maintainer_comment(comment, pr_author) and str(comment.get("body") or "").strip():
+            comments.append(feedback_normalize_gh_review_comment(repo, pr_view, comment))
+    for review in (pr_view or {}).get("reviews", []) or []:
+        if not isinstance(review, dict) or not str(review.get("body") or "").strip():
+            continue
+        review_author = str((review.get("author") or {}).get("login") or "")
+        if review_author and review_author != pr_author and str(review.get("authorAssociation") or "").upper() in {"OWNER", "MEMBER", "COLLABORATOR"}:
+            comments.append(
+                {
+                    "repository": repo,
+                    "source_ref": f"{repo}#{pr_view.get('number')}",
+                    "source_kind": "review_body",
+                    "pr_number": pr_view.get("number"),
+                    "pr_title": pr_view.get("title"),
+                    "pr_url": pr_view.get("url"),
+                    "comment_id": review.get("id"),
+                    "url": pr_view.get("url"),
+                    "author": review_author,
+                    "author_association": review.get("authorAssociation"),
+                    "created_at": review.get("submittedAt"),
+                    "body": review.get("body") or "",
+                }
+            )
+    provenance = {
+        "pr": pr_number,
+        "pr_url": (pr_view or {}).get("url"),
+        "merged_at": (pr_view or {}).get("mergedAt"),
+        "review_comment_count": len(review_comments),
+        "issue_comment_count": len(issue_comments),
+        "maintainer_comment_count": len(comments),
+        "fetched_with": [
+            f"gh pr view {pr_number} --repo {repo} --json number,title,url,state,mergedAt,author,reviews",
+            f"gh api repos/{repo}/issues/{pr_number}/comments --paginate",
+            f"gh api repos/{repo}/pulls/{pr_number}/comments --paginate",
+        ],
+    }
+    return comments, provenance
+
+
+def feedback_load_comments(args: argparse.Namespace) -> Tuple[Dict[str, Any], Path | None, str | None, List[str]]:
+    input_value = getattr(args, "input", None)
+    if input_value:
+        input_path = resolve_input_path(input_value, Path.cwd())
+        return read_json(input_path), input_path, None, []
+    repo = getattr(args, "repo", None)
+    pr_values = [str(item) for item in (getattr(args, "pr", None) or []) if str(item).strip()]
+    if not repo or not pr_values:
+        raise ValueError("feedback-conventions requires --input or --repo with at least one --pr")
+    comments: List[Dict[str, Any]] = []
+    provenance = []
+    for pr_number in pr_values:
+        fetched, fetched_provenance = feedback_fetch_pr_comments(str(repo), pr_number)
+        comments.extend(fetched)
+        provenance.append(fetched_provenance)
+    return {
+        "repository": repo,
+        "fixture_provenance": {
+            "source": "github",
+            "pulls": provenance,
+        },
+        "comments": comments,
+    }, None, str(repo), pr_values
+
+
+def feedback_conventions_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    payload, input_path, repo, pr_numbers = feedback_load_comments(args)
+    comments = feedback_comment_items(payload)
+    source_path = feedback_source_path_for_payload(input_path, repo, pr_numbers)
+    source_refs = list(dict.fromkeys(str(comment.get("source_ref") or "").strip() for comment in comments if str(comment.get("source_ref") or "").strip()))
+    rule_sources: Dict[str, List[Dict[str, str]]] = {}
+    intake_records: List[Dict[str, Any]] = []
+    skill_rule_changes: List[Dict[str, Any]] = []
+    ignored_evidence: List[Dict[str, Any]] = []
+    for index, comment in enumerate(comments, start=1):
+        text = feedback_comment_text(comment)
+        rule_ids = feedback_supported_repo_rule_ids(text)
+        changes = feedback_skill_rule_changes(comment, text)
+        source_ref = feedback_comment_source_ref(comment)
+        identifier = feedback_comment_identifier(comment, index)
+        for rule_id in rule_ids:
+            rule_sources.setdefault(rule_id, []).append(
+                {
+                    "source_ref": source_ref,
+                    "comment_id": identifier,
+                    "url": str(comment.get("url") or comment.get("html_url") or ""),
+                }
+            )
+        skill_rule_changes.extend(changes)
+        if re.search(r"\b\d+\s+lines?\b|\bline count\b|\bfile size\b", text, flags=re.IGNORECASE):
+            ignored_evidence.append(
+                {
+                    "rule": "line_count_evidence_not_rule",
+                    "message": "Line-count or file-size wording is retained only as evidence that responsibilities grew; it must not become a size gate.",
+                    "source_ref": source_ref,
+                    "comment_id": identifier,
+                }
+            )
+        classification = "repo_conventions_rule" if rule_ids else "skill_rule_change" if changes else "one_off"
+        intake_records.append(
+            {
+                "source_ref": source_ref,
+                "comment_id": identifier,
+                "url": str(comment.get("url") or comment.get("html_url") or ""),
+                "classification": classification,
+                "derived_rule_ids": rule_ids,
+                "skill_rule_change_ids": [str(change.get("target")) for change in changes],
             }
         )
+    rules = [
+        feedback_rule(
+            rule_id,
+            str(FEEDBACK_REPO_RULE_DEFINITIONS[rule_id]["rule"]),
+            str(FEEDBACK_REPO_RULE_DEFINITIONS[rule_id]["verification_predicate"]),
+            list(FEEDBACK_REPO_RULE_DEFINITIONS[rule_id]["applies_to"]),
+            source_path,
+        )
+        for rule_id in FEEDBACK_REPO_RULE_DEFINITIONS
+        if rule_id in rule_sources
+    ]
+    derived_rule_provenance = {
+        rule_id: {
+            "source_refs": list(dict.fromkeys(item["source_ref"] for item in items if item.get("source_ref"))),
+            "comment_ids": list(dict.fromkeys(item["comment_id"] for item in items if item.get("comment_id"))),
+            "urls": list(dict.fromkeys(item["url"] for item in items if item.get("url"))),
+        }
+        for rule_id, items in rule_sources.items()
+    }
     if rules:
         repo_conventions = {
             "status": "extracted",
@@ -2066,15 +2324,34 @@ def feedback_conventions_payload(args: argparse.Namespace) -> Dict[str, Any]:
         "contract_version": "1.0.0",
         "status": "pass",
         "input": source_path,
+        "fixture_provenance": payload.get("fixture_provenance") if isinstance(payload, dict) else None,
         "source_refs": source_refs,
         "comment_count": len(comments),
         "repo_conventions": repo_conventions,
+        "derived_rule_provenance": derived_rule_provenance,
+        "intake_records": intake_records,
+        "skill_rule_changes": skill_rule_changes,
         "ignored_evidence": ignored_evidence,
+        "boundary": {
+            "does_not_derive_from_pr_comments": [
+                "thin-coordinator rule",
+                "line count or file size criterion",
+                "generic network, database, or environment impure-shell scope",
+            ]
+        },
     }
 
 
 def command_feedback_conventions(args: argparse.Namespace) -> int:
-    payload = feedback_conventions_payload(args)
+    try:
+        payload = feedback_conventions_payload(args)
+    except (RuntimeError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if getattr(args, "output", None):
+        output_path = resolve_under_workspace(args.output, Path.cwd(), ".adlc/feedback_conventions.json")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if args.json:
         write_json(payload)
     else:
@@ -9613,9 +9890,11 @@ def mcp_tools() -> List[Dict[str, Any]]:
             "inputSchema": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["input"],
                 "properties": {
                     "input": {"type": "string", "minLength": 1},
+                    "repo": {"type": "string", "minLength": 1},
+                    "pr": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "output": {"type": "string", "minLength": 1},
                 },
             },
         },
@@ -10333,10 +10612,20 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return tool_result(payload, is_error=payload.get("status") != "pass")
     if name == "adlc_feedback_conventions":
-        input_path = arguments.get("input")
-        if not isinstance(input_path, str):
-            raise ValueError("adlc_feedback_conventions requires input")
-        payload = feedback_conventions_payload(argparse.Namespace(input=input_path, json=True))
+        pr_values = arguments.get("pr") if isinstance(arguments.get("pr"), list) else []
+        payload = feedback_conventions_payload(
+            argparse.Namespace(
+                input=arguments.get("input"),
+                repo=arguments.get("repo"),
+                pr=pr_values,
+                output=arguments.get("output"),
+                json=True,
+            )
+        )
+        if isinstance(arguments.get("output"), str):
+            output_path = resolve_under_workspace(arguments.get("output"), Path.cwd(), ".adlc/feedback_conventions.json")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return tool_result(payload, is_error=payload.get("status") != "pass")
     if name == "adlc_pr_hygiene_scan":
         args = argparse.Namespace(
@@ -10935,7 +11224,10 @@ def build_parser() -> argparse.ArgumentParser:
     convention_scan.set_defaults(func=command_convention_scan)
 
     feedback_conventions = subparsers.add_parser("feedback-conventions", help=command_description("feedback-conventions"))
-    feedback_conventions.add_argument("--input", required=True, help="JSON file with maintainer PR review comments.")
+    feedback_conventions.add_argument("--input", help="JSON file with maintainer PR review comments.")
+    feedback_conventions.add_argument("--repo", help="GitHub repository in owner/name form for fetching maintainer PR comments.")
+    feedback_conventions.add_argument("--pr", action="append", help="Pull request number to fetch. Can be passed multiple times.")
+    feedback_conventions.add_argument("--output", help="Optional feedback conventions report path.")
     feedback_conventions.add_argument("--json", action="store_true", help="Emit JSON.")
     feedback_conventions.set_defaults(func=command_feedback_conventions)
 
