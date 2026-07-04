@@ -173,6 +173,32 @@
           "docs/specs/socraticode-indexing.md"
         ],
         "reference_impl": "scripts/adlc.py",
+        "module_plan": {
+          "applicability": "not_applicable",
+          "reason": "Documentation contract task creates no code module structure."
+        },
+        "task_sizing": {
+          "applicability": "required",
+          "reason": "Documentation contract is one coherent docs/specs file-set.",
+          "basis": [
+            "responsibility_boundary"
+          ],
+          "change_surface": {
+            "surface_kind": "single_module",
+            "primary_module": "docs/specs/socraticode-indexing.md",
+            "touched_modules": [
+              "docs/specs/socraticode-indexing.md"
+            ],
+            "touched_files": [
+              "docs/specs/socraticode-indexing.md"
+            ],
+            "coherence": "The task owns one specification document and no runtime implementation."
+          },
+          "split_decision": {
+            "required": false,
+            "rationale": "One documentation file-set carries the whole contract."
+          }
+        },
         "work_item_metadata": {
           "area": "validation",
           "area_label": "area:validation",
@@ -288,6 +314,14 @@
         "files_to_modify": [],
         "files_to_create": [],
         "reference_impl": "scripts/adlc.py",
+        "module_plan": {
+          "applicability": "not_applicable",
+          "reason": "Reconciliation task changes no module structure."
+        },
+        "task_sizing": {
+          "applicability": "not_applicable",
+          "reason": "No code change surface; reconciliation is a metadata audit task."
+        },
         "work_item_metadata": {
           "area": "policy",
           "area_label": "area:policy",
@@ -479,6 +513,14 @@
         "files_to_modify": [],
         "files_to_create": [],
         "reference_impl": "scripts/adlc.py",
+        "module_plan": {
+          "applicability": "not_applicable",
+          "reason": "Alias cleanup task changes no module structure."
+        },
+        "task_sizing": {
+          "applicability": "not_applicable",
+          "reason": "No code change surface; alias cleanup is a dependency metadata task."
+        },
         "work_item_metadata": {
           "area": "policy",
           "area_label": "area:policy",
@@ -588,6 +630,37 @@
         ],
         "files_to_create": [],
         "reference_impl": "scripts/adlc.py",
+        "module_plan": {
+          "applicability": "not_applicable",
+          "reason": "Readiness gate extends existing runtime, schema, and docs surfaces without creating module structure."
+        },
+        "task_sizing": {
+          "applicability": "required",
+          "reason": "Runtime, schema, and emitter contract updates must move together to keep the emitted readiness payload valid.",
+          "basis": [
+            "atomicity"
+          ],
+          "change_surface": {
+            "surface_kind": "atomic_cross_module",
+            "primary_module": "ADLC emitter readiness contract",
+            "touched_modules": [
+              "scripts/adlc.py",
+              "docs/specs/emitter-contract.md",
+              "docs/schemas/build-brief.schema.json"
+            ],
+            "touched_files": [
+              "scripts/adlc.py",
+              "docs/specs/emitter-contract.md",
+              "docs/schemas/build-brief.schema.json"
+            ],
+            "coherence": "The CLI readiness behavior, schema contract, and emitter documentation are one externally visible contract."
+          },
+          "split_decision": {
+            "required": false,
+            "rationale": "Splitting would leave runtime behavior, schema validation, and emitter contract out of sync."
+          },
+          "atomic_work_reason": "The schema, runtime readiness gate, and emitter contract must change atomically so --require-ready can validate and publish one consistent artifact shape."
+        },
         "work_item_metadata": {
           "area": "policy",
           "area_label": "area:policy",
@@ -647,7 +720,7 @@
       {
         "artifact_type": "validation_task",
         "task_id": "XIA-VAL-SPLIT",
-        "title": "Validation task split",
+        "title": "Validation task readiness",
         "objective": "Run end-to-end validation that all cleanup tasks meet ADLC enterprise readiness criteria.",
         "task_classification": "build_validation",
         "decision_contract": {
@@ -724,6 +797,14 @@
         "files_to_modify": [],
         "files_to_create": [],
         "reference_impl": "scripts/adlc.py",
+        "module_plan": {
+          "applicability": "not_applicable",
+          "reason": "Validation task only and creates no module structure."
+        },
+        "task_sizing": {
+          "applicability": "not_applicable",
+          "reason": "Validation only with no implementation surface and no change surface."
+        },
         "work_item_metadata": {
           "area": "validation",
           "area_label": "area:validation",

@@ -828,6 +828,210 @@
         }
       ]
     },
+    "task_sizing_split_proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "module_or_file_set",
+        "reason",
+        "files"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "module_or_file_set": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "task_sizing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applicability",
+        "reason"
+      ],
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": [
+            "required",
+            "not_applicable"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "basis": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "responsibility_boundary",
+              "module_plan",
+              "coherent_file_set",
+              "atomicity",
+              "validation_scope"
+            ]
+          }
+        },
+        "change_surface": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "surface_kind",
+            "touched_modules",
+            "touched_files",
+            "coherence"
+          ],
+          "properties": {
+            "surface_kind": {
+              "type": "string",
+              "enum": [
+                "single_module",
+                "coherent_file_set",
+                "atomic_cross_module"
+              ]
+            },
+            "primary_module": {
+              "type": "string",
+              "minLength": 1
+            },
+            "touched_modules": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "touched_files": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "coherence": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "split_decision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "required",
+            "rationale"
+          ],
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proposed_splits": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/task_sizing_split_proposal"
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "required": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "proposed_splits"
+                ],
+                "properties": {
+                  "proposed_splits": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "atomic_work_reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "applicability": {
+                "const": "required"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "basis",
+              "change_surface",
+              "split_decision"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "change_surface"
+            ],
+            "properties": {
+              "change_surface": {
+                "required": [
+                  "surface_kind"
+                ],
+                "properties": {
+                  "surface_kind": {
+                    "const": "atomic_cross_module"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "atomic_work_reason"
+            ]
+          }
+        }
+      ]
+    },
     "honesty_contract": {
       "type": "object",
       "additionalProperties": false,
@@ -1464,6 +1668,9 @@
         },
         "module_plan": {
           "$ref": "#/definitions/module_plan"
+        },
+        "task_sizing": {
+          "$ref": "#/definitions/task_sizing"
         },
         "work_item_metadata": {
           "type": "object",

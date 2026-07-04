@@ -246,6 +246,22 @@ write_module_plan_valid_brief() {
         "write_first": true
       }
     } |
+    (.sections."8_task_tickets"[0].task_sizing) = {
+      "applicability": "required",
+      "reason": "Structural persistence split is one coherent module_plan file-set.",
+      "basis": ["module_plan", "coherent_file_set"],
+      "change_surface": {
+        "surface_kind": "coherent_file_set",
+        "primary_module": "src/scoreboard",
+        "touched_modules": ["src/scoreboard"],
+        "touched_files": ["src/scoreboard.py", "src/scoreboard/persist.py", "tests/test_scoreboard_architecture.py"],
+        "coherence": "The source files and architecture test are the planned scoreboard persistence module split."
+      },
+      "split_decision": {
+        "required": false,
+        "rationale": "The required module_plan describes one coherent file-set."
+      }
+    } |
     (.sections."8_task_tickets"[1].module_plan) = {
       "applicability": "not_applicable",
       "reason": "Existing behavior bugfix changes only current files."
@@ -472,6 +488,20 @@ assert_emit_preserves_performance_envelopes() {
     jq -e '
       .readiness_report.status == "ready" and
       any(.artifacts[]; .id == "SMOKE_FEATURE_SCOREBOARD" and .performance_envelope.applicability == "required" and .benchmark_required == true and (.benchmark_command | contains("tests/test_scoreboard_performance.py")))
+    ' >/dev/null
+}
+
+assert_emit_preserves_task_sizing() {
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$ROOT/docs/build-briefs/xia-adlc-remediation.json" --dry-run --require-ready --json |
+    jq -e '
+      .readiness_report.status == "ready" and
+      any(.artifacts[]; .id == "XIA-ADLC-READY" and .task_sizing.change_surface.surface_kind == "atomic_cross_module" and (.task_sizing.atomic_work_reason | contains("atomically"))) and
+      any(.artifacts[]; .id == "XIA-VAL-SPLIT" and .task_sizing.applicability == "not_applicable")
+    ' >/dev/null &&
+  "$ROOT/bin/adlc" emit-work-items --target linear --build-brief "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" --dry-run --require-ready --json |
+    jq -e '
+      .readiness_report.status == "ready" and
+      any(.artifacts[]; .id == "SMOKE_BUGFIX_AVERAGE" and .task_sizing.change_surface.surface_kind == "single_module" and .module_plan.applicability == "not_applicable")
     ' >/dev/null
 }
 
@@ -708,6 +738,7 @@ assert "task schema supports explicit generated-output surfaces" "jq -e '.defini
 assert "task schema supports implementation interface and productionization gates" "jq -e '.definitions.task.properties.implementation_interface_contract[\"\$ref\"] == \"#/definitions/implementation_interface_contract\" and .definitions.task.properties.productionization_gate[\"\$ref\"] == \"#/definitions/productionization_gate\" and (.properties.sections.properties | has(\"16_implementation_interfaces\")) and (.properties.sections.properties | has(\"17_productionization_gates\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports honesty contracts" "jq -e '.definitions.task.properties.honesty_contract[\"\$ref\"] == \"#/definitions/honesty_contract\" and .definitions.honesty_contract.required == [\"applicability\", \"reason\"] and (.definitions.honesty_contract.properties.applicability.enum | index(\"required\")) and (.definitions.honesty_contract.properties.applicability.enum | index(\"not_applicable\")) and (.definitions.honesty_contract.properties.output_surfaces.items.enum | index(\"artifact\")) and (.definitions.honesty_contract.properties.required_output_fields.items.enum | index(\"doc_honesty_section\")) and (.definitions.honesty_contract.properties.required_output_fields.items.enum | index(\"no_overclaim\")) and (.definitions.honesty_contract.properties.required_output_fields.items.enum | index(\"limitations\"))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports performance envelopes" "jq -e '.definitions.task.properties.performance_envelope[\"\$ref\"] == \"#/definitions/performance_envelope\" and (.definitions.performance_envelope.required | index(\"applicability\")) and (.definitions.performance_envelope.required | index(\"reason\")) and (.definitions.performance_envelope.properties.applicability.enum | index(\"required\")) and (.definitions.performance_envelope.properties.applicability.enum | index(\"not_applicable\")) and .definitions.performance_envelope.properties.expected_input_scale.items.required == [\"name\", \"expected\", \"unit\"] and .definitions.performance_envelope.properties.hot_paths.items.required == [\"operation\", \"complexity\", \"rationale\"] and .definitions.performance_envelope.properties.benchmark_required.type == \"boolean\" and (.definitions.performance_envelope.properties.benchmark_spec.required | index(\"command\")) and (.definitions.performance_envelope.allOf[] | select(.if.properties.applicability.const == \"required\") | (.then.required | index(\"expected_input_scale\")) and (.then.required | index(\"hot_paths\")) and (.then.required | index(\"benchmark_required\")))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
+assert "task schema supports task sizing" "jq -e '.definitions.task.properties.task_sizing[\"\$ref\"] == \"#/definitions/task_sizing\" and .definitions.task_sizing.required == [\"applicability\", \"reason\"] and (.definitions.task_sizing.properties.applicability.enum | index(\"required\")) and (.definitions.task_sizing.properties.applicability.enum | index(\"not_applicable\")) and (.definitions.task_sizing.properties.change_surface.properties.surface_kind.enum | index(\"atomic_cross_module\")) and (.definitions.task_sizing.properties.basis.items.enum | index(\"module_plan\")) and (.definitions.task_sizing.allOf[] | select(.if.properties.applicability.const == \"required\") | (.then.required | index(\"basis\")) and (.then.required | index(\"change_surface\")) and (.then.required | index(\"split_decision\")))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "task schema supports module plans" "jq -e '.definitions.task.properties.module_plan[\"\$ref\"] == \"#/definitions/module_plan\" and .definitions.module_plan.required == [\"applicability\", \"reason\"] and (.definitions.module_plan.properties.applicability.enum | index(\"required\")) and (.definitions.module_plan.properties.applicability.enum | index(\"not_applicable\")) and (.definitions.module_plan.allOf[] | select(.if.properties.applicability.const == \"required\") | (.then.required | index(\"files\")) and (.then.required | index(\"architecture_test\")))' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "module plan file schema forbids catch-all names pure side effects and conjunction responsibilities" "jq -e '.definitions.module_plan_file.required == [\"path\",\"responsibility\",\"purity\",\"capabilities\"] and .definitions.module_plan_file.properties.capabilities.minItems == 1 and (.definitions.module_plan_file.properties.capabilities.items.enum | index(\"fs\")) and (.definitions.module_plan_architecture_test.required | index(\"write_first\")) and .definitions.module_plan_architecture_test.properties.write_first.const == true' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
 assert "module plans support paved-road pattern provenance and deviations" "jq -e '.definitions.module_plan.properties.pattern_id.type == \"string\" and .definitions.module_plan.properties.pattern_ref[\"\$ref\"] == \"#/definitions/module_plan_pattern_ref\" and .definitions.module_plan.properties.pattern_deviation_reason.type == \"string\" and .definitions.module_plan_pattern_ref.properties.exemplar_commit.pattern == \"^[0-9a-f]{40}$\"' '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null"
@@ -836,17 +867,20 @@ assert "codegen context consumes compact learning refs" "rg -q 'compound_context
 assert "codegen context carries repo conventions" "rg -q 'missing_repo_conventions|repo_conventions|no_conventions_found|Repo Conventions' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context carries honesty contracts" "rg -q 'missing_honesty_contract|Honesty Contract|doc_honesty_section|no_overclaim.*limitations' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "codegen context carries performance envelopes" "rg -q 'missing_performance_envelope|Performance Envelope|queue-complete --benchmark' '$ROOT/skills/codegen-context/SKILL.md'"
+assert "codegen context carries task sizing" "rg -q 'missing_task_sizing|Task Sizing|split_decision.required|atomic_cross_module' '$ROOT/skills/codegen-context/SKILL.md'"
 assert "spec-to-tests enforces module plan architecture tests first" "rg -q 'module_plan.architecture_test|before production code|forbidden catch-all names|pure/impure markings' '$ROOT/skills/spec-to-tests/SKILL.md'"
 assert "spec-to-tests covers pattern-generated architecture tests" "rg -q 'module_plan_source=pattern|registered paved-road pattern|pattern_deviation_reason' '$ROOT/skills/spec-to-tests/SKILL.md'"
 assert "docs document module plan closeout" "rg -q 'module_plan|module-plan-check' '$ROOT/README.md' && rg -q 'module_plan|module-plan-check' '$ROOT/WORKFLOW.md'"
 assert "docs document honesty contract closeout" "rg -q 'Honesty Contract|honesty_contract|doc_honesty_section|no_overclaim.*limitations' '$ROOT/README.md' && rg -q 'honesty_contract' '$ROOT/WORKFLOW.md'"
 assert "docs document performance envelope closeout" "rg -q 'Performance Envelope|performance_envelope|benchmark_required' '$ROOT/README.md' && rg -q 'performance_envelope' '$ROOT/WORKFLOW.md'"
+assert "docs document task sizing closeout" "rg -q 'Task Sizing|task_sizing|split decision' '$ROOT/README.md' && rg -q 'task_sizing' '$ROOT/WORKFLOW.md'"
 assert "docs document paved-road pattern preflight" "rg -q 'paved-road-patterns|pattern:interralis:evidence-module|pattern_deviation_reason' '$ROOT/README.md' && rg -q 'paved-road-patterns|registered pattern exemplars' '$ROOT/WORKFLOW.md'"
 assert "docs document target repo convention closeout" "rg -Fq 'Target Repo Conventions' '$ROOT/CONTRIBUTING.md' && rg -Fq 'repo_conventions' '$ROOT/CONTRIBUTING.md' && rg -Fq 'pr-hygiene-scan' '$ROOT/CONTRIBUTING.md' && rg -Fq 'repo_conventions' '$ROOT/WORKFLOW.md' && rg -Fq 'convention-scan' '$ROOT/WORKFLOW.md' && rg -Fq 'pr-hygiene-scan' '$ROOT/WORKFLOW.md' && rg -Fq 'Target Repo Conventions' '$ROOT/README.md' && rg -Fq 'convention-scan' '$ROOT/README.md' && rg -Fq 'pr-hygiene-scan' '$ROOT/README.md' && rg -Fq 'Step 2: Build Brief + repo conventions' '$ROOT/skills/build-feature/SKILL.md' && rg -Fq '6a: LDD gate + structural convention scan' '$ROOT/skills/build-feature/SKILL.md' && rg -Fq 'Step 9: Stop Slop + PR hygiene scan' '$ROOT/skills/build-feature/SKILL.md'"
 assert "reuse analysis checks docs solutions learning refs" "rg -q 'docs/solutions|compound_context.learning_refs|Learning Store Prior Art|no_op_reasons' '$ROOT/skills/reuse-analysis/SKILL.md'"
 assert "DoD uses core baseline and overlays" "rg -q 'core baseline|overlay' '$ROOT/skills/definition-of-done/SKILL.md'"
 assert "DoD checks honesty contract" "rg -q 'Honesty contract satisfied|honesty_contract_satisfied|no external claims' '$ROOT/skills/definition-of-done/SKILL.md'"
 assert "DoD checks performance envelope" "rg -q 'Performance envelope satisfied|performance_envelope_satisfied|benchmark_required' '$ROOT/skills/definition-of-done/SKILL.md'"
+assert "DoD checks task sizing" "rg -q 'Task sizing satisfied|task_sizing_satisfied|split-required tasks' '$ROOT/skills/definition-of-done/SKILL.md'"
 assert "DoD requires convention scan without size gates" "rg -q 'convention-scan' '$ROOT/skills/definition-of-done/SKILL.md' && rg -q 'Repo convention waivers explicit' '$ROOT/skills/definition-of-done/SKILL.md' && rg -q 'File size, line count, and SLOC are not valid DoD criteria' '$ROOT/skills/definition-of-done/SKILL.md'"
 assert "LDD runs convention scan without size gates" "rg -q 'Repo Convention Structural Scan' '$ROOT/skills/ldd-enforcement/SKILL.md' && rg -q 'convention-scan' '$ROOT/skills/ldd-enforcement/SKILL.md' && rg -q 'file size.*line count' '$ROOT/skills/ldd-enforcement/SKILL.md'"
 assert "architecture pattern enforces recursive convention decomposition" "rg -q 'Apply Target Repo Conventions First' '$ROOT/skills/architecture-pattern/SKILL.md' && rg -q 'Recursive rule' '$ROOT/skills/architecture-pattern/SKILL.md' && rg -q 'responsibility' '$ROOT/skills/architecture-pattern/SKILL.md' && rg -q 'architecture tests' '$ROOT/skills/architecture-pattern/SKILL.md' && rg -q 'Catch-all' '$ROOT/skills/architecture-pattern/SKILL.md' && rg -q 'file size or line count' '$ROOT/skills/architecture-pattern/SKILL.md'"
@@ -861,6 +895,8 @@ assert "Build Brief Agent emits honesty contracts" "rg -q 'honesty_contract|does
 assert "planner emits honesty contracts" "rg -q 'Honesty contract|honesty_contract|no external claims|doc_honesty_section|no_overclaim.*limitations' '$ROOT/agents/planner.md'"
 assert "Build Brief Agent emits performance envelopes" "rg -q 'Performance Envelope|performance_envelope|benchmark_required' '$ROOT/agents/ADLC-BUILD-BRIEF-AGENT.md'"
 assert "planner emits performance envelopes" "rg -q 'Performance envelope|performance_envelope|benchmark_required' '$ROOT/agents/planner.md'"
+assert "Build Brief Agent emits task sizing" "rg -q 'Task Sizing|task_sizing|atomic_cross_module|split_decision' '$ROOT/agents/ADLC-BUILD-BRIEF-AGENT.md'"
+assert "planner emits task sizing" "rg -q 'Task sizing|task_sizing|atomic_cross_module|split_decision' '$ROOT/agents/planner.md'"
 assert "eval council includes convention auditor" "rg -q 'Convention Auditor' '$ROOT/skills/eval-council/SKILL.md' && rg -q 'repo_conventions.status == extracted' '$ROOT/skills/eval-council/SKILL.md' && rg -q 'file and line ranges' '$ROOT/skills/eval-council/SKILL.md'"
 assert "fix loop uses primary verifier wording" "rg -q 'primary verifier' '$ROOT/skills/fix-loop/SKILL.md'"
 assert "shared emitter contract covers supported targets and local MCP providers" "rg -q 'GitHub|Linear|Notion|Work-item emitter|Document emitter|locally installed MCP provider|capability_bindings' '$ROOT/docs/specs/emitter-contract.md'"
@@ -872,6 +908,7 @@ assert "shared emitter contract preserves loop contract refs" "rg -q 'loop_contr
 assert "shared emitter contract preserves slop quality gates" "rg -q 'slop_quality_gate|case-promotion sources|generated-output behavior' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves honesty contracts" "rg -q 'honesty_contract|no_overclaim|limitations|doc_honesty_section|missing_honesty_contract' '$ROOT/docs/specs/emitter-contract.md'"
 assert "shared emitter contract preserves performance envelopes" "rg -q 'performance_envelope|benchmark_results|missing_performance_envelope|missing_benchmark_evidence' '$ROOT/docs/specs/emitter-contract.md'"
+assert "shared emitter contract preserves task sizing" "rg -q 'task_sizing|missing_task_sizing|task_sizing_split_required|Task sizing checks' '$ROOT/docs/specs/emitter-contract.md'"
 assert "JIRA ticket creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "Confluence decomposition respects applicability manifest" "rg -q 'contract_version|applicability_manifest|active Build Brief sections' '$ROOT/skills/confluence-decomposition/SKILL.md'"
 assert "GitHub issue creation preserves verification contract" "rg -q 'contract_version|Verification Contract|task_classification|verification_spec' '$ROOT/skills/github-issue-creation/SKILL.md'"
@@ -883,11 +920,13 @@ assert "work item emitters preserve loop contract refs" "rg -q 'Loop Contract re
 assert "work item emitters preserve slop quality gates" "rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Slop Quality Gate|slop_quality_gate|Case promotion sources' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "work item emitters preserve honesty contracts" "rg -q 'Honesty Contract|honesty_contract|No-Overclaim' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Honesty Contract|honesty_contract|No-Overclaim' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Honesty Contract|honesty_contract|No-Overclaim' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "work item emitters preserve performance envelopes" "rg -q 'Performance Envelope|performance_envelope|Benchmark results' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'Performance Envelope|performance_envelope|Benchmark results' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'Performance Envelope|performance_envelope|Benchmark results' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
+assert "work item emitters preserve task sizing" "rg -q 'task_sizing' '$ROOT/skills/jira-ticket-creation/SKILL.md' && rg -q 'task_sizing' '$ROOT/skills/github-issue-creation/SKILL.md' && rg -q 'task_sizing' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
 assert "emit-work-items preserves scalable AI code primitive refs" "assert_emit_preserves_scalable_primitives"
 assert "emit-work-items preserves task fingerprints" "assert_emit_preserves_task_fingerprints"
 assert "emit-work-items preserves implementation interface and productionization contracts" "assert_emit_preserves_implementation_and_productionization_contracts"
 assert "emit-work-items preserves honesty contracts" "assert_emit_preserves_honesty_contracts"
 assert "emit-work-items preserves performance envelopes" "assert_emit_preserves_performance_envelopes"
+assert "emit-work-items preserves task sizing" "assert_emit_preserves_task_sizing"
 assert "emit-work-items preserves loop contract refs" "assert_emit_preserves_loop_contract_refs"
 assert "emit-work-items preserves slop quality gates" "assert_emit_preserves_slop_quality_gate"
 assert "implementation interface productionization example is ready" "'$ROOT/bin/adlc' emit-work-items --target linear --build-brief '$ROOT/docs/build-briefs/implementation-interfaces-productionization-example.json' --dry-run --require-ready --json | jq -e '.readiness_report.status == \"ready\" and .artifacts[0].implementation_interface_contract.id == \"iface:adlc-iip-example\" and .artifacts[0].productionization_gate.coverage_state == \"production_ready\"' >/dev/null"
@@ -903,7 +942,7 @@ assert "Notion decomposition respects applicability manifest" "rg -q 'contract_v
 assert "JIRA ticket creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/jira-ticket-creation/SKILL.md'"
 assert "GitHub issue creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/github-issue-creation/SKILL.md'"
 assert "Linear ticket creation preserves reuse and tech debt context" "rg -q 'Reference implementation|Reuse / Existing Patterns|Tech Debt / Cleanup Boundaries' '$ROOT/skills/linear-ticket-creation/SKILL.md'"
-assert "specificity judge checks one-shot production readiness" "rg -q 'one-shot.*production-ready|unresolved_type1_in_implementation|missing_compatibility_contract|missing_validation_task' '$ROOT/skills/specificity-judge/SKILL.md'"
+assert "specificity judge checks one-shot production readiness" "rg -q 'one-shot.*production-ready|unresolved_type1_in_implementation|missing_compatibility_contract|missing_validation_task|missing_task_sizing|broad_change_surface|size_only_split_or_pass' '$ROOT/skills/specificity-judge/SKILL.md'"
 assert "Confluence decomposition preserves reuse and tech debt context" "rg -q 'reference implementations|tech-debt|reuse/reference-implementation guidance|debt-prerequisite sequencing' '$ROOT/skills/confluence-decomposition/SKILL.md'"
 assert "Notion decomposition preserves reuse and tech debt context" "rg -q 'reference implementations|tech-debt|reuse guidance|debt-prerequisite sequencing' '$ROOT/skills/notion-decomposition/SKILL.md'"
 assert "GitHub issue creation requires local MCP provider bindings" "rg -q 'locally installed MCP provider|capability_bindings' '$ROOT/skills/github-issue-creation/SKILL.md'"
@@ -918,6 +957,7 @@ assert "observability-contract has activation metadata" "jq -e '.skills[] | sele
 assert "definition-of-done declares core checks" "jq -e '.skills[] | select(.name==\"definition-of-done\") | (.activation.core_checks | length) > 0' '$ROOT/skills/manifest.json' >/dev/null"
 assert "definition-of-done manifest includes honesty core check" "jq -e '.skills[] | select(.name==\"definition-of-done\") | (.activation.core_checks | index(\"29\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "definition-of-done manifest includes performance core check" "jq -e '.skills[] | select(.name==\"definition-of-done\") | (.activation.core_checks | index(\"30\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
+assert "definition-of-done manifest includes task sizing core check" "jq -e '.skills[] | select(.name==\"definition-of-done\") | (.activation.core_checks | index(\"31\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "build-feature consumes manifest" "jq -e '.skills[] | select(.name==\"build-feature\") | .activation.consumes_manifest == true' '$ROOT/skills/manifest.json' >/dev/null"
 assert "build-feature activates paved-road registry" "jq -e '.skills[] | select(.name==\"build-feature\") | (.activation.activates | index(\"paved-road-registry\")) != null' '$ROOT/skills/manifest.json' >/dev/null"
 assert "eval-council manifest registers convention auditor" "jq -e '.skills[] | select(.name==\"eval-council\") | (.activation.overlay_personas | index(\"convention_auditor\")) != null and (.activation.overlay_triggers.convention_auditor | index(\"repo_conventions.status=extracted\")) != null' '$ROOT/skills/manifest.json' >/dev/null"

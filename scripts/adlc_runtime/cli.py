@@ -772,6 +772,7 @@ def context_packages_for_brief(
                     "performance_envelope": task.get("performance_envelope"),
                     "module_plan": module_plan,
                     "module_plan_source": module_plan_source,
+                    "task_sizing": task.get("task_sizing"),
                     "paved_road_pattern": paved_road_pattern_context(matched_pattern),
                     "repo_conventions": brief.get("repo_conventions"),
                     "product_vocabulary": brief.get("product_vocabulary"),
@@ -7559,6 +7560,202 @@ def module_plan_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
     return issues
 
 
+def unique_nonempty_strings(values: Any) -> List[str]:
+    if not isinstance(values, list):
+        return []
+    result: List[str] = []
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        cleaned = value.strip()
+        if cleaned and cleaned not in result:
+            result.append(cleaned)
+    return result
+
+
+def task_sizing_split_proposal_text(sizing: Dict[str, Any]) -> str:
+    split_decision = sizing.get("split_decision")
+    proposals = []
+    if isinstance(split_decision, dict):
+        for item in split_decision.get("proposed_splits", []) or []:
+            if not isinstance(item, dict):
+                continue
+            title = str(item.get("title") or item.get("module_or_file_set") or "").strip()
+            reason = str(item.get("reason") or "").strip()
+            if title and reason:
+                proposals.append(f"{title}: {reason}")
+            elif title:
+                proposals.append(title)
+    if proposals:
+        return "; ".join(proposals)
+
+    surface = sizing.get("change_surface")
+    modules = unique_nonempty_strings(surface.get("touched_modules") if isinstance(surface, dict) else [])
+    if modules:
+        return "split by module: " + ", ".join(modules)
+    return "split the task into one task per coherent module or module_plan file-set"
+
+
+def task_sizing_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not task_executable(task):
+        return []
+
+    task_id = task["task_id"]
+    sizing = task.get("task_sizing")
+    if not isinstance(sizing, dict):
+        return [
+            {
+                "severity": "blocking",
+                "rule": "missing_task_sizing",
+                "task_id": task_id,
+                "message": "executable tasks must include task_sizing or an explicit no-change-surface skip",
+            }
+        ]
+
+    applicability = sizing.get("applicability")
+    if applicability == "not_applicable":
+        reason = str(sizing.get("reason") or "").lower()
+        valid_markers = (
+            "validation only",
+            "validation-only",
+            "no code change",
+            "no change surface",
+            "no implementation surface",
+            "no decomposition surface",
+        )
+        if not any(marker in reason for marker in valid_markers):
+            return [
+                {
+                    "severity": "blocking",
+                    "rule": "task_sizing_skip_without_no_change_surface",
+                    "task_id": task_id,
+                    "message": "task_sizing.applicability=not_applicable must declare validation-only or no implementation/change surface",
+                }
+            ]
+        return []
+
+    if applicability != "required":
+        return [
+            {
+                "severity": "blocking",
+                "rule": "invalid_task_sizing_applicability",
+                "task_id": task_id,
+                "message": "task_sizing.applicability must be required or not_applicable",
+            }
+        ]
+
+    issues: List[Dict[str, Any]] = []
+    surface = sizing.get("change_surface")
+    if not isinstance(surface, dict):
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_task_sizing_surface",
+                "task_id": task_id,
+                "message": "required task_sizing must declare change_surface",
+            }
+        )
+        return issues
+
+    surface_kind = surface.get("surface_kind")
+    touched_modules = unique_nonempty_strings(surface.get("touched_modules"))
+    touched_files = unique_nonempty_strings(surface.get("touched_files"))
+    if not touched_modules:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_task_sizing_modules",
+                "task_id": task_id,
+                "message": "required task_sizing.change_surface must list touched_modules",
+            }
+        )
+    if not touched_files:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_task_sizing_files",
+                "task_id": task_id,
+                "message": "required task_sizing.change_surface must list touched_files",
+            }
+        )
+
+    split_decision = sizing.get("split_decision")
+    if not isinstance(split_decision, dict) or not isinstance(split_decision.get("required"), bool):
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_task_sizing_split_decision",
+                "task_id": task_id,
+                "message": "required task_sizing must declare split_decision.required true or false",
+            }
+        )
+    elif split_decision.get("required") is True:
+        proposal = task_sizing_split_proposal_text(sizing)
+        proposals = split_decision.get("proposed_splits")
+        if not isinstance(proposals, list) or not proposals:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "missing_task_sizing_split_proposal",
+                    "task_id": task_id,
+                    "message": f"task_sizing marks this task for splitting but does not include proposed_splits; proposed split: {proposal}",
+                }
+            )
+        else:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "task_sizing_split_required",
+                    "task_id": task_id,
+                    "message": f"task change surface is broader than one ready task; proposed split: {proposal}",
+                }
+            )
+
+    if len(touched_modules) > 1 and surface_kind == "single_module":
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "task_sizing_multiple_modules",
+                "task_id": task_id,
+                "message": f"task_sizing.surface_kind=single_module lists multiple modules; proposed split: {task_sizing_split_proposal_text(sizing)}",
+            }
+        )
+
+    if len(touched_modules) > 1 and surface_kind not in {"coherent_file_set", "atomic_cross_module"}:
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "task_sizing_broad_surface",
+                "task_id": task_id,
+                "message": f"task change surface exceeds one module without a coherent file-set or atomic-work reason; proposed split: {task_sizing_split_proposal_text(sizing)}",
+            }
+        )
+
+    if surface_kind == "coherent_file_set":
+        plan, _plan_source, _matched_pattern, _generation_issue = task_effective_module_plan(task)
+        if not isinstance(plan, dict) or plan.get("applicability") != "required":
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "rule": "task_sizing_coherent_file_set_without_module_plan",
+                    "task_id": task_id,
+                    "message": "coherent_file_set sizing requires a required module_plan so the coding agent does not invent structure",
+                }
+            )
+
+    if surface_kind == "atomic_cross_module" and not has_nonempty_value(sizing.get("atomic_work_reason")):
+        issues.append(
+            {
+                "severity": "blocking",
+                "rule": "missing_task_sizing_atomic_reason",
+                "task_id": task_id,
+                "message": "atomic_cross_module sizing must explain why this cross-module work cannot be split; size alone is not a valid reason",
+            }
+        )
+
+    return issues
+
+
 def module_plan_check_payload(brief_path: Path) -> Dict[str, Any]:
     errors = validate_artifact(resolve_schema("build-brief"), brief_path)
     if errors:
@@ -7841,6 +8038,8 @@ def compute_readiness_report(
             issues.extend(productionization_gate_issues_for_task(task))
             issues.extend(honesty_contract_issues_for_task(task))
             issues.extend(performance_envelope_issues_for_task(task))
+            issues.extend(module_plan_issues_for_task(task))
+            issues.extend(task_sizing_issues_for_task(task))
 
     if phase_project_map:
         for task in tasks:
@@ -7939,6 +8138,7 @@ def normalized_work_item_payload(brief_path: Path, target: str, state: Dict[str,
             "files_to_modify": task.get("files_to_modify", []),
             "module_plan": module_plan,
             "module_plan_source": module_plan_source,
+            "task_sizing": task.get("task_sizing"),
             "paved_road_pattern": paved_road_pattern_context(matched_pattern),
             "tech_debt_boundaries": task.get("tech_debt_boundaries"),
             "compatibility_contract": task.get("compatibility_contract"),

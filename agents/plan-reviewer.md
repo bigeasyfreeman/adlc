@@ -52,14 +52,14 @@ Do not treat `must_fail_before_change` as violated merely because the current wo
       "schema_validation": "pass | fail",
       "specificity": {
         "status": "pass | warn | revise | stuck",
-        "reason": "null | low_specificity | specificity_judge_unavailable"
+        "reason": "null | low_specificity | task_sizing_blocked | specificity_judge_unavailable"
       },
       "verifier_scope_intersection": "pass | warn | fail",
       "verifier_semantic_coverage": {
         "status": "pass | skip | fail",
         "reason": "null | verifier_no_coverage | verifier_semantic_mismatch | target_files_unset"
       },
-      "reason": "null | verifier_no_coverage | low_specificity | specificity_judge_unavailable | verifier_semantic_mismatch"
+      "reason": "null | verifier_no_coverage | low_specificity | task_sizing_blocked | specificity_judge_unavailable | verifier_semantic_mismatch"
     },
     "applicability_manifest": {
       "task_classification": "feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security",
@@ -88,6 +88,7 @@ Do not treat `must_fail_before_change` as violated merely because the current wo
 - **blocked**: Critical issues needing human judgment. Escalate.
 - **stuck**: Required judge unavailable for the active runtime. Escalate with a concrete machine-readable reason.
 - Gate 0 must report schema validation, specificity, verifier scope intersection, and verifier semantic coverage explicitly. If `verification_spec.target_files` is set and does not intersect task file scope, return `revise` with `reason: "verifier_no_coverage"`. If specificity falls below `0.6`, return `revise` with `reason: "low_specificity"`.
+- Gate 0 must return `revise` with `reason: "task_sizing_blocked"` when an executable task lacks `task_sizing`, marks `split_decision.required=true`, or spans multiple unrelated modules without one coherent `module_plan` file-set or an atomic cross-module reason.
 - Gate 0 must return `revise` with `reason: "missing_implementation_interface_contract"` when an active integration, schema, emitter payload, workflow-state, CLI, provider, or reusable framework surface lacks `implementation_interface_contract`.
 - Gate 0 must return `revise` with `reason: "missing_productionization_gate"` when a production support claim lacks `productionization_gate`.
 - Gate 0 must return `revise` with `reason: "overclaimed_production_ready"` when `coverage_state=production_ready` lacks validation evidence, No-Overclaim boundaries, reliability failure modes, owner/rollback/runbook or observability posture, or security/privacy posture.

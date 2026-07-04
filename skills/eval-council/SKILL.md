@@ -175,6 +175,7 @@ Any FAIL = the task is not agent-ready. This is a **major finding**.
 - Does the task decomposition preserve the target repo's one-responsibility, coordinator, and pure-core/impure-shell rules before implementation starts?
 - Does every planned file have one distinct job and a verification predicate from `repo_conventions.rules[]`?
 - Do planned files avoid catch-all responsibilities that would force multiple jobs into one implementation file?
+- Does every executable task have `task_sizing` proving one module, one coherent `module_plan` file-set, or explicitly atomic cross-module work before codegen starts?
 
 **Post-Execution asks:**
 - For each changed file, what are its distinct jobs: types cluster, data shape, each logic domain, each I/O site, and coordination?
@@ -484,9 +485,9 @@ Store the canonical report outside the target repo with `bin/adlc process-artifa
 - **Evidence:** Codebase Research `data_layer` shows Prisma connection pool configured in `src/server/config.ts`.
 - **Recommendation:** Update FM-003 prevention to address the actual risk (query optimization, read replica, or timeout tuning).
 
-**[M-003] Executioner:** Backend task 5 estimated at 2h but requires schema migration + backfill + rollback script — this is 3 tasks.
+**[M-003] Executioner:** Backend task 5 spans schema migration, backfill, and rollback modules without a coherent module_plan file-set or atomic-work reason.
 - **Location:** Section 8, Backend, Task 5
-- **Recommendation:** Decompose into: (a) migration script 1h, (b) backfill script 1h, (c) rollback script 1h.
+- **Recommendation:** Decompose into: (a) migration script, (b) backfill script, (c) rollback script, or mark `task_sizing.atomic_cross_module` with evidence that they cannot split safely.
 
 ### Minor Findings (consider resolving)
 
@@ -531,7 +532,7 @@ The council evaluates the complete Build Brief against these criteria:
 
 **Task Self-Containment & Parallelism**
 - [ ] Every active task passes the self-containment checklist (deliverable, file paths, pattern, G/W/T, dependencies)
-- [ ] No task exceeds 2h estimate (decomposed if larger)
+- [ ] No executable task spans unrelated modules; split-required tasks include proposed splits and stay blocked until decomposed
 - [ ] Independent tasks are flagged for parallel execution
 - [ ] Dependency chain is a DAG (no circular dependencies)
 - [ ] Parallel execution groups are identified
@@ -558,7 +559,7 @@ Per-skill criteria (in addition to each skill's own quality gates):
 
 | Skill | Key Eval Criteria |
 |-------|------------------|
-| Work-item emitter | Every task from brief has a ticket or issue. No work item exceeds 2h. Dependencies are linked. |
+| Work-item emitter | Every task from brief has a ticket or issue. `task_sizing` and proposed splits are preserved. Dependencies are linked. |
 | Document emitter | Page hierarchy matches structure. Diagrams or source blocks render acceptably. Type 1 warnings visible. |
 | QA | Tests are deterministic (no randomness). Every AC has a test. Edge cases are real edge cases. |
 | CI/CD | Workflows match repo conventions. Secrets exist. Rollback mechanism matches brief. |

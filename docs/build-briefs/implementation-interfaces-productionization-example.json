@@ -186,6 +186,35 @@
           "docs/build-briefs/implementation-interfaces-productionization-example.json"
         ],
         "reference_impl": "scripts/adlc.py:normalized_work_item_payload",
+        "module_plan": {
+          "applicability": "not_applicable",
+          "reason": "Task preserves existing runtime and example artifact surfaces without creating module structure."
+        },
+        "task_sizing": {
+          "applicability": "required",
+          "reason": "Runtime and example artifact updates must move together to prove payload preservation.",
+          "basis": [
+            "atomicity"
+          ],
+          "change_surface": {
+            "surface_kind": "atomic_cross_module",
+            "primary_module": "ADLC work-item contract preservation",
+            "touched_modules": [
+              "scripts/adlc.py",
+              "docs/build-briefs/implementation-interfaces-productionization-example.json"
+            ],
+            "touched_files": [
+              "scripts/adlc.py",
+              "docs/build-briefs/implementation-interfaces-productionization-example.json"
+            ],
+            "coherence": "The runtime payload preservation and checked-in example are one contract-validation surface."
+          },
+          "split_decision": {
+            "required": false,
+            "rationale": "Splitting would leave the example unable to prove the runtime payload contract."
+          },
+          "atomic_work_reason": "The runtime preservation path and example Build Brief must change atomically so --require-ready validates the exact contract being documented."
+        },
         "construct_map_refs": [
           "graph:construct:adlc-cli"
         ],
@@ -429,6 +458,14 @@
           "docs/build-briefs/implementation-interfaces-productionization-example.json"
         ],
         "reference_impl": "docs/build-briefs/xia-adlc-remediation.json",
+        "module_plan": {
+          "applicability": "not_applicable",
+          "reason": "Validation task only and creates no module structure."
+        },
+        "task_sizing": {
+          "applicability": "not_applicable",
+          "reason": "Validation only with no implementation surface and no change surface."
+        },
         "implementation_interface_contract": {
           "applicability": "not_applicable",
           "reason": "Validation task does not change an integration boundary."
