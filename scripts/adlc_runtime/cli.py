@@ -1146,7 +1146,7 @@ def extract_convention_rules_from_doc(path: Path, workspace: Path) -> Tuple[List
         elif in_conventions and stripped and not stripped.startswith("#") and any(signal in normalized for signal in MUST_RULE_SIGNALS):
             warnings_out.append(convention_warning("prose_convention_candidate", rel, line_number, "Prose contains convention language; record it as a bullet to make extraction deterministic."))
     flush_rule()
-    return rules, source if rules else None, warnings_out, list(dict.fromkeys(removed_ci_gates))
+    return rules, source, warnings_out, list(dict.fromkeys(removed_ci_gates))
 
 
 def repo_conventions_payload(workspace: Path) -> Dict[str, Any]:
@@ -1161,6 +1161,14 @@ def repo_conventions_payload(workspace: Path) -> Dict[str, Any]:
         rules.extend(extracted)
         warnings_out.extend(doc_warnings)
         removed_ci_gates.extend(doc_removed_ci_gates)
+    if not rules and sources:
+        return {
+            "status": "files_present_but_no_normative_rules",
+            "sources": sources,
+            "rules": [],
+            "warnings": warnings_out,
+            "removed_ci_gates": list(dict.fromkeys(removed_ci_gates)),
+        }
     if not rules:
         return {
             "status": "none_found",
@@ -1247,6 +1255,7 @@ def repo_conventions_check_payload(workspace: Path, brief_path: Path) -> Dict[st
     brief = read_json(brief_path)
     claimed = brief.get("repo_conventions", {}) if isinstance(brief, dict) else {}
     claimed_rules = claimed.get("rules", []) if isinstance(claimed, dict) and isinstance(claimed.get("rules"), list) else []
+    claimed_sources = claimed.get("sources", []) if isinstance(claimed, dict) and isinstance(claimed.get("sources"), list) else []
     waivers = claimed.get("waivers", []) if isinstance(claimed, dict) and isinstance(claimed.get("waivers"), list) else []
     fresh = repo_conventions_payload(workspace)
     missing_rules: List[Dict[str, Any]] = []
@@ -1265,21 +1274,50 @@ def repo_conventions_check_payload(workspace: Path, brief_path: Path) -> Dict[st
             missing_rules.append(summary)
 
     claimed_status = claimed.get("status") if isinstance(claimed, dict) else None
+    fresh_status = fresh.get("status")
+    fresh_sources = fresh.get("sources", []) if isinstance(fresh.get("sources"), list) else []
+    fresh_source_paths = [str(source.get("path")) for source in fresh_sources if isinstance(source, dict) and source.get("path")]
+    claimed_source_paths = [str(source.get("path")) for source in claimed_sources if isinstance(source, dict) and source.get("path")]
+    if claimed_status == "none_found" and fresh_status == "files_present_but_no_normative_rules":
+        issues.append(
+            {
+                "rule": "ignored_repo_convention_files",
+                "message": f"build brief claims repo_conventions none_found but target repo convention files were present: {', '.join(fresh_source_paths)}",
+                "ignored_files": fresh_source_paths,
+            }
+        )
+    if claimed_status == "files_present_but_no_normative_rules" and fresh_status == "files_present_but_no_normative_rules":
+        missing_sources = [path for path in fresh_source_paths if path not in claimed_source_paths]
+        if missing_sources:
+            issues.append(
+                {
+                    "rule": "repo_convention_sources_mismatch",
+                    "message": f"build brief files_present_but_no_normative_rules claim omits convention files read: {', '.join(missing_sources)}",
+                    "missing_sources": missing_sources,
+                }
+            )
     if missing_rules:
         issue_rule = "unextracted_repo_conventions" if claimed_status == "none_found" else "divergent_repo_conventions"
+        ignored_files = sorted({str(rule.get("source_path")) for rule in missing_rules if rule.get("source_path")})
+        message = (
+            f"build brief claims repo_conventions none_found but target repo convention files were present: {', '.join(ignored_files)}"
+            if claimed_status == "none_found" and ignored_files
+            else "build brief repo_conventions omits rules extracted from the target repo"
+        )
         issues.append(
             {
                 "rule": issue_rule,
-                "message": "build brief repo_conventions omits rules extracted from the target repo",
+                "message": message,
+                "ignored_files": ignored_files if claimed_status == "none_found" else [],
                 "missing_rules": missing_rules,
             }
         )
 
-    if fresh.get("status") == "none_found" and claimed_status == "extracted":
+    if fresh_status in {"none_found", "files_present_but_no_normative_rules"} and claimed_status == "extracted":
         issues.append(
             {
                 "rule": "stale_repo_conventions",
-                "message": "build brief claims extracted conventions but fresh extraction found no convention docs",
+                "message": "build brief claims extracted conventions but fresh extraction found no normative convention rules",
             }
         )
 

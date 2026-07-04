@@ -372,6 +372,7 @@
           "type": "string",
           "enum": [
             "extracted",
+            "files_present_but_no_normative_rules",
             "none_found"
           ]
         },

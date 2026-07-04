@@ -118,7 +118,7 @@ assert "pr-hygiene-scan auto-detects default base from git" "'$ROOT/bin/adlc' pr
 
 echo ""
 echo "--- Repo Convention Extraction ---"
-mkdir -p "$tmp_dir/conventions-repo" "$tmp_dir/no-conventions-repo"
+mkdir -p "$tmp_dir/conventions-repo" "$tmp_dir/no-conventions-repo" "$tmp_dir/convention-docs-without-rules"
 cat > "$tmp_dir/conventions-repo/CLAUDE.md" <<'EOF'
 # Test Repo
 
@@ -128,8 +128,15 @@ cat > "$tmp_dir/conventions-repo/CLAUDE.md" <<'EOF'
 - **The coordinator file is a thin coordinator, never a worker.**
 - **Pure core, impure shell.** Side effects live only in an impure shell.
 EOF
+cat > "$tmp_dir/convention-docs-without-rules/CLAUDE.md" <<'EOF'
+# Test Repo
+
+This document describes team background and onboarding history. It contains no
+normative implementation rules.
+EOF
 assert "repo-conventions extracts target repo convention rules" "'$ROOT/bin/adlc' repo-conventions --workspace '$tmp_dir/conventions-repo' --json | jq -e '.status == \"extracted\" and (.rules | length) >= 3 and all(.rules[]; (.verification_predicate | length) > 0)' >/dev/null"
 assert "repo-conventions records explicit empty marker when no docs exist" "'$ROOT/bin/adlc' repo-conventions --workspace '$tmp_dir/no-conventions-repo' --json | jq -e '.status == \"none_found\" and .explicit_empty_marker == \"no_conventions_found\" and (.rules | length) == 0' >/dev/null"
+assert "repo-conventions records docs present without normative rules" "'$ROOT/bin/adlc' repo-conventions --workspace '$tmp_dir/convention-docs-without-rules' --json | jq -e '.status == \"files_present_but_no_normative_rules\" and (.rules | length) == 0 and (.sources | length) == 1 and .sources[0].path == \"CLAUDE.md\" and (has(\"explicit_empty_marker\") | not)' >/dev/null"
 mkdir -p "$tmp_dir/conventions-fidelity-repo/docs/policies"
 cat > "$tmp_dir/conventions-fidelity-repo/AGENTS.md" <<'EOF'
 # Fidelity Repo
@@ -159,10 +166,15 @@ assert "repo-conventions preserves multiline bullets warnings removed gates and 
 cp "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" "$tmp_dir/honest-none-found-brief.json"
 jq --slurpfile conventions "$tmp_dir/extracted-repo-conventions.json" '.repo_conventions = ($conventions[0] | .rules = (.rules[0:1]))' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/divergent-conventions-brief.json"
 jq --slurpfile conventions "$tmp_dir/extracted-repo-conventions.json" '.repo_conventions = ($conventions[0] | .rules = (.rules[0:1]) | .waivers = ($conventions[0].rules[1:] | map({rule: .id, source_path: .source_path, reason: "legacy target convention waiver recorded"})))' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/waived-conventions-brief.json"
-assert "repo-conventions-check blocks dishonest none_found" "if '$ROOT/bin/adlc' repo-conventions-check --workspace '$tmp_dir/conventions-repo' --build-brief '$tmp_dir/honest-none-found-brief.json' --json >'$tmp_dir/dishonest-conventions-check.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"unextracted_repo_conventions\") and (.missing_rules | length) >= 3' '$tmp_dir/dishonest-conventions-check.json' >/dev/null; fi"
+assert "repo-conventions-check blocks dishonest none_found" "if '$ROOT/bin/adlc' repo-conventions-check --workspace '$tmp_dir/conventions-repo' --build-brief '$tmp_dir/honest-none-found-brief.json' --json >'$tmp_dir/dishonest-conventions-check.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"unextracted_repo_conventions\" and (.ignored_files | index(\"CLAUDE.md\") != null) and (.message | contains(\"CLAUDE.md\"))) and (.missing_rules | length) >= 3' '$tmp_dir/dishonest-conventions-check.json' >/dev/null; fi"
 assert "repo-conventions-check reports divergent rules" "if '$ROOT/bin/adlc' repo-conventions-check --workspace '$tmp_dir/conventions-repo' --build-brief '$tmp_dir/divergent-conventions-brief.json' --json >'$tmp_dir/divergent-conventions-check.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"divergent_repo_conventions\") and (.missing_rules | length) >= 1 and all(.missing_rules[]; .id and .source_path)' '$tmp_dir/divergent-conventions-check.json' >/dev/null; fi"
 assert "repo-conventions-check accepts recorded waivers" "'$ROOT/bin/adlc' repo-conventions-check --workspace '$tmp_dir/conventions-repo' --build-brief '$tmp_dir/waived-conventions-brief.json' --json | jq -e '.status == \"pass\" and (.missing_rules | length) == 0 and (.waived_rules | length) >= 1' >/dev/null"
 assert "repo-conventions-check accepts honest none_found" "'$ROOT/bin/adlc' repo-conventions-check --workspace '$tmp_dir/no-conventions-repo' --build-brief '$tmp_dir/honest-none-found-brief.json' --json | jq -e '.status == \"pass\" and .fresh.status == \"none_found\"' >/dev/null"
+assert "repo-conventions-check rejects none_found when convention files were read" "if '$ROOT/bin/adlc' repo-conventions-check --workspace '$tmp_dir/convention-docs-without-rules' --build-brief '$tmp_dir/honest-none-found-brief.json' --json >'$tmp_dir/docs-present-none-found-check.json'; then false; else jq -e '.status == \"blocked\" and .fresh.status == \"files_present_but_no_normative_rules\" and any(.issues[]; .rule == \"ignored_repo_convention_files\" and (.ignored_files | index(\"CLAUDE.md\") != null) and (.message | contains(\"CLAUDE.md\")))' '$tmp_dir/docs-present-none-found-check.json' >/dev/null; fi"
+jq '.repo_conventions = {"status":"files_present_but_no_normative_rules","sources":[{"path":"CLAUDE.md","kind":"CLAUDE.md"}],"rules":[]}' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/docs-present-no-rules-brief.json"
+assert "repo-conventions-check accepts explicit docs-present no-rules outcome" "'$ROOT/bin/adlc' repo-conventions-check --workspace '$tmp_dir/convention-docs-without-rules' --build-brief '$tmp_dir/docs-present-no-rules-brief.json' --json | jq -e '.status == \"pass\" and .fresh.status == \"files_present_but_no_normative_rules\"' >/dev/null"
+jq '.repo_conventions = {"status":"files_present_but_no_normative_rules","sources":[],"rules":[]}' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/docs-present-no-rules-missing-source-brief.json"
+assert "repo-conventions-check requires docs-present sources" "if '$ROOT/bin/adlc' repo-conventions-check --workspace '$tmp_dir/convention-docs-without-rules' --build-brief '$tmp_dir/docs-present-no-rules-missing-source-brief.json' --json >'$tmp_dir/docs-present-no-rules-missing-source-check.json'; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"repo_convention_sources_mismatch\" and (.missing_sources | index(\"CLAUDE.md\") != null))' '$tmp_dir/docs-present-no-rules-missing-source-check.json' >/dev/null; fi"
 assert "run-phase blocks dishonest repo conventions before context assembly" "if '$ROOT/bin/adlc' run-phase context_assembly --brief-id CLI-HONESTY --workspace '$tmp_dir/conventions-repo' --build-brief '$tmp_dir/honest-none-found-brief.json' --json >'$tmp_dir/honesty-run-phase.json'; then false; else jq -e '.state.status == \"failed\" and .state.stop_reason == \"repo_conventions_check_failed\" and .repo_conventions_check.status == \"blocked\" and any(.repo_conventions_check.issues[]; .rule == \"unextracted_repo_conventions\")' '$tmp_dir/honesty-run-phase.json' >/dev/null; fi"
 
 echo ""

@@ -204,7 +204,7 @@ Hard rule:
 - Every file listed in `files_to_modify` must have its current content inlined
 - Every file in `reference_impl` must have its code inlined
 - Every task must include `product_vocabulary`, including the shared banned-token list. Internal terms in that list are hard banned output tokens, not style suggestions.
-- Every task must include the target repo `repo_conventions` contract from the Build Brief. If no conventions exist, inline `status: none_found` and `explicit_empty_marker: no_conventions_found`. If the field is absent, return `stuck` with reason `missing_repo_conventions`.
+- Every task must include the target repo `repo_conventions` contract from the Build Brief. If convention files exist but contain no normative rules, inline `status: files_present_but_no_normative_rules` plus the `sources[]` that were read. If no convention files exist, inline `status: none_found` and `explicit_empty_marker: no_conventions_found`. If the field is absent, return `stuck` with reason `missing_repo_conventions`.
 - Every behavioral test artifact, fixture, and command verifier relevant to the task must be inlined
 - Every implementation task must include its decision contract, tech debt boundaries, compatibility contract, evidence responsibilities, and Definition of Done. If the task is blocked by an unresolved Type 1 decision, do not assemble a coding prompt; return `stuck` with reason `unresolved_decision_blocks_implementation`.
 - Every code-changing implementation task must include its construct-map refs, paved-road refs or explicit `no_paved_road_found`, intent contract refs, and production invariant coverage. If these are missing for a medium+ blast-radius code path, return `stuck` with reason `missing_scalable_code_primitives`.
@@ -500,7 +500,7 @@ Tasks flagged as `parallel: true` with no dependencies get separate assembled pr
       },
       "repo_conventions": {
         "type": "object",
-        "description": "Required target-repo conventions contract from the Build Brief; use explicit status none_found plus no_conventions_found marker when no convention files exist."
+        "description": "Required target-repo conventions contract from the Build Brief; use files_present_but_no_normative_rules with sources when docs have no normative rules, and none_found plus no_conventions_found only when no convention files exist."
       }
     },
     "required": ["task_id", "build_brief", "research_deliverable", "repo_path", "product_vocabulary", "repo_conventions"]
