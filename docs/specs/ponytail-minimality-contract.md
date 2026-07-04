@@ -48,6 +48,25 @@ The diff gates are mechanical:
 - Dependency manifest or lockfile additions block as `unapproved_dependency_diff` unless `--dependency-approval-ref <ref>` is supplied.
 - Removals of input validation, error handling, security checks, or accessibility affordances block as `anatomy_removed_*` unless an explicit `--anatomy-waiver category:ref` or `--anatomy-waiver rule:ref` is supplied.
 
+## Limitations
+
+The anatomy gate is a regex-backed diff scanner. With `--diff-file`, it reads
+the unified diff and evaluates removed lines against patterns for validation,
+error handling, security, and accessibility terms. It does not parse the target
+language, evaluate control flow, or prove that equivalent checks still exist.
+
+That means the gate can miss removed safeguards when the change renames,
+restructures, or moves the check without deleting a line that matches the
+current patterns. It can also false-positive on deleted comments, docs, dead
+code, or test fixture text that mentions validation, auth, errors, ARIA, or
+similar anatomy terms.
+
+Waivers are explicit audit records, not skips. Use `--anatomy-waiver
+category:ref` or `--anatomy-waiver rule:ref` only when the ref explains who
+accepted the risk and why. Eval Council's over-engineering minimalist persona is
+the human-review backstop for semantic overreach, but it does not make the
+mechanical anatomy gate a semantic verifier.
+
 ## Codegen
 
 Minimality is decided once at decomposition time. Codegen context carries `minimality_contract` as a settled constraint. Coding agents must not re-deliberate the ladder on every turn.

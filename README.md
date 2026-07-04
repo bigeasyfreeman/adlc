@@ -31,53 +31,126 @@ The framework stays composable. Skills are injectable knowledge, agents are thin
 
 **Skills as Actions:** Skills are contextual behaviors, not static prompts. They activate by context, chain into sequences, and self-improve via feedback loops.
 
-## Setup
+## Install
+
+Install ADLC from this checkout into the target repo you want a harness to work
+on. Use an absolute path or a shell variable so the same commands survive shell,
+IDE, and OS upgrades:
 
 ```bash
-git clone https://github.com/bigeasyfreeman/adlc.git
-cd adlc
-
-./setup.sh claude ~/my-project       # Claude Code
-./setup.sh codex ~/my-project        # Codex (OpenAI)
-./setup.sh cursor ~/my-project       # Cursor
-./setup.sh antigravity ~/my-project  # Antigravity
-./setup.sh factory ~/my-project      # Factory
-./setup.sh all ~/my-project          # All platforms
-./setup.sh verify-claude ~/my-project # Verify Claude skill digests
+TARGET=/path/to/target-repo
+./setup.sh claude "$TARGET"
+./setup.sh codex "$TARGET"
+./setup.sh cursor "$TARGET"
+./setup.sh all "$TARGET"
+./setup.sh verify-claude "$TARGET"
 ```
 
-| Platform | Skills | Agents | Instructions |
-|----------|--------|--------|-------------|
-| Claude Code | `.claude/skills/` | `.claude/agents/` | `CLAUDE.md` |
-| Codex | `.agents/skills/` | via `AGENTS.md` | `AGENTS.md` |
-| Cursor | `.cursor/rules/*.mdc` | `.cursor/rules/*.mdc` | in rules |
-| Antigravity | `.agent/skills/` | `agents.md` | in agents.md |
-| Factory | `.factory/docs/` | `.factory/droids/` | `AGENTS.md` |
+The direct forms are `./setup.sh claude <target>`, `./setup.sh codex <target>`,
+`./setup.sh cursor <target>`, and `./setup.sh all <target>`. Claude installs
+ADLC-managed `SKILL.md` files under `<target>/.claude/skills/<skill>/SKILL.md`,
+agents under `<target>/.claude/agents/`, `CLAUDE.md`, and
+`<target>/.claude/WORKFLOW.dot`. Codex installs skills under
+`<target>/.agents/skills/` plus `AGENTS.md`; Cursor installs `.mdc` rules.
 
-Or copy what you need by hand:
-```bash
-cp -r skills/codebase-research/ ~/my-project/.claude/skills/codebase-research/
-```
+Every install also writes `<target>/.adlc/bin/adlc`. That wrapper bakes
+`ADLC_ROOT` to this ADLC checkout and execs `bin/adlc`, so schemas,
+`skills/paved-road-registry/patterns.json`, the predicate library, and runtime
+code stay source-backed. Deployed skills do not need copied non-SKILL assets.
 
-`setup.sh` also installs a target-repo wrapper at `.adlc/bin/adlc`. The wrapper
-sets `ADLC_ROOT` back to this checkout and runs the deterministic ADLC CLI, so a
-target repo can validate schemas, readiness, Loop Contracts, and MCP tool
-metadata without copying the runtime source.
-For Claude Code closeout, `./setup.sh verify-claude <target>` checks that every
-ADLC-managed installed skill digest matches this checkout while ignoring
-unmanaged local skills.
-
-The shipped usage path is the runtime CLI plus installed agents/skills. Repo-local
-goal prompts or decomposition scratch files are not required to install or run ADLC.
+Run `./setup.sh verify-claude "$TARGET"` after installation and after every merge
+that touches `skills/`. It verifies managed Claude skill digests against this
+checkout and ignores unmanaged local skills; redeploy with `./setup.sh claude
+"$TARGET"` when it reports drift.
 
 Runtime preflight:
 
 ```bash
-python3 -m pip install -e .
 bin/adlc health-check --json
 bin/adlc ci --json
-~/my-project/.adlc/bin/adlc health-check --json
+"$TARGET/.adlc/bin/adlc" health-check --json
 ```
+
+`WORKFLOW.md` is the deep reference for phase routing, retry caps, tool-node
+semantics, and approval points. The README keeps only the operator path.
+
+## Prompt Your Harness To Do The Following
+
+Copy this prompt into Claude Code, Codex, or another repo-aware harness after
+installing ADLC:
+
+```text
+Use ADLC to drive <target>. Keep product code, product tests, and user-facing
+target docs in the target repo; keep ADLC process artifacts out of the target
+diff.
+
+1. Extract target repo conventions first:
+   bin/adlc repo-conventions --workspace <target> --json
+
+   Carry the result into the Build Brief as top-level repo_conventions. Set
+   repo_conventions.status=none_found only when CLAUDE.md, AGENTS.md,
+   CONTRIBUTING.md, and nested convention files do not exist. If convention
+   files exist, the honesty gate blocks a none_found claim or omitted rules.
+
+2. Generate the Build Brief using build-feature Step 2. Each executable task
+   carries these contracts:
+   - repo_conventions from step 1.
+   - module_plan with planned files, one-line responsibility per file, no "and"
+     in responsibilities, pure/impure marking, and the architecture test to
+     write first.
+   - honesty_contract with explicit limitations and no-overclaim boundaries.
+   - performance_envelope with scale, hot paths, benchmark requirement, and
+     benchmark evidence when applicable.
+   - task_sizing proving one task is one module, one coherent module_plan
+     file-set, or explicitly atomic cross-module work.
+   - minimality_contract with exactly two fields: rung and decision. Decide it
+     once. Repo conventions outrank minimality on file and module structure.
+
+3. Validate and prove readiness before codegen:
+   bin/adlc validate-artifact --schema build-brief --input <brief> --json
+   bin/adlc emit-work-items --target linear --build-brief <brief> --workspace <target> --dry-run --require-ready --json
+
+   validate-artifact blocks schema-invalid briefs. emit-work-items
+   --require-ready blocks missing contracts, dishonest repo_conventions,
+   split-required tasks, unready minimality, and other readiness issues. Fix
+   until ready; never waive silently.
+
+4. Assemble codegen context and write the architecture test first:
+   bin/adlc run-phase context_assembly --brief-id <brief-id> --build-brief <brief> --workspace <target> --json
+
+   Generate code only from the assembled context. For any task with a required
+   module_plan, write and run the architecture test before production code.
+
+5. Gate the result before opening a PR:
+   bin/adlc convention-scan --workspace <target> --build-brief <brief> --json
+   bin/adlc ponytail-admit --build-brief <brief> --diff-file <final.diff> --json
+   bin/adlc pr-hygiene-scan --workspace <target> --build-brief <brief> --diff-file <final.diff> --title <title> --body <body> --base-branch main --default-branch main --json
+
+   convention-scan blocks target-convention violations and manual-review
+   predicates that cannot be checked deterministically. ponytail-admit blocks
+   missing two-field minimality contracts, unapproved dependency diffs, and
+   removed validation/error/security/accessibility anatomy; see
+   docs/specs/ponytail-minimality-contract.md for anatomy gate limits.
+   Definition of Done blocks unsatisfied active contracts and verifier evidence.
+   pr-hygiene-scan blocks process artifacts, local paths, banned vocabulary,
+   removed gates, and undocumented stacked bases.
+
+   Waivers are recorded, not skipped. PR hygiene waivers use rule:who:why.
+   When another gate has a narrower flag format, put the same rule/who/why
+   approval in the reason or reference field.
+```
+
+## Best Use / Anti-Patterns
+
+- Treat the target repo as the standards source: conventions in, artifacts out.
+- Store Build Briefs, council output, audits, validation summaries, and closeout
+  packages in ADLC-side process artifact storage per
+  `docs/specs/process-artifact-storage.md`; never add them to target diffs.
+- Keep one task to one module plan, one coherent module-plan file-set, or one
+  explicitly atomic cross-module change.
+- Do not use file size, line count, or SLOC as split, design, or DoD criteria.
+- Feed maintainer PR comments back through `bin/adlc feedback-conventions`; do
+  not bake one-off review comments into hidden prompt lore.
 
 ## Pipeline
 
@@ -116,7 +189,7 @@ What is automatic today:
 - strict Loop Contract required-test proof through `docs/schemas/loop-test-result.schema.json` and `loop-test-selection --require-test-results`
 - schema-backed work queue status, task claims, completion/block/escalation state, dirty-checks, file-overlap checks, and worktree prepare/status/cleanup dry-runs
 - target-repo convention extraction, structural convention scans, and PR hygiene scans for pipeline artifacts, banned internal tokens, local paths, removed gates, and undocumented stacked bases
-- right-sized Ponytail minimality admission through `bin/adlc ponytail-admit --build-brief <brief> --diff-file <final.diff> --json`, with executable tasks carrying only `rung` and one-line `decision`, dependency diffs requiring approval refs, and safety-anatomy removals requiring waivers
+- right-sized Ponytail minimality admission through `bin/adlc ponytail-admit --build-brief <brief> --diff-file <final.diff> --json`, with executable tasks carrying only `rung` and one-line `decision`, dependency diffs requiring approval refs, and regex-based safety-anatomy removals requiring waivers; see `docs/specs/ponytail-minimality-contract.md` for exact limits and false-positive risk
 - deterministic Ponytail scenario canaries through `bin/adlc ponytail-scenario-canary --json`, proving missing contracts block readiness and two-field contracts pass through emitted work items
 - ADLC-side process artifact storage for Build Briefs, eval outputs, audits, validation summaries, and closeout packages keyed by target repo and task through `bin/adlc process-artifact-path`
 - evidence-backed architecture memory writes, memory-health stale/overclaim/duplicate primitive checks, and champion/holdout promotion gates for prompt or skill changes
@@ -215,7 +288,7 @@ bin/adlc convention-scan --workspace . --file src/lib.rs --json
 bin/adlc pr-hygiene-scan --workspace . --build-brief .adlc/build_brief.json --base origin/main --base-branch feature --default-branch main --dependency PR-123 --json
 bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json
-bin/adlc run-phase context_assembly --build-brief .adlc/build_brief.json --workspace . --json
+bin/adlc run-phase context_assembly --brief-id BRF-123 --build-brief .adlc/build_brief.json --workspace . --json
 bin/adlc run-phase qa --workspace . --verifier 'pytest tests/test_task.py' --json
 bin/adlc resume-workflow --workspace . --json
 bin/adlc compound-context --workspace . --build-brief .adlc/build_brief.json --json
