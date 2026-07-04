@@ -50,6 +50,10 @@ assert_file_count() {
   assert "$desc (expected $expected, got $actual)" "[ '$actual' -eq '$expected' ]"
 }
 
+file_mtime() {
+  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1"
+}
+
 cleanup() {
   rm -rf "$TMPDIR"
 }
@@ -250,7 +254,33 @@ assert_file_exists "Still has runtime wrapper after double install" "$TARGET/.ad
 echo ""
 
 # ═══════════════════════════════════════════════════
-# Test 8: Invalid platform
+# Test 8: Managed skill sync
+# ═══════════════════════════════════════════════════
+
+echo "--- Managed Skill Sync ---"
+TARGET="$TMPDIR/managed-sync-test"
+mkdir -p "$TARGET"
+"$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
+
+MANAGED_SKILL="$TARGET/.claude/skills/build-feature/SKILL.md"
+touch -t 200001010000 "$MANAGED_SKILL"
+BEFORE_MTIME="$(file_mtime "$MANAGED_SKILL")"
+mkdir -p "$TARGET/.claude/skills/local-only" "$TARGET/.claude/skills/removed-managed"
+printf '# Local skill\n' > "$TARGET/.claude/skills/local-only/SKILL.md"
+printf '# Removed managed skill\n' > "$TARGET/.claude/skills/removed-managed/SKILL.md"
+printf '0000  removed-managed\n' >> "$TARGET/.claude/skills/.adlc-skill-manifest"
+"$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
+AFTER_MTIME="$(file_mtime "$MANAGED_SKILL")"
+
+assert "Unchanged ADLC skill was not recopied" "[ '$BEFORE_MTIME' = '$AFTER_MTIME' ]"
+assert_file_exists "Unmanaged local skill preserved" "$TARGET/.claude/skills/local-only/SKILL.md"
+assert "Previously managed removed skill pruned" "[ ! -d '$TARGET/.claude/skills/removed-managed' ]"
+assert "Managed skill manifest records every source skill" "[ \"$(awk 'END { print NR }' "$TARGET/.claude/skills/.adlc-skill-manifest")\" -eq '$SKILL_COUNT' ]"
+
+echo ""
+
+# ═══════════════════════════════════════════════════
+# Test 9: Invalid platform
 # ═══════════════════════════════════════════════════
 
 echo "--- Error Handling ---"
@@ -260,7 +290,7 @@ assert "No args shows usage" "! '$ADLC_DIR/setup.sh' > /dev/null 2>&1"
 echo ""
 
 # ═══════════════════════════════════════════════════
-# Test 9: Skill Content Integrity
+# Test 10: Skill Content Integrity
 # ═══════════════════════════════════════════════════
 
 echo "--- Content Integrity ---"
