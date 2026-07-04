@@ -239,6 +239,27 @@
         "honesty_contract": {
           "applicability": "not_applicable",
           "reason": "Pure internal bugfix with no external claims."
+        },
+        "performance_envelope": {
+          "applicability": "required",
+          "reason": "Task computes an average over score records and touches a data path.",
+          "expected_input_scale": [
+            {
+              "name": "score_records",
+              "expected": "<=100",
+              "worst_case": "<=1000",
+              "unit": "records"
+            }
+          ],
+          "hot_paths": [
+            {
+              "operation": "average_score",
+              "file": "src/scoreboard.py",
+              "complexity": "O(n)",
+              "rationale": "Each score record is visited once."
+            }
+          ],
+          "benchmark_required": false
         }
       },
       {
@@ -359,6 +380,34 @@
         "honesty_contract": {
           "applicability": "not_applicable",
           "reason": "Internal scoreboard behavior change with no external claims."
+        },
+        "performance_envelope": {
+          "applicability": "required",
+          "reason": "Task renders ranked scoreboard output from score records and touches a data path.",
+          "expected_input_scale": [
+            {
+              "name": "score_records",
+              "expected": "<=100",
+              "worst_case": "<=1000",
+              "unit": "records"
+            }
+          ],
+          "hot_paths": [
+            {
+              "operation": "ranked_scoreboard_render",
+              "file": "src/scoreboard.py",
+              "complexity": "O(n log n)",
+              "rationale": "Ranking sorts score records before rendering."
+            }
+          ],
+          "benchmark_required": true,
+          "benchmark_spec": {
+            "command": "python3 -m pytest tests/test_scoreboard_performance.py",
+            "target_files": [
+              "tests/test_scoreboard_performance.py"
+            ],
+            "expected_signal": "benchmark report shows scoreboard rendering within the brief envelope"
+          }
         }
       },
       {
@@ -444,6 +493,10 @@
         "honesty_contract": {
           "applicability": "not_applicable",
           "reason": "Validation-only task with no external claims."
+        },
+        "performance_envelope": {
+          "applicability": "not_applicable",
+          "reason": "Validation-only task with no data path."
         }
       }
     ],

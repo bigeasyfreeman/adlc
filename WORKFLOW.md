@@ -157,7 +157,7 @@ context_assembly:
     bin/adlc paved-road-patterns --json
     bin/adlc module-plan-check --build-brief "${BUILD_BRIEF:?}" --json
     bin/adlc run-phase context_assembly --workspace "${WORKSPACE:-.}" --build-brief "${BUILD_BRIEF:?}" --json
-    # Emits per-task context packages with queue, worktree, tracker, verifier, effective module_plan, registered pattern exemplars, repo_conventions, product_vocabulary, honesty_contract, and contract refs.
+    # Emits per-task context packages with queue, worktree, tracker, verifier, effective module_plan, registered pattern exemplars, repo_conventions, product_vocabulary, honesty_contract, performance_envelope, and contract refs.
 
 qa:
   command: |

@@ -205,6 +205,10 @@
           "required_output_fields": [
             "doc_honesty_section"
           ]
+        },
+        "performance_envelope": {
+          "applicability": "not_applicable",
+          "reason": "Task does not change a runtime data path; no data path."
         }
       },
       {
@@ -301,6 +305,10 @@
         "honesty_contract": {
           "applicability": "not_applicable",
           "reason": "Internal task with no external claims."
+        },
+        "performance_envelope": {
+          "applicability": "not_applicable",
+          "reason": "Task does not change a runtime data path; no data path."
         }
       },
       {
@@ -488,6 +496,10 @@
         "honesty_contract": {
           "applicability": "not_applicable",
           "reason": "Internal task with no external claims."
+        },
+        "performance_envelope": {
+          "applicability": "not_applicable",
+          "reason": "Task does not change a runtime data path; no data path."
         }
       },
       {
@@ -609,6 +621,27 @@
             "no_overclaim",
             "limitations"
           ]
+        },
+        "performance_envelope": {
+          "applicability": "required",
+          "reason": "Task normalizes Build Brief tasks into emitted work-item payloads and touches the task data path.",
+          "expected_input_scale": [
+            {
+              "name": "build_brief_tasks",
+              "expected": "<=100",
+              "worst_case": "<=500",
+              "unit": "tasks"
+            }
+          ],
+          "hot_paths": [
+            {
+              "operation": "normalized_work_item_payload",
+              "file": "scripts/adlc_runtime/cli.py",
+              "complexity": "O(n)",
+              "rationale": "The emitter walks each task once and builds one artifact per task."
+            }
+          ],
+          "benchmark_required": false
         }
       },
       {
@@ -708,6 +741,10 @@
         "honesty_contract": {
           "applicability": "not_applicable",
           "reason": "Internal task with no external claims."
+        },
+        "performance_envelope": {
+          "applicability": "not_applicable",
+          "reason": "Validation-only task with no data path."
         }
       }
     ],

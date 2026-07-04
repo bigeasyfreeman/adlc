@@ -324,6 +324,27 @@
             "no_overclaim",
             "limitations"
           ]
+        },
+        "performance_envelope": {
+          "applicability": "required",
+          "reason": "Task preserves emitted implementation-interface fields in the work-item data path.",
+          "expected_input_scale": [
+            {
+              "name": "normalized_artifacts",
+              "expected": "<=100",
+              "worst_case": "<=500",
+              "unit": "artifacts"
+            }
+          ],
+          "hot_paths": [
+            {
+              "operation": "emit_work_items_payload",
+              "file": "scripts/adlc_runtime/cli.py",
+              "complexity": "O(n)",
+              "rationale": "The emitter copies optional contract fields once per artifact."
+            }
+          ],
+          "benchmark_required": false
         }
       },
       {
@@ -419,6 +440,10 @@
         "honesty_contract": {
           "applicability": "not_applicable",
           "reason": "Validation-only task with no external claims."
+        },
+        "performance_envelope": {
+          "applicability": "not_applicable",
+          "reason": "Validation-only task with no data path."
         }
       }
     ],

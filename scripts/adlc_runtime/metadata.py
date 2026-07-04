@@ -157,7 +157,7 @@ COMMAND_METADATA = {
     },
     "queue-complete": {
         "mcp_name": "adlc_queue_complete",
-        "description": "Mark an ADLC queue task done with required verifier or evidence references.",
+        "description": "Mark an ADLC queue task done with required verifier, evidence, or benchmark references.",
     },
     "queue-block": {
         "mcp_name": "adlc_queue_block",
