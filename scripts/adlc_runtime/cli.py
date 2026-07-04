@@ -1064,6 +1064,7 @@ MUST_RULE_SIGNALS = (
     " do not ",
     " don't ",
     " no ",
+    " forbidden",
     " when a responsibility grows",
 )
 REMOVED_CI_GATE_LABEL_RE = re.compile(r"\b(removed|retired|disabled|deleted)\b.*\b(ci\s+)?(gate|check|job)s?\b", re.IGNORECASE)
@@ -1137,7 +1138,16 @@ def removed_ci_gates_from_line(line: str) -> List[str]:
     return gates
 
 
-def verification_predicate_for_rule(_rule: str) -> str:
+def verification_predicate_for_rule(rule: str) -> str:
+    normalized = normalize_convention_text(rule)
+    if "one responsibility" in normalized or "multiple job" in normalized:
+        return "Run bin/adlc convention-scan --file <changed Rust file> --json and inspect module-doc first lines for multi-job wording."
+    if "coordinator" in normalized:
+        return "Run bin/adlc convention-scan --file <changed Rust file> --json and verify coordinator files stay thin instead of containing worker logic."
+    if "pure core" in normalized or "impure shell" in normalized or "side effect" in normalized:
+        return "Run bin/adlc convention-scan --file <changed Rust file> --json and verify side-effect calls live in isolated impure shell modules."
+    if "catch all" in normalized or "catch-all" in normalized:
+        return "Run bin/adlc convention-scan --file <changed Rust file> --json and review changed files for catch-all responsibility language."
     return "Record a deterministic check, cited file review, or explicit per-file waiver proving the rule for every changed file."
 
 
@@ -1483,30 +1493,69 @@ def apply_convention_waiver(issue: Dict[str, Any], source: str, waivers: Dict[Tu
     return issue
 
 
-def convention_scan_rule_profile(repo_conventions: Dict[str, Any]) -> Dict[str, List[str]]:
-    profile: Dict[str, List[str]] = {
-        "module_doc_multiple_jobs": [],
-        "side_effect_without_impure_shell": [],
-        "coordinator_worker_logic": [],
-        "catch_all_responsibility": [],
+def convention_scan_bindings_for_predicate(predicate: Any) -> List[str]:
+    normalized = normalize_convention_text(predicate)
+    bindings: List[str] = []
+    if "module-doc" in normalized or "module doc" in normalized or "first //! line" in normalized or "first line" in normalized:
+        if "multi-job" in normalized or "multiple job" in normalized or "and" in normalized or "one responsibility" in normalized:
+            bindings.append("module_doc_multiple_jobs")
+    if "side-effect" in normalized or "side effect" in normalized or "impure shell" in normalized:
+        bindings.append("side_effect_without_impure_shell")
+    if "coordinator" in normalized and ("worker" in normalized or "thin" in normalized):
+        bindings.append("coordinator_worker_logic")
+    if "catch-all" in normalized or "catch all" in normalized or "miscellaneous" in normalized:
+        bindings.append("catch_all_responsibility")
+    if "changed python file" in normalized and ("print()" in normalized or "print calls" in normalized or "debug print" in normalized):
+        bindings.append("python_no_print")
+    return list(dict.fromkeys(bindings))
+
+
+def convention_rule_summary(rule: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": rule.get("id"),
+        "source_path": rule.get("source_path"),
+        "rule": rule.get("rule"),
+        "verification_predicate": rule.get("verification_predicate"),
     }
+
+
+def convention_scan_rule_profile(repo_conventions: Dict[str, Any]) -> Tuple[Dict[str, List[str]], List[Dict[str, Any]]]:
+    profile: Dict[str, List[str]] = {}
+    manual_review_required: List[Dict[str, Any]] = []
     for rule in repo_conventions.get("rules", []):
         if not isinstance(rule, dict):
             continue
         rule_id = str(rule.get("id") or "")
-        text = normalize_convention_text(rule.get("rule"))
-        if not rule_id or not text:
+        if not rule_id:
             continue
-        if "one responsibility" in text or "multiple job" in text:
-            profile["module_doc_multiple_jobs"].append(rule_id)
-            profile["catch_all_responsibility"].append(rule_id)
-        if "pure core" in text or "impure shell" in text or "side effect" in text:
-            profile["side_effect_without_impure_shell"].append(rule_id)
-        if "coordinator" in text:
-            profile["coordinator_worker_logic"].append(rule_id)
-        if "catch all" in text or "catch-all" in text:
-            profile["catch_all_responsibility"].append(rule_id)
-    return {rule: list(dict.fromkeys(rule_ids)) for rule, rule_ids in profile.items() if rule_ids}
+        bindings = convention_scan_bindings_for_predicate(rule.get("verification_predicate"))
+        if not bindings:
+            manual_review_required.append(
+                {
+                    **convention_rule_summary(rule),
+                    "reason": "no predicate-library check can bind this verification_predicate",
+                }
+            )
+            continue
+        for binding in bindings:
+            profile.setdefault(binding, []).append(rule_id)
+    return {rule: list(dict.fromkeys(rule_ids)) for rule, rule_ids in profile.items() if rule_ids}, manual_review_required
+
+
+def convention_manual_review_issues(manual_review_required: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    issues: List[Dict[str, Any]] = []
+    for rule in manual_review_required:
+        issues.append(
+            {
+                "severity": "manual_review",
+                "status": "manual_review_required",
+                "rule": "manual_review_required",
+                "source_rule_ids": [rule.get("id")] if rule.get("id") else [],
+                "source_rule": rule,
+                "message": "repo convention rule has no bound mechanical predicate-library check; manual review required",
+            }
+        )
+    return issues
 
 
 def rust_impure_shell_path(path: Path, workspace: Path) -> bool:
@@ -1595,6 +1644,27 @@ def scan_rust_conventions(path: Path, workspace: Path, waivers: Dict[Tuple[str, 
     return [apply_convention_waiver(issue, source, waivers) for issue in issues]
 
 
+def scan_python_conventions(path: Path, workspace: Path, waivers: Dict[Tuple[str, str], str], active_rules: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+    source = path.read_text(encoding="utf-8")
+    rel = workspace_rel_path(path, workspace)
+    issues: List[Dict[str, Any]] = []
+    if active_rules.get("python_no_print"):
+        match = re.search(r"(?m)^\s*print\s*\(", source)
+        if match:
+            issues.append(
+                {
+                    "severity": "blocking",
+                    "status": "open",
+                    "rule": "python_no_print",
+                    "source_rule_ids": active_rules["python_no_print"],
+                    "path": rel,
+                    "line": line_number_for_offset(source, match.start()),
+                    "message": "Python file contains a print() call prohibited by the bound repo convention predicate",
+                }
+            )
+    return [apply_convention_waiver(issue, source, waivers) for issue in issues]
+
+
 def convention_scan_files(args: argparse.Namespace, workspace: Path) -> List[Path]:
     files = []
     for raw in args.file or []:
@@ -1617,30 +1687,51 @@ def convention_scan_files(args: argparse.Namespace, workspace: Path) -> List[Pat
     return [(workspace / line.strip()).resolve() for line in result.stdout.splitlines() if line.strip()]
 
 
+def convention_scan_repo_conventions(args: argparse.Namespace, workspace: Path) -> Tuple[Dict[str, Any], str | None]:
+    build_brief = getattr(args, "build_brief", None)
+    if build_brief:
+        brief_path = resolve_input_path(build_brief, workspace)
+        brief = read_json(brief_path)
+        repo_conventions = brief.get("repo_conventions", {}) if isinstance(brief, dict) else {}
+        return repo_conventions if isinstance(repo_conventions, dict) else {}, rel_path(brief_path)
+    return repo_conventions_payload(workspace), None
+
+
+def convention_scan_status(open_issues: List[Dict[str, Any]]) -> str:
+    if any(issue.get("status") != "manual_review_required" for issue in open_issues):
+        return "blocked"
+    if open_issues:
+        return "manual_review_required"
+    return "pass"
+
+
 def convention_scan_payload(args: argparse.Namespace) -> Dict[str, Any]:
     workspace = resolve_workspace(args.workspace)
     waivers = parse_convention_waivers(args.waiver)
-    repo_conventions = repo_conventions_payload(workspace)
-    active_rules = convention_scan_rule_profile(repo_conventions) if repo_conventions.get("status") == "extracted" else {}
-    if not active_rules:
+    repo_conventions, repo_conventions_source = convention_scan_repo_conventions(args, workspace)
+    active_rules, manual_review_required = convention_scan_rule_profile(repo_conventions) if repo_conventions.get("status") == "extracted" else ({}, [])
+    if not active_rules and not manual_review_required:
         reason = "repo_conventions_none_found" if repo_conventions.get("status") == "none_found" else "no_supported_structural_repo_conventions"
         return {
             "contract_version": "1.0.0",
             "status": "not_applicable",
             "workspace": str(workspace),
-            "language": "rust",
+            "language": "mixed",
             "checked_files": [],
             "issues": [],
             "repo_conventions": {
                 "status": repo_conventions.get("status"),
                 "rule_count": len(repo_conventions.get("rules", [])),
+                "source": repo_conventions_source or "workspace",
             },
             "active_rules": [],
+            "manual_review_required": [],
             "summary": {
                 "checked_files": 0,
                 "issues": 0,
                 "open_issues": 0,
                 "waived_issues": 0,
+                "manual_review_required": 0,
                 "applicability": "not_applicable",
                 "reason": reason,
             },
@@ -1652,31 +1743,36 @@ def convention_scan_payload(args: argparse.Namespace) -> Dict[str, Any]:
                 ]
             },
         }
-    issues: List[Dict[str, Any]] = []
+    issues: List[Dict[str, Any]] = convention_manual_review_issues(manual_review_required)
     checked: List[str] = []
     for path in convention_scan_files(args, workspace):
-        if path.suffix != ".rs":
-            continue
-        checked.append(workspace_rel_path(path, workspace))
-        issues.extend(scan_rust_conventions(path, workspace, waivers, active_rules))
+        if path.suffix == ".rs" and any(rule in active_rules for rule in ("module_doc_multiple_jobs", "side_effect_without_impure_shell", "coordinator_worker_logic", "catch_all_responsibility")):
+            checked.append(workspace_rel_path(path, workspace))
+            issues.extend(scan_rust_conventions(path, workspace, waivers, active_rules))
+        elif path.suffix == ".py" and active_rules.get("python_no_print"):
+            checked.append(workspace_rel_path(path, workspace))
+            issues.extend(scan_python_conventions(path, workspace, waivers, active_rules))
     open_issues = [issue for issue in issues if issue.get("status") != "waived"]
     return {
         "contract_version": "1.0.0",
-        "status": "blocked" if open_issues else "pass",
+        "status": convention_scan_status(open_issues),
         "workspace": str(workspace),
-        "language": "rust",
+        "language": "mixed",
         "checked_files": checked,
         "issues": issues,
         "repo_conventions": {
             "status": repo_conventions.get("status"),
             "rule_count": len(repo_conventions.get("rules", [])),
+            "source": repo_conventions_source or "workspace",
         },
         "active_rules": sorted(active_rules),
+        "manual_review_required": manual_review_required,
         "summary": {
             "checked_files": len(checked),
             "issues": len(issues),
             "open_issues": len(open_issues),
             "waived_issues": len(issues) - len(open_issues),
+            "manual_review_required": len([issue for issue in open_issues if issue.get("status") == "manual_review_required"]),
         },
         "boundary": {
             "does_not": [
@@ -9330,6 +9426,7 @@ def mcp_tools() -> List[Dict[str, Any]]:
                 "additionalProperties": False,
                 "properties": {
                     "workspace": {"type": "string", "minLength": 1},
+                    "build_brief": {"type": "string", "minLength": 1},
                     "file": {"type": "array", "items": {"type": "string", "minLength": 1}},
                     "waiver": {"type": "array", "items": {"type": "string", "minLength": 1}},
                     "output": {"type": "string", "minLength": 1},
@@ -10030,6 +10127,7 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     if name == "adlc_convention_scan":
         args = argparse.Namespace(
             workspace=arguments.get("workspace"),
+            build_brief=arguments.get("build_brief"),
             file=arguments.get("file") if isinstance(arguments.get("file"), list) else [],
             waiver=arguments.get("waiver") if isinstance(arguments.get("waiver"), list) else [],
             output=arguments.get("output"),
@@ -10621,6 +10719,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     convention_scan = subparsers.add_parser("convention-scan", help=command_description("convention-scan"))
     convention_scan.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
+    convention_scan.add_argument("--build-brief", help="Build Brief JSON path whose repo_conventions drive active predicate-library checks. Defaults to fresh workspace extraction.")
     convention_scan.add_argument("--file", action="append", help="Changed file to scan. Can be passed multiple times. Defaults to git diff against HEAD.")
     convention_scan.add_argument("--waiver", action="append", help="Explicit waiver in path:rule:reason form. Can be passed multiple times.")
     convention_scan.add_argument("--output", help="Optional convention scan report path.")

@@ -96,7 +96,7 @@ COMMAND_METADATA = {
     },
     "convention-scan": {
         "mcp_name": "adlc_convention_scan",
-        "description": "Run cheap Rust-first structural convention checks over changed files or explicit files.",
+        "description": "Scan changed files using predicate-library checks bound from Build Brief or fresh target repo_conventions, with unsupported predicates reported for manual review.",
     },
     "feedback-conventions": {
         "mcp_name": "adlc_feedback_conventions",
