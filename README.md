@@ -212,6 +212,9 @@ The shipped framework layers are:
 | Slop Quality Gate | Output-side benchmark, threshold, eval cases, and failure action for generated-output surfaces | Active when a task changes prompt/model/agent/generated content behavior |
 | Loop Contract | LLM action-loop contract: job, win condition, allowed tools, real feedback, required tests, progress, control channel, safe checkpoint, independent truth, escalation, and optional `budget_guard` evidence | Active when a task delegates decisions, tool use, test selection, retry/repair, escalation, or maturity claims to an LLM loop |
 | Target Repo Conventions | `repo_conventions`, product vocabulary, structural convention scans, explicit waivers, and PR hygiene checks | Extracted before Build Brief planning; consumed by context assembly, LDD, DoD, Eval Council, and PR closeout |
+| Clarity Gate | Epistemic ledger (KNOWN/ASSUMED/UNKNOWN with sources and dispositions), blindspot report, interview loop with pending-questions artifacts, predicate-complete acceptance criteria, and substance floors on proof-type criteria | `clarity-gate` before brief finalization; ask-user unknowns block until a recorded human answer or signed accepted risk exists |
+| Compatibility Evidence | Contract-surface inventory (policy-sourced over heuristic, confidence-tiered, with consumer discovery), per-surface verification predicates, and evidence refs that must dereference to real artifacts | `contract-surface-inventory` at research time; `compatibility-evidence` before PR |
+| Honest Completion | Per-criterion depth declarations (minimal/robust), typed proof payload classes, deviation classification against the ledger, Minimalism Auditor checks against the versioned predicate library, and independent completion-claim re-verification | `deviation-log-validate`, `minimalism-audit`, `completion-audit`, and `run-report` before work is presented as done |
 
 The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, retry caps, workflow state, compound context, readiness gates, test-strength checks, Loop Contract admission gates, and execution-backed required-test evidence when `loop-test-result` artifacts are supplied. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, failure handling, or budget evidence. Missing, stale, warning, alert, or exhausted `budget_status` blocks `self_autonomous`; healthy local budget evidence is necessary but not sufficient. Tag-only Loop Contract coverage is intentionally capped below robust.
 
@@ -234,6 +237,12 @@ What is automatic today:
 - bounded self-actioning task selection and execution planning through `meta-harness-plan`
 - runtime preflight through `bin/adlc health-check --json`
 - resume summaries for task fingerprints, loop progress, no-progress count, control events, safe checkpoints, and escalation context
+- clarity-gate blocking on missing epistemic ledgers, sourceless claims, unresolved architecture-affecting unknowns, ask-user unknowns without recorded human answers, empty blindspot reports, predicate-free acceptance criteria, and headless interview state with emitted pending-questions artifacts
+- contract-surface inventory with policy-over-heuristic sourcing and confidence tiers, plus compatibility evidence that requires named surfaces, verification predicates, and evidence refs that resolve to real artifacts
+- deviation-log validation classifying unspecified structural decisions as ledger-traceable or brief-generator defects, aggregated into the run report's defect count
+- minimalism audit against the versioned predicate library (`bin/adlc predicate-library`) with rule-ID citations and robust-declared-but-cheapest-shipped contradictions blocking approval
+- independent completion audit re-verifying completion claims against repository state, recording verified-versus-trusted splits, and blocking PR prep on contradicted claims
+- non-Claude harness execution through `bin/adlc execution-adapter` with schema-backed adapter reports and dual-harness gate-outcome comparison
 
 What is still explicit:
 
@@ -293,8 +302,9 @@ Every loop caps. Plan review: 3. Code review: 3. Fixer: 2. QA: 2. Hit the wall a
 
 ## Verification
 
-The repo ships with five verification layers:
+The repo ships with these verification layers:
 
+- `tests/test_adlc_cli.sh` exercises the `bin/adlc` CLI surface end to end, including the clarity gate, contract-surface inventory, compatibility evidence, deviation validation, minimalism and completion audits, and the dual-harness feature-slice comparison.
 - `tests/test_adlc_contracts.sh` checks prompt/schema/runtime wiring and the checked-in golden artifacts.
 - `tests/backtest/run_backtest.sh` replays the deterministic evaluators against the benchmark fixture set.
 - `tests/smoke/run_smoke.sh` runs the real staged agents through a tiny repo using the selected runtime adapter.
@@ -307,6 +317,7 @@ Typical verification flow:
 bin/adlc ci --json
 bash tests/acceptance/run_public_acceptance.sh
 bash tests/acceptance/run_os12_acceptance.sh
+bash tests/test_adlc_cli.sh
 bash tests/test_adlc_contracts.sh
 bash tests/backtest/run_backtest.sh
 ADLC_RUNTIME=codex ADLC_SMOKE_SETTINGS_CODEX=~/path/to/config.toml SMOKE=1 MODEL=gpt-5-codex bash tests/smoke/run_smoke.sh
@@ -357,6 +368,15 @@ bin/adlc queue-escalate --queue .adlc/work_queue.json --task-id TASK-123 --reaso
 bin/adlc worktree-prepare --queue .adlc/work_queue.json --task-id TASK-123 --workspace . --dry-run --json
 bin/adlc worktree-status --queue .adlc/work_queue.json --workspace . --json
 bin/adlc worktree-cleanup --queue .adlc/work_queue.json --task-id TASK-123 --workspace . --dry-run --json
+bin/adlc contract-surface-inventory --workspace . --output .adlc/contract_inventory.json --json
+bin/adlc clarity-gate --build-brief .adlc/build_brief.json --mode headless --json
+bin/adlc compatibility-evidence --build-brief .adlc/build_brief.json --inventory .adlc/contract_inventory.json --json
+bin/adlc deviation-log-validate --input .adlc/deviations.json --json
+bin/adlc predicate-library --json
+bin/adlc minimalism-audit --build-brief .adlc/build_brief.json --criterion-depth-report .adlc/criterion_depth.json --json
+bin/adlc completion-audit --input .adlc/completion_audit_plan.json --workspace . --auditor independent --json
+bin/adlc execution-adapter --provider codex --command 'codex exec --help' --workdir . --prompt-file .adlc/task_prompt.md --json
+bin/adlc run-report --json
 bin/adlc mcp-tools --json
 bin/adlc mcp-serve
 ```
@@ -402,7 +422,7 @@ Public-repo hygiene is intentional:
 | **triage** | Classify, route, or escalate | Sonnet | none |
 | **researcher** | Graph-backed codebase analysis, learning refs, PRD cross-reference, dark-code risk notes | Opus | graph-research, codebase-research, paved-road-registry, dark-code-audit, grafana |
 | **planner** | PRD + research into an applicability-aware Build Brief | Opus | graph-research, codegen-context, architecture, reuse-analysis, paved-road-registry, context-layers |
-| **plan-reviewer** | 6-persona Eval Council with Gate 0 pre-checks | Opus | eval-council |
+| **plan-reviewer** | 8-persona Eval Council with Gate 0 pre-checks | Opus | eval-council |
 | **test-author** | Authors failing verifier tests from Brief | Sonnet | spec-to-tests, tdd-enforcement, qa-test-data |
 | **coder** | Verifier-led execution per task class | Sonnet | tdd-enforcement, systematic-debugging |
 | **code-reviewer** | Quality, correctness, and comprehension review | Opus | eval-council, graph-research, paved-road-registry, comprehension-gate |
@@ -419,7 +439,7 @@ Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 Skill definitions are injected into agents at startup. Runtime install counts are derived by `setup.sh` rather than hardcoded in docs.
 
 **Core Engineering:**
-`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (6 personas + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (22-check DoD) · `spec-to-tests` (failing-test authoring from Brief, with Loop Contract coverage tags and execution evidence when active)
+`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (8 personas + Gate 0, incl. Clarity and Minimalism Auditors) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (applicability-aware core + overlay DoD) · `spec-to-tests` (failing-test authoring from Brief, with Loop Contract coverage tags and execution evidence when active)
 
 **Security:**
 `security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`
@@ -479,7 +499,7 @@ Loop Contracts are task/workflow control artifacts, not a required Build Brief s
 | Platform | Fast | Deep |
 |----------|------|------|
 | Claude Code | `sonnet` | `opus` |
-| Codex | `o4-mini` | `o3` |
+| Codex | `gpt-5` | `gpt-5-codex` |
 | Antigravity | `inherit` | `inherit` |
 | Factory | `inherit` | `claude-opus-4-6` |
 
