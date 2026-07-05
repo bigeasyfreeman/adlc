@@ -42,6 +42,8 @@ Required behavior:
 
 The research deliverable must include `graph_research_evidence`, `compatibility_evidence`, and any dark-code hotspots that require `context-layers`.
 
+The same deliverable must include a `blindspot_report` used by the Build Brief clarity gate. Cover prior art, removals and potholes, conventions docs, adjacent systems, and domain vocabulary that appears in the PRD but is missing or ambiguous in repo evidence. If the task can touch published schemas, configs, APIs, CLIs, migrations, or docs, include a contract-surface inventory with surface IDs and evidence refs so compatibility claims can be verified instead of merely declared.
+
 ## Scalable AI Code Primitive Research
 
 When repo context is available, the research deliverable must also produce evidence for AI-scalable implementation:

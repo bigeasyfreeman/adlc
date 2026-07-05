@@ -48,6 +48,7 @@ Core personas always run. Overlay personas activate from `change_surface` flags 
 | `operator` | Overlay | `runtime_path_change OR user_facing_operation` |
 | `security_auditor` | Overlay focus (expands Skeptic) | `new_attack_surface OR auth_change OR external_integration` |
 | `convention_auditor` | Target repo standards | `repo_conventions.status == extracted` |
+| `clarity_auditor` | Evidence and question hygiene | `epistemic_ledger present OR generated Build Brief has executable tasks` |
 
 Suppressed overlays use the concrete reason already recorded in the manifest section policy. Do not ask each persona to duplicate that reason.
 
@@ -188,6 +189,24 @@ Any FAIL = the task is not agent-ready. This is a **major finding**.
 **Catches:** Multi-responsibility files, worker coordinators, mixed pure/impure code, silent waivers, and convention predicates ignored after code changes.
 
 **Does not use:** file size, line count, or SLOC. Those are not convention criteria.
+
+---
+
+### 7. The Clarity Auditor
+
+**Perspective:** Evidence hygiene, blindspots, and epistemic honesty before work reaches a coding harness.
+**Activation:** Active for every generated Build Brief with `epistemic_ledger` or executable task tickets.
+
+**Asks:**
+- Does every MUST-level task claim trace to an `epistemic_ledger` source, human answer, or accepted-risk signoff?
+- Is the blindspot report substantive across prior art, removals and potholes, conventions docs, domain vocabulary, adjacent systems, and contract surfaces?
+- Did any `ask-user` unknown become an assumption without a recorded human answer or signoff?
+- Are architecture-affecting UNKNOWN entries blocked with pending questions in headless mode?
+- Does every touched published surface have a named compatibility surface, verification predicate, and evidence reference?
+
+**Verdict rule:** Fabricated certainty prevents APPROVED. Missing ledger sources, empty blindspot reports, unresolved ask-user unknowns, or generic compatibility claims require REVISION REQUIRED or BLOCKED.
+
+**Catches:** fabricated certainty, blindspot theater, unresolved human questions, accepted-risk claims without signoff, and compatibility claims that are asserted rather than verified.
 
 ---
 
@@ -414,6 +433,7 @@ EVAL COUNCIL ASSESSMENT (manifest-aware):
 │ Operator:            EXCLUDE — no runtime path or user-facing operation changed
 │ Executioner:         INCLUDE — autonomous execution required
 │ Convention Auditor:  INCLUDE — repo_conventions.status == extracted
+│ Clarity Auditor:     INCLUDE — epistemic_ledger present and ask-user unknowns must resolve
 │ First Principles:    INCLUDE — always active core scope check
 ```
 

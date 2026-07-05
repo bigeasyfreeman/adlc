@@ -41,7 +41,7 @@ from adlc_runtime.metadata import (
 
 ROOT = Path(os.environ.get("ADLC_ROOT", Path(__file__).resolve().parents[2]))
 PROCESS_ARTIFACT_ROOT_ENV = "ADLC_PROCESS_ARTIFACT_ROOT"
-PROCESS_ARTIFACT_TYPES = ("build-brief", "eval", "audit", "closeout", "validation", "prompt")
+PROCESS_ARTIFACT_TYPES = ("build-brief", "eval", "audit", "closeout", "validation", "prompt", "ledger", "interview", "run-report")
 DEFAULT_PROCESS_ARTIFACT_FILENAMES = {
     "build-brief": "build-brief.json",
     "eval": "eval.json",
@@ -49,6 +49,9 @@ DEFAULT_PROCESS_ARTIFACT_FILENAMES = {
     "closeout": "closeout.md",
     "validation": "validation.json",
     "prompt": "prompt.md",
+    "ledger": "epistemic-ledger.json",
+    "interview": "pending-questions.json",
+    "run-report": "run-report.json",
 }
 
 
@@ -8466,6 +8469,417 @@ def slop_gate_payload(brief_path: Path) -> Dict[str, Any]:
     }
 
 
+def brief_ledger(brief: Dict[str, Any]) -> Dict[str, Any] | None:
+    ledger = brief.get("epistemic_ledger")
+    return ledger if isinstance(ledger, dict) else None
+
+
+def ledger_entries_by_id(ledger: Dict[str, Any] | None) -> Dict[str, Dict[str, Any]]:
+    if not ledger:
+        return {}
+    return {str(entry.get("id")): entry for entry in ledger.get("entries", []) if isinstance(entry, dict) and entry.get("id")}
+
+
+def blindspot_report_from_inputs(brief: Dict[str, Any], blindspot_path: Path | None) -> Dict[str, Any] | None:
+    if blindspot_path:
+        return read_json(blindspot_path)
+    embedded = brief.get("sections", {}).get("18_blindspot_report")
+    return embedded if isinstance(embedded, dict) else None
+
+
+def question_for_unknown(entry: Dict[str, Any]) -> Dict[str, Any]:
+    impact = "high" if entry.get("architecture_affecting") else "medium"
+    entry_id = str(entry.get("id") or "unknown")
+    return {
+        "id": f"question-{entry_id}",
+        "ledger_entry_id": entry_id,
+        "question": f"Resolve ledger unknown {entry_id}: {entry.get('claim', 'unspecified uncertainty')}",
+        "architecture_impact": impact,
+        "why_it_matters": "The Build Brief cannot safely choose architecture, compatibility, or task boundaries without this answer.",
+        "what_changes": "The answer may revise the ledger status, compatibility contract, task tickets, and validation evidence.",
+        "conservative_default": "Block finalization in headless mode; only use a default when a human explicitly delegates that choice.",
+    }
+
+
+def clarity_gate_payload(
+    brief_path: Path,
+    blindspot_path: Path | None = None,
+    answers_path: Path | None = None,
+    mode: str = "headless",
+) -> Dict[str, Any]:
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path)
+    answers = read_json(answers_path) if answers_path else {}
+    answered_ids = {
+        str(answer.get("ledger_entry_id"))
+        for answer in answers.get("answers", [])
+        if isinstance(answer, dict) and answer.get("ledger_entry_id") and answer.get("answer")
+    }
+    issues: List[Dict[str, Any]] = []
+    ledger = brief_ledger(brief)
+    entries_by_id = ledger_entries_by_id(ledger)
+    if not ledger:
+        issues.append({"rule": "missing_epistemic_ledger", "severity": "blocking", "message": "Build Brief finalization requires epistemic_ledger."})
+    for entry in entries_by_id.values():
+        entry_id = str(entry.get("id"))
+        status = entry.get("status")
+        sources = entry.get("sources") if isinstance(entry.get("sources"), list) else []
+        disposition = entry.get("disposition")
+        if status in {"KNOWN", "ASSUMED"} and not sources:
+            issues.append({"rule": "ledger_entry_missing_source", "severity": "blocking", "ledger_entry_id": entry_id, "message": "Known and assumed ledger entries require at least one source."})
+        if status == "UNKNOWN" and entry.get("architecture_affecting"):
+            resolved_by_human = disposition in {"human-answer", "ask-user"} and (entry.get("human_answer_ref") or entry_id in answered_ids)
+            accepted_risk = disposition == "accepted-risk" and entry.get("accepted_risk_ref")
+            repo_evidence = disposition == "repo-evidence" and sources
+            if not (resolved_by_human or accepted_risk or repo_evidence):
+                issues.append({"rule": "architecture_unknown_unresolved", "severity": "blocking", "ledger_entry_id": entry_id, "message": "Architecture-affecting unknowns block until repo evidence, human answer, or signed accepted risk exists."})
+        if status == "UNKNOWN" and disposition == "ask-user" and entry_id not in answered_ids and not entry.get("human_answer_ref"):
+            issues.append({"rule": "ask_user_unknown_without_answer", "severity": "blocking", "ledger_entry_id": entry_id, "message": "ask-user unknowns require a recorded human answer; assumptions do not satisfy them."})
+
+    blindspot = blindspot_report_from_inputs(brief, blindspot_path)
+    if blindspot is None:
+        issues.append({"rule": "missing_blindspot_report", "severity": "blocking", "message": "Build Brief finalization requires a blindspot report."})
+        blindspot_items: List[Dict[str, Any]] = []
+    else:
+        blindspot_items = [item for item in blindspot.get("items", []) if isinstance(item, dict)]
+        if not blindspot_items:
+            issues.append({"rule": "empty_blindspot_report", "severity": "blocking", "message": "Empty blindspot reports must be challenged before finalization."})
+        for item in blindspot_items:
+            ledger_id = str(item.get("ledger_entry_id") or "")
+            if ledger_id not in entries_by_id:
+                issues.append({"rule": "blindspot_missing_ledger_entry", "severity": "blocking", "blindspot_id": item.get("id"), "message": "Every blindspot item must appear in the epistemic ledger."})
+
+    pending_entries = [
+        entry for entry in entries_by_id.values()
+        if entry.get("status") == "UNKNOWN"
+        and (entry.get("disposition") == "ask-user" or entry.get("architecture_affecting"))
+        and not entry.get("human_answer_ref")
+        and str(entry.get("id")) not in answered_ids
+    ]
+    pending_entries.sort(key=lambda item: (not bool(item.get("architecture_affecting")), str(item.get("id"))))
+    questions = [question_for_unknown(entry) for entry in pending_entries]
+    pending_questions = {"contract_version": "1.0.0", "status": "blocked" if questions else "empty", "questions": questions}
+    if questions and mode == "headless":
+        issues.append({"rule": "headless_interview_blocked", "severity": "blocking", "message": "Headless clarity gate blocked and emitted pending questions."})
+
+    knowns = [entry.get("claim") for entry in entries_by_id.values() if entry.get("status") == "KNOWN"]
+    assumptions = [entry.get("claim") for entry in entries_by_id.values() if entry.get("status") == "ASSUMED"]
+    remaining_unknowns = [
+        entry.get("claim") for entry in entries_by_id.values()
+        if entry.get("status") == "UNKNOWN" and str(entry.get("id")) not in answered_ids and not entry.get("human_answer_ref")
+    ]
+    return {
+        "contract_version": "1.0.0",
+        "status": "blocked" if issues else "pass",
+        "build_brief_id": brief.get("brief_id"),
+        "mode": mode,
+        "issues": issues,
+        "pending_questions": pending_questions,
+        "honesty_surface": {
+            "knowns": knowns,
+            "ratified_assumptions": assumptions,
+            "remaining_unknowns": remaining_unknowns,
+            "accepted_risks": [entry.get("accepted_risk_ref") for entry in entries_by_id.values() if entry.get("accepted_risk_ref")],
+        },
+        "summary": {"ledger_entries": len(entries_by_id), "blindspot_items": len(blindspot_items), "questions": len(questions), "issues": len(issues)},
+    }
+
+
+CONTRACT_SURFACE_PATTERNS = (
+    ("schema", re.compile(r"(^|/)(schemas?|contracts?)/|\.schema\.json$|\.proto$|openapi|swagger", re.IGNORECASE)),
+    ("cli", re.compile(r"(^|/)(bin|scripts)/|cli\.py$|argparse", re.IGNORECASE)),
+    ("config", re.compile(r"\.(ya?ml|toml|ini|env\.example)$|(^|/)config", re.IGNORECASE)),
+    ("migration", re.compile(r"(^|/)migrations?/|deprecation|migration", re.IGNORECASE)),
+    ("api", re.compile(r"(^|/)(api|routes|controllers)/|endpoint|handler", re.IGNORECASE)),
+)
+
+
+def surface_id_for(path: str) -> str:
+    stem = re.sub(r"[^A-Za-z0-9]+", "-", path).strip("-").lower()
+    version = re.search(r"(?:^|[._-])v(\d+)(?:[._-]|$)", path, flags=re.IGNORECASE)
+    return f"{stem}.v{version.group(1)}" if version else stem
+
+
+def contract_surface_inventory_payload(workspace: Path) -> Dict[str, Any]:
+    surfaces = []
+    skip_dirs = {".git", ".adlc", "node_modules", ".venv", "__pycache__"}
+    for path in sorted(workspace.rglob("*")):
+        if path.is_dir():
+            continue
+        try:
+            rel = path.relative_to(workspace).as_posix()
+        except ValueError:
+            continue
+        if any(part in skip_dirs for part in path.parts):
+            continue
+        surface_type = None
+        for candidate, pattern in CONTRACT_SURFACE_PATTERNS:
+            if pattern.search(rel):
+                surface_type = candidate
+                break
+        versioned = bool(re.search(r"(?:^|[._-])v\d+(?:[._-]|$)", rel, flags=re.IGNORECASE))
+        if not surface_type and not versioned:
+            continue
+        surfaces.append(
+            {
+                "id": surface_id_for(rel),
+                "path": rel,
+                "surface_type": surface_type or "doc",
+                "versioned": versioned,
+                "versioning_policy": "requires additive evidence or migration/deprecation record before published surface changes",
+                "consumers": [],
+            }
+        )
+    return {"contract_version": "1.0.0", "workspace": str(workspace), "surfaces": surfaces}
+
+
+def task_touched_paths(task: Dict[str, Any]) -> List[str]:
+    paths: List[str] = []
+    for key in ("files_to_modify", "files_to_create"):
+        value = task.get(key)
+        if isinstance(value, list):
+            paths.extend(str(item) for item in value if isinstance(item, str))
+    return paths
+
+
+def matching_surfaces(task: Dict[str, Any], inventory: Dict[str, Any] | None) -> List[Dict[str, Any]]:
+    if not inventory:
+        return []
+    paths = task_touched_paths(task)
+    matches = []
+    for surface in inventory.get("surfaces", []):
+        surface_path = str(surface.get("path", ""))
+        if any(path == surface_path or path.startswith(surface_path) or surface_path.startswith(path) for path in paths):
+            matches.append(surface)
+    return matches
+
+
+def compatibility_evidence_payload(brief_path: Path, inventory_path: Path | None = None) -> Dict[str, Any]:
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path)
+    inventory = read_json(inventory_path) if inventory_path else None
+    issues: List[Dict[str, Any]] = []
+    results = []
+    for task in brief.get("sections", {}).get("8_task_tickets", []):
+        surfaces = matching_surfaces(task, inventory)
+        contract = task.get("compatibility_contract")
+        named_surfaces = contract.get("surfaces", []) if isinstance(contract, dict) else []
+        predicates = contract.get("verification_predicates", []) if isinstance(contract, dict) else []
+        evidence_refs = task.get("compatibility_evidence_refs", [])
+        task_issues = []
+        if surfaces:
+            surface_ids = [surface["id"] for surface in surfaces]
+            missing = [surface_id for surface_id in surface_ids if surface_id not in named_surfaces]
+            if missing:
+                task_issues.append({"rule": "compatibility_contract_missing_surface", "missing_surfaces": missing})
+            predicate_surfaces = [predicate.get("surface") for predicate in predicates if isinstance(predicate, dict)]
+            predicate_missing = [surface_id for surface_id in surface_ids if surface_id not in predicate_surfaces]
+            if predicate_missing:
+                task_issues.append({"rule": "compatibility_predicate_missing", "missing_surfaces": predicate_missing})
+            if not evidence_refs:
+                task_issues.append({"rule": "compatibility_evidence_refs_missing", "missing_surfaces": surface_ids})
+        if isinstance(contract, dict):
+            combined = " ".join(str(contract.get(key, "")) for key in ("backward", "forward", "migration_or_rollout")).lower()
+            if "compatible" in combined and not predicates:
+                task_issues.append({"rule": "generic_compatibility_claim_without_predicate"})
+        for issue in task_issues:
+            issue.update({"task_id": task.get("task_id"), "severity": "blocking"})
+        issues.extend(task_issues)
+        results.append({"task_id": task.get("task_id"), "touched_surfaces": [surface.get("id") for surface in surfaces], "issues": task_issues})
+    return {"contract_version": "1.0.0", "status": "fail" if issues else "pass", "build_brief_id": brief.get("brief_id"), "tasks": results, "issues": issues}
+
+
+def deviation_log_validate_payload(input_path: Path) -> Dict[str, Any]:
+    payload = read_json(input_path)
+    ledger_ids = set(payload.get("ledger_entry_ids", []))
+    deviations = [item for item in payload.get("deviations", []) if isinstance(item, dict)]
+    issues = []
+    for deviation in deviations:
+        ledger_id = deviation.get("ledger_entry_id")
+        if deviation.get("architecture_affecting") and not ledger_id:
+            issues.append({"rule": "architecture_deviation_without_ledger", "severity": "blocking", "deviation_id": deviation.get("id")})
+        elif ledger_id and ledger_id not in ledger_ids:
+            issues.append({"rule": "deviation_ledger_entry_not_found", "severity": "blocking", "deviation_id": deviation.get("id"), "ledger_entry_id": ledger_id})
+    return {
+        "contract_version": "1.0.0",
+        "status": "blocked" if any(issue["rule"] == "architecture_deviation_without_ledger" for issue in issues) else ("fail" if issues else "pass"),
+        "brief_generator_defect_count": sum(1 for issue in issues if issue["rule"] == "architecture_deviation_without_ledger"),
+        "issues": issues,
+    }
+
+
+def execution_adapter_git_diff_text(workspace: Path) -> str:
+    subprocess.run(["git", "add", "-N", "."], cwd=str(workspace), text=True, capture_output=True, check=False)
+    result = subprocess.run(["git", "diff", "--"], cwd=str(workspace), text=True, capture_output=True, check=False)
+    return result.stdout
+
+
+def execution_adapter_copy_ignore(source: Path):
+    source = source.resolve()
+
+    def ignore(directory: str, names: List[str]) -> set[str]:
+        ignored = {name for name in (".git", "node_modules", ".venv") if name in names}
+        if Path(directory).resolve() == source and ".adlc" in names:
+            ignored.add(".adlc")
+        return ignored
+
+    return ignore
+
+
+def prepare_execution_adapter_git_baseline(workdir: Path) -> None:
+    subprocess.run(["git", "init", "-q"], cwd=str(workdir), check=True)
+    subprocess.run(["git", "config", "user.email", "adlc@example.invalid"], cwd=str(workdir), check=True)
+    subprocess.run(["git", "config", "user.name", "ADLC Execution Adapter"], cwd=str(workdir), check=True)
+    subprocess.run(["git", "add", "-A"], cwd=str(workdir), check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "adlc execution adapter baseline"], cwd=str(workdir), check=True)
+
+
+def execution_adapter_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    provider = args.provider
+    if provider == "anthropic":
+        return {
+            "contract_version": "1.0.0",
+            "status": "skipped",
+            "provider": provider,
+            "model": args.model or "",
+            "exit_code": None,
+            "duration_seconds": 0.0,
+            "stdout": "",
+            "stderr": "",
+            "diff": "",
+            "workdir": str(resolve_workspace(args.workdir)),
+            "prompt_file": args.prompt_file,
+            "failure_reason": "anthropic_provider_must_not_invoke_execution_adapter",
+        }
+    source = resolve_workspace(args.workdir)
+    sandbox = Path(tempfile.mkdtemp(prefix="adlc-exec-adapter-"))
+    workdir = sandbox / source.name
+    shutil.copytree(source, workdir, ignore=execution_adapter_copy_ignore(source))
+    prepare_execution_adapter_git_baseline(workdir)
+    env = os.environ.copy()
+    env.update({"ADLC_EXECUTION_PROVIDER": provider, "ADLC_EXECUTION_MODEL": args.model or "", "ADLC_EXECUTION_WORKDIR": str(workdir)})
+    if args.prompt_file:
+        env["ADLC_EXECUTION_PROMPT_FILE"] = str(resolve_input_path(args.prompt_file, source))
+    start = monotonic()
+    result = subprocess.run(args.command, cwd=str(workdir), shell=True, text=True, capture_output=True, env=env, timeout=args.timeout, check=False)
+    duration = monotonic() - start
+    diff = execution_adapter_git_diff_text(workdir)
+    failure_reason = None
+    if result.returncode != 0:
+        failure_reason = "nonzero_exit"
+    elif not diff and args.require_diff:
+        failure_reason = "no_diff"
+    return {
+        "contract_version": "1.0.0",
+        "status": "failed" if failure_reason else "completed",
+        "provider": provider,
+        "model": args.model or "",
+        "exit_code": result.returncode,
+        "duration_seconds": round(duration, 3),
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "diff": diff,
+        "workdir": str(workdir),
+        "prompt_file": args.prompt_file,
+        "failure_reason": failure_reason,
+    }
+
+
+def run_report_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    clarity_report = read_json(cli_input_path(args.clarity_report)) if args.clarity_report else {}
+    deviation_report = read_json(cli_input_path(args.deviation_report)) if args.deviation_report else {}
+    compatibility_reports = [read_json(cli_input_path(path)) for path in (args.compatibility_report or [])]
+    execution_reports = [read_json(cli_input_path(path)) for path in (args.execution_adapter_report or [])]
+    gate_results = []
+    evidence_refs: List[str] = []
+
+    if args.clarity_report:
+        evidence_refs.append(rel_path(cli_input_path(args.clarity_report)))
+        gate_results.append({"name": "clarity-gate", "status": str(clarity_report.get("status", "unknown")), "evidence_ref": rel_path(cli_input_path(args.clarity_report))})
+    if args.deviation_report:
+        evidence_refs.append(rel_path(cli_input_path(args.deviation_report)))
+        gate_results.append({"name": "deviation-log-validate", "status": str(deviation_report.get("status", "unknown")), "evidence_ref": rel_path(cli_input_path(args.deviation_report))})
+    for path, report in zip(args.compatibility_report or [], compatibility_reports):
+        evidence_ref = rel_path(cli_input_path(path))
+        evidence_refs.append(evidence_ref)
+        gate_results.append({"name": "compatibility-evidence", "status": str(report.get("status", "unknown")), "evidence_ref": evidence_ref})
+    harness_runs = []
+    for path, report in zip(args.execution_adapter_report or [], execution_reports):
+        evidence_ref = rel_path(cli_input_path(path))
+        evidence_refs.append(evidence_ref)
+        harness_runs.append(
+            {
+                "provider": str(report.get("provider", "unknown")),
+                "model": str(report.get("model", "")),
+                "status": str(report.get("status", "unknown")),
+                "evidence_ref": evidence_ref,
+                "exit_code": report.get("exit_code"),
+            }
+        )
+        gate_results.append(
+            {
+                "name": "execution-adapter",
+                "status": str(report.get("status", "unknown")),
+                "evidence_ref": evidence_ref,
+                "provider": str(report.get("provider", "unknown")),
+                "model": str(report.get("model", "")),
+            }
+        )
+
+    honesty_surface = clarity_report.get("honesty_surface") if isinstance(clarity_report.get("honesty_surface"), dict) else {}
+    pending = clarity_report.get("pending_questions") if isinstance(clarity_report.get("pending_questions"), dict) else {}
+    blocked_slices = []
+    for question in pending.get("questions", []) if isinstance(pending.get("questions"), list) else []:
+        if not isinstance(question, dict):
+            continue
+        blocked_slices.append(
+            {
+                "ledger_entry_id": question.get("ledger_entry_id"),
+                "reason": "pending_human_clarification",
+                "question": question.get("question"),
+            }
+        )
+
+    statuses = [str(item.get("status", "")) for item in gate_results]
+    if blocked_slices or "blocked" in statuses:
+        status = "blocked"
+    elif any(value in {"fail", "failed"} for value in statuses):
+        status = "fail"
+    else:
+        status = "pass"
+
+    report = {
+        "contract_version": "1.0.0",
+        "status": status,
+        "run_id": args.run_id or f"run:{utc_now()}",
+        "harness": {
+            "provider": args.provider,
+            "model": args.model or "",
+            "runtime": args.runtime or "",
+        },
+        "honesty_surface": {
+            "knowns": [str(item) for item in honesty_surface.get("knowns", [])],
+            "ratified_assumptions": [str(item) for item in honesty_surface.get("ratified_assumptions", [])],
+            "remaining_unknowns": [str(item) for item in honesty_surface.get("remaining_unknowns", [])],
+            "accepted_risks": [str(item) for item in honesty_surface.get("accepted_risks", [])],
+        },
+        "brief_generator_defect_count": int(deviation_report.get("brief_generator_defect_count", 0) or 0),
+        "blocked_slices": blocked_slices,
+        "gate_results": gate_results,
+        "harness_runs": harness_runs,
+        "evidence_refs": sorted(set(ref for ref in evidence_refs if ref)),
+        "process_artifacts_only": True,
+    }
+    errors = validate_artifact_payload(resolve_schema("run-report"), report)
+    if errors:
+        raise ValueError("generated run report failed schema validation: " + "; ".join(errors))
+    return report
+
+
 def terminal_side_effect_dependency_ids(state: Dict[str, Any] | None, target: str, brief_id: str) -> set:
     if not state:
         return set()
@@ -11292,6 +11706,120 @@ def command_slop_gate(args: argparse.Namespace) -> int:
     return 0 if payload["status"] == "pass" else 1
 
 
+def command_clarity_gate(args: argparse.Namespace) -> int:
+    try:
+        payload = clarity_gate_payload(
+            brief_path=cli_input_path(args.build_brief),
+            blindspot_path=cli_input_path(args.blindspot_report) if args.blindspot_report else None,
+            answers_path=cli_input_path(args.answers) if args.answers else None,
+            mode=args.mode,
+        )
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload, "clarity-gate-report")
+        if args.pending_questions_output:
+            write_artifact(cli_input_path(args.pending_questions_output), payload["pending_questions"], "pending-questions")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['build_brief_id']}: clarity gate {payload['status']} ({payload['summary']['issues']} issues)")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def command_contract_surface_inventory(args: argparse.Namespace) -> int:
+    try:
+        workspace = resolve_workspace(args.workspace)
+        payload = contract_surface_inventory_payload(workspace)
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload, "contract-surface-inventory")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['workspace']}: {len(payload['surfaces'])} contract surface(s)")
+    return 0
+
+
+def command_compatibility_evidence(args: argparse.Namespace) -> int:
+    try:
+        payload = compatibility_evidence_payload(
+            cli_input_path(args.build_brief),
+            cli_input_path(args.inventory) if args.inventory else None,
+        )
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload, "compatibility-evidence-report")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['build_brief_id']}: compatibility evidence {payload['status']} ({len(payload['issues'])} issues)")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def command_deviation_log_validate(args: argparse.Namespace) -> int:
+    try:
+        payload = deviation_log_validate_payload(cli_input_path(args.input))
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"deviation log {payload['status']} ({payload['brief_generator_defect_count']} brief-generator defects)")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def command_execution_adapter(args: argparse.Namespace) -> int:
+    try:
+        payload = execution_adapter_payload(args)
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload, "execution-adapter-report")
+    except subprocess.TimeoutExpired as exc:
+        payload = {
+            "contract_version": "1.0.0",
+            "status": "failed",
+            "provider": args.provider,
+            "model": args.model or "",
+            "exit_code": None,
+            "duration_seconds": float(args.timeout),
+            "stdout": exc.stdout or "",
+            "stderr": exc.stderr or "",
+            "diff": "",
+            "workdir": str(resolve_workspace(args.workdir)),
+            "prompt_file": args.prompt_file,
+            "failure_reason": "timeout",
+        }
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['provider']}: execution adapter {payload['status']}")
+    return 0 if payload["status"] in {"completed", "skipped"} else 1
+
+
+def command_run_report(args: argparse.Namespace) -> int:
+    try:
+        payload = run_report_payload(args)
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload, "run-report")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['run_id']}: run report {payload['status']}")
+    return 0 if payload["status"] == "pass" else 1
+
+
 def mcp_tools() -> List[Dict[str, Any]]:
     return [
         {
@@ -11972,6 +12500,100 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("clarity-gate"),
+            "description": command_description("clarity-gate"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "blindspot_report": {"type": "string", "minLength": 1},
+                    "answers": {"type": "string", "minLength": 1},
+                    "mode": {"type": "string", "enum": ["headless", "interactive"], "default": "headless"},
+                    "output": {"type": "string", "minLength": 1},
+                    "pending_questions_output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("contract-surface-inventory"),
+            "description": command_description("contract-surface-inventory"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("compatibility-evidence"),
+            "description": command_description("compatibility-evidence"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "inventory": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("deviation-log-validate"),
+            "description": command_description("deviation-log-validate"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["input"],
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("execution-adapter"),
+            "description": command_description("execution-adapter"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["provider", "command"],
+                "properties": {
+                    "provider": {"type": "string", "minLength": 1},
+                    "command": {"type": "string", "minLength": 1},
+                    "workdir": {"type": "string", "minLength": 1},
+                    "prompt_file": {"type": "string", "minLength": 1},
+                    "model": {"type": "string", "minLength": 1},
+                    "timeout": {"type": "integer", "minimum": 1},
+                    "require_diff": {"type": "boolean", "default": True},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("run-report"),
+            "description": command_description("run-report"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["provider"],
+                "properties": {
+                    "provider": {"type": "string", "minLength": 1},
+                    "model": {"type": "string"},
+                    "runtime": {"type": "string"},
+                    "run_id": {"type": "string", "minLength": 1},
+                    "clarity_report": {"type": "string", "minLength": 1},
+                    "deviation_report": {"type": "string", "minLength": 1},
+                    "compatibility_report": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "execution_adapter_report": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("loop-test-selection"),
             "description": command_description("loop-test-selection"),
             "inputSchema": {
@@ -12549,6 +13171,83 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         if not brief_path.is_absolute():
             brief_path = ROOT / brief_path
         payload = slop_gate_payload(brief_path)
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_clarity_gate":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_clarity_gate requires string argument: build_brief")
+        payload = clarity_gate_payload(
+            brief_path=resolve_input_path(build_brief, Path.cwd()),
+            blindspot_path=resolve_input_path(arguments["blindspot_report"], Path.cwd()) if isinstance(arguments.get("blindspot_report"), str) else None,
+            answers_path=resolve_input_path(arguments["answers"], Path.cwd()) if isinstance(arguments.get("answers"), str) else None,
+            mode=arguments.get("mode") if arguments.get("mode") in {"headless", "interactive"} else "headless",
+        )
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload, "clarity-gate-report")
+        if isinstance(arguments.get("pending_questions_output"), str):
+            write_artifact(cli_input_path(arguments["pending_questions_output"]), payload["pending_questions"], "pending-questions")
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_contract_surface_inventory":
+        payload = contract_surface_inventory_payload(resolve_workspace(arguments.get("workspace") if isinstance(arguments.get("workspace"), str) else None))
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload, "contract-surface-inventory")
+        return tool_result(payload)
+    if name == "adlc_compatibility_evidence":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_compatibility_evidence requires string argument: build_brief")
+        payload = compatibility_evidence_payload(
+            resolve_input_path(build_brief, Path.cwd()),
+            resolve_input_path(arguments["inventory"], Path.cwd()) if isinstance(arguments.get("inventory"), str) else None,
+        )
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload, "compatibility-evidence-report")
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_deviation_log_validate":
+        input_path = arguments.get("input")
+        if not isinstance(input_path, str):
+            raise ValueError("adlc_deviation_log_validate requires string argument: input")
+        payload = deviation_log_validate_payload(resolve_input_path(input_path, Path.cwd()))
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_execution_adapter":
+        provider = arguments.get("provider")
+        command = arguments.get("command")
+        if not isinstance(provider, str) or not isinstance(command, str):
+            raise ValueError("adlc_execution_adapter requires string arguments: provider, command")
+        payload = execution_adapter_payload(
+            argparse.Namespace(
+                provider=provider,
+                command=command,
+                workdir=arguments.get("workdir") if isinstance(arguments.get("workdir"), str) else str(Path.cwd()),
+                prompt_file=arguments.get("prompt_file") if isinstance(arguments.get("prompt_file"), str) else None,
+                model=arguments.get("model") if isinstance(arguments.get("model"), str) else "",
+                timeout=int(arguments.get("timeout", 300)),
+                require_diff=bool(arguments.get("require_diff", True)),
+                output=arguments.get("output") if isinstance(arguments.get("output"), str) else None,
+            )
+        )
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload, "execution-adapter-report")
+        return tool_result(payload, is_error=payload["status"] == "failed")
+    if name == "adlc_run_report":
+        provider = arguments.get("provider")
+        if not isinstance(provider, str):
+            raise ValueError("adlc_run_report requires string argument: provider")
+        payload = run_report_payload(
+            argparse.Namespace(
+                provider=provider,
+                model=arguments.get("model") if isinstance(arguments.get("model"), str) else "",
+                runtime=arguments.get("runtime") if isinstance(arguments.get("runtime"), str) else "",
+                run_id=arguments.get("run_id") if isinstance(arguments.get("run_id"), str) else None,
+                clarity_report=arguments.get("clarity_report") if isinstance(arguments.get("clarity_report"), str) else None,
+                deviation_report=arguments.get("deviation_report") if isinstance(arguments.get("deviation_report"), str) else None,
+                compatibility_report=arguments.get("compatibility_report") if isinstance(arguments.get("compatibility_report"), list) else [],
+                execution_adapter_report=arguments.get("execution_adapter_report") if isinstance(arguments.get("execution_adapter_report"), list) else [],
+                output=arguments.get("output") if isinstance(arguments.get("output"), str) else None,
+            )
+        )
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload, "run-report")
         return tool_result(payload, is_error=payload["status"] != "pass")
     if name == "adlc_loop_test_selection":
         loop_contract = arguments.get("loop_contract")
@@ -13191,6 +13890,59 @@ def build_parser() -> argparse.ArgumentParser:
     slop_gate.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
     slop_gate.add_argument("--json", action="store_true", help="Emit JSON.")
     slop_gate.set_defaults(func=command_slop_gate)
+
+    clarity_gate = subparsers.add_parser("clarity-gate", help=command_description("clarity-gate"))
+    clarity_gate.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
+    clarity_gate.add_argument("--blindspot-report", help="Blindspot Report JSON path. Defaults to embedded section 18.")
+    clarity_gate.add_argument("--answers", help="Optional human answers JSON path.")
+    clarity_gate.add_argument("--mode", choices=("headless", "interactive"), default="headless", help="Interview mode.")
+    clarity_gate.add_argument("--output", help="Optional clarity gate report path.")
+    clarity_gate.add_argument("--pending-questions-output", help="Optional Pending Questions artifact path.")
+    clarity_gate.add_argument("--json", action="store_true", help="Emit JSON.")
+    clarity_gate.set_defaults(func=command_clarity_gate)
+
+    contract_inventory = subparsers.add_parser("contract-surface-inventory", help=command_description("contract-surface-inventory"))
+    contract_inventory.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
+    contract_inventory.add_argument("--output", help="Optional Contract Surface Inventory report path.")
+    contract_inventory.add_argument("--json", action="store_true", help="Emit JSON.")
+    contract_inventory.set_defaults(func=command_contract_surface_inventory)
+
+    compatibility = subparsers.add_parser("compatibility-evidence", help=command_description("compatibility-evidence"))
+    compatibility.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
+    compatibility.add_argument("--inventory", help="Contract Surface Inventory JSON path.")
+    compatibility.add_argument("--output", help="Optional Compatibility Evidence report path.")
+    compatibility.add_argument("--json", action="store_true", help="Emit JSON.")
+    compatibility.set_defaults(func=command_compatibility_evidence)
+
+    deviation = subparsers.add_parser("deviation-log-validate", help=command_description("deviation-log-validate"))
+    deviation.add_argument("--input", required=True, help="Execution deviation log JSON path.")
+    deviation.add_argument("--json", action="store_true", help="Emit JSON.")
+    deviation.set_defaults(func=command_deviation_log_validate)
+
+    execution_adapter = subparsers.add_parser("execution-adapter", help=command_description("execution-adapter"))
+    execution_adapter.add_argument("--provider", required=True, help="Provider name, for example codex.")
+    execution_adapter.add_argument("--command", required=True, help="Command to run in an isolated workspace copy.")
+    execution_adapter.add_argument("--workdir", default=".", help="Source workspace to copy before running the command.")
+    execution_adapter.add_argument("--prompt-file", help="Prompt file path passed through ADLC_EXECUTION_PROMPT_FILE.")
+    execution_adapter.add_argument("--model", help="Model label recorded in the report.")
+    execution_adapter.add_argument("--timeout", type=int, default=300, help="Command timeout in seconds.")
+    execution_adapter.add_argument("--require-diff", action=argparse.BooleanOptionalAction, default=True, help="Fail when the command produces no git diff.")
+    execution_adapter.add_argument("--output", help="Optional Execution Adapter report path.")
+    execution_adapter.add_argument("--json", action="store_true", help="Emit JSON.")
+    execution_adapter.set_defaults(func=command_execution_adapter)
+
+    run_report = subparsers.add_parser("run-report", help=command_description("run-report"))
+    run_report.add_argument("--provider", required=True, help="Primary harness provider for this run report.")
+    run_report.add_argument("--model", help="Primary model label recorded in the run report.")
+    run_report.add_argument("--runtime", help="Runtime or adapter name recorded in the run report.")
+    run_report.add_argument("--run-id", help="Stable run identity. Defaults to a timestamped id.")
+    run_report.add_argument("--clarity-report", help="Clarity Gate report JSON path.")
+    run_report.add_argument("--deviation-report", help="Deviation validation report JSON path.")
+    run_report.add_argument("--compatibility-report", action="append", help="Compatibility Evidence report JSON path. Can be repeated.")
+    run_report.add_argument("--execution-adapter-report", action="append", help="Execution Adapter report JSON path. Can be repeated.")
+    run_report.add_argument("--output", help="Optional schema-backed Run Report path.")
+    run_report.add_argument("--json", action="store_true", help="Emit JSON.")
+    run_report.set_defaults(func=command_run_report)
 
     mcp = subparsers.add_parser("mcp-tools", help="Emit MCP-compatible tool declarations for the ADLC CLI.")
     mcp.add_argument("--json", action="store_true", help="Emit JSON.")

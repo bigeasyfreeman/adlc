@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/clarity-gate-report.schema.json",
+  "title": "ADLC Clarity Gate Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["contract_version", "status", "build_brief_id", "issues", "pending_questions", "honesty_surface"],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "status": {"type": "string", "enum": ["pass", "blocked"]},
+    "build_brief_id": {"type": "string"},
+    "issues": {"type": "array", "items": {"type": "object"}},
+    "pending_questions": {"$ref": "pending-questions.schema.json"},
+    "honesty_surface": {"type": "object"}
+  }
+}

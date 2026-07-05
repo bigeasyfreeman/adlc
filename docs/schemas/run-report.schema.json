@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/run-report.schema.json",
+  "title": "ADLC Run Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "status",
+    "run_id",
+    "harness",
+    "honesty_surface",
+    "brief_generator_defect_count",
+    "blocked_slices",
+    "gate_results",
+    "harness_runs",
+    "process_artifacts_only"
+  ],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "status": {"type": "string", "enum": ["pass", "blocked", "fail"]},
+    "run_id": {"type": "string", "minLength": 1},
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider"],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "model": {"type": "string"},
+        "runtime": {"type": "string"}
+      }
+    },
+    "honesty_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["knowns", "ratified_assumptions", "remaining_unknowns", "accepted_risks"],
+      "properties": {
+        "knowns": {"type": "array", "items": {"type": "string"}},
+        "ratified_assumptions": {"type": "array", "items": {"type": "string"}},
+        "remaining_unknowns": {"type": "array", "items": {"type": "string"}},
+        "accepted_risks": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "brief_generator_defect_count": {"type": "integer", "minimum": 0},
+    "blocked_slices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason"],
+        "properties": {
+          "task_id": {"type": "string"},
+          "ledger_entry_id": {"type": "string"},
+          "reason": {"type": "string", "minLength": 1},
+          "question": {"type": "string"}
+        }
+      }
+    },
+    "gate_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "status": {"type": "string", "minLength": 1},
+          "evidence_ref": {"type": "string"},
+          "provider": {"type": "string"},
+          "model": {"type": "string"}
+        }
+      }
+    },
+    "harness_runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider", "status"],
+        "properties": {
+          "provider": {"type": "string", "minLength": 1},
+          "model": {"type": "string"},
+          "status": {"type": "string", "minLength": 1},
+          "evidence_ref": {"type": "string"},
+          "exit_code": {"type": ["integer", "null"]}
+        }
+      }
+    },
+    "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "process_artifacts_only": {"type": "boolean"}
+  }
+}
