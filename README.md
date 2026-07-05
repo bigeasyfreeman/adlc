@@ -106,7 +106,22 @@ diff.
    - minimality_contract with exactly two fields: rung and decision. Decide it
      once. Repo conventions outrank minimality on file and module structure.
 
-3. Validate and prove readiness before codegen:
+3. Inventory contract surfaces and pass the clarity gate before finalizing
+   the brief:
+   bin/adlc contract-surface-inventory --workspace <target> --output <inventory> --json
+   bin/adlc clarity-gate --build-brief <brief> --mode <interactive|headless> --json
+
+   The brief must carry an epistemic ledger (every claim KNOWN with sources,
+   ASSUMED with ratification, or UNKNOWN with a disposition) and a blindspot
+   report whose items all map to ledger entries. The clarity gate blocks
+   finalization on architecture-affecting unknowns, ask-user unknowns without
+   a recorded human answer, predicate-free acceptance criteria, and
+   proof-type criteria with no substance floor. In headless mode it blocks
+   and emits a pending-questions artifact — answer the questions or
+   explicitly delegate to the stated conservative default; the pipeline never
+   self-answers.
+
+4. Validate and prove readiness before codegen:
    bin/adlc validate-artifact --schema build-brief --input <brief> --json
    bin/adlc emit-work-items --target linear --build-brief <brief> --workspace <target> --dry-run --require-ready --json
 
@@ -115,16 +130,25 @@ diff.
    split-required tasks, unready minimality, and other readiness issues. Fix
    until ready; never waive silently.
 
-4. Assemble codegen context and write the architecture test first:
+5. Assemble codegen context and write the architecture test first:
    bin/adlc run-phase context_assembly --brief-id <brief-id> --build-brief <brief> --workspace <target> --json
 
    Generate code only from the assembled context. For any task with a required
    module_plan, write and run the architecture test before production code.
 
-5. Gate the result before opening a PR:
+6. Gate the result before opening a PR:
    bin/adlc convention-scan --workspace <target> --build-brief <brief> --json
+   bin/adlc compatibility-evidence --build-brief <brief> --inventory <inventory> --json
+   bin/adlc deviation-log-validate --input <deviations> --json
    bin/adlc ponytail-admit --build-brief <brief> --diff-file <final.diff> --json
    bin/adlc pr-hygiene-scan --workspace <target> --build-brief <brief> --diff-file <final.diff> --title <title> --body <body> --base-branch main --default-branch main --json
+
+   compatibility-evidence blocks tasks touching an inventoried contract
+   surface unless the surface is named, carries verification predicates, and
+   every evidence ref resolves to a real artifact. deviation-log-validate
+   classifies every structural decision the brief did not specify: traceable
+   to a ledger unknown, or a brief-generator defect that feeds the run
+   report's defect count.
 
    convention-scan blocks target-convention violations and manual-review
    predicates that cannot be checked deterministically. ponytail-admit blocks
@@ -138,6 +162,19 @@ diff.
    Waivers are recorded, not skipped. PR hygiene waivers use rule:who:why.
    When another gate has a narrower flag format, put the same rule/who/why
    approval in the reason or reference field.
+
+7. Audit completion honestly before presenting the work as done:
+   bin/adlc minimalism-audit --build-brief <brief> --criterion-depth-report <depth> --json
+   bin/adlc completion-audit --input <audit-plan> --workspace <target> --auditor independent --json
+   bin/adlc run-report --json  # aggregate clarity, deviation, compatibility, and harness evidence
+
+   Every acceptance criterion declares a depth (minimal or robust) with a
+   justification. The Minimalism Auditor checks each declaration against the
+   predicate library (bin/adlc predicate-library) — declaring robust while
+   shipping the cheapest satisfying implementation blocks approval. The
+   completion audit re-verifies completion claims against actual repo state
+   with an auditor that is not the executor, records what was verified versus
+   taken on trust, and blocks PR prep on any contradicted claim.
 ```
 
 ## Best Use / Anti-Patterns
