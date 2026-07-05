@@ -8,19 +8,44 @@
   "properties": {
     "contract_version": {"type": "string"},
     "workspace": {"type": "string"},
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surfaces", "policy", "heuristic", "low_confidence"],
+      "properties": {
+        "surfaces": {"type": "integer", "minimum": 0},
+        "policy": {"type": "integer", "minimum": 0},
+        "heuristic": {"type": "integer", "minimum": 0},
+        "low_confidence": {"type": "integer", "minimum": 0}
+      }
+    },
     "surfaces": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "path", "surface_type", "versioned", "versioning_policy"],
+        "required": ["id", "path", "surface_type", "versioned", "versioning_policy", "source", "confidence", "consumer_discovery"],
         "properties": {
           "id": {"type": "string", "minLength": 1},
           "path": {"type": "string", "minLength": 1},
           "surface_type": {"type": "string", "enum": ["schema", "api", "cli", "config", "migration", "doc"]},
           "versioned": {"type": "boolean"},
           "versioning_policy": {"type": "string", "minLength": 1},
-          "consumers": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          "source": {"type": "string", "enum": ["policy", "heuristic"]},
+          "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+          "blocking": {"type": "boolean"},
+          "policy_ref": {"type": "string", "minLength": 1},
+          "consumers": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "consumer_discovery": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status"],
+            "properties": {
+              "status": {"type": "string", "enum": ["attempted", "not_attempted", "unknown"]},
+              "method": {"type": "string"},
+              "reason": {"type": "string"}
+            }
+          }
         }
       }
     }

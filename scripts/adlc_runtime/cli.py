@@ -8487,18 +8487,98 @@ def blindspot_report_from_inputs(brief: Dict[str, Any], blindspot_path: Path | N
     return embedded if isinstance(embedded, dict) else None
 
 
-def question_for_unknown(entry: Dict[str, Any]) -> Dict[str, Any]:
+CANNED_WHY_IT_MATTERS = "The Build Brief cannot safely choose architecture, compatibility, or task boundaries without this answer."
+CANNED_WHAT_CHANGES = "The answer may revise the ledger status, compatibility contract, task tickets, and validation evidence."
+CANNED_CONSERVATIVE_DEFAULT = "Block finalization in headless mode; only use a default when a human explicitly delegates that choice."
+QUESTION_STOPWORDS = {
+    "about",
+    "after",
+    "before",
+    "between",
+    "current",
+    "handling",
+    "must",
+    "should",
+    "that",
+    "their",
+    "there",
+    "these",
+    "this",
+    "unknown",
+    "whether",
+    "with",
+}
+
+
+def significant_claim_terms(claim: str) -> List[str]:
+    terms = []
+    for term in re.findall(r"[A-Za-z0-9_][A-Za-z0-9_.-]{2,}", claim.lower()):
+        if term not in QUESTION_STOPWORDS:
+            terms.append(term)
+    return terms[:8]
+
+
+def authored_questions_by_ledger(brief: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    interview = brief.get("sections", {}).get("19_clarity_interview")
+    if not isinstance(interview, dict):
+        return {}
+    questions = interview.get("questions")
+    if not isinstance(questions, list):
+        return {}
+    return {
+        str(question.get("ledger_entry_id")): question
+        for question in questions
+        if isinstance(question, dict) and question.get("ledger_entry_id")
+    }
+
+
+def question_for_unknown(entry: Dict[str, Any], authored_question: Dict[str, Any] | None = None) -> Dict[str, Any]:
     impact = "high" if entry.get("architecture_affecting") else "medium"
     entry_id = str(entry.get("id") or "unknown")
+    if authored_question:
+        question = {
+            "id": str(authored_question.get("id") or f"question-{entry_id}"),
+            "ledger_entry_id": entry_id,
+            "question": str(authored_question.get("question") or f"Resolve ledger unknown {entry_id}: {entry.get('claim', 'unspecified uncertainty')}"),
+            "architecture_impact": str(authored_question.get("architecture_impact") or impact),
+            "why_it_matters": str(authored_question.get("why_it_matters") or ""),
+            "what_changes": str(authored_question.get("what_changes") or ""),
+            "conservative_default": str(authored_question.get("conservative_default") or ""),
+            "source": "authored",
+            "machine_generated": False,
+        }
+        return question
+    claim = str(entry.get("claim") or "unspecified uncertainty")
     return {
         "id": f"question-{entry_id}",
         "ledger_entry_id": entry_id,
-        "question": f"Resolve ledger unknown {entry_id}: {entry.get('claim', 'unspecified uncertainty')}",
+        "question": f"Resolve ledger unknown {entry_id}: {claim}",
         "architecture_impact": impact,
-        "why_it_matters": "The Build Brief cannot safely choose architecture, compatibility, or task boundaries without this answer.",
-        "what_changes": "The answer may revise the ledger status, compatibility contract, task tickets, and validation evidence.",
-        "conservative_default": "Block finalization in headless mode; only use a default when a human explicitly delegates that choice.",
+        "why_it_matters": f"This matters because the unresolved claim affects the briefed decision: {claim}",
+        "what_changes": f"The answer can change task scope, compatibility predicates, or validation evidence for: {claim}",
+        "conservative_default": CANNED_CONSERVATIVE_DEFAULT,
+        "source": "generated",
+        "machine_generated": True,
     }
+
+
+def pending_question_quality_issues(question: Dict[str, Any], entry: Dict[str, Any]) -> List[Dict[str, Any]]:
+    entry_id = str(entry.get("id") or question.get("ledger_entry_id") or "unknown")
+    why = str(question.get("why_it_matters") or "").strip()
+    changes = str(question.get("what_changes") or "").strip()
+    claim = str(entry.get("claim") or "")
+    terms = significant_claim_terms(claim)
+    issues = []
+    if why == changes:
+        issues.append({"rule": "pending_question_duplicate_rationale", "ledger_entry_id": entry_id, "message": "why_it_matters and what_changes must not be identical."})
+    if why == CANNED_WHY_IT_MATTERS or changes == CANNED_WHAT_CHANGES:
+        issues.append({"rule": "pending_question_canned_text", "ledger_entry_id": entry_id, "message": "Architecture-affecting questions require decision-specific rationale, not canned template text."})
+    if terms:
+        why_lower = why.lower()
+        changes_lower = changes.lower()
+        if not any(term in why_lower for term in terms) or not any(term in changes_lower for term in terms):
+            issues.append({"rule": "pending_question_missing_claim_subject", "ledger_entry_id": entry_id, "message": "why_it_matters and what_changes must reference the specific ledger claim or surface."})
+    return issues
 
 
 def clarity_gate_payload(
@@ -8512,12 +8592,19 @@ def clarity_gate_payload(
         raise ValueError("build brief failed schema validation: " + "; ".join(errors))
     brief = read_json(brief_path)
     answers = read_json(answers_path) if answers_path else {}
+    authored_questions = authored_questions_by_ledger(brief)
+    answers_by_id = {
+        str(answer.get("ledger_entry_id")): answer
+        for answer in answers.get("answers", [])
+        if isinstance(answer, dict) and answer.get("ledger_entry_id")
+    }
     answered_ids = {
         str(answer.get("ledger_entry_id"))
         for answer in answers.get("answers", [])
         if isinstance(answer, dict) and answer.get("ledger_entry_id") and answer.get("answer")
     }
     issues: List[Dict[str, Any]] = []
+    warnings_list: List[Dict[str, Any]] = []
     ledger = brief_ledger(brief)
     entries_by_id = ledger_entries_by_id(ledger)
     if not ledger:
@@ -8551,6 +8638,48 @@ def clarity_gate_payload(
             if ledger_id not in entries_by_id:
                 issues.append({"rule": "blindspot_missing_ledger_entry", "severity": "blocking", "blindspot_id": item.get("id"), "message": "Every blindspot item must appear in the epistemic ledger."})
 
+    candidate_entries = [
+        entry for entry in entries_by_id.values()
+        if entry.get("status") == "UNKNOWN"
+        and (entry.get("disposition") == "ask-user" or entry.get("architecture_affecting"))
+    ]
+    questions_by_entry = {
+        str(entry.get("id")): question_for_unknown(entry, authored_questions.get(str(entry.get("id"))))
+        for entry in candidate_entries
+    }
+    for entry in candidate_entries:
+        entry_id = str(entry.get("id"))
+        question = questions_by_entry[entry_id]
+        if question.get("machine_generated") and entry.get("architecture_affecting"):
+            warnings_list.append({
+                "rule": "architecture_question_generated_fallback",
+                "severity": "warning",
+                "ledger_entry_id": entry_id,
+                "message": "Architecture-affecting unknown used a generated fallback question; brief authors should provide decision-specific interview text.",
+            })
+        quality_issues = pending_question_quality_issues(question, entry)
+        if entry.get("architecture_affecting"):
+            for issue in quality_issues:
+                issue.update({"severity": "blocking"})
+            issues.extend(quality_issues)
+        else:
+            for issue in quality_issues:
+                issue.update({"severity": "warning"})
+            warnings_list.extend(quality_issues)
+        answer = answers_by_id.get(entry_id)
+        if isinstance(answer, dict) and answer.get("delegated_default"):
+            recorded_default = str(answer.get("conservative_default") or "")
+            expected_default = str(question.get("conservative_default") or "")
+            if recorded_default != expected_default:
+                issues.append({
+                    "rule": "delegated_default_mismatch",
+                    "severity": "blocking",
+                    "ledger_entry_id": entry_id,
+                    "message": "Delegated answers must record the exact conservative_default text presented to the human.",
+                    "expected_default": expected_default,
+                    "recorded_default": recorded_default,
+                })
+
     pending_entries = [
         entry for entry in entries_by_id.values()
         if entry.get("status") == "UNKNOWN"
@@ -8559,7 +8688,7 @@ def clarity_gate_payload(
         and str(entry.get("id")) not in answered_ids
     ]
     pending_entries.sort(key=lambda item: (not bool(item.get("architecture_affecting")), str(item.get("id"))))
-    questions = [question_for_unknown(entry) for entry in pending_entries]
+    questions = [questions_by_entry[str(entry.get("id"))] for entry in pending_entries]
     pending_questions = {"contract_version": "1.0.0", "status": "blocked" if questions else "empty", "questions": questions}
     if questions and mode == "headless":
         issues.append({"rule": "headless_interview_blocked", "severity": "blocking", "message": "Headless clarity gate blocked and emitted pending questions."})
@@ -8576,6 +8705,7 @@ def clarity_gate_payload(
         "build_brief_id": brief.get("brief_id"),
         "mode": mode,
         "issues": issues,
+        "warnings": warnings_list,
         "pending_questions": pending_questions,
         "honesty_surface": {
             "knowns": knowns,
@@ -8583,7 +8713,7 @@ def clarity_gate_payload(
             "remaining_unknowns": remaining_unknowns,
             "accepted_risks": [entry.get("accepted_risk_ref") for entry in entries_by_id.values() if entry.get("accepted_risk_ref")],
         },
-        "summary": {"ledger_entries": len(entries_by_id), "blindspot_items": len(blindspot_items), "questions": len(questions), "issues": len(issues)},
+        "summary": {"ledger_entries": len(entries_by_id), "blindspot_items": len(blindspot_items), "questions": len(questions), "issues": len(issues), "warnings": len(warnings_list)},
     }
 
 
@@ -8602,8 +8732,114 @@ def surface_id_for(path: str) -> str:
     return f"{stem}.v{version.group(1)}" if version else stem
 
 
+def contract_policy_surfaces(workspace: Path) -> Dict[str, Dict[str, Any]]:
+    policy_surfaces: Dict[str, Dict[str, Any]] = {}
+    config_candidates = [
+        workspace / ".adlc" / "contract-surfaces.json",
+        workspace / "contract-surfaces.json",
+    ]
+    for config in config_candidates:
+        if not config.exists():
+            continue
+        payload = read_json(config)
+        for item in payload.get("surfaces", []) if isinstance(payload, dict) else []:
+            if not isinstance(item, dict) or not item.get("path"):
+                continue
+            rel = str(item["path"]).strip()
+            policy_surfaces[rel] = {
+                "id": str(item.get("id") or surface_id_for(rel)),
+                "path": rel,
+                "surface_type": str(item.get("surface_type") or "doc"),
+                "versioning_policy": str(item.get("versioning_policy") or item.get("policy") or "committed contract-surface inventory policy"),
+                "policy_ref": config.relative_to(workspace).as_posix(),
+            }
+
+    docs = [workspace / "CLAUDE.md", workspace / "CONTRIBUTING.md", workspace / "README.md"]
+    docs.extend(sorted((workspace / "docs").glob("**/*.md")) if (workspace / "docs").exists() else [])
+    path_pattern = re.compile(r"[\w./-]*v\d+[\w./-]*\.(?:json|ya?ml|toml|proto|txt|md)")
+    for doc in docs:
+        if not doc.exists() or not doc.is_file():
+            continue
+        try:
+            lines = doc.read_text(encoding="utf-8").splitlines()
+        except UnicodeDecodeError:
+            continue
+        for lineno, line in enumerate(lines, start=1):
+            lowered = line.lower()
+            if not any(marker in lowered for marker in ("contract", "published", "versioning", "versioned")):
+                continue
+            for match in path_pattern.findall(line):
+                rel = match.strip("`'\".,:;()[]")
+                if rel.startswith("./"):
+                    rel = rel[2:]
+                if not rel:
+                    continue
+                policy_surfaces[rel] = {
+                    "id": surface_id_for(rel),
+                    "path": rel,
+                    "surface_type": "config" if "/config" in f"/{rel}" or rel.startswith("config/") else "doc",
+                    "versioning_policy": line.strip(),
+                    "policy_ref": f"{doc.relative_to(workspace).as_posix()}:{lineno}",
+                }
+    return policy_surfaces
+
+
+def surface_confidence(surface_type: str, versioned: bool, source: str) -> str:
+    if source == "policy" or versioned:
+        return "high"
+    if surface_type in {"schema", "api", "migration"}:
+        return "medium"
+    return "low"
+
+
+def discover_surface_consumers(workspace: Path, surface_path: str) -> List[str]:
+    consumers = []
+    basename = Path(surface_path).name
+    skip_dirs = {".git", ".adlc", "node_modules", ".venv", "__pycache__"}
+    for path in sorted(workspace.rglob("*")):
+        if path.is_dir():
+            continue
+        try:
+            rel = path.relative_to(workspace).as_posix()
+        except ValueError:
+            continue
+        if rel == surface_path or any(part in skip_dirs for part in path.parts):
+            continue
+        if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".gz"}:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        if surface_path in text or basename in text:
+            consumers.append(rel)
+    return consumers
+
+
+def inventory_surface(workspace: Path, rel: str, surface_type: str, versioned: bool, source: str, versioning_policy: str, policy_ref: str | None = None) -> Dict[str, Any]:
+    confidence = surface_confidence(surface_type, versioned, source)
+    consumers = discover_surface_consumers(workspace, rel)
+    surface = {
+        "id": surface_id_for(rel),
+        "path": rel,
+        "surface_type": surface_type,
+        "versioned": versioned,
+        "versioning_policy": versioning_policy,
+        "source": source,
+        "confidence": confidence,
+        "blocking": confidence in {"high", "medium"},
+        "consumer_discovery": {"status": "attempted", "method": "static path-or-basename reference scan"},
+    }
+    if policy_ref:
+        surface["policy_ref"] = policy_ref
+    if consumers:
+        surface["consumers"] = consumers
+    return surface
+
+
 def contract_surface_inventory_payload(workspace: Path) -> Dict[str, Any]:
-    surfaces = []
+    policy_surfaces = contract_policy_surfaces(workspace)
+    surfaces_by_path: Dict[str, Dict[str, Any]] = {}
     skip_dirs = {".git", ".adlc", "node_modules", ".venv", "__pycache__"}
     for path in sorted(workspace.rglob("*")):
         if path.is_dir():
@@ -8622,17 +8858,41 @@ def contract_surface_inventory_payload(workspace: Path) -> Dict[str, Any]:
         versioned = bool(re.search(r"(?:^|[._-])v\d+(?:[._-]|$)", rel, flags=re.IGNORECASE))
         if not surface_type and not versioned:
             continue
-        surfaces.append(
-            {
-                "id": surface_id_for(rel),
-                "path": rel,
-                "surface_type": surface_type or "doc",
-                "versioned": versioned,
-                "versioning_policy": "requires additive evidence or migration/deprecation record before published surface changes",
-                "consumers": [],
-            }
+        surfaces_by_path[rel] = inventory_surface(
+            workspace,
+            rel,
+            surface_type or "doc",
+            versioned,
+            "heuristic",
+            "requires additive evidence or migration/deprecation record before published surface changes",
         )
-    return {"contract_version": "1.0.0", "workspace": str(workspace), "surfaces": surfaces}
+    for rel, policy in policy_surfaces.items():
+        candidate = workspace / rel
+        versioned = bool(re.search(r"(?:^|[._-])v\d+(?:[._-]|$)", rel, flags=re.IGNORECASE))
+        surface_type = str(policy.get("surface_type") or surfaces_by_path.get(rel, {}).get("surface_type") or "doc")
+        surfaces_by_path[rel] = inventory_surface(
+            workspace,
+            rel,
+            surface_type,
+            versioned,
+            "policy",
+            str(policy.get("versioning_policy") or "committed contract-surface policy"),
+            str(policy.get("policy_ref") or ""),
+        )
+        if candidate.exists():
+            surfaces_by_path[rel]["versioned"] = versioned
+    surfaces = sorted(surfaces_by_path.values(), key=lambda item: item["path"])
+    return {
+        "contract_version": "1.0.0",
+        "workspace": str(workspace),
+        "surfaces": surfaces,
+        "summary": {
+            "surfaces": len(surfaces),
+            "policy": sum(1 for surface in surfaces if surface.get("source") == "policy"),
+            "heuristic": sum(1 for surface in surfaces if surface.get("source") == "heuristic"),
+            "low_confidence": sum(1 for surface in surfaces if surface.get("confidence") == "low"),
+        },
+    }
 
 
 def task_touched_paths(task: Dict[str, Any]) -> List[str]:
@@ -8656,6 +8916,49 @@ def matching_surfaces(task: Dict[str, Any], inventory: Dict[str, Any] | None) ->
     return matches
 
 
+def compatibility_evidence_search_roots(brief_path: Path, inventory: Dict[str, Any] | None) -> List[Path]:
+    roots = []
+    if inventory and inventory.get("workspace"):
+        roots.append(Path(str(inventory["workspace"])).expanduser().resolve(strict=False))
+    roots.append(brief_path.parent.resolve(strict=False))
+    roots.append(process_artifact_root().resolve(strict=False))
+    return roots
+
+
+def resolve_evidence_ref(ref: str, brief_path: Path, inventory: Dict[str, Any] | None) -> Tuple[Path | None, str | None]:
+    typed_schema = None
+    raw_ref = ref
+    if "::" in ref:
+        typed_schema, raw_ref = ref.split("::", 1)
+    elif re.fullmatch(r"[A-Za-z0-9_.-]+:.+\.json", ref):
+        typed_schema, raw_ref = ref.split(":", 1)
+    candidate = Path(raw_ref).expanduser()
+    roots = compatibility_evidence_search_roots(brief_path, inventory)
+    candidates = [candidate] if candidate.is_absolute() else [root / candidate for root in roots]
+    allowed_roots = roots
+    for path in candidates:
+        resolved = path.resolve(strict=False)
+        if not any(resolved == root or root in resolved.parents for root in allowed_roots):
+            continue
+        if resolved.exists() and resolved.is_file():
+            return resolved, typed_schema
+    return None, typed_schema
+
+
+def evidence_ref_issue(ref: str, brief_path: Path, inventory: Dict[str, Any] | None) -> Dict[str, Any] | None:
+    resolved, typed_schema = resolve_evidence_ref(ref, brief_path, inventory)
+    if resolved is None:
+        return {"rule": "compatibility_evidence_ref_unresolved", "dead_ref": ref, "message": "compatibility evidence ref does not resolve to a produced artifact."}
+    if resolved.stat().st_size == 0:
+        return {"rule": "compatibility_evidence_ref_empty", "dead_ref": ref, "resolved_path": str(resolved), "message": "compatibility evidence ref resolves to an empty artifact."}
+    if typed_schema:
+        schema_path = resolve_schema(typed_schema)
+        errors = validate_artifact(schema_path, resolved)
+        if errors:
+            return {"rule": "compatibility_evidence_ref_schema_invalid", "dead_ref": ref, "resolved_path": str(resolved), "message": "typed compatibility evidence ref resolves, but fails schema validation.", "errors": errors}
+    return None
+
+
 def compatibility_evidence_payload(brief_path: Path, inventory_path: Path | None = None) -> Dict[str, Any]:
     errors = validate_artifact(resolve_schema("build-brief"), brief_path)
     if errors:
@@ -8666,13 +8969,14 @@ def compatibility_evidence_payload(brief_path: Path, inventory_path: Path | None
     results = []
     for task in brief.get("sections", {}).get("8_task_tickets", []):
         surfaces = matching_surfaces(task, inventory)
+        blocking_surfaces = [surface for surface in surfaces if surface.get("blocking", True)]
         contract = task.get("compatibility_contract")
         named_surfaces = contract.get("surfaces", []) if isinstance(contract, dict) else []
         predicates = contract.get("verification_predicates", []) if isinstance(contract, dict) else []
         evidence_refs = task.get("compatibility_evidence_refs", [])
         task_issues = []
-        if surfaces:
-            surface_ids = [surface["id"] for surface in surfaces]
+        if blocking_surfaces:
+            surface_ids = [surface["id"] for surface in blocking_surfaces]
             missing = [surface_id for surface_id in surface_ids if surface_id not in named_surfaces]
             if missing:
                 task_issues.append({"rule": "compatibility_contract_missing_surface", "missing_surfaces": missing})
@@ -8682,6 +8986,11 @@ def compatibility_evidence_payload(brief_path: Path, inventory_path: Path | None
                 task_issues.append({"rule": "compatibility_predicate_missing", "missing_surfaces": predicate_missing})
             if not evidence_refs:
                 task_issues.append({"rule": "compatibility_evidence_refs_missing", "missing_surfaces": surface_ids})
+            else:
+                for ref in evidence_refs:
+                    issue = evidence_ref_issue(str(ref), brief_path, inventory)
+                    if issue:
+                        task_issues.append(issue)
         if isinstance(contract, dict):
             combined = " ".join(str(contract.get(key, "")) for key in ("backward", "forward", "migration_or_rollout")).lower()
             if "compatible" in combined and not predicates:
