@@ -124,6 +124,18 @@ cat > "$tmp_dir/permission-audit-trail.json" <<'JSON'
 {"session_id":"adlc-test","brief_id":"BRF-TEST","entries":[{"decision_id":"decision-1","tool_name":"Read","action":"read_file","tier":"unrestricted","decision":"approved","reason":"read-only phase","decided_by":"policy","timestamp":"2026-01-01T00:00:00Z","session_id":"adlc-test","brief_id":"BRF-TEST"}],"denial_summary":{"count":0,"patterns":[]}}
 JSON
 assert "validate-artifact accepts permission audit trail fixture" "'$ROOT/bin/adlc' validate-artifact --schema permission-audit-trail --input '$tmp_dir/permission-audit-trail.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+cat > "$tmp_dir/epistemic-ledger.json" <<'JSON'
+{"contract_version":"1.0.0","entries":[{"id":"L-1","status":"KNOWN","claim":"average_score exists","architecture_affecting":false,"sources":["tests/smoke/fixtures/feature_bugfix/src/scoreboard.py"]}]}
+JSON
+cat > "$tmp_dir/blindspot-report.json" <<'JSON'
+{"contract_version":"1.0.0","items":[{"id":"B-1","category":"prior_art","finding":"Existing scoreboard helper is prior art.","source_refs":["tests/smoke/fixtures/feature_bugfix/src/scoreboard.py"],"ledger_entry_id":"L-1"}]}
+JSON
+assert "validate-artifact accepts epistemic ledger fixture" "'$ROOT/bin/adlc' validate-artifact --schema epistemic-ledger --input '$tmp_dir/epistemic-ledger.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+assert "validate-artifact accepts blindspot report fixture" "'$ROOT/bin/adlc' validate-artifact --schema blindspot-report --input '$tmp_dir/blindspot-report.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
+cat > "$tmp_dir/run-report-fixture.json" <<'JSON'
+{"contract_version":"1.0.0","status":"pass","run_id":"RUN-FIXTURE","harness":{"provider":"codex","model":"test","runtime":"execution-adapter"},"honesty_surface":{"knowns":[],"ratified_assumptions":[],"remaining_unknowns":[],"accepted_risks":[]},"brief_generator_defect_count":0,"blocked_slices":[],"gate_results":[],"harness_runs":[],"process_artifacts_only":true}
+JSON
+assert "validate-artifact accepts run report fixture" "'$ROOT/bin/adlc' validate-artifact --schema run-report --input '$tmp_dir/run-report-fixture.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
 assert "validate-artifact rejects invalid loop contract" "if '$ROOT/bin/adlc' validate-artifact --schema loop-contract --input '$ROOT/tests/fixtures/loop_maturity/invalid-missing-test-floor.json' --json >'$tmp_dir/invalid-loop-contract.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"mandatory_floor\"))' '$tmp_dir/invalid-loop-contract.json' >/dev/null; fi"
 assert "validate-artifact rejects work-item sync missing run identity" "if '$ROOT/bin/adlc' validate-artifact --schema work-item-sync --input '$ROOT/tests/fixtures/tracker_sync/invalid-missing-run-identity.json' --json >'$tmp_dir/invalid-work-item-sync.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"run_id\")) and any(.errors[]; contains(\"session_id\"))' '$tmp_dir/invalid-work-item-sync.json' >/dev/null; fi"
 assert "validate-artifact rejects work queue missing task id" "if '$ROOT/bin/adlc' validate-artifact --schema work-queue --input '$ROOT/tests/fixtures/work_queue/invalid-missing-task-id.json' --json >'$tmp_dir/invalid-work-queue-task-id.json' 2>/dev/null; then false; else jq -e '.valid == false and any(.errors[]; contains(\"task_id\"))' '$tmp_dir/invalid-work-queue-task-id.json' >/dev/null; fi"
@@ -1015,6 +1027,77 @@ assert "resume-workflow exposes linked work item state" "'$ROOT/bin/adlc' resume
 assert "sync-work-item validates mutated workflow state" "'$ROOT/bin/adlc' validate-artifact --schema workflow-state --input '$tmp_dir/sync-mutate/.adlc/workflow_state.json' --json | jq -e '.valid == true and (.errors | length) == 0' >/dev/null"
 
 echo ""
+echo "--- Clarity Gate ---"
+jq '
+  .epistemic_ledger = {
+    "contract_version":"1.0.0",
+    "entries":[
+      {"id":"L-known","status":"KNOWN","claim":"scoreboard.py is the target implementation file","architecture_affecting":false,"sources":["tests/smoke/fixtures/feature_bugfix/src/scoreboard.py"]},
+      {"id":"L-ask","status":"UNKNOWN","claim":"Whether empty score handling must preserve the current public behavior","architecture_affecting":true,"sources":[],"disposition":"ask-user","related_blindspot_ids":["B-prior"]}
+    ]
+  } |
+  .sections."18_blindspot_report" = {
+    "contract_version":"1.0.0",
+    "items":[{"id":"B-prior","category":"prior_art","finding":"Existing average_score behavior is prior art and must be confirmed before changing semantics.","source_refs":["tests/smoke/fixtures/feature_bugfix/src/scoreboard.py"],"ledger_entry_id":"L-ask"}]
+  }
+' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/clarity-ask-user.json"
+cat > "$tmp_dir/clarity-answers.json" <<'JSON'
+{"answers":[{"ledger_entry_id":"L-ask","answer":"Preserve current empty-score behavior.","answered_by":"human","answered_at":"2026-01-01T00:00:00Z"}]}
+JSON
+assert "clarity gate blocks missing ledger and blindspot" "if '$ROOT/bin/adlc' clarity-gate --build-brief '$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json' --json >'$tmp_dir/clarity-missing.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"missing_epistemic_ledger\") and any(.issues[]; .rule == \"missing_blindspot_report\")' '$tmp_dir/clarity-missing.json' >/dev/null; fi"
+assert "clarity gate emits headless pending questions for ask-user unknowns" "if '$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --pending-questions-output '$tmp_dir/pending-questions.json' --json >'$tmp_dir/clarity-blocked.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and .pending_questions.status == \"blocked\" and .pending_questions.questions[0].ledger_entry_id == \"L-ask\" and any(.issues[]; .rule == \"headless_interview_blocked\")' '$tmp_dir/clarity-blocked.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema pending-questions --input '$tmp_dir/pending-questions.json' --json | jq -e '.valid == true' >/dev/null; fi"
+assert "clarity gate passes after simulated human answer" "'$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --answers '$tmp_dir/clarity-answers.json' --json >'$tmp_dir/clarity-pass.json' && jq -e '.status == \"pass\" and .honesty_surface.knowns[0] == \"scoreboard.py is the target implementation file\" and (.honesty_surface.remaining_unknowns | length) == 0' '$tmp_dir/clarity-pass.json' >/dev/null"
+jq '
+  .epistemic_ledger.entries[1].status = "KNOWN" |
+  .epistemic_ledger.entries[1].disposition = "repo-evidence" |
+  .epistemic_ledger.entries[1].sources = ["tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json"] |
+  .epistemic_ledger.entries[1].human_answer_ref = null
+' "$tmp_dir/clarity-ask-user.json" > "$tmp_dir/clarity-fully-specified.json"
+assert "clarity gate passes fully specified brief without interview" "'$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-fully-specified.json' --pending-questions-output '$tmp_dir/no-pending-questions.json' --json >'$tmp_dir/clarity-no-interview.json' && jq -e '.status == \"pass\" and .pending_questions.status == \"empty\" and (.pending_questions.questions | length) == 0 and (.honesty_surface.remaining_unknowns | length) == 0' '$tmp_dir/clarity-no-interview.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema pending-questions --input '$tmp_dir/no-pending-questions.json' --json | jq -e '.valid == true' >/dev/null"
+
+mkdir -p "$tmp_dir/contract-repo/config"
+git -C "$tmp_dir/contract-repo" init -q
+git -C "$tmp_dir/contract-repo" config user.email adlc@example.invalid
+git -C "$tmp_dir/contract-repo" config user.name "ADLC Test"
+printf '{"version":"1"}\n' > "$tmp_dir/contract-repo/config/interralis_control_config.v1.json"
+git -C "$tmp_dir/contract-repo" add config/interralis_control_config.v1.json
+git -C "$tmp_dir/contract-repo" commit -q -m init
+"$ROOT/bin/adlc" contract-surface-inventory --workspace "$tmp_dir/contract-repo" --output "$tmp_dir/contract-inventory.json" --json >/dev/null
+surface_id="$(jq -r '.surfaces[] | select(.path=="config/interralis_control_config.v1.json") | .id' "$tmp_dir/contract-inventory.json")"
+jq --arg surface "$surface_id" '
+  .sections."8_task_tickets"[0].files_to_modify = ["config/interralis_control_config.v1.json"] |
+  .sections."8_task_tickets"[0].compatibility_contract = {"backward":"compatible","forward":"compatible","migration_or_rollout":"No migration required."} |
+  .sections."8_task_tickets"[0].compatibility_evidence_refs = []
+' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/compat-generic.json"
+jq --arg surface "$surface_id" '
+  .sections."8_task_tickets"[0].files_to_modify = ["config/interralis_control_config.v1.json"] |
+  .sections."8_task_tickets"[0].compatibility_contract = {"backward":"Additive only for v1 config consumers.","forward":"Unknown fields remain ignored by current loaders.","migration_or_rollout":"No migration required for additive field.","surfaces":[$surface],"verification_predicates":[{"surface":$surface,"predicate":"jq validates old and new config fixtures under the v1 schema","evidence_ref":"tests/compat/v1-config.sh"}]} |
+  .sections."8_task_tickets"[0].compatibility_evidence_refs = ["tests/compat/v1-config.sh"]
+' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/compat-verified.json"
+assert "contract surface inventory finds versioned config contracts" "jq -e 'any(.surfaces[]; .path == \"config/interralis_control_config.v1.json\" and .versioned == true)' '$tmp_dir/contract-inventory.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema contract-surface-inventory --input '$tmp_dir/contract-inventory.json' --json | jq -e '.valid == true' >/dev/null"
+assert "compatibility evidence rejects generic contract claims" "if '$ROOT/bin/adlc' compatibility-evidence --build-brief '$tmp_dir/compat-generic.json' --inventory '$tmp_dir/contract-inventory.json' --json >'$tmp_dir/compat-fail.json' 2>/dev/null; then false; else jq -e '.status == \"fail\" and any(.issues[]; .rule == \"compatibility_contract_missing_surface\") and any(.issues[]; .rule == \"compatibility_predicate_missing\") and any(.issues[]; .rule == \"compatibility_evidence_refs_missing\")' '$tmp_dir/compat-fail.json' >/dev/null; fi"
+assert "compatibility evidence accepts surface predicates and refs" "'$ROOT/bin/adlc' compatibility-evidence --build-brief '$tmp_dir/compat-verified.json' --inventory '$tmp_dir/contract-inventory.json' --output '$tmp_dir/compat-pass-report.json' --json | jq -e '.status == \"pass\" and .tasks[0].touched_surfaces[0] == \"'$surface_id'\"' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema compatibility-evidence-report --input '$tmp_dir/compat-pass-report.json' --json | jq -e '.valid == true' >/dev/null"
+cat > "$tmp_dir/deviation-log.json" <<'JSON'
+{"ledger_entry_ids":["L-known"],"deviations":[{"id":"D-1","architecture_affecting":true,"description":"Coder selected a new config format without a ledger entry."}]}
+JSON
+assert "deviation log counts ledger-absent architecture defects" "if '$ROOT/bin/adlc' deviation-log-validate --input '$tmp_dir/deviation-log.json' --json >'$tmp_dir/deviation-result.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and .brief_generator_defect_count == 1 and any(.issues[]; .rule == \"architecture_deviation_without_ledger\")' '$tmp_dir/deviation-result.json' >/dev/null; fi"
+mkdir -p "$tmp_dir/adapter-repo"
+git -C "$tmp_dir/adapter-repo" init -q
+git -C "$tmp_dir/adapter-repo" config user.email adlc@example.invalid
+git -C "$tmp_dir/adapter-repo" config user.name "ADLC Test"
+mkdir -p "$tmp_dir/adapter-repo/tests/smoke/fixture/.adlc"
+printf 'before\n' > "$tmp_dir/adapter-repo/tracked.txt"
+printf 'fixture\n' > "$tmp_dir/adapter-repo/tests/smoke/fixture/.adlc/build_brief.json"
+git -C "$tmp_dir/adapter-repo" add tracked.txt tests/smoke/fixture/.adlc/build_brief.json
+git -C "$tmp_dir/adapter-repo" commit -q -m init
+assert "execution adapter runs non-Claude command in isolated git workspace" "'$ROOT/bin/adlc' execution-adapter --provider codex --model test-model --workdir '$tmp_dir/adapter-repo' --command 'test -f tests/smoke/fixture/.adlc/build_brief.json && printf after > tracked.txt && printf proof > proof.md' --output '$tmp_dir/execution-adapter.json' --json | jq -e '.status == \"completed\" and .provider == \"codex\" and (.diff | contains(\"tracked.txt\")) and (.diff | contains(\"proof.md\"))' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema execution-adapter-report --input '$tmp_dir/execution-adapter.json' --json | jq -e '.valid == true' >/dev/null && grep -q '^before$' '$tmp_dir/adapter-repo/tracked.txt' && test ! -e '$tmp_dir/adapter-repo/proof.md'"
+assert "run-report blocks on pending questions and records defect count" "if '$ROOT/bin/adlc' run-report --provider codex --model test-model --runtime execution-adapter --run-id RUN-BLOCKED --clarity-report '$tmp_dir/clarity-blocked.json' --deviation-report '$tmp_dir/deviation-result.json' --execution-adapter-report '$tmp_dir/execution-adapter.json' --output '$tmp_dir/run-report-blocked.json' --json >'$tmp_dir/run-report-blocked-out.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and .brief_generator_defect_count == 1 and .blocked_slices[0].ledger_entry_id == \"L-ask\" and .harness_runs[0].provider == \"codex\" and .process_artifacts_only == true' '$tmp_dir/run-report-blocked.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema run-report --input '$tmp_dir/run-report-blocked.json' --json | jq -e '.valid == true' >/dev/null; fi"
+cat > "$tmp_dir/deviation-pass.json" <<'JSON'
+{"contract_version":"1.0.0","status":"pass","brief_generator_defect_count":0,"issues":[]}
+JSON
+assert "run-report passes with answered clarity and successful gates" "'$ROOT/bin/adlc' run-report --provider codex --model test-model --runtime execution-adapter --run-id RUN-PASS --clarity-report '$tmp_dir/clarity-pass.json' --deviation-report '$tmp_dir/deviation-pass.json' --compatibility-report '$tmp_dir/compat-pass-report.json' --execution-adapter-report '$tmp_dir/execution-adapter.json' --output '$tmp_dir/run-report-pass.json' --json | jq -e '.status == \"pass\" and .honesty_surface.remaining_unknowns == [] and any(.gate_results[]; .name == \"compatibility-evidence\" and .status == \"pass\") and .harness_runs[0].provider == \"codex\"' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema run-report --input '$tmp_dir/run-report-pass.json' --json | jq -e '.valid == true' >/dev/null"
+
+echo ""
 echo "--- MCP Wrapper ---"
 cat > "$tmp_dir/mcp-tools-filter.jq" <<'JQ'
 (.tools | length) >= 35
@@ -1051,6 +1134,12 @@ and any(.tools[]; .name == "adlc_loop_test_selection" and .inputSchema.propertie
 and any(.tools[]; .name == "adlc_loop_budget_check" and (.inputSchema.required | index("token_budget")) and .inputSchema.properties.estimated_input_tokens.type == "integer")
 and any(.tools[]; .name == "adlc_loop_action_validate" and .inputSchema.properties.token_budget.type == "string")
 and any(.tools[]; .name == "adlc_loop_maturity_audit" and .inputSchema.properties.test_results.type == "string" and .inputSchema.properties.token_budget.type == "string" and (.inputSchema.properties | has("build_brief") | not))
+and any(.tools[]; .name == "adlc_clarity_gate" and (.inputSchema.required | index("build_brief")) and .inputSchema.properties.pending_questions_output.type == "string")
+and any(.tools[]; .name == "adlc_contract_surface_inventory" and .inputSchema.properties.workspace.type == "string")
+and any(.tools[]; .name == "adlc_compatibility_evidence" and (.inputSchema.required | index("build_brief")) and .inputSchema.properties.inventory.type == "string")
+and any(.tools[]; .name == "adlc_deviation_log_validate" and (.inputSchema.required | index("input")))
+and any(.tools[]; .name == "adlc_execution_adapter" and (.inputSchema.required | index("provider")) and (.inputSchema.required | index("command")))
+and any(.tools[]; .name == "adlc_run_report" and (.inputSchema.required | index("provider")) and .inputSchema.properties.execution_adapter_report.type == "array")
 and any(.tools[]; .name == "adlc_looper_status" and .inputSchema.properties.workspace.type == "string")
 and any(.tools[]; .name == "adlc_loop_design_validate" and (.inputSchema.required | index("input")))
 and any(.tools[]; .name == "adlc_loop_contract_from_design" and (.inputSchema.required | index("loop_design")))

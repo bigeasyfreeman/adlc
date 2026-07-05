@@ -142,6 +142,7 @@ Candidate sources:
 - `human_edit`
 - `council_rejection`
 - `runtime_failure`
+- `deviation_log`
 - `production_sample`
 - `incident`
 - `support_ticket`
@@ -170,6 +171,7 @@ Rules:
 - Human edits with `edit_type = slop_removal` always create a candidate eval case.
 - `slop-judge` revisions with `new_eval_case_candidate` create a candidate eval case.
 - Eval Council findings with `missing_slop_quality_gate`, `slop_score_below_threshold`, or `slop_regression` create a candidate eval case or a missing-benchmark task.
+- Execution deviation logs with a ledger-absent architecture decision create a brief-generator defect record. Use `bin/adlc deviation-log-validate` to count `brief_generator_defect_count`; architecture-affecting ledger-absent deviations become feedback to the Build Brief generator, not silent coder cleanup.
 - Candidate cases require human or council approval before they become permanent blocking gates.
 - Accepted cases are added to the task or skill benchmark before any generalized rule is written.
 

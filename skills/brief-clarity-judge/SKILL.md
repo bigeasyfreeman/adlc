@@ -14,7 +14,7 @@ activation:
 
 # Brief Clarity Judge
 
-Use this judge only when `0.6 <= task_classification_confidence < 0.8`.
+Use this judge when `0.6 <= task_classification_confidence < 0.8`, when `epistemic_ledger` contains architecture-affecting UNKNOWN entries, or when `bin/adlc clarity-gate` emits pending questions.
 
 ## Purpose
 
@@ -34,6 +34,8 @@ The confidence band is advisory. This judge decides whether the brief is clear e
   "task_classification": "bugfix",
   "task_classification_confidence": 0.72,
   "classification_evidence": ["..."],
+  "epistemic_ledger": {},
+  "pending_questions": [],
   "contamination": {},
   "missing": ["..."]
 }
@@ -44,7 +46,16 @@ The confidence band is advisory. This judge decides whether the brief is clear e
 ```json
 {
   "verdict": "proceed | escalate",
-  "rationale": "string"
+  "rationale": "string",
+  "pending_questions": [
+    {
+      "ledger_entry_id": "L-1",
+      "question": "string",
+      "why_it_matters": "string",
+      "what_changes": "string",
+      "conservative_default": "string"
+    }
+  ]
 }
 ```
 
@@ -53,4 +64,6 @@ The confidence band is advisory. This judge decides whether the brief is clear e
 - Judge clarity, not implementation detail.
 - Prefer `proceed` when the task has a concrete objective, bounded scope, and a plausible verifier path.
 - Return `escalate` when the task is internally contradictory, underspecified, or missing the information needed to classify safely.
+- Return `escalate` when an `ask-user` ledger entry lacks a recorded human answer or when pending questions would change architecture, compatibility, or task boundaries.
+- Do not convert an `ask-user` unknown into an assumption; only a human answer or signed accepted risk resolves it.
 - Do not rewrite or invent the evidence inventory. Consume the deterministic feature summary as given.

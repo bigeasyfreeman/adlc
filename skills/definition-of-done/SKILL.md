@@ -70,6 +70,7 @@ Extraction rules:
 | 30 | Performance envelope satisfied | `automatable` | core | Build Brief schema plus `emit-work-items --require-ready`; benchmark-required tasks record benchmark evidence before closeout | Missing `performance_envelope`, missing no-data-path skip reason, missing input scale or hot-path complexity, missing benchmark spec, or missing benchmark evidence |
 | 31 | Task sizing satisfied | `automatable` | core | Build Brief schema plus `emit-work-items --require-ready`; task_sizing declares one module, one coherent module_plan file-set, or an atomic cross-module reason | Missing `task_sizing`, split-required task, broad multi-module surface without coherent file-set or atomic reason, or size-only split/pass rationale |
 | 32 | Ponytail minimality admitted | `automatable` | core | Automated: `bin/adlc ponytail-admit --build-brief <brief> --diff-file <final.diff> --json` when a final diff exists | Missing two-field `minimality_contract`, unapproved dependency diff, or removed validation/error/security/accessibility anatomy without waiver |
+| 33 | Compatibility evidence satisfied | `automatable` | core | Automated: `bin/adlc contract-surface-inventory` plus `bin/adlc compatibility-evidence --build-brief <brief> --inventory <inventory> --json` when a published surface is touched | Missing named contract surface, missing verification predicate, generic compatibility claim, missing `compatibility_evidence_refs`, or absent migration/deprecation evidence for a breaking surface change |
 
 No DoD check may use file size, line count, or SLOC as a criterion. Split decisions are based on responsibility, side effects, coordinator boundaries, and repo conventions, never size.
 
@@ -159,6 +160,7 @@ No DoD check may use file size, line count, or SLOC as a criterion. Split decisi
     "honesty_contract_satisfied": { "status": true, "evidence": "honesty_contract present; artifact outputs include no_overclaim and limitations when required" },
     "performance_envelope_satisfied": { "status": true, "evidence": "performance_envelope present; data-path tasks define scale and complexity, benchmark_required decisions are explicit, and required benchmark evidence is recorded" },
     "task_sizing_satisfied": { "status": true, "evidence": "task_sizing present; work is one module, a coherent module_plan file-set, or atomic cross-module work with an explicit reason" },
+    "compatibility_evidence_satisfied": { "status": true, "evidence": "contract-surface-inventory plus compatibility-evidence report: pass with a verification predicate and compatibility_evidence_refs" },
     "antipatterns_cleared": { "status": true, "violations": 0 },
     "wiring_complete": { "status": true, "upstream": 2, "downstream": 1 },
     "scalability_documented": { "status": true },

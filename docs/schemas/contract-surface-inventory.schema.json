@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/contract-surface-inventory.schema.json",
+  "title": "ADLC Contract Surface Inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "workspace", "surfaces"],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "workspace": {"type": "string"},
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "surface_type", "versioned", "versioning_policy"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "surface_type": {"type": "string", "enum": ["schema", "api", "cli", "config", "migration", "doc"]},
+          "versioned": {"type": "boolean"},
+          "versioning_policy": {"type": "string", "minLength": 1},
+          "consumers": {"type": "array", "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/execution-adapter-report.schema.json",
+  "title": "ADLC Execution Adapter Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "status", "provider", "model", "exit_code", "stdout", "stderr", "diff"],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "status": {"type": "string", "enum": ["completed", "failed", "skipped"]},
+    "provider": {"type": "string"},
+    "model": {"type": "string"},
+    "exit_code": {"type": ["integer", "null"]},
+    "duration_seconds": {"type": "number"},
+    "stdout": {"type": "string"},
+    "stderr": {"type": "string"},
+    "diff": {"type": "string"},
+    "workdir": {"type": "string"},
+    "prompt_file": {"type": ["string", "null"]},
+    "failure_reason": {"type": ["string", "null"]}
+  }
+}

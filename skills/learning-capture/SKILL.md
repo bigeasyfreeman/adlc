@@ -38,9 +38,10 @@ Skip when:
 2. Choose `create`, `update`, or `skip`.
 3. Write one compact markdown entry using `docs/solutions/_template.md`.
 4. Include `source_evidence`, `verifier`, `redaction_review`, and `stale_conditions`.
-5. Run `python3 scripts/validate_learning_entry.py <entry>`.
-6. Write the closeout decision JSON to ADLC process artifact storage with `bin/adlc process-artifact-path --target-repo <target-repo> --task <task-id> --artifact-type closeout --filename learning-capture.json --json`.
-7. Emit `pass` only when validation passes; emit `skipped` when there is no reusable verified learning.
+5. If the candidate came from a deviation log, include whether it was a brief-generator defect, which epistemic ledger entry was absent or stale, and how future briefs should avoid the ledger-absent decision.
+6. Run `python3 scripts/validate_learning_entry.py <entry>`.
+7. Write the closeout decision JSON to ADLC process artifact storage with `bin/adlc process-artifact-path --target-repo <target-repo> --task <task-id> --artifact-type closeout --filename learning-capture.json --json`.
+8. Emit `pass` only when validation passes; emit `skipped` when there is no reusable verified learning.
 
 ## Output
 
@@ -62,6 +63,7 @@ Skip when:
 
 - Do not capture secrets or raw local credentials.
 - Do not capture unsupported architecture claims.
+- Do not capture a ledger-absent deviation as a verified learning unless the missing epistemic ledger evidence and correction are explicit.
 - Do not paste entire session transcripts.
 - Do not create broad refresh work; emit stale conditions for `learning-refresh`.
 - A learning entry is prior art, not proof. Future agents must still verify current behavior.

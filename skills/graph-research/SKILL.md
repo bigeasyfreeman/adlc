@@ -79,6 +79,7 @@ graphify query "What backward compatibility or forward compatibility paths could
 graphify query "What validation surfaces prove behavior for the constructs this change touches?"
 graphify query "What implementation interfaces should this change reuse, consume, emit, validate, or preserve?"
 graphify query "What production_ready claims would be overclaimed without validation evidence, rollback, observability, security/privacy, reliability, or no-overclaim data?"
+graphify query "What published or versioned contract surfaces, adjacent systems, and compatibility evidence refs could this change touch?"
 graphify query "What cross-module paths create dark-code risk for this request?"
 graphify path "<changed module>" "<dependent module>"
 graphify explain "<core concept or module>"
@@ -97,6 +98,8 @@ For every interface, schema, storage, or integration change, produce an explicit
 - **Accuracy:** where the graph is authoritative, where it is AST-only, and what was directly verified in source.
 
 Graph evidence is a starting point, not proof by itself. Confirm critical compatibility claims against source files, schemas, tests, or docs before the Build Brief turns them into tasks.
+
+Produce contract-surface inventory evidence for every published surface discovered. A published surface includes versioned schemas, config formats, CLIs, APIs, migration/deprecation records, stored artifact shapes, and documented integration contracts. If a task touches one of these surfaces, the Build Brief task must name the surface in `compatibility_contract.surfaces`, attach `verification_predicates`, and cite concrete `compatibility_evidence_refs`.
 
 ## Construct Map Rules
 
