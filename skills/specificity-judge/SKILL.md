@@ -59,6 +59,9 @@ For each task provide:
 - Penalize missing file scope, vague acceptance criteria, absent reference paths, missing `target_files`, missing `expected_failure_mode`, and verifier targets that do not pin the intended behavior.
 - Fail implementation tasks that carry `decision_contract.status == unresolved` or `decision_contract.blocks_implementation == true`. Those must be decision gates, not executable tasks.
 - Fail tasks whose dependencies are unresolved aliases instead of Build Brief artifact IDs or already-emitted target artifact IDs.
+- Fail acceptance criteria that do not carry a checkable `verification_predicate` or `measurable_post_condition`; a criterion whose only check is that text, a file, or a JSON key exists is not specific.
+- Fail proof, demonstration, slice, or end-to-end criteria that do not declare a substance floor and allowed payload class. A proof request must say whether product code/tests, compatibility evidence, documentation, or a process artifact can satisfy it.
+- Load the predicate library from `docs/solutions/predicate-library.json` and apply each rule as an active checklist item. Violations should cite the matching `PRED-*` rule ID.
 - Fail parent/child duplicate scope: a `scope_lock_epic` may lock context, but an implementation task must own the executable work. The same behavior should not be executable in both.
 - Fail implementation tasks that do not say what existing primitive, schema, service, helper, or workflow they extend, unless they explicitly prove no existing primitive can absorb the change.
 - Fail tasks missing `tech_debt_boundaries`, `compatibility_contract`, `evidence_responsibilities`, or `definition_of_done`; these are one-shot production readiness fields, not optional prose.
@@ -93,5 +96,10 @@ For each task provide:
 - `broad_change_surface`
 - `size_only_split_or_pass`
 - `missing_validation_task`
+- `acceptance_criterion_missing_verification_predicate`
+- `acceptance_criterion_presence_only_predicate`
+- `proof_criterion_missing_substance_floor`
+- `criterion_payload_class_mismatch`
+- `predicate_library_violation`
 - `ambiguous_user_path`
 - `ambiguous_failure_mode`

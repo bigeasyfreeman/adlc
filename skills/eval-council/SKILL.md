@@ -49,6 +49,7 @@ Core personas always run. Overlay personas activate from `change_surface` flags 
 | `security_auditor` | Overlay focus (expands Skeptic) | `new_attack_surface OR auth_change OR external_integration` |
 | `convention_auditor` | Target repo standards | `repo_conventions.status == extracted` |
 | `clarity_auditor` | Evidence and question hygiene | `epistemic_ledger present OR generated Build Brief has executable tasks` |
+| `minimalism_auditor` | Post-execution depth adversary | `completed implementation_task OR completed validation_task` |
 
 Suppressed overlays use the concrete reason already recorded in the manifest section policy. Do not ask each persona to duplicate that reason.
 
@@ -207,6 +208,24 @@ Any FAIL = the task is not agent-ready. This is a **major finding**.
 **Verdict rule:** Fabricated certainty prevents APPROVED. Missing ledger sources, empty blindspot reports, unresolved ask-user unknowns, or generic compatibility claims require REVISION REQUIRED or BLOCKED.
 
 **Catches:** fabricated certainty, blindspot theater, unresolved human questions, accepted-risk claims without signoff, and compatibility claims that are asserted rather than verified.
+
+---
+
+### 8. The Minimalism Auditor
+
+**Perspective:** Depth honesty after execution. It asks what the cheapest implementation is that technically satisfies each criterion, and whether that is what shipped.
+**Activation:** Post-execution overlay for completed implementation and validation tasks.
+
+**Asks:**
+- For each acceptance criterion, what is the cheapest technically satisfying implementation?
+- Did the shipped artifact equal that cheapest path?
+- Does the declared depth from the criterion-depth report say `minimal` or `robust`, and is that declaration contradicted by evidence?
+- Which `docs/solutions/predicate-library.json` rules apply, and which `PRED-*` IDs were checked?
+- Was the auditor routed to the same model/provider as execution or a different one? Record the provider/model identity either way.
+
+**Verdict rule:** If shipped-equals-cheapest is declared `robust`, the council cannot return APPROVED. This is an honesty-contract violation, not merely a thin implementation. The auditor output must list the predicate-library rule IDs it checked, including presence-only validation, schema-valid-but-empty fields, static template content, process-artifact proof payloads, and unresolvable evidence references.
+
+**Catches:** silent thinness, robust-depth overclaim, process-artifact proof payloads, presence-only validators, schema-valid empty proof fields, static per-case rationale, and evidence refs that are named but not dereferenced.
 
 ---
 
@@ -391,6 +410,16 @@ Missing or weak gates return:
 
 Do not require `slop_quality_gate` for trivial docs, lint-only, build-validation, deterministic refactors, or code-only work when the applicability manifest proves no generated-output behavior changes.
 
+### Predicate Completeness And Minimalism Checks
+
+Before execution, every acceptance criterion must carry a checkable predicate. Structured criteria should use `verification_predicate`; legacy criteria may use `measurable_post_condition` only when it names a concrete command, gate, assertion, schema validation, or negative fixture. Presence-only checks fail with `acceptance_criterion_presence_only_predicate`.
+
+Proof, demonstration, slice, and end-to-end criteria must declare `substance_floor` and, when structured, `allowed_payload_classes`. A proof criterion whose floor requires product code/tests cannot be satisfied by a process artifact or documentation payload unless the floor explicitly allows that class.
+
+At post-execution, run `bin/adlc minimalism-audit --build-brief <brief> --criterion-depth-report <depth> --json`. The output must include `minimalism_auditor`, `checked_rule_ids`, per-criterion cheapest-satisfying implementation notes, and any robust-depth contradiction findings.
+
+Load `docs/solutions/predicate-library.json` mechanically. Do not paraphrase the seeded patterns by memory; the active checklist is the versioned library.
+
 ### Gate 0 Verdict
 
 ```
@@ -434,6 +463,7 @@ EVAL COUNCIL ASSESSMENT (manifest-aware):
 │ Executioner:         INCLUDE — autonomous execution required
 │ Convention Auditor:  INCLUDE — repo_conventions.status == extracted
 │ Clarity Auditor:     INCLUDE — epistemic_ledger present and ask-user unknowns must resolve
+│ Minimalism Auditor:  INCLUDE — post-execution completed implementation/validation task
 │ First Principles:    INCLUDE — always active core scope check
 ```
 

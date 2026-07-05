@@ -59,7 +59,8 @@
               "first_principles",
               "security_auditor",
               "convention_auditor",
-              "over_engineering_minimalist"
+              "over_engineering_minimalist",
+              "minimalism_auditor"
             ]
           },
           "verdict": {

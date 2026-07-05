@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/criterion-depth-report.schema.json",
+  "title": "ADLC Criterion Depth Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "criteria"],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["task_id", "criterion_id", "depth", "justification", "payload_class"],
+        "properties": {
+          "task_id": {"type": "string", "minLength": 1},
+          "criterion_id": {"type": "string", "minLength": 1},
+          "depth": {"type": "string", "enum": ["minimal", "robust"]},
+          "justification": {"type": "string", "minLength": 1},
+          "payload_class": {"type": "string", "enum": ["product-change", "test-execution", "compatibility-evidence", "process-artifact", "documentation", "human-review"]},
+          "evidence_ref": {"type": "string"},
+          "shipped_equals_cheapest": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

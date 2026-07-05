@@ -1,0 +1,45 @@
+{
+  "contract_version": "1.0.0",
+  "rules": [
+    {
+      "id": "PRED-PRESENCE-ONLY-VALIDATION",
+      "pattern": "Presence-only validation accepts an artifact or field existing without checking the property it exists to prove.",
+      "predicate": "For every validator or acceptance criterion, identify the property asserted and require a non-presence check for that property.",
+      "origin_finding": "Audit pattern: criteria were satisfied by files or JSON keys existing while their substantive property remained unverified.",
+      "applies_to": ["specificity-judge", "minimalism-auditor", "completion-audit"],
+      "severity": "blocking"
+    },
+    {
+      "id": "PRED-SCHEMA-VALID-EMPTY",
+      "pattern": "Schema-valid-but-empty fields satisfy shape while omitting required substance.",
+      "predicate": "When a field carries proof, consumers, rationale, or evidence, require either non-empty substantive content or an explicit unknown/not-attempted declaration.",
+      "origin_finding": "Audit pattern: empty arrays and strings passed schema while hiding omitted work.",
+      "applies_to": ["specificity-judge", "minimalism-auditor", "completion-audit"],
+      "severity": "blocking"
+    },
+    {
+      "id": "PRED-STATIC-TEMPLATE-CONTENT",
+      "pattern": "Static template text is used where per-case reasoning is required.",
+      "predicate": "Decision rationale must reference the specific claim, surface, criterion, or repo artifact under review.",
+      "origin_finding": "Audit pattern: canned pending-question and rationale text passed until checked for decision-specific content.",
+      "applies_to": ["specificity-judge", "minimalism-auditor", "clarity-gate"],
+      "severity": "blocking"
+    },
+    {
+      "id": "PRED-PROCESS-ARTIFACT-PROOF",
+      "pattern": "A proof or demonstration criterion is satisfied by a process artifact or documentation when it required product code, tests, or an executable slice.",
+      "predicate": "Proof-type criteria must declare an allowed payload class and emitted evidence must match that class.",
+      "origin_finding": "Audit pattern: proof requests were fulfilled with report documents instead of product-code proof slices.",
+      "applies_to": ["specificity-judge", "minimalism-auditor", "run-report"],
+      "severity": "blocking"
+    },
+    {
+      "id": "PRED-UNRESOLVABLE-EVIDENCE-REF",
+      "pattern": "Evidence references are named but not dereferenced.",
+      "predicate": "Every evidence reference must resolve to a non-empty artifact, and typed JSON references must validate against their schema.",
+      "origin_finding": "Audit pattern: compatibility evidence refs were present but could point nowhere.",
+      "applies_to": ["specificity-judge", "minimalism-auditor", "completion-audit"],
+      "severity": "blocking"
+    }
+  ]
+}

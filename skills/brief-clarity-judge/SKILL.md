@@ -65,5 +65,6 @@ The confidence band is advisory. This judge decides whether the brief is clear e
 - Prefer `proceed` when the task has a concrete objective, bounded scope, and a plausible verifier path.
 - Return `escalate` when the task is internally contradictory, underspecified, or missing the information needed to classify safely.
 - Return `escalate` when an `ask-user` ledger entry lacks a recorded human answer or when pending questions would change architecture, compatibility, or task boundaries.
+- Return `escalate` when a proof, demonstration, slice, or end-to-end criterion lacks a substance floor; unstated proof magnitude is an architecture-affecting unknown.
 - Do not convert an `ask-user` unknown into an assumption; only a human answer or signed accepted risk resolves it.
 - Do not rewrite or invent the evidence inventory. Consume the deterministic feature summary as given.

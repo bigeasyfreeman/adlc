@@ -1734,6 +1734,21 @@
                   },
                   "measurable_post_condition": {
                     "type": "string"
+                  },
+                  "verification_predicate": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "substance_floor": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "allowed_payload_classes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["product-change", "test-execution", "compatibility-evidence", "process-artifact", "documentation", "human-review"]
+                    }
                   }
                 }
               }

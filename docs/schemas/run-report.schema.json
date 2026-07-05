@@ -87,6 +87,17 @@
       }
     },
     "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "criterion_depth": {"type": "array", "items": {"type": "object"}},
+    "thinness_inventory": {"type": "array", "items": {"type": "object"}},
+    "audit_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reverified", "taken_on_trust"],
+      "properties": {
+        "reverified": {"type": "array", "items": {"type": "string"}},
+        "taken_on_trust": {"type": "array", "items": {"type": "string"}}
+      }
+    },
     "process_artifacts_only": {"type": "boolean"}
   }
 }

@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/completion-audit-report.schema.json",
+  "title": "ADLC Completion Audit Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "status", "auditor", "verified", "taken_on_trust", "findings", "feedback_findings"],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "status": {"type": "string", "enum": ["pass", "blocked"]},
+    "auditor": {"type": "string", "minLength": 1},
+    "verified": {"type": "array", "items": {"type": "object"}},
+    "taken_on_trust": {"type": "array", "items": {"type": "object"}},
+    "findings": {"type": "array", "items": {"type": "object"}},
+    "feedback_findings": {"type": "array", "items": {"type": "object"}}
+  }
+}

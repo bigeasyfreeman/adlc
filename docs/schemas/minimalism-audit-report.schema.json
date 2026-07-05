@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/minimalism-audit-report.schema.json",
+  "title": "ADLC Minimalism Audit Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "status", "auditor", "checked_rule_ids", "criteria", "findings"],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "status": {"type": "string", "enum": ["pass", "fail"]},
+    "auditor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["persona", "provider", "model"],
+      "properties": {
+        "persona": {"type": "string", "const": "minimalism_auditor"},
+        "provider": {"type": "string"},
+        "model": {"type": "string"}
+      }
+    },
+    "checked_rule_ids": {"type": "array", "items": {"type": "string", "pattern": "^PRED-[A-Z0-9_-]+$"}},
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["task_id", "criterion_id", "declared_depth", "cheapest_satisfying_implementation", "shipped_equals_cheapest"],
+        "properties": {
+          "task_id": {"type": "string"},
+          "criterion_id": {"type": "string"},
+          "declared_depth": {"type": "string", "enum": ["minimal", "robust"]},
+          "cheapest_satisfying_implementation": {"type": "string"},
+          "shipped_equals_cheapest": {"type": "boolean"}
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "severity", "task_id", "criterion_id", "message"],
+        "properties": {
+          "rule": {"type": "string"},
+          "rule_id": {"type": "string"},
+          "severity": {"type": "string", "enum": ["blocking", "warning"]},
+          "task_id": {"type": "string"},
+          "criterion_id": {"type": "string"},
+          "message": {"type": "string"}
+        }
+      }
+    }
+  }
+}

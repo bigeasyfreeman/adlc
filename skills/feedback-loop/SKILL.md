@@ -172,6 +172,7 @@ Rules:
 - `slop-judge` revisions with `new_eval_case_candidate` create a candidate eval case.
 - Eval Council findings with `missing_slop_quality_gate`, `slop_score_below_threshold`, or `slop_regression` create a candidate eval case or a missing-benchmark task.
 - Execution deviation logs with a ledger-absent architecture decision create a brief-generator defect record. Use `bin/adlc deviation-log-validate` to count `brief_generator_defect_count`; architecture-affecting ledger-absent deviations become feedback to the Build Brief generator, not silent coder cleanup.
+- Completion audit findings from `bin/adlc completion-audit` are candidate rule evidence. Contradictions and confirmed thinness must be emitted as `feedback_findings` and can promote into `docs/solutions/predicate-library.json` rules with stable `PRED-*` IDs.
 - Candidate cases require human or council approval before they become permanent blocking gates.
 - Accepted cases are added to the task or skill benchmark before any generalized rule is written.
 

@@ -566,14 +566,15 @@
         "mode": "core_plus_overlays",
         "consumes_manifest": true,
         "core_personas": ["skeptic", "executioner", "first_principles"],
-        "overlay_personas": ["architect", "operator", "security_auditor", "convention_auditor", "over_engineering_minimalist", "clarity_auditor"],
+        "overlay_personas": ["architect", "operator", "security_auditor", "convention_auditor", "over_engineering_minimalist", "clarity_auditor", "minimalism_auditor"],
         "overlay_triggers": {
           "architect": ["service_boundary_change", "external_integration", "api_change", "data_format_change"],
           "operator": ["runtime_path_change", "user_facing_operation"],
           "security_auditor": ["new_attack_surface", "auth_change", "external_integration"],
           "convention_auditor": ["repo_conventions.status=extracted"],
           "over_engineering_minimalist": ["artifact_type=implementation_task", "artifact_type=validation_task"],
-          "clarity_auditor": ["epistemic_ledger present", "generated Build Brief has executable tasks"]
+          "clarity_auditor": ["epistemic_ledger present", "generated Build Brief has executable tasks"],
+          "minimalism_auditor": ["completed implementation_task", "completed validation_task"]
         }
       },
       "dag_nodes": ["plan_review", "code_review"]

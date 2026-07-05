@@ -39,9 +39,10 @@ Skip when:
 3. Write one compact markdown entry using `docs/solutions/_template.md`.
 4. Include `source_evidence`, `verifier`, `redaction_review`, and `stale_conditions`.
 5. If the candidate came from a deviation log, include whether it was a brief-generator defect, which epistemic ledger entry was absent or stale, and how future briefs should avoid the ledger-absent decision.
-6. Run `python3 scripts/validate_learning_entry.py <entry>`.
-7. Write the closeout decision JSON to ADLC process artifact storage with `bin/adlc process-artifact-path --target-repo <target-repo> --task <task-id> --artifact-type closeout --filename learning-capture.json --json`.
-8. Emit `pass` only when validation passes; emit `skipped` when there is no reusable verified learning.
+6. If the candidate came from a completion audit or Minimalism Auditor finding, include the predicate-library rule ID, the violated detection predicate, and whether the finding was thinness or an honesty-contract violation.
+7. Run `python3 scripts/validate_learning_entry.py <entry>`.
+8. Write the closeout decision JSON to ADLC process artifact storage with `bin/adlc process-artifact-path --target-repo <target-repo> --task <task-id> --artifact-type closeout --filename learning-capture.json --json`.
+9. Emit `pass` only when validation passes; emit `skipped` when there is no reusable verified learning.
 
 ## Output
 
