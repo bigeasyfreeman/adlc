@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/predicate-library.schema.json",
+  "title": "ADLC Predicate Library",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "rules"],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "pattern", "predicate", "origin_finding", "applies_to"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^PRED-[A-Z0-9_-]+$"},
+          "pattern": {"type": "string", "minLength": 1},
+          "predicate": {"type": "string", "minLength": 1},
+          "origin_finding": {"type": "string", "minLength": 1},
+          "applies_to": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "severity": {"type": "string", "enum": ["blocking", "warning"]}
+        }
+      }
+    }
+  }
+}

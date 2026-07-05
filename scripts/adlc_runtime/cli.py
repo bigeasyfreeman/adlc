@@ -8581,6 +8581,105 @@ def pending_question_quality_issues(question: Dict[str, Any], entry: Dict[str, A
     return issues
 
 
+PROOF_CRITERION_RE = re.compile(r"\b(proof|prove|demonstrat(?:e|ion)|slice|end-to-end|e2e|run)\b", re.IGNORECASE)
+PRESENCE_ONLY_RE = re.compile(r"\b(exists?|present|is created|is emitted|is recorded|is documented)\b", re.IGNORECASE)
+PAYLOAD_CLASSES = {"product-change", "test-execution", "compatibility-evidence", "process-artifact", "documentation", "human-review"}
+
+
+def criterion_id(task_id: str, index: int, criterion: Any) -> str:
+    if isinstance(criterion, dict) and criterion.get("id"):
+        return str(criterion["id"])
+    return f"{task_id}:AC-{index}"
+
+
+def criterion_text(criterion: Any) -> str:
+    if isinstance(criterion, dict):
+        parts = [criterion.get("given"), criterion.get("when"), criterion.get("then"), criterion.get("measurable_post_condition")]
+        return " ".join(str(part) for part in parts if part)
+    return str(criterion)
+
+
+def criterion_verification_predicate(criterion: Any) -> str:
+    if isinstance(criterion, dict):
+        return str(criterion.get("verification_predicate") or criterion.get("measurable_post_condition") or "").strip()
+    text = str(criterion)
+    match = re.search(r"(?:verification predicate|predicate|checked by|verified by)\s*:\s*(.+)$", text, re.IGNORECASE)
+    return match.group(1).strip() if match else ""
+
+
+def criterion_substance_floor(criterion: Any) -> str:
+    if isinstance(criterion, dict):
+        return str(criterion.get("substance_floor") or "").strip()
+    match = re.search(r"(?:substance floor|floor)\s*:\s*(.+?)(?:$|;)", str(criterion), re.IGNORECASE)
+    return match.group(1).strip() if match else ""
+
+
+def criterion_allowed_payload_classes(criterion: Any) -> List[str]:
+    if isinstance(criterion, dict):
+        values = criterion.get("allowed_payload_classes")
+        if isinstance(values, list):
+            return [str(value) for value in values if str(value) in PAYLOAD_CLASSES]
+    floor = criterion_substance_floor(criterion).lower()
+    if "product" in floor or "code" in floor or "test" in floor:
+        return ["product-change", "test-execution", "compatibility-evidence"]
+    if "documentation" in floor or "process artifact" in floor:
+        return ["documentation", "process-artifact"]
+    return []
+
+
+def task_acceptance_criteria(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
+    criteria = []
+    for task in brief.get("sections", {}).get("8_task_tickets", []):
+        if not isinstance(task, dict):
+            continue
+        task_id = str(task.get("task_id") or "unknown-task")
+        for index, criterion in enumerate(task.get("acceptance_criteria", []) or [], start=1):
+            criteria.append({
+                "task_id": task_id,
+                "criterion_id": criterion_id(task_id, index, criterion),
+                "text": criterion_text(criterion),
+                "verification_predicate": criterion_verification_predicate(criterion),
+                "substance_floor": criterion_substance_floor(criterion),
+                "allowed_payload_classes": criterion_allowed_payload_classes(criterion),
+                "proof_type": bool(PROOF_CRITERION_RE.search(criterion_text(criterion))),
+            })
+    return criteria
+
+
+def predicate_completeness_issues(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
+    issues = []
+    for criterion in task_acceptance_criteria(brief):
+        predicate = criterion["verification_predicate"]
+        if not predicate:
+            issues.append({
+                "rule": "acceptance_criterion_missing_verification_predicate",
+                "severity": "blocking",
+                "task_id": criterion["task_id"],
+                "criterion_id": criterion["criterion_id"],
+                "message": "Acceptance criterion must name a checkable verification predicate.",
+                "fix_guidance": "Add verification_predicate or measurable_post_condition naming the command, gate, assertion, or artifact validation that checks this criterion.",
+            })
+        elif PRESENCE_ONLY_RE.search(predicate) and not re.search(r"\b(pass|fails?|assert|validates?|matches?|returns?|blocks?|non-empty|schema|command)\b", predicate, re.IGNORECASE):
+            issues.append({
+                "rule": "acceptance_criterion_presence_only_predicate",
+                "severity": "blocking",
+                "task_id": criterion["task_id"],
+                "criterion_id": criterion["criterion_id"],
+                "message": "Acceptance criterion predicate only checks presence, not the property the criterion exists to prove.",
+                "fix_guidance": "Replace presence-only text with a property check, such as a test command, schema validation, negative fixture, or semantic assertion.",
+            })
+        if criterion["proof_type"] and not criterion["substance_floor"]:
+            issues.append({
+                "rule": "proof_criterion_missing_substance_floor",
+                "severity": "blocking",
+                "task_id": criterion["task_id"],
+                "criterion_id": criterion["criterion_id"],
+                "message": "Proof, demonstration, slice, or end-to-end criteria must state the minimum payload substance.",
+                "fix_guidance": "Add substance_floor and allowed_payload_classes, for example product code plus tests rather than a documentation artifact.",
+            })
+    return issues
+
+
 def clarity_gate_payload(
     brief_path: Path,
     blindspot_path: Path | None = None,
@@ -8609,6 +8708,7 @@ def clarity_gate_payload(
     entries_by_id = ledger_entries_by_id(ledger)
     if not ledger:
         issues.append({"rule": "missing_epistemic_ledger", "severity": "blocking", "message": "Build Brief finalization requires epistemic_ledger."})
+    issues.extend(predicate_completeness_issues(brief))
     for entry in entries_by_id.values():
         entry_id = str(entry.get("id"))
         status = entry.get("status")
@@ -9098,11 +9198,92 @@ def execution_adapter_payload(args: argparse.Namespace) -> Dict[str, Any]:
     }
 
 
+def predicate_library_path(path: str | None = None) -> Path:
+    return cli_input_path(path) if path else ROOT / "docs" / "solutions" / "predicate-library.json"
+
+
+def predicate_library_payload(path: Path | None = None) -> Dict[str, Any]:
+    library_path = path or predicate_library_path()
+    errors = validate_artifact(resolve_schema("predicate-library"), library_path)
+    if errors:
+        raise ValueError("predicate library failed schema validation: " + "; ".join(errors))
+    payload = read_json(library_path)
+    payload["path"] = rel_path(library_path)
+    return payload
+
+
+def criterion_depth_entries(path: Path | None) -> List[Dict[str, Any]]:
+    if not path:
+        return []
+    errors = validate_artifact(resolve_schema("criterion-depth-report"), path)
+    if errors:
+        raise ValueError("criterion depth report failed schema validation: " + "; ".join(errors))
+    payload = read_json(path)
+    return [item for item in payload.get("criteria", []) if isinstance(item, dict)]
+
+
+def criterion_depth_issues(brief_path: Path | None, depth_path: Path | None) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    if not brief_path:
+        return [], [], []
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path)
+    expected = task_acceptance_criteria(brief)
+    depth_entries = criterion_depth_entries(depth_path)
+    by_key = {(str(item.get("task_id")), str(item.get("criterion_id"))): item for item in depth_entries}
+    issues = []
+    thinness = []
+    for criterion in expected:
+        key = (criterion["task_id"], criterion["criterion_id"])
+        entry = by_key.get(key)
+        if not entry:
+            issues.append({
+                "rule": "criterion_depth_missing",
+                "severity": "blocking",
+                "task_id": criterion["task_id"],
+                "criterion_id": criterion["criterion_id"],
+                "message": "Completion evidence must declare minimal or robust depth for every acceptance criterion.",
+            })
+            continue
+        if entry.get("depth") == "minimal":
+            thinness.append({
+                "task_id": criterion["task_id"],
+                "criterion_id": criterion["criterion_id"],
+                "justification": entry.get("justification", ""),
+                "payload_class": entry.get("payload_class", ""),
+            })
+        allowed = criterion["allowed_payload_classes"]
+        payload_class = str(entry.get("payload_class") or "")
+        if allowed and payload_class not in allowed:
+            issues.append({
+                "rule": "criterion_payload_class_mismatch",
+                "rule_id": "PRED-PROCESS-ARTIFACT-PROOF",
+                "severity": "blocking",
+                "task_id": criterion["task_id"],
+                "criterion_id": criterion["criterion_id"],
+                "message": f"Criterion requires payload class in {allowed}, but evidence declared {payload_class}.",
+            })
+        if entry.get("depth") == "robust" and entry.get("shipped_equals_cheapest"):
+            issues.append({
+                "rule": "declared_robust_but_cheapest_possible",
+                "severity": "blocking",
+                "task_id": criterion["task_id"],
+                "criterion_id": criterion["criterion_id"],
+                "message": "Depth was declared robust, but audit evidence says the implementation equals the cheapest technically satisfying path.",
+                "defect_class": "honesty_contract_violation",
+            })
+    return issues, depth_entries, thinness
+
+
 def run_report_payload(args: argparse.Namespace) -> Dict[str, Any]:
     clarity_report = read_json(cli_input_path(args.clarity_report)) if args.clarity_report else {}
     deviation_report = read_json(cli_input_path(args.deviation_report)) if args.deviation_report else {}
     compatibility_reports = [read_json(cli_input_path(path)) for path in (args.compatibility_report or [])]
     execution_reports = [read_json(cli_input_path(path)) for path in (args.execution_adapter_report or [])]
+    build_brief_path = cli_input_path(args.build_brief) if getattr(args, "build_brief", None) else None
+    depth_report_path = cli_input_path(args.criterion_depth_report) if getattr(args, "criterion_depth_report", None) else None
+    depth_issues, depth_entries, thinness_inventory = criterion_depth_issues(build_brief_path, depth_report_path)
     gate_results = []
     evidence_refs: List[str] = []
 
@@ -9138,6 +9319,12 @@ def run_report_payload(args: argparse.Namespace) -> Dict[str, Any]:
                 "model": str(report.get("model", "")),
             }
         )
+    if depth_report_path:
+        evidence_ref = rel_path(depth_report_path)
+        evidence_refs.append(evidence_ref)
+        gate_results.append({"name": "criterion-depth", "status": "fail" if depth_issues else "pass", "evidence_ref": evidence_ref})
+    elif build_brief_path:
+        gate_results.append({"name": "criterion-depth", "status": "fail"})
 
     honesty_surface = clarity_report.get("honesty_surface") if isinstance(clarity_report.get("honesty_surface"), dict) else {}
     pending = clarity_report.get("pending_questions") if isinstance(clarity_report.get("pending_questions"), dict) else {}
@@ -9181,12 +9368,156 @@ def run_report_payload(args: argparse.Namespace) -> Dict[str, Any]:
         "gate_results": gate_results,
         "harness_runs": harness_runs,
         "evidence_refs": sorted(set(ref for ref in evidence_refs if ref)),
+        "criterion_depth": depth_entries,
+        "thinness_inventory": thinness_inventory,
+        "audit_surface": {
+            "reverified": [str(item) for item in getattr(args, "reverified", []) or []],
+            "taken_on_trust": [str(item) for item in getattr(args, "taken_on_trust", []) or []],
+        },
         "process_artifacts_only": True,
     }
+    if depth_issues:
+        report["blocked_slices"].extend(
+            {
+                "task_id": issue.get("task_id"),
+                "reason": issue.get("rule", "criterion_depth_issue"),
+                "question": issue.get("message"),
+            }
+            for issue in depth_issues
+        )
+        report["status"] = "fail"
     errors = validate_artifact_payload(resolve_schema("run-report"), report)
     if errors:
         raise ValueError("generated run report failed schema validation: " + "; ".join(errors))
     return report
+
+
+def minimalism_audit_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    brief_path = cli_input_path(args.build_brief)
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path)
+    library = predicate_library_payload(predicate_library_path(args.predicate_library))
+    depth_entries = criterion_depth_entries(cli_input_path(args.criterion_depth_report))
+    by_key = {(str(item.get("task_id")), str(item.get("criterion_id"))): item for item in depth_entries}
+    findings = []
+    criteria = []
+    for criterion in task_acceptance_criteria(brief):
+        entry = by_key.get((criterion["task_id"], criterion["criterion_id"]))
+        if not entry:
+            findings.append({
+                "rule": "criterion_depth_missing",
+                "severity": "blocking",
+                "task_id": criterion["task_id"],
+                "criterion_id": criterion["criterion_id"],
+                "message": "Minimalism Auditor cannot compare shipped work without a depth declaration.",
+            })
+            continue
+        shipped_equals_cheapest = bool(entry.get("shipped_equals_cheapest", False))
+        criteria.append({
+            "task_id": criterion["task_id"],
+            "criterion_id": criterion["criterion_id"],
+            "declared_depth": str(entry.get("depth")),
+            "cheapest_satisfying_implementation": "Satisfy the literal predicate with the smallest artifact class and shallowest property check.",
+            "shipped_equals_cheapest": shipped_equals_cheapest,
+        })
+        if entry.get("depth") == "robust" and shipped_equals_cheapest:
+            findings.append({
+                "rule": "minimalism_declared_robust_contradicted",
+                "rule_id": "PRED-PRESENCE-ONLY-VALIDATION",
+                "severity": "blocking",
+                "task_id": criterion["task_id"],
+                "criterion_id": criterion["criterion_id"],
+                "message": "Criterion was declared robust, but evidence says the shipped work equals the cheapest technically satisfying implementation.",
+            })
+    payload = {
+        "contract_version": "1.0.0",
+        "status": "fail" if any(item.get("severity") == "blocking" for item in findings) else "pass",
+        "auditor": {"persona": "minimalism_auditor", "provider": args.auditor_provider or "", "model": args.auditor_model or ""},
+        "checked_rule_ids": [rule["id"] for rule in library.get("rules", [])],
+        "criteria": criteria,
+        "findings": findings,
+    }
+    errors = validate_artifact_payload(resolve_schema("minimalism-audit-report"), payload)
+    if errors:
+        raise ValueError("generated minimalism audit failed schema validation: " + "; ".join(errors))
+    return payload
+
+
+def run_audit_verifier(verifier: Dict[str, Any], workspace: Path) -> Tuple[bool | None, Dict[str, Any]]:
+    verifier_type = verifier.get("type")
+    if verifier_type == "file_exists":
+        path = resolve_input_path(str(verifier.get("path", "")), workspace)
+        return path.exists(), {"path": str(path), "exists": path.exists()}
+    if verifier_type == "json_schema":
+        path = resolve_input_path(str(verifier.get("path", "")), workspace)
+        schema = str(verifier.get("schema", ""))
+        errors = validate_artifact(resolve_schema(schema), path)
+        return not errors, {"path": str(path), "schema": schema, "errors": errors}
+    if verifier_type == "command":
+        command = str(verifier.get("command") or "")
+        expected_exit = int(verifier.get("expect_exit", 0))
+        result = subprocess.run(command, cwd=str(workspace), shell=True, text=True, capture_output=True, check=False, timeout=int(verifier.get("timeout", 120)))
+        return result.returncode == expected_exit, {"command": command, "expected_exit": expected_exit, "actual_exit": result.returncode, "stdout": result.stdout[-1000:], "stderr": result.stderr[-1000:]}
+    return None, {"reason": "unsupported_verifier", "type": verifier_type}
+
+
+def completion_audit_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    workspace = resolve_workspace(args.workspace)
+    plan = read_json(cli_input_path(args.input))
+    verified = []
+    trusted = []
+    findings = []
+    for claim in plan.get("claims", []):
+        if not isinstance(claim, dict):
+            continue
+        verifier = claim.get("verifier")
+        if not isinstance(verifier, dict):
+            trusted.append({"id": claim.get("id"), "claim": claim.get("claim"), "reason": "no_verifier"})
+            continue
+        ok, observed = run_audit_verifier(verifier, workspace)
+        record = {"id": claim.get("id"), "claim": claim.get("claim"), "observed": observed}
+        if ok is None:
+            trusted.append({**record, "reason": "unsupported_verifier"})
+        elif ok:
+            verified.append(record)
+        else:
+            findings.append({
+                "id": claim.get("id"),
+                "rule": "completion_claim_contradicted",
+                "severity": "blocking",
+                "claimed": claim.get("claim"),
+                "observed": observed,
+                "message": "Completion audit observed a different result than the completion claim.",
+            })
+    feedback_findings = [
+        {
+            "source": "completion_audit",
+            "skill_source": "feedback-loop",
+            "pipeline_phase": "pr_prep",
+            "pattern": finding["rule"],
+            "bad_output": str(finding.get("claimed", "")),
+            "corrected_output": str(finding.get("observed", "")),
+            "expected_quality": "Completion claims must be reverified against repo or artifact state before PR prep.",
+            "metric": "schema_validity",
+            "status": "candidate",
+        }
+        for finding in findings
+    ]
+    payload = {
+        "contract_version": "1.0.0",
+        "status": "blocked" if findings else "pass",
+        "auditor": args.auditor or "independent-completion-audit",
+        "verified": verified,
+        "taken_on_trust": trusted,
+        "findings": findings,
+        "feedback_findings": feedback_findings,
+    }
+    errors = validate_artifact_payload(resolve_schema("completion-audit-report"), payload)
+    if errors:
+        raise ValueError("generated completion audit failed schema validation: " + "; ".join(errors))
+    return payload
 
 
 def terminal_side_effect_dependency_ids(state: Dict[str, Any] | None, target: str, brief_id: str) -> set:
@@ -12129,6 +12460,49 @@ def command_run_report(args: argparse.Namespace) -> int:
     return 0 if payload["status"] == "pass" else 1
 
 
+def command_predicate_library(args: argparse.Namespace) -> int:
+    try:
+        payload = predicate_library_payload(predicate_library_path(args.input))
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['path']}: {len(payload['rules'])} predicate rule(s)")
+    return 0
+
+
+def command_minimalism_audit(args: argparse.Namespace) -> int:
+    try:
+        payload = minimalism_audit_payload(args)
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload, "minimalism-audit-report")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"minimalism audit {payload['status']} ({len(payload['findings'])} findings)")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def command_completion_audit(args: argparse.Namespace) -> int:
+    try:
+        payload = completion_audit_payload(args)
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload, "completion-audit-report")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"completion audit {payload['status']} ({len(payload['findings'])} findings)")
+    return 0 if payload["status"] == "pass" else 1
+
+
 def mcp_tools() -> List[Dict[str, Any]]:
     return [
         {
@@ -12898,6 +13272,53 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "deviation_report": {"type": "string", "minLength": 1},
                     "compatibility_report": {"type": "array", "items": {"type": "string", "minLength": 1}},
                     "execution_adapter_report": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "criterion_depth_report": {"type": "string", "minLength": 1},
+                    "reverified": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "taken_on_trust": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("predicate-library"),
+            "description": command_description("predicate-library"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("minimalism-audit"),
+            "description": command_description("minimalism-audit"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief", "criterion_depth_report"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "criterion_depth_report": {"type": "string", "minLength": 1},
+                    "predicate_library": {"type": "string", "minLength": 1},
+                    "auditor_provider": {"type": "string"},
+                    "auditor_model": {"type": "string"},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("completion-audit"),
+            "description": command_description("completion-audit"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["input"],
+                "properties": {
+                    "input": {"type": "string", "minLength": 1},
+                    "workspace": {"type": "string", "minLength": 1},
+                    "auditor": {"type": "string", "minLength": 1},
                     "output": {"type": "string", "minLength": 1},
                 },
             },
@@ -13552,11 +13973,54 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
                 deviation_report=arguments.get("deviation_report") if isinstance(arguments.get("deviation_report"), str) else None,
                 compatibility_report=arguments.get("compatibility_report") if isinstance(arguments.get("compatibility_report"), list) else [],
                 execution_adapter_report=arguments.get("execution_adapter_report") if isinstance(arguments.get("execution_adapter_report"), list) else [],
+                build_brief=arguments.get("build_brief") if isinstance(arguments.get("build_brief"), str) else None,
+                criterion_depth_report=arguments.get("criterion_depth_report") if isinstance(arguments.get("criterion_depth_report"), str) else None,
+                reverified=arguments.get("reverified") if isinstance(arguments.get("reverified"), list) else [],
+                taken_on_trust=arguments.get("taken_on_trust") if isinstance(arguments.get("taken_on_trust"), list) else [],
                 output=arguments.get("output") if isinstance(arguments.get("output"), str) else None,
             )
         )
         if isinstance(arguments.get("output"), str):
             write_artifact(cli_input_path(arguments["output"]), payload, "run-report")
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_predicate_library":
+        path_arg = arguments.get("input")
+        payload = predicate_library_payload(predicate_library_path(path_arg if isinstance(path_arg, str) else None))
+        return tool_result(payload)
+    if name == "adlc_minimalism_audit":
+        build_brief = arguments.get("build_brief")
+        criterion_depth_report = arguments.get("criterion_depth_report")
+        if not isinstance(build_brief, str) or not isinstance(criterion_depth_report, str):
+            raise ValueError("adlc_minimalism_audit requires build_brief and criterion_depth_report")
+        payload = minimalism_audit_payload(
+            argparse.Namespace(
+                build_brief=build_brief,
+                criterion_depth_report=criterion_depth_report,
+                predicate_library=arguments.get("predicate_library") if isinstance(arguments.get("predicate_library"), str) else None,
+                auditor_provider=arguments.get("auditor_provider") if isinstance(arguments.get("auditor_provider"), str) else "",
+                auditor_model=arguments.get("auditor_model") if isinstance(arguments.get("auditor_model"), str) else "",
+                output=arguments.get("output") if isinstance(arguments.get("output"), str) else None,
+                json=True,
+            )
+        )
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload, "minimalism-audit-report")
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_completion_audit":
+        input_path = arguments.get("input")
+        if not isinstance(input_path, str):
+            raise ValueError("adlc_completion_audit requires input")
+        payload = completion_audit_payload(
+            argparse.Namespace(
+                input=input_path,
+                workspace=arguments.get("workspace") if isinstance(arguments.get("workspace"), str) else None,
+                auditor=arguments.get("auditor") if isinstance(arguments.get("auditor"), str) else None,
+                output=arguments.get("output") if isinstance(arguments.get("output"), str) else None,
+                json=True,
+            )
+        )
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload, "completion-audit-report")
         return tool_result(payload, is_error=payload["status"] != "pass")
     if name == "adlc_loop_test_selection":
         loop_contract = arguments.get("loop_contract")
@@ -14249,9 +14713,36 @@ def build_parser() -> argparse.ArgumentParser:
     run_report.add_argument("--deviation-report", help="Deviation validation report JSON path.")
     run_report.add_argument("--compatibility-report", action="append", help="Compatibility Evidence report JSON path. Can be repeated.")
     run_report.add_argument("--execution-adapter-report", action="append", help="Execution Adapter report JSON path. Can be repeated.")
+    run_report.add_argument("--build-brief", help="Build Brief JSON path used to require per-criterion depth declarations.")
+    run_report.add_argument("--criterion-depth-report", help="Criterion Depth Report JSON path.")
+    run_report.add_argument("--reverified", action="append", help="Claim, gate, or artifact independently reverified before report finalization.")
+    run_report.add_argument("--taken-on-trust", action="append", help="Claim intentionally recorded as not reverified.")
     run_report.add_argument("--output", help="Optional schema-backed Run Report path.")
     run_report.add_argument("--json", action="store_true", help="Emit JSON.")
     run_report.set_defaults(func=command_run_report)
+
+    predicate_library = subparsers.add_parser("predicate-library", help=command_description("predicate-library"))
+    predicate_library.add_argument("--input", help="Predicate library path. Defaults to docs/solutions/predicate-library.json.")
+    predicate_library.add_argument("--json", action="store_true", help="Emit JSON.")
+    predicate_library.set_defaults(func=command_predicate_library)
+
+    minimalism_audit = subparsers.add_parser("minimalism-audit", help=command_description("minimalism-audit"))
+    minimalism_audit.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
+    minimalism_audit.add_argument("--criterion-depth-report", required=True, help="Criterion Depth Report JSON path.")
+    minimalism_audit.add_argument("--predicate-library", help="Predicate library path. Defaults to docs/solutions/predicate-library.json.")
+    minimalism_audit.add_argument("--auditor-provider", default="", help="Provider/model route used for the Minimalism Auditor.")
+    minimalism_audit.add_argument("--auditor-model", default="", help="Model label used for the Minimalism Auditor.")
+    minimalism_audit.add_argument("--output", help="Optional Minimalism Audit report path.")
+    minimalism_audit.add_argument("--json", action="store_true", help="Emit JSON.")
+    minimalism_audit.set_defaults(func=command_minimalism_audit)
+
+    completion_audit = subparsers.add_parser("completion-audit", help=command_description("completion-audit"))
+    completion_audit.add_argument("--input", required=True, help="Completion audit plan JSON path.")
+    completion_audit.add_argument("--workspace", help="Workspace root for claim verifiers. Defaults to cwd.")
+    completion_audit.add_argument("--auditor", help="Auditor identity. Must not be the executor continuing its own session.")
+    completion_audit.add_argument("--output", help="Optional Completion Audit report path.")
+    completion_audit.add_argument("--json", action="store_true", help="Emit JSON.")
+    completion_audit.set_defaults(func=command_completion_audit)
 
     mcp = subparsers.add_parser("mcp-tools", help="Emit MCP-compatible tool declarations for the ADLC CLI.")
     mcp.add_argument("--json", action="store_true", help="Emit JSON.")
