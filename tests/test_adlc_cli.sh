@@ -1039,14 +1039,41 @@ jq '
   .sections."18_blindspot_report" = {
     "contract_version":"1.0.0",
     "items":[{"id":"B-prior","category":"prior_art","finding":"Existing average_score behavior is prior art and must be confirmed before changing semantics.","source_refs":["tests/smoke/fixtures/feature_bugfix/src/scoreboard.py"],"ledger_entry_id":"L-ask"}]
+  } |
+  .sections."19_clarity_interview" = {
+    "contract_version":"1.0.0",
+    "status":"blocked",
+    "questions":[{
+      "id":"Q-empty-score-contract",
+      "ledger_entry_id":"L-ask",
+      "question":"Should the public average_score contract preserve the current empty-score behavior?",
+      "architecture_impact":"high",
+      "why_it_matters":"The empty score claim controls the public scoreboard.py behavior and compatibility contract.",
+      "what_changes":"The answer changes whether scoreboard.py keeps the current empty score semantics or introduces a migration.",
+      "conservative_default":"Preserve the current empty-score behavior until a human approves a breaking contract change."
+    }]
   }
 ' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/clarity-ask-user.json"
 cat > "$tmp_dir/clarity-answers.json" <<'JSON'
 {"answers":[{"ledger_entry_id":"L-ask","answer":"Preserve current empty-score behavior.","answered_by":"human","answered_at":"2026-01-01T00:00:00Z"}]}
 JSON
+cat > "$tmp_dir/clarity-delegated-default.json" <<'JSON'
+{"answers":[{"ledger_entry_id":"L-ask","answer":"Use the conservative default.","delegated_default":true,"conservative_default":"Preserve the current empty-score behavior until a human approves a breaking contract change.","answered_by":"human","answered_at":"2026-01-01T00:00:00Z"}]}
+JSON
+cat > "$tmp_dir/clarity-bad-delegated-default.json" <<'JSON'
+{"answers":[{"ledger_entry_id":"L-ask","answer":"Use the conservative default.","delegated_default":true,"conservative_default":"Silently change the empty-score behavior.","answered_by":"human","answered_at":"2026-01-01T00:00:00Z"}]}
+JSON
 assert "clarity gate blocks missing ledger and blindspot" "if '$ROOT/bin/adlc' clarity-gate --build-brief '$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json' --json >'$tmp_dir/clarity-missing.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"missing_epistemic_ledger\") and any(.issues[]; .rule == \"missing_blindspot_report\")' '$tmp_dir/clarity-missing.json' >/dev/null; fi"
-assert "clarity gate emits headless pending questions for ask-user unknowns" "if '$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --pending-questions-output '$tmp_dir/pending-questions.json' --json >'$tmp_dir/clarity-blocked.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and .pending_questions.status == \"blocked\" and .pending_questions.questions[0].ledger_entry_id == \"L-ask\" and any(.issues[]; .rule == \"headless_interview_blocked\")' '$tmp_dir/clarity-blocked.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema pending-questions --input '$tmp_dir/pending-questions.json' --json | jq -e '.valid == true' >/dev/null; fi"
+assert "clarity gate emits authored headless pending questions for ask-user unknowns" "if '$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --pending-questions-output '$tmp_dir/pending-questions.json' --json >'$tmp_dir/clarity-blocked.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and .pending_questions.status == \"blocked\" and .pending_questions.questions[0].ledger_entry_id == \"L-ask\" and .pending_questions.questions[0].source == \"authored\" and .pending_questions.questions[0].question == \"Should the public average_score contract preserve the current empty-score behavior?\" and any(.issues[]; .rule == \"headless_interview_blocked\")' '$tmp_dir/clarity-blocked.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema pending-questions --input '$tmp_dir/pending-questions.json' --json | jq -e '.valid == true' >/dev/null; fi"
 assert "clarity gate passes after simulated human answer" "'$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --answers '$tmp_dir/clarity-answers.json' --json >'$tmp_dir/clarity-pass.json' && jq -e '.status == \"pass\" and .honesty_surface.knowns[0] == \"scoreboard.py is the target implementation file\" and (.honesty_surface.remaining_unknowns | length) == 0' '$tmp_dir/clarity-pass.json' >/dev/null"
+assert "clarity gate accepts delegated default only when recorded verbatim" "'$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --answers '$tmp_dir/clarity-delegated-default.json' --json >'$tmp_dir/clarity-delegated-pass.json' && jq -e '.status == \"pass\" and (.issues | length) == 0' '$tmp_dir/clarity-delegated-pass.json' >/dev/null && if '$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --answers '$tmp_dir/clarity-bad-delegated-default.json' --json >'$tmp_dir/clarity-delegated-fail.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"delegated_default_mismatch\")' '$tmp_dir/clarity-delegated-fail.json' >/dev/null; fi"
+jq '
+  .sections."19_clarity_interview".questions[0].why_it_matters = "The Build Brief cannot safely choose architecture, compatibility, or task boundaries without this answer." |
+  .sections."19_clarity_interview".questions[0].what_changes = "The answer may revise the ledger status, compatibility contract, task tickets, and validation evidence."
+' "$tmp_dir/clarity-ask-user.json" > "$tmp_dir/clarity-canned-question.json"
+assert "clarity gate blocks canned architecture question rationale" "if '$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-canned-question.json' --json >'$tmp_dir/clarity-canned-result.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"pending_question_canned_text\")' '$tmp_dir/clarity-canned-result.json' >/dev/null; fi"
+jq 'del(.sections."19_clarity_interview")' "$tmp_dir/clarity-ask-user.json" > "$tmp_dir/clarity-generated-question.json"
+assert "clarity gate flags generated architecture fallback question" "if '$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-generated-question.json' --json >'$tmp_dir/clarity-generated-result.json' 2>/dev/null; then false; else jq -e '.pending_questions.questions[0].source == \"generated\" and any(.warnings[]; .rule == \"architecture_question_generated_fallback\")' '$tmp_dir/clarity-generated-result.json' >/dev/null; fi"
 jq '
   .epistemic_ledger.entries[1].status = "KNOWN" |
   .epistemic_ledger.entries[1].disposition = "repo-evidence" |
@@ -1056,11 +1083,18 @@ jq '
 assert "clarity gate passes fully specified brief without interview" "'$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-fully-specified.json' --pending-questions-output '$tmp_dir/no-pending-questions.json' --json >'$tmp_dir/clarity-no-interview.json' && jq -e '.status == \"pass\" and .pending_questions.status == \"empty\" and (.pending_questions.questions | length) == 0 and (.honesty_surface.remaining_unknowns | length) == 0' '$tmp_dir/clarity-no-interview.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema pending-questions --input '$tmp_dir/no-pending-questions.json' --json | jq -e '.valid == true' >/dev/null"
 
 mkdir -p "$tmp_dir/contract-repo/config"
+mkdir -p "$tmp_dir/contract-repo/src" "$tmp_dir/contract-repo/scripts" "$tmp_dir/contract-repo/tests/compat"
 git -C "$tmp_dir/contract-repo" init -q
 git -C "$tmp_dir/contract-repo" config user.email adlc@example.invalid
 git -C "$tmp_dir/contract-repo" config user.name "ADLC Test"
 printf '{"version":"1"}\n' > "$tmp_dir/contract-repo/config/interralis_control_config.v1.json"
-git -C "$tmp_dir/contract-repo" add config/interralis_control_config.v1.json
+printf 'Published contract surface: config/interralis_control_config.v1.json follows additive v1 compatibility.\n' > "$tmp_dir/contract-repo/CLAUDE.md"
+printf 'CONFIG = "config/interralis_control_config.v1.json"\n' > "$tmp_dir/contract-repo/src/loader.py"
+printf '#!/usr/bin/env bash\n' > "$tmp_dir/contract-repo/scripts/dev-helper.sh"
+printf 'compat evidence\n' > "$tmp_dir/contract-repo/tests/compat/v1-config.sh"
+printf '' > "$tmp_dir/contract-repo/tests/compat/empty.txt"
+printf '{\"contract_version\":\"1.0.0\",\"status\":\"pass\"}\n' > "$tmp_dir/contract-repo/tests/compat/invalid-run-report.json"
+git -C "$tmp_dir/contract-repo" add CLAUDE.md config/interralis_control_config.v1.json src/loader.py scripts/dev-helper.sh tests/compat/v1-config.sh tests/compat/empty.txt tests/compat/invalid-run-report.json
 git -C "$tmp_dir/contract-repo" commit -q -m init
 "$ROOT/bin/adlc" contract-surface-inventory --workspace "$tmp_dir/contract-repo" --output "$tmp_dir/contract-inventory.json" --json >/dev/null
 surface_id="$(jq -r '.surfaces[] | select(.path=="config/interralis_control_config.v1.json") | .id' "$tmp_dir/contract-inventory.json")"
@@ -1074,8 +1108,17 @@ jq --arg surface "$surface_id" '
   .sections."8_task_tickets"[0].compatibility_contract = {"backward":"Additive only for v1 config consumers.","forward":"Unknown fields remain ignored by current loaders.","migration_or_rollout":"No migration required for additive field.","surfaces":[$surface],"verification_predicates":[{"surface":$surface,"predicate":"jq validates old and new config fixtures under the v1 schema","evidence_ref":"tests/compat/v1-config.sh"}]} |
   .sections."8_task_tickets"[0].compatibility_evidence_refs = ["tests/compat/v1-config.sh"]
 ' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/compat-verified.json"
-assert "contract surface inventory finds versioned config contracts" "jq -e 'any(.surfaces[]; .path == \"config/interralis_control_config.v1.json\" and .versioned == true)' '$tmp_dir/contract-inventory.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema contract-surface-inventory --input '$tmp_dir/contract-inventory.json' --json | jq -e '.valid == true' >/dev/null"
+jq '
+  .sections."8_task_tickets"[0].files_to_modify = ["config/interralis_control_config.v1.json"] |
+  .sections."8_task_tickets"[0].compatibility_contract = {"backward":"Additive only for v1 config consumers.","forward":"Unknown fields remain ignored by current loaders.","migration_or_rollout":"No migration required for additive field.","surfaces":["'"$surface_id"'"],"verification_predicates":[{"surface":"'"$surface_id"'","predicate":"jq validates old and new config fixtures under the v1 schema","evidence_ref":"tests/compat/missing.sh"}]} |
+  .sections."8_task_tickets"[0].compatibility_evidence_refs = ["tests/compat/missing.sh"]
+' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/compat-dead-ref.json"
+jq '.sections."8_task_tickets"[0].compatibility_evidence_refs = ["tests/compat/empty.txt"]' "$tmp_dir/compat-verified.json" > "$tmp_dir/compat-empty-ref.json"
+jq '.sections."8_task_tickets"[0].compatibility_evidence_refs = ["run-report::tests/compat/invalid-run-report.json"]' "$tmp_dir/compat-verified.json" > "$tmp_dir/compat-schema-invalid-ref.json"
+assert "contract surface inventory records policy confidence and consumers" "jq -e 'any(.surfaces[]; .path == \"config/interralis_control_config.v1.json\" and .versioned == true and .source == \"policy\" and .confidence == \"high\" and .blocking == true and (.consumers | index(\"src/loader.py\"))) and any(.surfaces[]; .path == \"scripts/dev-helper.sh\" and .source == \"heuristic\" and .confidence == \"low\" and .blocking == false and .consumer_discovery.status == \"attempted\") and .summary.surfaces >= 2' '$tmp_dir/contract-inventory.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema contract-surface-inventory --input '$tmp_dir/contract-inventory.json' --json | jq -e '.valid == true' >/dev/null"
 assert "compatibility evidence rejects generic contract claims" "if '$ROOT/bin/adlc' compatibility-evidence --build-brief '$tmp_dir/compat-generic.json' --inventory '$tmp_dir/contract-inventory.json' --json >'$tmp_dir/compat-fail.json' 2>/dev/null; then false; else jq -e '.status == \"fail\" and any(.issues[]; .rule == \"compatibility_contract_missing_surface\") and any(.issues[]; .rule == \"compatibility_predicate_missing\") and any(.issues[]; .rule == \"compatibility_evidence_refs_missing\")' '$tmp_dir/compat-fail.json' >/dev/null; fi"
+assert "compatibility evidence rejects dead and empty refs distinctly" "if '$ROOT/bin/adlc' compatibility-evidence --build-brief '$tmp_dir/compat-dead-ref.json' --inventory '$tmp_dir/contract-inventory.json' --json >'$tmp_dir/compat-dead-ref-result.json' 2>/dev/null; then false; else jq -e '.status == \"fail\" and any(.issues[]; .rule == \"compatibility_evidence_ref_unresolved\" and .dead_ref == \"tests/compat/missing.sh\")' '$tmp_dir/compat-dead-ref-result.json' >/dev/null; fi && if '$ROOT/bin/adlc' compatibility-evidence --build-brief '$tmp_dir/compat-empty-ref.json' --inventory '$tmp_dir/contract-inventory.json' --json >'$tmp_dir/compat-empty-ref-result.json' 2>/dev/null; then false; else jq -e '.status == \"fail\" and any(.issues[]; .rule == \"compatibility_evidence_ref_empty\" and .dead_ref == \"tests/compat/empty.txt\")' '$tmp_dir/compat-empty-ref-result.json' >/dev/null; fi"
+assert "compatibility evidence rejects schema-invalid typed refs" "if '$ROOT/bin/adlc' compatibility-evidence --build-brief '$tmp_dir/compat-schema-invalid-ref.json' --inventory '$tmp_dir/contract-inventory.json' --json >'$tmp_dir/compat-schema-invalid-ref-result.json' 2>/dev/null; then false; else jq -e '.status == \"fail\" and any(.issues[]; .rule == \"compatibility_evidence_ref_schema_invalid\" and .dead_ref == \"run-report::tests/compat/invalid-run-report.json\")' '$tmp_dir/compat-schema-invalid-ref-result.json' >/dev/null; fi"
 assert "compatibility evidence accepts surface predicates and refs" "'$ROOT/bin/adlc' compatibility-evidence --build-brief '$tmp_dir/compat-verified.json' --inventory '$tmp_dir/contract-inventory.json' --output '$tmp_dir/compat-pass-report.json' --json | jq -e '.status == \"pass\" and .tasks[0].touched_surfaces[0] == \"'$surface_id'\"' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema compatibility-evidence-report --input '$tmp_dir/compat-pass-report.json' --json | jq -e '.valid == true' >/dev/null"
 cat > "$tmp_dir/deviation-log.json" <<'JSON'
 {"ledger_entry_ids":["L-known"],"deviations":[{"id":"D-1","architecture_affecting":true,"description":"Coder selected a new config format without a ledger entry."}]}
@@ -1096,6 +1139,7 @@ cat > "$tmp_dir/deviation-pass.json" <<'JSON'
 {"contract_version":"1.0.0","status":"pass","brief_generator_defect_count":0,"issues":[]}
 JSON
 assert "run-report passes with answered clarity and successful gates" "'$ROOT/bin/adlc' run-report --provider codex --model test-model --runtime execution-adapter --run-id RUN-PASS --clarity-report '$tmp_dir/clarity-pass.json' --deviation-report '$tmp_dir/deviation-pass.json' --compatibility-report '$tmp_dir/compat-pass-report.json' --execution-adapter-report '$tmp_dir/execution-adapter.json' --output '$tmp_dir/run-report-pass.json' --json | jq -e '.status == \"pass\" and .honesty_surface.remaining_unknowns == [] and any(.gate_results[]; .name == \"compatibility-evidence\" and .status == \"pass\") and .harness_runs[0].provider == \"codex\"' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema run-report --input '$tmp_dir/run-report-pass.json' --json | jq -e '.valid == true' >/dev/null"
+assert "dual-harness feature slice records comparable gate outcomes" "comparison_path=\"\$(bash '$ROOT/tests/smoke/clarity_hardening/dual_harness_feature_slice.sh' '$tmp_dir/dual-harness')\" && jq -e '.status == \"pass\" and .providers.claude.status == \"pass\" and .providers.codex.status == \"pass\" and any(.gate_comparison[]; .gate == \"clarity-gate\" and .claude == \"pass\" and .codex == \"pass\") and any(.gate_comparison[]; .gate == \"compatibility-evidence\" and .claude == \"pass\" and .codex == \"pass\") and any(.gate_comparison[]; .gate == \"execution-adapter\" and .claude == \"completed\" and .codex == \"completed\")' \"\$comparison_path\" >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema run-report --input '$tmp_dir/dual-harness/claude-run-report.json' --json | jq -e '.valid == true' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema run-report --input '$tmp_dir/dual-harness/codex-run-report.json' --json | jq -e '.valid == true' >/dev/null"
 
 echo ""
 echo "--- MCP Wrapper ---"

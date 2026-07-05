@@ -21,7 +21,9 @@
           "architecture_impact": {"type": "string", "enum": ["high", "medium", "low"]},
           "why_it_matters": {"type": "string", "minLength": 1},
           "what_changes": {"type": "string", "minLength": 1},
-          "conservative_default": {"type": "string", "minLength": 1}
+          "conservative_default": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "enum": ["authored", "generated"]},
+          "machine_generated": {"type": "boolean"}
         }
       }
     }
