@@ -23,6 +23,7 @@ In the middle band, the routing label remains `low_confidence`, but `brief-clari
 ## Core Fields
 - `task_classification`: `feature | bugfix | build_validation | lint_cleanup | refactor | infra | docs | security`
 - `change_surface`: boolean flags for the surfaces the task actually touches
+- `operator_surface`: optional flags for operator judgment, divergence, volatility, teach-first, and comprehension gates
 - `claim_provenance`: grounded claims with source refs
 - `contamination`: unsupported, contradicted, or ambiguous claims that should not become scope
 - `section_policy`: active/suppressed/not_applicable per brief section
@@ -41,6 +42,32 @@ Set a flag only when repo evidence or the task text supports it.
 - `auth_change`
 - `perf_sensitive`
 - `user_facing_operation`
+
+## Operator Surface
+Set `operator_surface` only when repo evidence, task text, or human instruction
+shows operator-side judgment is load-bearing. Do not add it for deterministic
+docs, lint cleanup, build validation, or mechanical refactors with low blast
+radius.
+
+Supported fields:
+
+- `wide_solution_space`: the task needs divergent options before choosing an implementation.
+- `taste_surface`: the outcome depends on UI, UX, prose, report quality, content, design, or another subjective quality surface.
+- `know_it_when_i_see_it`: the operator cannot specify the final answer upfront and must react to options or prototypes.
+- `operator_judgment_required`: approval depends on human quality judgment rather than a deterministic verifier alone.
+- `blast_radius`: `low | medium | high`, used by the operator comprehension gate.
+- `quality_dimensions`: stable labels such as `visual_quality`, `ux_quality`, `prose_quality`, `report_quality`, or `operator_judgment`.
+- `evidence`: concrete refs or quotes explaining why the surface is active.
+
+Gate mapping:
+
+- `wide_solution_space`, `taste_surface`, or `know_it_when_i_see_it` activates `operator-divergence-gate`.
+- Volatile change surfaces (`data_format_change`, `api_change`, `persistent_storage`, `external_integration`, `user_facing_operation`) and Type 1 or blocking decisions are rendered first by `volatility-review`.
+- `taste_surface`, `operator_judgment_required`, or `quality_dimensions` activates `teach-first-gate`.
+- `blast_radius=medium|high`, or change-surface evidence that classifies as medium/high blast radius, activates `operator-comprehension-gate`.
+
+Inactive paths should be reported as `not_applicable` by the gate, not by adding
+empty operator sections to the brief.
 
 ## Contamination Handling
 Unsupported task text is not scope.

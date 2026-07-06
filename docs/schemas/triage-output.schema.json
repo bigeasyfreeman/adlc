@@ -132,6 +132,24 @@
         "user_facing_operation": { "type": "boolean" }
       }
     },
+    "operator_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "wide_solution_space": { "type": "boolean" },
+        "taste_surface": { "type": "boolean" },
+        "know_it_when_i_see_it": { "type": "boolean" },
+        "operator_judgment_required": { "type": "boolean" },
+        "quality_dimensions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "contamination": {
       "type": "object",
       "additionalProperties": false,
@@ -173,7 +191,7 @@
     },
     "suggested_workflow": {
       "type": "string",
-      "enum": ["default", "prd-first", "bugfix", "build_validation", "lint_cleanup", "refactor", "infra", "docs", "security"]
+      "enum": ["default", "prd-first", "divergence", "bugfix", "build_validation", "lint_cleanup", "refactor", "infra", "docs", "security"]
     },
     "clarification_questions": {
       "type": "array",

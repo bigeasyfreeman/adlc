@@ -41,7 +41,22 @@ from adlc_runtime.metadata import (
 
 ROOT = Path(os.environ.get("ADLC_ROOT", Path(__file__).resolve().parents[2]))
 PROCESS_ARTIFACT_ROOT_ENV = "ADLC_PROCESS_ARTIFACT_ROOT"
-PROCESS_ARTIFACT_TYPES = ("build-brief", "eval", "audit", "closeout", "validation", "prompt", "ledger", "interview", "run-report")
+PROCESS_ARTIFACT_TYPES = (
+    "build-brief",
+    "eval",
+    "audit",
+    "closeout",
+    "validation",
+    "prompt",
+    "ledger",
+    "interview",
+    "run-report",
+    "divergence",
+    "prototype",
+    "quiz",
+    "teach",
+    "review",
+)
 DEFAULT_PROCESS_ARTIFACT_FILENAMES = {
     "build-brief": "build-brief.json",
     "eval": "eval.json",
@@ -52,6 +67,11 @@ DEFAULT_PROCESS_ARTIFACT_FILENAMES = {
     "ledger": "epistemic-ledger.json",
     "interview": "pending-questions.json",
     "run-report": "run-report.json",
+    "divergence": "divergence-artifact.json",
+    "prototype": "prototype.md",
+    "quiz": "operator-comprehension-quiz.json",
+    "teach": "teach-packet.json",
+    "review": "volatility-review-packet.json",
 }
 
 
@@ -8469,6 +8489,584 @@ def slop_gate_payload(brief_path: Path) -> Dict[str, Any]:
     }
 
 
+OPERATOR_CLASSIFIER_CONTRACT = "operator_surface_classification.v1"
+MECHANICAL_TASK_CLASSES = {"build_validation", "lint_cleanup", "refactor"}
+VOLATILITY_ORDER = {"likely-to-change": 0, "moderate": 1, "unlikely": 2}
+BLAST_ORDER = {"low": 0, "medium": 1, "high": 2}
+TASTE_SURFACE_RE = re.compile(r"\b(visual|ux|ui|layout|prose|tone|voice|copy|content|report format|formatted report|mock|prototype|design|brand)\b", re.IGNORECASE)
+KNOW_IT_WHEN_RE = re.compile(r"\b(know it when i see it|vibes|taste|feel|looks? right|react to|options?)\b", re.IGNORECASE)
+DATA_MODEL_RE = re.compile(r"\b(schema|data model|migration|public contract|api|dependency|interface|format|ux|visual|type 1)\b", re.IGNORECASE)
+
+
+def build_brief_tasks(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return [task for task in brief.get("sections", {}).get("8_task_tickets", []) if isinstance(task, dict)]
+
+
+def collect_strings(value: Any) -> List[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        strings: List[str] = []
+        for item in value:
+            strings.extend(collect_strings(item))
+        return strings
+    if isinstance(value, dict):
+        strings = []
+        for item in value.values():
+            strings.extend(collect_strings(item))
+        return strings
+    return []
+
+
+def task_text(task: Dict[str, Any]) -> str:
+    fields = [
+        task.get("task_id"),
+        task.get("title"),
+        task.get("objective"),
+        task.get("task_classification"),
+        task.get("bpe_classification"),
+        task.get("scope"),
+        task.get("acceptance_criteria"),
+        task.get("files_to_modify"),
+        task.get("files_to_create"),
+        task.get("reference_impl"),
+        task.get("generated_output_surface"),
+        task.get("honesty_contract"),
+        task.get("operator_surface"),
+    ]
+    return " ".join(item for value in fields for item in collect_strings(value))
+
+
+def manifest_change_surface(brief: Dict[str, Any]) -> Dict[str, Any]:
+    manifest_payload = brief.get("applicability_manifest")
+    if isinstance(manifest_payload, dict) and isinstance(manifest_payload.get("change_surface"), dict):
+        return manifest_payload["change_surface"]
+    return {}
+
+
+def manifest_operator_surface(brief: Dict[str, Any]) -> Dict[str, Any]:
+    manifest_payload = brief.get("applicability_manifest")
+    if isinstance(manifest_payload, dict) and isinstance(manifest_payload.get("operator_surface"), dict):
+        return manifest_payload["operator_surface"]
+    return {}
+
+
+def true_operator_flags(surface: Dict[str, Any]) -> List[str]:
+    return [
+        flag
+        for flag in ("wide_solution_space", "taste_surface", "know_it_when_i_see_it", "operator_judgment_required")
+        if surface.get(flag) is True
+    ]
+
+
+def task_file_refs(task: Dict[str, Any]) -> List[str]:
+    refs: List[str] = []
+    for field_name in ("files_to_modify", "files_to_create"):
+        refs.extend(unique_nonempty_strings(task.get(field_name)))
+    return refs
+
+
+def task_has_paved_road_reference(task: Dict[str, Any]) -> bool:
+    refs = task.get("paved_road_refs")
+    if isinstance(refs, list) and refs:
+        return True
+    reference_impl = task.get("reference_impl")
+    return bool(reference_impl)
+
+
+def dimension_for_text(text: str) -> str:
+    lowered = text.lower()
+    if any(term in lowered for term in ("visual", "ui", "layout", "design", "brand")):
+        return "visual_quality"
+    if any(term in lowered for term in ("ux", "flow", "journey")):
+        return "ux_quality"
+    if any(term in lowered for term in ("report", "formatted")):
+        return "report_quality"
+    if any(term in lowered for term in ("prose", "tone", "voice", "copy", "content")):
+        return "prose_quality"
+    return "operator_judgment"
+
+
+def operator_blast_radius(task: Dict[str, Any], change_surface: Dict[str, Any], operator_surface: Dict[str, Any]) -> Tuple[str, List[str]]:
+    explicit = operator_surface.get("blast_radius") if isinstance(operator_surface, dict) else None
+    if explicit in BLAST_ORDER:
+        return str(explicit), [f"operator_surface.blast_radius={explicit}"]
+
+    high_flags = ("new_attack_surface", "auth_change", "persistent_storage", "service_boundary_change", "external_integration")
+    medium_flags = ("api_change", "data_format_change", "runtime_path_change", "user_facing_operation", "perf_sensitive")
+    reasons = [f"change_surface.{flag}=true" for flag in high_flags if change_surface.get(flag) is True]
+    if reasons:
+        return "high", reasons
+
+    reasons = [f"change_surface.{flag}=true" for flag in medium_flags if change_surface.get(flag) is True]
+    sizing = task.get("task_sizing")
+    sizing_surface = sizing.get("change_surface") if isinstance(sizing, dict) else {}
+    if isinstance(sizing_surface, dict):
+        touched_modules = unique_nonempty_strings(sizing_surface.get("touched_modules"))
+        if sizing_surface.get("surface_kind") == "atomic_cross_module" or len(touched_modules) > 1:
+            reasons.append("task_sizing.change_surface crosses modules")
+    if reasons:
+        return "medium", reasons
+    return "low", ["no medium-or-high blast-radius trigger found"]
+
+
+def operator_volatility_tier(task: Dict[str, Any], change_surface: Dict[str, Any], text: str) -> Tuple[str, List[str]]:
+    reasons: List[str] = []
+    for flag in ("data_format_change", "api_change", "persistent_storage", "external_integration", "user_facing_operation"):
+        if change_surface.get(flag) is True:
+            reasons.append(f"change_surface.{flag}=true")
+    if str(task.get("bpe_classification", "")).lower() == "type_1":
+        reasons.append("task bpe_classification=type_1")
+    decision = task.get("decision_contract")
+    if isinstance(decision, dict) and (decision.get("type1_decision") is True or decision.get("blocks_implementation") is True):
+        reasons.append("decision_contract is Type 1 or blocking")
+    if DATA_MODEL_RE.search(text):
+        reasons.append("task evidence names a data model, public contract, UX, dependency, or schema surface")
+    if reasons:
+        return "likely-to-change", reasons
+    if str(task.get("task_classification")) in MECHANICAL_TASK_CLASSES:
+        return "unlikely", ["mechanical task class with no volatile surface trigger"]
+    return "moderate", ["non-mechanical work without a high-volatility surface trigger"]
+
+
+def classify_operator_task(brief: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+    manifest_surface = manifest_operator_surface(brief)
+    task_surface = task.get("operator_surface") if isinstance(task.get("operator_surface"), dict) else {}
+    change_surface = manifest_change_surface(brief)
+    text = task_text(task)
+    text_lower = text.lower()
+    explicit_flags = set(true_operator_flags(manifest_surface) + true_operator_flags(task_surface))
+    evidence: List[str] = []
+    for flag in sorted(explicit_flags):
+        evidence.append(f"operator_surface.{flag}=true")
+
+    task_class = str(task.get("task_classification") or brief.get("applicability_manifest", {}).get("task_classification") or "")
+    generated_output = task_has_generated_output_surface(task)
+    mechanical_without_surface = task_class in MECHANICAL_TASK_CLASSES and not explicit_flags and not generated_output
+
+    wide_solution_space = "wide_solution_space" in explicit_flags
+    taste_surface = "taste_surface" in explicit_flags
+    know_it = "know_it_when_i_see_it" in explicit_flags
+    operator_judgment_required = "operator_judgment_required" in explicit_flags
+
+    if not mechanical_without_surface:
+        if task_class == "feature" and not task_has_paved_road_reference(task):
+            wide_solution_space = True
+            evidence.append("feature task has no cited paved-road or reference implementation")
+        if change_surface.get("user_facing_operation") is True:
+            taste_surface = True
+            evidence.append("change_surface.user_facing_operation=true")
+        if generated_output:
+            taste_surface = True
+            operator_judgment_required = True
+            evidence.append("generated_output_surface.active=true")
+        if TASTE_SURFACE_RE.search(text):
+            taste_surface = True
+            operator_judgment_required = True
+            evidence.append("task evidence names a visual, UX, prose, report, or content surface")
+        if KNOW_IT_WHEN_RE.search(text):
+            know_it = True
+            evidence.append("task evidence uses know-it-when-I-see-it or option-reaction language")
+
+    quality_dimensions = []
+    for source in (manifest_surface, task_surface):
+        values = source.get("quality_dimensions") if isinstance(source, dict) else None
+        if isinstance(values, list):
+            quality_dimensions.extend(str(value) for value in values if str(value).strip())
+    if operator_judgment_required or taste_surface:
+        quality_dimensions.append(dimension_for_text(text_lower))
+    quality_dimensions = sorted(set(quality_dimensions))
+
+    blast_radius, blast_reasons = operator_blast_radius(task, change_surface, task_surface or manifest_surface)
+    volatility_tier, volatility_reasons = operator_volatility_tier(task, change_surface, text)
+    divergence_required = wide_solution_space or taste_surface or know_it
+    teach_required = taste_surface or operator_judgment_required or bool(quality_dimensions)
+
+    return {
+        "task_id": str(task.get("task_id") or ""),
+        "classifier_contract": OPERATOR_CLASSIFIER_CONTRACT,
+        "divergence_required": divergence_required,
+        "teach_required": teach_required,
+        "taste_surface": taste_surface,
+        "wide_solution_space": wide_solution_space,
+        "know_it_when_i_see_it": know_it,
+        "operator_judgment_required": operator_judgment_required,
+        "quality_dimensions": quality_dimensions,
+        "blast_radius": blast_radius,
+        "blast_radius_reasons": blast_reasons,
+        "volatility_tier": volatility_tier,
+        "volatility_reasons": volatility_reasons,
+        "activation_evidence": sorted(set(evidence)) or ["no operator-side activation evidence"],
+        "file_refs": task_file_refs(task),
+        "task_text": text,
+    }
+
+
+def operator_classifications(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return [classify_operator_task(brief, task) for task in build_brief_tasks(brief)]
+
+
+def read_optional_json_artifact(path: Path | None, schema_alias: str) -> Tuple[Dict[str, Any] | None, List[str]]:
+    if path is None:
+        return None, []
+    errors = validate_artifact(resolve_schema(schema_alias), path)
+    if errors:
+        return None, errors
+    return read_json(path), []
+
+
+def divergence_ledger_issue(brief: Dict[str, Any], artifact_path: Path, artifact: Dict[str, Any], reaction: Dict[str, Any]) -> List[Dict[str, Any]]:
+    ledger = brief_ledger(brief)
+    entries = ledger_entries_by_id(ledger)
+    issues: List[Dict[str, Any]] = []
+    for rejected in reaction.get("rejected_options", []):
+        if not isinstance(rejected, dict):
+            continue
+        ledger_id = str(rejected.get("ledger_entry_id") or "")
+        entry = entries.get(ledger_id)
+        if not entry:
+            issues.append({"rule": "rejected_reason_missing_ledger_entry", "severity": "blocking", "ledger_entry_id": ledger_id})
+            continue
+        if entry.get("status") != "KNOWN":
+            issues.append({"rule": "rejected_reason_not_known", "severity": "blocking", "ledger_entry_id": ledger_id})
+        sources = [str(source) for source in entry.get("sources", []) if isinstance(source, str)]
+        artifact_refs = {str(artifact.get("brief_id") or ""), rel_path(artifact_path), str(artifact_path), artifact_path.name}
+        if not any(any(ref and ref in source for ref in artifact_refs) for source in sources):
+            issues.append({"rule": "rejected_reason_source_not_divergence_artifact", "severity": "blocking", "ledger_entry_id": ledger_id})
+    return issues
+
+
+def divergence_artifact_issues(brief: Dict[str, Any], artifact_path: Path | None, diff_path: Path | None = None) -> Tuple[List[Dict[str, Any]], Dict[str, Any] | None]:
+    active_classifications = [item for item in operator_classifications(brief) if item["divergence_required"]]
+    if not active_classifications:
+        return [], None
+    if artifact_path is None:
+        return [{"rule": "missing_divergence_artifact", "severity": "blocking", "message": "Divergence-applicable work requires an options ladder and operator reaction."}], None
+
+    artifact, schema_errors = read_optional_json_artifact(artifact_path, "divergence-artifact")
+    if schema_errors:
+        return [{"rule": "divergence_artifact_schema_invalid", "severity": "blocking", "errors": schema_errors}], None
+    assert artifact is not None
+
+    issues: List[Dict[str, Any]] = []
+    options = artifact.get("options") if isinstance(artifact.get("options"), list) else []
+    if len(options) < 3:
+        issues.append({"rule": "divergence_options_too_few", "severity": "blocking", "message": "Divergence options ladder requires at least 3 options."})
+    orders = [option.get("ambition_order") for option in options if isinstance(option, dict)]
+    if orders != sorted(orders):
+        issues.append({"rule": "divergence_options_not_ordered", "severity": "blocking", "message": "Options must be ordered cheapest-to-most-ambitious by ambition_order."})
+    reaction = artifact.get("operator_reaction") if isinstance(artifact.get("operator_reaction"), dict) else {}
+    option_ids = {str(option.get("id")) for option in options if isinstance(option, dict)}
+    if str(reaction.get("chosen_option_id") or "") not in option_ids:
+        issues.append({"rule": "chosen_option_not_in_ladder", "severity": "blocking"})
+    if not reaction.get("rejected_options"):
+        issues.append({"rule": "missing_rejected_option_reasons", "severity": "blocking"})
+    issues.extend(divergence_ledger_issue(brief, artifact_path, artifact, reaction))
+
+    if any(item["taste_surface"] for item in active_classifications):
+        prototype_refs = [
+            ref
+            for option in options
+            if isinstance(option, dict)
+            for ref in option.get("prototype_refs", []) or []
+            if isinstance(ref, dict)
+        ]
+        if not prototype_refs:
+            issues.append({"rule": "missing_throwaway_prototype", "severity": "blocking", "message": "Taste surfaces require a renderable/readable prototype process artifact."})
+        for ref in prototype_refs:
+            if ref.get("payload_class") != "process-artifact" or ref.get("renderable") is not True:
+                issues.append({"rule": "invalid_prototype_payload", "severity": "blocking", "path": ref.get("path")})
+        if diff_path and diff_path.exists():
+            diff_text = diff_path.read_text(encoding="utf-8", errors="ignore")
+            for ref in prototype_refs:
+                path = str(ref.get("path") or "")
+                if path and path in diff_text:
+                    issues.append({"rule": "prototype_in_target_diff", "severity": "blocking", "path": path})
+    return issues, artifact
+
+
+def operator_divergence_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    brief_path = cli_input_path(args.build_brief)
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path)
+    classifications = operator_classifications(brief)
+    active = [item for item in classifications if item["divergence_required"]]
+    artifact_path = cli_input_path(args.divergence_artifact) if args.divergence_artifact else None
+    diff_path = cli_input_path(args.diff_file) if args.diff_file else None
+    issues, artifact = divergence_artifact_issues(brief, artifact_path, diff_path)
+    applicability = "required" if active else "not_applicable"
+    payload = {
+        "contract_version": "1.0.0",
+        "status": "blocked" if issues else "pass",
+        "build_brief_id": brief.get("brief_id"),
+        "applicability": applicability,
+        "not_applicable_reason": None if active else "No wide-solution-space, taste-surface, or know-it-when-I-see-it evidence was present.",
+        "classifier_contract": OPERATOR_CLASSIFIER_CONTRACT,
+        "classifications": classifications,
+        "artifact_ref": rel_path(artifact_path) if artifact_path else None,
+        "artifact": artifact,
+        "issues": issues,
+        "summary": {"tasks": len(classifications), "active_tasks": len(active), "issues": len(issues)},
+    }
+    return payload
+
+
+def volatility_review_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    brief_path = cli_input_path(args.build_brief)
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path)
+    entries: List[Dict[str, Any]] = []
+    for task, classification in zip(build_brief_tasks(brief), operator_classifications(brief)):
+        task_id = str(task.get("task_id") or "")
+        title = str(task.get("title") or task.get("objective") or task_id)
+        entries.append(
+            {
+                "id": f"task:{task_id}",
+                "task_id": task_id,
+                "kind": "task",
+                "title": title,
+                "volatility_tier": classification["volatility_tier"],
+                "rank": 0,
+                "reasons": classification["volatility_reasons"],
+                "examined_by_council": False,
+            }
+        )
+        decision = task.get("decision_contract")
+        if isinstance(decision, dict) and decision.get("status") not in {"not_applicable", "resolved"}:
+            entries.append(
+                {
+                    "id": f"decision:{task_id}",
+                    "task_id": task_id,
+                    "kind": "decision",
+                    "title": str(decision.get("summary") or title),
+                    "volatility_tier": classification["volatility_tier"],
+                    "rank": 0,
+                    "reasons": ["decision_contract remains operator-reviewable"] + classification["volatility_reasons"],
+                    "examined_by_council": False,
+                }
+            )
+    entries.sort(key=lambda item: (VOLATILITY_ORDER[item["volatility_tier"]], item["id"]))
+    for index, entry in enumerate(entries, start=1):
+        entry["rank"] = index
+    active_review = any(entry["volatility_tier"] != "unlikely" for entry in entries)
+    payload = {
+        "contract_version": "1.0.0",
+        "brief_id": str(brief.get("brief_id") or ""),
+        "classifier_contract": OPERATOR_CLASSIFIER_CONTRACT,
+        "applicability": "required" if active_review else "not_applicable",
+        "applicability_reason": "volatile task or decision surface present" if active_review else "all tasks and decisions are unlikely to change",
+        "canonical_section_order_unchanged": True,
+        "entries": entries,
+        "summary": {
+            "entries": len(entries),
+            "likely_to_change": sum(1 for item in entries if item["volatility_tier"] == "likely-to-change"),
+            "moderate": sum(1 for item in entries if item["volatility_tier"] == "moderate"),
+            "unlikely": sum(1 for item in entries if item["volatility_tier"] == "unlikely"),
+        },
+    }
+    schema_errors = validate_artifact_payload(resolve_schema("volatility-review-packet"), payload)
+    if schema_errors:
+        raise ValueError("generated volatility review packet failed schema validation: " + "; ".join(schema_errors))
+    return payload
+
+
+def quiz_content_terms(brief: Dict[str, Any], diff_path: Path | None) -> List[str]:
+    terms: List[str] = []
+    for task in build_brief_tasks(brief):
+        terms.extend(task_file_refs(task))
+        terms.extend(re.findall(r"[A-Za-z_][A-Za-z0-9_]{3,}", task_text(task)))
+    if diff_path and diff_path.exists():
+        diff_text = diff_path.read_text(encoding="utf-8", errors="ignore")
+        terms.extend(re.findall(r"[A-Za-z_][A-Za-z0-9_./-]{3,}", diff_text))
+    stop = QUESTION_STOPWORDS | {"implementation", "behavior", "change", "failure", "radius", "question"}
+    unique_terms = []
+    for term in terms:
+        clean = term.strip().lower()
+        if clean and clean not in stop and clean not in unique_terms:
+            unique_terms.append(clean)
+    return unique_terms[:80]
+
+
+def operator_comprehension_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    brief_path = cli_input_path(args.build_brief)
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path)
+    classifications = operator_classifications(brief)
+    active = [item for item in classifications if BLAST_ORDER[item["blast_radius"]] >= BLAST_ORDER["medium"]]
+    quiz_path = cli_input_path(args.quiz) if args.quiz else None
+    diff_path = cli_input_path(args.diff_file) if args.diff_file else None
+    issues: List[Dict[str, Any]] = []
+    quiz: Dict[str, Any] | None = None
+    if not active:
+        return {
+            "contract_version": "1.0.0",
+            "status": "pass",
+            "build_brief_id": brief.get("brief_id"),
+            "result": "not_applicable",
+            "not_applicable_reason": "All operator-side blast-radius classifications are low.",
+            "classifications": classifications,
+            "quiz_ref": None,
+            "quiz": None,
+            "issues": [],
+            "summary": {"active_tasks": 0, "issues": 0},
+        }
+    if quiz_path is None:
+        issues.append({"rule": "missing_operator_comprehension_quiz", "severity": "blocking", "message": "Medium+ blast-radius changes require a recorded operator quiz or delegation."})
+    else:
+        quiz, schema_errors = read_optional_json_artifact(quiz_path, "operator-comprehension-quiz")
+        if schema_errors:
+            issues.append({"rule": "operator_quiz_schema_invalid", "severity": "blocking", "errors": schema_errors})
+        elif quiz:
+            categories = {str(question.get("category")) for question in quiz.get("questions", []) if isinstance(question, dict)}
+            missing_categories = sorted({"behavior_change", "blast_radius", "failure_modes"} - categories)
+            if quiz.get("status") == "passed":
+                failed = [question.get("id") for question in quiz.get("questions", []) if isinstance(question, dict) and question.get("evaluation") != "pass"]
+                if failed:
+                    issues.append({"rule": "operator_quiz_contains_failed_answer", "severity": "blocking", "question_ids": failed})
+                if missing_categories:
+                    issues.append({"rule": "operator_quiz_missing_category", "severity": "blocking", "missing": missing_categories})
+            if quiz.get("status") == "failed":
+                issues.append({"rule": "operator_quiz_failed", "severity": "blocking", "message": "Failed operator quiz blocks engineer_review until retake passes or delegation is recorded."})
+            if quiz.get("status") == "delegated" and not isinstance(quiz.get("delegation"), dict):
+                issues.append({"rule": "operator_quiz_delegation_missing", "severity": "blocking"})
+            concrete_terms = quiz_content_terms(brief, diff_path)
+            for question in quiz.get("questions", []) if isinstance(quiz.get("questions"), list) else []:
+                text = str(question.get("question") or "").lower()
+                if concrete_terms and not any(term in text for term in concrete_terms):
+                    issues.append({"rule": "operator_quiz_question_boilerplate", "severity": "blocking", "question_id": question.get("id"), "message": "Quiz question must reference concrete symbols, files, behaviors, or failure modes from the change."})
+    return {
+        "contract_version": "1.0.0",
+        "status": "blocked" if issues else "pass",
+        "build_brief_id": brief.get("brief_id"),
+        "result": str(quiz.get("status")) if quiz else "missing",
+        "classifications": classifications,
+        "quiz_ref": rel_path(quiz_path) if quiz_path else None,
+        "quiz": quiz,
+        "issues": issues,
+        "summary": {"active_tasks": len(active), "issues": len(issues)},
+    }
+
+
+def criteria_store_records_for_dimension(store: Dict[str, Any] | None, dimension: str) -> List[Dict[str, Any]]:
+    if not isinstance(store, dict):
+        return []
+    return [
+        record
+        for record in store.get("records", [])
+        if isinstance(record, dict) and str(record.get("dimension") or "") == dimension
+    ]
+
+
+def default_teach_dimension(classifications: List[Dict[str, Any]]) -> str:
+    for classification in classifications:
+        if classification.get("quality_dimensions"):
+            return str(classification["quality_dimensions"][0])
+    return "operator_judgment"
+
+
+def criteria_record_from_teach_packet(packet: Dict[str, Any], packet_ref: str) -> Dict[str, Any]:
+    dimension = str(packet.get("dimension") or "operator_judgment")
+    slug = re.sub(r"[^A-Z0-9]+", "-", dimension.upper()).strip("-") or "OPERATOR-JUDGMENT"
+    ratification = packet.get("ratification") if isinstance(packet.get("ratification"), dict) else {}
+    return {
+        "id": f"JCR-{slug}",
+        "version": "1.0.0",
+        "dimension": dimension,
+        "criteria": [str(item) for item in packet.get("criteria", [])],
+        "origin": {"source": "teach_packet", "source_ref": packet_ref},
+        "contrast_pair": packet.get("contrast_pair", {}),
+        "ratified_by": str(ratification.get("ratified_by") or ""),
+        "ratified_at": str(ratification.get("ratified_at") or ""),
+        "consumers": ["slop-judge", "eval-council", "operator-review"],
+    }
+
+
+def teach_first_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    brief_path = cli_input_path(args.build_brief)
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path)
+    classifications = operator_classifications(brief)
+    active = [item for item in classifications if item["teach_required"]]
+    if not active:
+        return {
+            "contract_version": "1.0.0",
+            "status": "pass",
+            "build_brief_id": brief.get("brief_id"),
+            "applicability": "not_applicable",
+            "not_applicable_reason": "No taste-surface or operator-judgment-required dimension was present.",
+            "dimension": None,
+            "criteria_record_id": None,
+            "issues": [],
+            "classifications": classifications,
+        }
+
+    dimension = args.dimension or default_teach_dimension(active)
+    store_path = cli_input_path(args.criteria_store) if args.criteria_store else None
+    store: Dict[str, Any] | None = None
+    issues: List[Dict[str, Any]] = []
+    if store_path and store_path.exists():
+        store, schema_errors = read_optional_json_artifact(store_path, "judgment-criteria-store")
+        if schema_errors:
+            issues.append({"rule": "judgment_criteria_store_schema_invalid", "severity": "blocking", "errors": schema_errors})
+    records = criteria_store_records_for_dimension(store, dimension)
+    if records and not issues:
+        return {
+            "contract_version": "1.0.0",
+            "status": "pass",
+            "build_brief_id": brief.get("brief_id"),
+            "applicability": "required",
+            "dimension": dimension,
+            "criteria_record_id": records[0]["id"],
+            "mode": "cite_existing",
+            "issues": [],
+            "classifications": classifications,
+        }
+
+    teach_path = cli_input_path(args.teach_packet) if args.teach_packet else None
+    packet: Dict[str, Any] | None = None
+    if teach_path is None:
+        issues.append({"rule": "missing_teach_packet_or_criteria_record", "severity": "blocking", "dimension": dimension})
+    else:
+        packet, schema_errors = read_optional_json_artifact(teach_path, "teach-packet")
+        if schema_errors:
+            issues.append({"rule": "teach_packet_schema_invalid", "severity": "blocking", "errors": schema_errors})
+        elif packet and packet.get("dimension") != dimension:
+            issues.append({"rule": "teach_packet_dimension_mismatch", "severity": "blocking", "expected": dimension, "actual": packet.get("dimension")})
+
+    new_record = criteria_record_from_teach_packet(packet, rel_path(teach_path)) if packet and not issues else None
+    updated_store = None
+    if new_record:
+        updated_store = store or {"contract_version": "1.0.0", "records": []}
+        existing = [record for record in updated_store.get("records", []) if record.get("id") != new_record["id"]]
+        updated_store["records"] = existing + [new_record]
+        schema_errors = validate_artifact_payload(resolve_schema("judgment-criteria-store"), updated_store)
+        if schema_errors:
+            issues.append({"rule": "generated_judgment_criteria_store_invalid", "severity": "blocking", "errors": schema_errors})
+        elif args.updated_store_output:
+            write_artifact(cli_input_path(args.updated_store_output), updated_store, "judgment-criteria-store")
+
+    return {
+        "contract_version": "1.0.0",
+        "status": "blocked" if issues else "pass",
+        "build_brief_id": brief.get("brief_id"),
+        "applicability": "required",
+        "dimension": dimension,
+        "criteria_record_id": new_record.get("id") if new_record else None,
+        "mode": "ratify_new" if new_record else "blocked",
+        "issues": issues,
+        "classifications": classifications,
+        "updated_store": updated_store,
+    }
+
+
 def brief_ledger(brief: Dict[str, Any]) -> Dict[str, Any] | None:
     ledger = brief.get("epistemic_ledger")
     return ledger if isinstance(ledger, dict) else None
@@ -8560,6 +9158,22 @@ def question_for_unknown(entry: Dict[str, Any], authored_question: Dict[str, Any
         "source": "generated",
         "machine_generated": True,
     }
+
+
+def operator_question_volatility_tier(_brief: Dict[str, Any], entry: Dict[str, Any]) -> Tuple[str, List[str]]:
+    entry_text = " ".join(collect_strings(entry))
+    pseudo_task = {
+        "task_id": str(entry.get("id") or "unknown"),
+        "title": str(entry.get("claim") or ""),
+        "objective": entry_text,
+        "task_classification": "feature" if entry.get("architecture_affecting") else "",
+    }
+    return operator_volatility_tier(pseudo_task, {}, entry_text)
+
+
+def pending_question_sort_key(brief: Dict[str, Any], entry: Dict[str, Any]) -> Tuple[int, bool, str]:
+    tier, _ = operator_question_volatility_tier(brief, entry)
+    return (VOLATILITY_ORDER.get(tier, VOLATILITY_ORDER["moderate"]), not bool(entry.get("architecture_affecting")), str(entry.get("id") or ""))
 
 
 def pending_question_quality_issues(question: Dict[str, Any], entry: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -8787,7 +9401,7 @@ def clarity_gate_payload(
         and not entry.get("human_answer_ref")
         and str(entry.get("id")) not in answered_ids
     ]
-    pending_entries.sort(key=lambda item: (not bool(item.get("architecture_affecting")), str(item.get("id"))))
+    pending_entries.sort(key=lambda item: pending_question_sort_key(brief, item))
     questions = [questions_by_entry[str(entry.get("id"))] for entry in pending_entries]
     pending_questions = {"contract_version": "1.0.0", "status": "blocked" if questions else "empty", "questions": questions}
     if questions and mode == "headless":
@@ -9281,6 +9895,7 @@ def run_report_payload(args: argparse.Namespace) -> Dict[str, Any]:
     deviation_report = read_json(cli_input_path(args.deviation_report)) if args.deviation_report else {}
     compatibility_reports = [read_json(cli_input_path(path)) for path in (args.compatibility_report or [])]
     execution_reports = [read_json(cli_input_path(path)) for path in (args.execution_adapter_report or [])]
+    operator_comprehension_reports = [read_json(cli_input_path(path)) for path in (getattr(args, "operator_comprehension_report", None) or [])]
     build_brief_path = cli_input_path(args.build_brief) if getattr(args, "build_brief", None) else None
     depth_report_path = cli_input_path(args.criterion_depth_report) if getattr(args, "criterion_depth_report", None) else None
     depth_issues, depth_entries, thinness_inventory = criterion_depth_issues(build_brief_path, depth_report_path)
@@ -9325,6 +9940,22 @@ def run_report_payload(args: argparse.Namespace) -> Dict[str, Any]:
         gate_results.append({"name": "criterion-depth", "status": "fail" if depth_issues else "pass", "evidence_ref": evidence_ref})
     elif build_brief_path:
         gate_results.append({"name": "criterion-depth", "status": "fail"})
+    operator_comprehension_records = []
+    for path, report in zip(getattr(args, "operator_comprehension_report", None) or [], operator_comprehension_reports):
+        evidence_ref = rel_path(cli_input_path(path))
+        evidence_refs.append(evidence_ref)
+        quiz = report.get("quiz") if isinstance(report.get("quiz"), dict) else {}
+        raw_result = str(report.get("result") or quiz.get("status") or "unknown")
+        gate_status = raw_result if raw_result in {"passed", "delegated", "not_applicable"} else str(report.get("status", "unknown"))
+        gate_results.append({"name": "operator-comprehension-gate", "status": gate_status, "evidence_ref": evidence_ref})
+        operator_comprehension_records.append(
+            {
+                "task_id": str(quiz.get("task_id") or ""),
+                "status": gate_status if gate_status in {"passed", "delegated", "failed", "not_applicable"} else "failed",
+                "blast_radius": str(quiz.get("blast_radius") or "low"),
+                "evidence_ref": evidence_ref,
+            }
+        )
 
     honesty_surface = clarity_report.get("honesty_surface") if isinstance(clarity_report.get("honesty_surface"), dict) else {}
     pending = clarity_report.get("pending_questions") if isinstance(clarity_report.get("pending_questions"), dict) else {}
@@ -9370,6 +10001,7 @@ def run_report_payload(args: argparse.Namespace) -> Dict[str, Any]:
         "evidence_refs": sorted(set(ref for ref in evidence_refs if ref)),
         "criterion_depth": depth_entries,
         "thinness_inventory": thinness_inventory,
+        "operator_comprehension": operator_comprehension_records,
         "audit_surface": {
             "reverified": [str(item) for item in getattr(args, "reverified", []) or []],
             "taken_on_trust": [str(item) for item in getattr(args, "taken_on_trust", []) or []],
@@ -12368,6 +13000,67 @@ def command_clarity_gate(args: argparse.Namespace) -> int:
     return 0 if payload["status"] == "pass" else 1
 
 
+def command_operator_divergence_gate(args: argparse.Namespace) -> int:
+    try:
+        payload = operator_divergence_payload(args)
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['build_brief_id']}: operator divergence {payload['status']} ({payload['summary']['issues']} issues)")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def command_volatility_review(args: argparse.Namespace) -> int:
+    try:
+        payload = volatility_review_payload(args)
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload, "volatility-review-packet")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['brief_id']}: volatility review packet ({payload['summary']['entries']} entries)")
+    return 0
+
+
+def command_operator_comprehension_gate(args: argparse.Namespace) -> int:
+    try:
+        payload = operator_comprehension_payload(args)
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['build_brief_id']}: operator comprehension {payload['status']} ({payload['summary']['issues']} issues)")
+    return 0 if payload["status"] == "pass" else 1
+
+
+def command_teach_first_gate(args: argparse.Namespace) -> int:
+    try:
+        payload = teach_first_payload(args)
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        dimension = payload.get("dimension") or "not_applicable"
+        print(f"{payload['build_brief_id']}: teach-first {payload['status']} ({dimension})")
+    return 0 if payload["status"] == "pass" else 1
+
+
 def command_contract_surface_inventory(args: argparse.Namespace) -> int:
     try:
         workspace = resolve_workspace(args.workspace)
@@ -13200,6 +13893,66 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("operator-divergence-gate"),
+            "description": command_description("operator-divergence-gate"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "divergence_artifact": {"type": "string", "minLength": 1},
+                    "diff_file": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("volatility-review"),
+            "description": command_description("volatility-review"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("operator-comprehension-gate"),
+            "description": command_description("operator-comprehension-gate"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "quiz": {"type": "string", "minLength": 1},
+                    "diff_file": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("teach-first-gate"),
+            "description": command_description("teach-first-gate"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["build_brief"],
+                "properties": {
+                    "build_brief": {"type": "string", "minLength": 1},
+                    "criteria_store": {"type": "string", "minLength": 1},
+                    "teach_packet": {"type": "string", "minLength": 1},
+                    "dimension": {"type": "string", "minLength": 1},
+                    "updated_store_output": {"type": "string", "minLength": 1},
+                    "output": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
             "name": command_mcp_name("contract-surface-inventory"),
             "description": command_description("contract-surface-inventory"),
             "inputSchema": {
@@ -13272,6 +14025,7 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "deviation_report": {"type": "string", "minLength": 1},
                     "compatibility_report": {"type": "array", "items": {"type": "string", "minLength": 1}},
                     "execution_adapter_report": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                    "operator_comprehension_report": {"type": "array", "items": {"type": "string", "minLength": 1}},
                     "build_brief": {"type": "string", "minLength": 1},
                     "criterion_depth_report": {"type": "string", "minLength": 1},
                     "reverified": {"type": "array", "items": {"type": "string", "minLength": 1}},
@@ -13917,6 +14671,64 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(arguments.get("pending_questions_output"), str):
             write_artifact(cli_input_path(arguments["pending_questions_output"]), payload["pending_questions"], "pending-questions")
         return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_operator_divergence_gate":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_operator_divergence_gate requires string argument: build_brief")
+        payload = operator_divergence_payload(
+            argparse.Namespace(
+                build_brief=build_brief,
+                divergence_artifact=arguments.get("divergence_artifact") if isinstance(arguments.get("divergence_artifact"), str) else None,
+                diff_file=arguments.get("diff_file") if isinstance(arguments.get("diff_file"), str) else None,
+                output=arguments.get("output") if isinstance(arguments.get("output"), str) else None,
+                json=True,
+            )
+        )
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload)
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_volatility_review":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_volatility_review requires string argument: build_brief")
+        payload = volatility_review_payload(argparse.Namespace(build_brief=build_brief, output=arguments.get("output"), json=True))
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload, "volatility-review-packet")
+        return tool_result(payload)
+    if name == "adlc_operator_comprehension_gate":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_operator_comprehension_gate requires string argument: build_brief")
+        payload = operator_comprehension_payload(
+            argparse.Namespace(
+                build_brief=build_brief,
+                quiz=arguments.get("quiz") if isinstance(arguments.get("quiz"), str) else None,
+                diff_file=arguments.get("diff_file") if isinstance(arguments.get("diff_file"), str) else None,
+                output=arguments.get("output") if isinstance(arguments.get("output"), str) else None,
+                json=True,
+            )
+        )
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload)
+        return tool_result(payload, is_error=payload["status"] != "pass")
+    if name == "adlc_teach_first_gate":
+        build_brief = arguments.get("build_brief")
+        if not isinstance(build_brief, str):
+            raise ValueError("adlc_teach_first_gate requires string argument: build_brief")
+        payload = teach_first_payload(
+            argparse.Namespace(
+                build_brief=build_brief,
+                criteria_store=arguments.get("criteria_store") if isinstance(arguments.get("criteria_store"), str) else None,
+                teach_packet=arguments.get("teach_packet") if isinstance(arguments.get("teach_packet"), str) else None,
+                dimension=arguments.get("dimension") if isinstance(arguments.get("dimension"), str) else None,
+                updated_store_output=arguments.get("updated_store_output") if isinstance(arguments.get("updated_store_output"), str) else None,
+                output=arguments.get("output") if isinstance(arguments.get("output"), str) else None,
+                json=True,
+            )
+        )
+        if isinstance(arguments.get("output"), str):
+            write_artifact(cli_input_path(arguments["output"]), payload)
+        return tool_result(payload, is_error=payload["status"] != "pass")
     if name == "adlc_contract_surface_inventory":
         payload = contract_surface_inventory_payload(resolve_workspace(arguments.get("workspace") if isinstance(arguments.get("workspace"), str) else None))
         if isinstance(arguments.get("output"), str):
@@ -13973,6 +14785,7 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
                 deviation_report=arguments.get("deviation_report") if isinstance(arguments.get("deviation_report"), str) else None,
                 compatibility_report=arguments.get("compatibility_report") if isinstance(arguments.get("compatibility_report"), list) else [],
                 execution_adapter_report=arguments.get("execution_adapter_report") if isinstance(arguments.get("execution_adapter_report"), list) else [],
+                operator_comprehension_report=arguments.get("operator_comprehension_report") if isinstance(arguments.get("operator_comprehension_report"), list) else [],
                 build_brief=arguments.get("build_brief") if isinstance(arguments.get("build_brief"), str) else None,
                 criterion_depth_report=arguments.get("criterion_depth_report") if isinstance(arguments.get("criterion_depth_report"), str) else None,
                 reverified=arguments.get("reverified") if isinstance(arguments.get("reverified"), list) else [],
@@ -14674,6 +15487,38 @@ def build_parser() -> argparse.ArgumentParser:
     clarity_gate.add_argument("--json", action="store_true", help="Emit JSON.")
     clarity_gate.set_defaults(func=command_clarity_gate)
 
+    operator_divergence = subparsers.add_parser("operator-divergence-gate", help=command_description("operator-divergence-gate"))
+    operator_divergence.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
+    operator_divergence.add_argument("--divergence-artifact", help="Divergence artifact JSON path.")
+    operator_divergence.add_argument("--diff-file", help="Optional final diff path used to prove prototypes are absent from the target diff.")
+    operator_divergence.add_argument("--output", help="Optional operator divergence gate report path.")
+    operator_divergence.add_argument("--json", action="store_true", help="Emit JSON.")
+    operator_divergence.set_defaults(func=command_operator_divergence_gate)
+
+    volatility_review = subparsers.add_parser("volatility-review", help=command_description("volatility-review"))
+    volatility_review.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
+    volatility_review.add_argument("--output", help="Optional Volatility Review Packet path.")
+    volatility_review.add_argument("--json", action="store_true", help="Emit JSON.")
+    volatility_review.set_defaults(func=command_volatility_review)
+
+    operator_comprehension = subparsers.add_parser("operator-comprehension-gate", help=command_description("operator-comprehension-gate"))
+    operator_comprehension.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
+    operator_comprehension.add_argument("--quiz", help="Operator Comprehension Quiz JSON path.")
+    operator_comprehension.add_argument("--diff-file", help="Optional diff path used by the anti-boilerplate content check.")
+    operator_comprehension.add_argument("--output", help="Optional operator comprehension gate report path.")
+    operator_comprehension.add_argument("--json", action="store_true", help="Emit JSON.")
+    operator_comprehension.set_defaults(func=command_operator_comprehension_gate)
+
+    teach_first = subparsers.add_parser("teach-first-gate", help=command_description("teach-first-gate"))
+    teach_first.add_argument("--build-brief", required=True, help="Build Brief JSON path.")
+    teach_first.add_argument("--criteria-store", help="Judgment Criteria Store JSON path.")
+    teach_first.add_argument("--teach-packet", help="Teach Packet JSON path used when no criteria record exists.")
+    teach_first.add_argument("--dimension", help="Quality dimension to check. Defaults from operator_surface quality_dimensions.")
+    teach_first.add_argument("--updated-store-output", help="Optional path for a criteria store updated with the ratified teach packet.")
+    teach_first.add_argument("--output", help="Optional teach-first gate report path.")
+    teach_first.add_argument("--json", action="store_true", help="Emit JSON.")
+    teach_first.set_defaults(func=command_teach_first_gate)
+
     contract_inventory = subparsers.add_parser("contract-surface-inventory", help=command_description("contract-surface-inventory"))
     contract_inventory.add_argument("--workspace", help="Target repository root. Defaults to cwd.")
     contract_inventory.add_argument("--output", help="Optional Contract Surface Inventory report path.")
@@ -14713,6 +15558,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_report.add_argument("--deviation-report", help="Deviation validation report JSON path.")
     run_report.add_argument("--compatibility-report", action="append", help="Compatibility Evidence report JSON path. Can be repeated.")
     run_report.add_argument("--execution-adapter-report", action="append", help="Execution Adapter report JSON path. Can be repeated.")
+    run_report.add_argument("--operator-comprehension-report", action="append", help="Operator Comprehension Gate report JSON path. Can be repeated.")
     run_report.add_argument("--build-brief", help="Build Brief JSON path used to require per-criterion depth declarations.")
     run_report.add_argument("--criterion-depth-report", help="Criterion Depth Report JSON path.")
     run_report.add_argument("--reverified", action="append", help="Claim, gate, or artifact independently reverified before report finalization.")

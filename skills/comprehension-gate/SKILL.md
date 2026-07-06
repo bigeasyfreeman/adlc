@@ -16,6 +16,8 @@ activation:
 
 The comprehension gate reviews a change for system understanding. It does not replace correctness review, security review, linting, or tests. It answers: did someone understand what this change does, what it affects, and what assumptions it makes before it ships?
 
+This gate checks agent/system comprehension. For medium+ blast-radius changes, ADLC also runs the operator-side `bin/adlc operator-comprehension-gate` before `engineer_review` to prove the human approver understands the behavior change, blast radius, and failure modes, or records explicit delegation.
+
 ## Standalone Mode
 
 Ask:
@@ -122,4 +124,3 @@ Numbered direct questions that need answers before shipping.
 - Never say "looks good" by default.
 - Do not review style, naming, or normal test coverage.
 - If the change appears AI-generated and lacks reasoning for non-obvious choices, note it as relevant context.
-

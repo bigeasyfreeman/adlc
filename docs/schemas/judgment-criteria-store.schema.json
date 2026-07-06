@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/judgment-criteria-store.schema.json",
+  "title": "ADLC Judgment Criteria Store",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "records"],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "version", "dimension", "criteria", "origin", "ratified_by", "ratified_at"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^JCR-[A-Z0-9_-]+$"},
+          "version": {"type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"},
+          "dimension": {"type": "string", "minLength": 1},
+          "criteria": {"type": "array", "minItems": 3, "items": {"type": "string", "minLength": 1}},
+          "origin": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "source_ref"],
+            "properties": {
+              "source": {"type": "string", "enum": ["teach_packet", "imported", "policy"]},
+              "source_ref": {"type": "string", "minLength": 1}
+            }
+          },
+          "contrast_pair": {"type": "object"},
+          "ratified_by": {"type": "string", "minLength": 1},
+          "ratified_at": {"type": "string", "format": "date-time"},
+          "consumers": {
+            "type": "array",
+            "items": {"type": "string", "enum": ["slop-judge", "eval-council", "operator-review", "test-strength", "other"]}
+          }
+        }
+      }
+    }
+  }
+}

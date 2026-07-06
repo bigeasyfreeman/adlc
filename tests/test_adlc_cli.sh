@@ -1065,6 +1065,37 @@ cat > "$tmp_dir/clarity-bad-delegated-default.json" <<'JSON'
 JSON
 assert "clarity gate blocks missing ledger and blindspot" "if '$ROOT/bin/adlc' clarity-gate --build-brief '$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json' --json >'$tmp_dir/clarity-missing.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"missing_epistemic_ledger\") and any(.issues[]; .rule == \"missing_blindspot_report\")' '$tmp_dir/clarity-missing.json' >/dev/null; fi"
 assert "clarity gate emits authored headless pending questions for ask-user unknowns" "if '$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --pending-questions-output '$tmp_dir/pending-questions.json' --json >'$tmp_dir/clarity-blocked.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and .pending_questions.status == \"blocked\" and .pending_questions.questions[0].ledger_entry_id == \"L-ask\" and .pending_questions.questions[0].source == \"authored\" and .pending_questions.questions[0].question == \"Should the public average_score contract preserve the current empty-score behavior?\" and any(.issues[]; .rule == \"headless_interview_blocked\")' '$tmp_dir/clarity-blocked.json' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema pending-questions --input '$tmp_dir/pending-questions.json' --json | jq -e '.valid == true' >/dev/null; fi"
+jq '
+  .epistemic_ledger.entries = [
+    {"id":"L-generic","status":"UNKNOWN","claim":"Whether implementation ownership should remain in the existing helper","architecture_affecting":true,"sources":[],"disposition":"ask-user","related_blindspot_ids":["B-generic"]},
+    {"id":"L-schema","status":"UNKNOWN","claim":"Whether the exported API schema contract may change","architecture_affecting":true,"sources":[],"disposition":"ask-user","related_blindspot_ids":["B-schema"]}
+  ] |
+  .sections."18_blindspot_report".items = [
+    {"id":"B-generic","category":"architecture","finding":"Implementation ownership may alter helper placement.","source_refs":["tests/smoke/fixtures/feature_bugfix/src/scoreboard.py"],"ledger_entry_id":"L-generic"},
+    {"id":"B-schema","category":"contract","finding":"The exported API schema contract controls compatibility.","source_refs":["tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json"],"ledger_entry_id":"L-schema"}
+  ] |
+  .sections."19_clarity_interview".questions = [
+    {
+      "id":"Q-generic-owner",
+      "ledger_entry_id":"L-generic",
+      "question":"Should implementation ownership remain in the existing helper?",
+      "architecture_impact":"high",
+      "why_it_matters":"The implementation ownership claim controls helper placement and module boundaries.",
+      "what_changes":"The answer changes whether implementation ownership remains in the helper or moves to a new module.",
+      "conservative_default":"Keep ownership in the existing helper until a human approves a module move."
+    },
+    {
+      "id":"Q-schema-contract",
+      "ledger_entry_id":"L-schema",
+      "question":"May the exported API schema contract change?",
+      "architecture_impact":"high",
+      "why_it_matters":"The exported API schema contract claim controls compatibility and downstream parsing.",
+      "what_changes":"The answer changes whether the exported API schema contract remains stable or gets a migration.",
+      "conservative_default":"Preserve the exported API schema contract until a human approves migration."
+    }
+  ]
+' "$tmp_dir/clarity-ask-user.json" > "$tmp_dir/clarity-ranked-questions.json"
+assert "clarity gate ranks volatile schema questions before generic architecture unknowns" "if '$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ranked-questions.json' --json >'$tmp_dir/clarity-ranked-result.json' 2>/dev/null; then false; else jq -e '.pending_questions.questions[0].ledger_entry_id == \"L-schema\" and .pending_questions.questions[1].ledger_entry_id == \"L-generic\" and any(.issues[]; .rule == \"headless_interview_blocked\")' '$tmp_dir/clarity-ranked-result.json' >/dev/null; fi"
 assert "clarity gate passes after simulated human answer" "'$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --answers '$tmp_dir/clarity-answers.json' --json >'$tmp_dir/clarity-pass.json' && jq -e '.status == \"pass\" and .honesty_surface.knowns[0] == \"scoreboard.py is the target implementation file\" and (.honesty_surface.remaining_unknowns | length) == 0' '$tmp_dir/clarity-pass.json' >/dev/null"
 assert "clarity gate accepts delegated default only when recorded verbatim" "'$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --answers '$tmp_dir/clarity-delegated-default.json' --json >'$tmp_dir/clarity-delegated-pass.json' && jq -e '.status == \"pass\" and (.issues | length) == 0' '$tmp_dir/clarity-delegated-pass.json' >/dev/null && if '$ROOT/bin/adlc' clarity-gate --build-brief '$tmp_dir/clarity-ask-user.json' --answers '$tmp_dir/clarity-bad-delegated-default.json' --json >'$tmp_dir/clarity-delegated-fail.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"delegated_default_mismatch\")' '$tmp_dir/clarity-delegated-fail.json' >/dev/null; fi"
 jq '
@@ -1178,6 +1209,106 @@ assert "META-2 depth declarations feed run report and payload-class mismatch blo
 assert "META-3 Minimalism Auditor loads predicate library and blocks robust-cheapest contradiction" "if '$ROOT/bin/adlc' minimalism-audit --build-brief '$tmp_dir/meta-proof-brief.json' --criterion-depth-report '$tmp_dir/meta-depth-robust-cheapest.json' --auditor-provider codex --auditor-model gpt-5 --json >'$tmp_dir/meta-minimalism-audit.json' 2>/dev/null; then false; else jq -e '.status == \"fail\" and .auditor.persona == \"minimalism_auditor\" and (.checked_rule_ids | index(\"PRED-PROCESS-ARTIFACT-PROOF\")) and any(.findings[]; .rule == \"minimalism_declared_robust_contradicted\" and .rule_id == \"PRED-PRESENCE-ONLY-VALIDATION\")' '$tmp_dir/meta-minimalism-audit.json' >/dev/null; fi"
 assert "META-4 completion audit catches false completion claim and emits feedback-loop finding" "if '$ROOT/bin/adlc' completion-audit --input '$tmp_dir/meta-completion-audit-plan.json' --workspace '$tmp_dir' --auditor independent --json >'$tmp_dir/meta-completion-audit.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.findings[]; .rule == \"completion_claim_contradicted\") and any(.feedback_findings[]; .source == \"completion_audit\" and .pipeline_phase == \"pr_prep\")' '$tmp_dir/meta-completion-audit.json' >/dev/null; fi"
 assert "META-5 predicate library is seeded and mechanically exposed" "'$ROOT/bin/adlc' predicate-library --json >'$tmp_dir/predicate-library.json' && jq -e '(.rules | length) >= 5 and ([.rules[].id] | index(\"PRED-PRESENCE-ONLY-VALIDATION\") and index(\"PRED-SCHEMA-VALID-EMPTY\") and index(\"PRED-STATIC-TEMPLATE-CONTENT\") and index(\"PRED-PROCESS-ARTIFACT-PROOF\") and index(\"PRED-UNRESOLVABLE-EVIDENCE-REF\"))' '$tmp_dir/predicate-library.json' >/dev/null"
+
+echo ""
+echo "--- Operator-Side Gates ---"
+jq '
+  .applicability_manifest.change_surface = {
+    "new_attack_surface": false,
+    "runtime_path_change": false,
+    "service_boundary_change": false,
+    "external_integration": false,
+    "persistent_storage": false,
+    "api_change": false,
+    "data_format_change": false,
+    "auth_change": false,
+    "perf_sensitive": false,
+    "user_facing_operation": true
+  } |
+  .applicability_manifest.operator_surface = {
+    "wide_solution_space": true,
+    "taste_surface": true,
+    "know_it_when_i_see_it": true,
+    "operator_judgment_required": true,
+    "blast_radius": "medium",
+    "quality_dimensions": ["visual_quality"],
+    "evidence": ["visual report fixture"]
+  } |
+  .epistemic_ledger = {
+    "contract_version":"1.0.0",
+    "entries":[
+      {"id":"L-REJECT-1","status":"KNOWN","claim":"Operator rejected the plain table because it hid contrast between choices.","architecture_affecting":false,"sources":["divergence-artifact.json"],"disposition":"human-answer"},
+      {"id":"L-REJECT-2","status":"KNOWN","claim":"Operator rejected the full redesign because it cost too much for v1.","architecture_affecting":false,"sources":["divergence-artifact.json"],"disposition":"human-answer"}
+    ]
+  } |
+  .sections."8_task_tickets" = [.sections."8_task_tickets"[0]] |
+  .sections."8_task_tickets"[0].task_classification = "feature" |
+  .sections."8_task_tickets"[0].title = "Visual scoreboard report format" |
+  .sections."8_task_tickets"[0].objective = "Create a visual report format that the operator can react to." |
+  .sections."8_task_tickets"[0].generated_output_surface = {"active":true,"modes":["product_output"],"reason":"visual report output"} |
+  .sections."8_task_tickets"[0].operator_surface = {"taste_surface":true,"operator_judgment_required":true,"blast_radius":"medium","quality_dimensions":["visual_quality"],"evidence":["visual report"]}
+' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/operator-brief.json"
+cat > "$tmp_dir/divergence-artifact.json" <<'JSON'
+{
+  "contract_version": "1.0.0",
+  "brief_id": "SMOKE-BRIEF-FEATURE-BUGFIX",
+  "status": "active",
+  "activation": {"applicability":"required","reason":"visual report has a taste surface","trigger_fields":["operator_surface.taste_surface"],"evidence":["visual report"]},
+  "options": [
+    {"id":"cheap","label":"Plain formatted table","ambition_order":1,"cost_class":"cheapest","tradeoff":"Fastest but weak visual hierarchy.","prototype_refs":[{"artifact_type":"formatted_report","payload_class":"process-artifact","path":".adlc/process-artifacts/prototypes/plain-report.md","surface_medium":"report","renderable":true}]},
+    {"id":"chosen","label":"Contrast-first report","ambition_order":2,"cost_class":"medium","tradeoff":"More formatting work but easier operator scan.","prototype_refs":[{"artifact_type":"formatted_report","payload_class":"process-artifact","path":".adlc/process-artifacts/prototypes/contrast-report.md","surface_medium":"report","renderable":true}]},
+    {"id":"big","label":"Full interactive dashboard","ambition_order":3,"cost_class":"most_ambitious","tradeoff":"Best interaction, too expensive for this slice.","prototype_refs":[{"artifact_type":"mock_page","payload_class":"process-artifact","path":".adlc/process-artifacts/prototypes/dashboard.html","surface_medium":"visual","renderable":true}]}
+  ],
+  "operator_reaction": {
+    "chosen_option_id": "chosen",
+    "rejected_options": [
+      {"option_id":"cheap","reason":"Hides contrast.","ledger_entry_id":"L-REJECT-1"},
+      {"option_id":"big","reason":"Too expensive for v1.","ledger_entry_id":"L-REJECT-2"}
+    ],
+    "recorded_by": "eric",
+    "recorded_at": "2026-07-05T12:00:00Z"
+  },
+  "process_artifacts_only": true
+}
+JSON
+cat > "$tmp_dir/operator-final.diff" <<'DIFF'
+diff --git a/src/scoreboard.py b/src/scoreboard.py
++print("report")
+DIFF
+assert "OPR-1 divergence blocks missing artifact and passes reacted options with prototypes outside target diff" "if '$ROOT/bin/adlc' operator-divergence-gate --build-brief '$tmp_dir/operator-brief.json' --json >'$tmp_dir/operator-divergence-missing.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"missing_divergence_artifact\")' '$tmp_dir/operator-divergence-missing.json' >/dev/null; fi && '$ROOT/bin/adlc' operator-divergence-gate --build-brief '$tmp_dir/operator-brief.json' --divergence-artifact '$tmp_dir/divergence-artifact.json' --diff-file '$tmp_dir/operator-final.diff' --json >'$tmp_dir/operator-divergence-pass.json' && jq -e '.status == \"pass\" and .summary.active_tasks == 1 and (.artifact.options | length) == 3 and any(.artifact.operator_reaction.rejected_options[]; .ledger_entry_id == \"L-REJECT-1\")' '$tmp_dir/operator-divergence-pass.json' >/dev/null && '$ROOT/bin/adlc' pr-hygiene-scan --workspace '$tmp_dir' --build-brief '$tmp_dir/operator-brief.json' --diff-file '$tmp_dir/operator-final.diff' --base-branch main --default-branch main --json | jq -e '.status == \"pass\"' >/dev/null"
+jq '
+  .applicability_manifest.change_surface.user_facing_operation = false |
+  .applicability_manifest.operator_surface = {"blast_radius":"low","evidence":["mechanical refactor"]} |
+  .sections."8_task_tickets" = [.sections."8_task_tickets"[0]] |
+  .sections."8_task_tickets"[0].task_classification = "refactor" |
+  .sections."8_task_tickets"[0].title = "Mechanical internal rename" |
+  .sections."8_task_tickets"[0].objective = "Rename an internal helper without behavior or output changes." |
+  del(.sections."8_task_tickets"[0].generated_output_surface, .sections."8_task_tickets"[0].operator_surface)
+' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/operator-mechanical-brief.json"
+assert "OPR no-nag inactive path records not_applicable for mechanical low-blast work" "'$ROOT/bin/adlc' operator-divergence-gate --build-brief '$tmp_dir/operator-mechanical-brief.json' --json >'$tmp_dir/operator-divergence-na.json' && jq -e '.status == \"pass\" and .applicability == \"not_applicable\"' '$tmp_dir/operator-divergence-na.json' >/dev/null && '$ROOT/bin/adlc' operator-comprehension-gate --build-brief '$tmp_dir/operator-mechanical-brief.json' --json >'$tmp_dir/operator-quiz-na.json' && jq -e '.status == \"pass\" and .result == \"not_applicable\"' '$tmp_dir/operator-quiz-na.json' >/dev/null && '$ROOT/bin/adlc' teach-first-gate --build-brief '$tmp_dir/operator-mechanical-brief.json' --json >'$tmp_dir/operator-teach-na.json' && jq -e '.status == \"pass\" and .applicability == \"not_applicable\"' '$tmp_dir/operator-teach-na.json' >/dev/null && '$ROOT/bin/adlc' volatility-review --build-brief '$tmp_dir/operator-mechanical-brief.json' --json | jq -e '.applicability == \"not_applicable\" and .entries[0].volatility_tier == \"unlikely\"' >/dev/null"
+jq '
+  .applicability_manifest.change_surface.user_facing_operation = false |
+  .applicability_manifest.operator_surface = {"blast_radius":"low"} |
+  .sections."8_task_tickets" = [
+    (.sections."8_task_tickets"[0] | .task_id = "DATA_MODEL_TASK" | .title = "Data model schema change" | .objective = "Change the report schema contract." | .task_classification = "feature"),
+    (.sections."8_task_tickets"[0] | .task_id = "MECHANICAL_TASK" | .title = "Mechanical helper rename" | .objective = "Rename an internal helper only." | .task_classification = "refactor")
+  ]
+' "$ROOT/tests/smoke/fixtures/feature_bugfix/.adlc/build_brief.json" > "$tmp_dir/operator-volatility-brief.json"
+assert "OPR-2 volatility renderer orders data-model decisions before mechanical refactors" "'$ROOT/bin/adlc' volatility-review --build-brief '$tmp_dir/operator-volatility-brief.json' --output '$tmp_dir/volatility-review.json' --json | jq -e '.applicability == \"required\" and .entries[0].id == \"task:DATA_MODEL_TASK\" and .entries[0].volatility_tier == \"likely-to-change\" and .entries[1].id == \"task:MECHANICAL_TASK\" and .entries[1].volatility_tier == \"unlikely\" and .canonical_section_order_unchanged == true' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema volatility-review-packet --input '$tmp_dir/volatility-review.json' --json | jq -e '.valid == true' >/dev/null"
+cat > "$tmp_dir/operator-quiz-fail.json" <<'JSON'
+{"contract_version":"1.0.0","brief_id":"SMOKE-BRIEF-FEATURE-BUGFIX","task_id":"SMOKE_BUGFIX_AVERAGE","status":"failed","blast_radius":"medium","questions":[{"id":"Q1","category":"behavior_change","question":"What scoreboard.py behavior changes in the visual report format?","operator_answer":"Unsure.","evaluation":"fail"},{"id":"Q2","category":"blast_radius","question":"Which scoreboard.py users could be affected by the new report output?","operator_answer":"Unsure.","evaluation":"fail"},{"id":"Q3","category":"failure_modes","question":"What failure mode would make scoreboard.py report output misleading?","operator_answer":"Unsure.","evaluation":"fail"}],"remediation_artifact":{"artifact_type":"explainer","path":".adlc/process-artifacts/quiz/remediation.md","missed_categories":["behavior_change","blast_radius","failure_modes"]}}
+JSON
+cat > "$tmp_dir/operator-quiz-pass.json" <<'JSON'
+{"contract_version":"1.0.0","brief_id":"SMOKE-BRIEF-FEATURE-BUGFIX","task_id":"SMOKE_BUGFIX_AVERAGE","status":"passed","blast_radius":"medium","questions":[{"id":"Q1","category":"behavior_change","question":"What scoreboard.py behavior changes in the visual report format?","operator_answer":"It changes report formatting.","evaluation":"pass"},{"id":"Q2","category":"blast_radius","question":"Which scoreboard.py users could be affected by the new report output?","operator_answer":"Report readers.","evaluation":"pass"},{"id":"Q3","category":"failure_modes","question":"What failure mode would make scoreboard.py report output misleading?","operator_answer":"Wrong aggregation.","evaluation":"pass"}]}
+JSON
+cat > "$tmp_dir/operator-quiz-delegated.json" <<'JSON'
+{"contract_version":"1.0.0","brief_id":"SMOKE-BRIEF-FEATURE-BUGFIX","task_id":"SMOKE_BUGFIX_AVERAGE","status":"delegated","blast_radius":"medium","questions":[],"delegation":{"delegated_to":"reviewer@example.com","reason":"Domain owner owns report semantics.","recorded_at":"2026-07-05T12:00:00Z"}}
+JSON
+assert "OPR-3 operator comprehension blocks missing and failed quiz, passes retake, and run-report records delegation" "if '$ROOT/bin/adlc' operator-comprehension-gate --build-brief '$tmp_dir/operator-brief.json' --json >'$tmp_dir/operator-quiz-missing.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"missing_operator_comprehension_quiz\")' '$tmp_dir/operator-quiz-missing.json' >/dev/null; fi && if '$ROOT/bin/adlc' operator-comprehension-gate --build-brief '$tmp_dir/operator-brief.json' --quiz '$tmp_dir/operator-quiz-fail.json' --json >'$tmp_dir/operator-quiz-fail-result.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"operator_quiz_failed\") and .quiz.remediation_artifact.path != null' '$tmp_dir/operator-quiz-fail-result.json' >/dev/null; fi && '$ROOT/bin/adlc' operator-comprehension-gate --build-brief '$tmp_dir/operator-brief.json' --quiz '$tmp_dir/operator-quiz-pass.json' --output '$tmp_dir/operator-quiz-pass-result.json' --json | jq -e '.status == \"pass\" and .result == \"passed\"' >/dev/null && '$ROOT/bin/adlc' operator-comprehension-gate --build-brief '$tmp_dir/operator-brief.json' --quiz '$tmp_dir/operator-quiz-delegated.json' --output '$tmp_dir/operator-quiz-delegated-result.json' --json | jq -e '.status == \"pass\" and .result == \"delegated\"' >/dev/null && '$ROOT/bin/adlc' run-report --provider codex --operator-comprehension-report '$tmp_dir/operator-quiz-delegated-result.json' --json | jq -e '.status == \"pass\" and .operator_comprehension[0].status == \"delegated\" and any(.gate_results[]; .name == \"operator-comprehension-gate\" and .status == \"delegated\")' >/dev/null"
+cat > "$tmp_dir/teach-packet.json" <<'JSON'
+{"contract_version":"1.0.0","dimension":"visual_quality","key_concepts":["hierarchy","contrast"],"criteria":["Primary decision is visible first.","Rejected options remain scannable.","Contrast does not hide caveats."],"contrast_pair":{"medium":"report","good_ref":"good.md","bad_ref":"bad.md","why_good":"Shows hierarchy.","why_bad":"Flattens all choices."},"ratification":{"ratified_by":"eric","ratified_at":"2026-07-05T12:00:00Z","edits":["tightened contrast criterion"]}}
+JSON
+assert "OPR-4 teach-first blocks without criteria, ratifies criteria, then cites existing record on second run" "if '$ROOT/bin/adlc' teach-first-gate --build-brief '$tmp_dir/operator-brief.json' --json >'$tmp_dir/operator-teach-missing.json' 2>/dev/null; then false; else jq -e '.status == \"blocked\" and any(.issues[]; .rule == \"missing_teach_packet_or_criteria_record\")' '$tmp_dir/operator-teach-missing.json' >/dev/null; fi && '$ROOT/bin/adlc' teach-first-gate --build-brief '$tmp_dir/operator-brief.json' --teach-packet '$tmp_dir/teach-packet.json' --updated-store-output '$tmp_dir/judgment-store.json' --json | jq -e '.status == \"pass\" and .criteria_record_id == \"JCR-VISUAL-QUALITY\" and any(.updated_store.records[]; .id == \"JCR-VISUAL-QUALITY\" and (.consumers | index(\"slop-judge\")))' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema judgment-criteria-store --input '$tmp_dir/judgment-store.json' --json | jq -e '.valid == true' >/dev/null && '$ROOT/bin/adlc' teach-first-gate --build-brief '$tmp_dir/operator-brief.json' --criteria-store '$tmp_dir/judgment-store.json' --json | jq -e '.status == \"pass\" and .mode == \"cite_existing\" and .criteria_record_id == \"JCR-VISUAL-QUALITY\"' >/dev/null"
 assert "dual-harness feature slice records comparable gate outcomes" "comparison_path=\"\$(bash '$ROOT/tests/smoke/clarity_hardening/dual_harness_feature_slice.sh' '$tmp_dir/dual-harness')\" && jq -e '.status == \"pass\" and .providers.claude.status == \"pass\" and .providers.codex.status == \"pass\" and any(.gate_comparison[]; .gate == \"clarity-gate\" and .claude == \"pass\" and .codex == \"pass\") and any(.gate_comparison[]; .gate == \"compatibility-evidence\" and .claude == \"pass\" and .codex == \"pass\") and any(.gate_comparison[]; .gate == \"execution-adapter\" and .claude == \"completed\" and .codex == \"completed\")' \"\$comparison_path\" >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema run-report --input '$tmp_dir/dual-harness/claude-run-report.json' --json | jq -e '.valid == true' >/dev/null && '$ROOT/bin/adlc' validate-artifact --schema run-report --input '$tmp_dir/dual-harness/codex-run-report.json' --json | jq -e '.valid == true' >/dev/null"
 
 echo ""
@@ -1218,6 +1349,10 @@ and any(.tools[]; .name == "adlc_loop_budget_check" and (.inputSchema.required |
 and any(.tools[]; .name == "adlc_loop_action_validate" and .inputSchema.properties.token_budget.type == "string")
 and any(.tools[]; .name == "adlc_loop_maturity_audit" and .inputSchema.properties.test_results.type == "string" and .inputSchema.properties.token_budget.type == "string" and (.inputSchema.properties | has("build_brief") | not))
 and any(.tools[]; .name == "adlc_clarity_gate" and (.inputSchema.required | index("build_brief")) and .inputSchema.properties.pending_questions_output.type == "string")
+and any(.tools[]; .name == "adlc_operator_divergence_gate" and (.inputSchema.required | index("build_brief")) and .inputSchema.properties.divergence_artifact.type == "string")
+and any(.tools[]; .name == "adlc_volatility_review" and (.inputSchema.required | index("build_brief")))
+and any(.tools[]; .name == "adlc_operator_comprehension_gate" and (.inputSchema.required | index("build_brief")) and .inputSchema.properties.quiz.type == "string")
+and any(.tools[]; .name == "adlc_teach_first_gate" and (.inputSchema.required | index("build_brief")) and .inputSchema.properties.criteria_store.type == "string")
 and any(.tools[]; .name == "adlc_contract_surface_inventory" and .inputSchema.properties.workspace.type == "string")
 and any(.tools[]; .name == "adlc_compatibility_evidence" and (.inputSchema.required | index("build_brief")) and .inputSchema.properties.inventory.type == "string")
 and any(.tools[]; .name == "adlc_deviation_log_validate" and (.inputSchema.required | index("input")))
