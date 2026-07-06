@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/volatility-review-packet.schema.json",
+  "title": "ADLC Volatility-First Review Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "brief_id", "classifier_contract", "applicability", "applicability_reason", "canonical_section_order_unchanged", "entries"],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "brief_id": {"type": "string", "minLength": 1},
+    "classifier_contract": {"type": "string", "minLength": 1},
+    "applicability": {"type": "string", "enum": ["required", "not_applicable"]},
+    "applicability_reason": {"type": "string", "minLength": 1},
+    "canonical_section_order_unchanged": {"type": "boolean"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "title", "volatility_tier", "rank", "reasons"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "task_id": {"type": "string"},
+          "kind": {"type": "string", "enum": ["task", "decision"]},
+          "title": {"type": "string", "minLength": 1},
+          "volatility_tier": {"type": "string", "enum": ["likely-to-change", "moderate", "unlikely"]},
+          "rank": {"type": "integer", "minimum": 1},
+          "reasons": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "examined_by_council": {"type": "boolean"}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entries", "likely_to_change", "moderate", "unlikely"],
+      "properties": {
+        "entries": {"type": "integer", "minimum": 0},
+        "likely_to_change": {"type": "integer", "minimum": 0},
+        "moderate": {"type": "integer", "minimum": 0},
+        "unlikely": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

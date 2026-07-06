@@ -20,9 +20,11 @@ SCHEMA_ALIASES = {
     "control-plane-drift-report": "docs/schemas/control-plane-drift-report.schema.json",
     "council-verdict": "docs/schemas/council-verdict-output.schema.json",
     "criterion-depth-report": "docs/schemas/criterion-depth-report.schema.json",
+    "divergence-artifact": "docs/schemas/divergence-artifact.schema.json",
     "eval-council-verdict": "docs/schemas/eval-council-verdict.schema.json",
     "execution-adapter-report": "docs/schemas/execution-adapter-report.schema.json",
     "epistemic-ledger": "docs/schemas/epistemic-ledger.schema.json",
+    "judgment-criteria-store": "docs/schemas/judgment-criteria-store.schema.json",
     "learning-entry": "docs/schemas/learning-entry.schema.json",
     "loop-action": "docs/schemas/loop-action.schema.json",
     "loop-contract": "docs/schemas/loop-contract.schema.json",
@@ -51,10 +53,13 @@ SCHEMA_ALIASES = {
     "system-log": "docs/schemas/system-log.schema.json",
     "test-author-output": "docs/schemas/test-author-output.schema.json",
     "test-strength-output": "docs/schemas/test-strength-output.schema.json",
+    "operator-comprehension-quiz": "docs/schemas/operator-comprehension-quiz.schema.json",
+    "teach-packet": "docs/schemas/teach-packet.schema.json",
     "token-budget": "docs/schemas/token-budget.schema.json",
     "tool-node-result": "docs/schemas/tool-node-result.schema.json",
     "tool-registry": "docs/schemas/tool-registry.schema.json",
     "triage-output": "docs/schemas/triage-output.schema.json",
+    "volatility-review-packet": "docs/schemas/volatility-review-packet.schema.json",
     "work-item-sync": "docs/schemas/work-item-sync.schema.json",
     "work-queue": "docs/schemas/work-queue.schema.json",
     "workflow-state": "docs/schemas/workflow-state.schema.json",
@@ -244,6 +249,22 @@ COMMAND_METADATA = {
     "clarity-gate": {
         "mcp_name": "adlc_clarity_gate",
         "description": "Validate Build Brief epistemic ledger, blindspot, ask-user interview, and compatibility-evidence readiness.",
+    },
+    "operator-divergence-gate": {
+        "mcp_name": "adlc_operator_divergence_gate",
+        "description": "Validate manifest-driven divergence options, prototype, reaction, and rejected-reason ledger evidence for operator-taste work.",
+    },
+    "volatility-review": {
+        "mcp_name": "adlc_volatility_review",
+        "description": "Render a Build Brief review packet that orders volatile operator decisions before routine work without changing canonical section order.",
+    },
+    "operator-comprehension-gate": {
+        "mcp_name": "adlc_operator_comprehension_gate",
+        "description": "Require a passing or delegated operator comprehension quiz before engineer review for medium+ blast-radius changes.",
+    },
+    "teach-first-gate": {
+        "mcp_name": "adlc_teach_first_gate",
+        "description": "Require ratified judgment criteria or a teach packet before approving taste or operator-judgment surfaces.",
     },
     "contract-surface-inventory": {
         "mcp_name": "adlc_contract_surface_inventory",

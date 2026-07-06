@@ -20,7 +20,8 @@ This orchestration skill chains core ADLC skills into the complete Build Loop se
 ```
 Step 1: PRD (fork — interactive)
 Step 2: Build Brief + repo conventions + product vocabulary + scalable-code primitives
-Step 3: Eval Council (HEAVY, convention-aware decomposition check)  ←── revision loop (max 3)
+Step 2a: Operator divergence gate when manifest/task evidence activates it
+Step 3: Volatility-first review packet + Eval Council (HEAVY, convention-aware decomposition check)  ←── revision loop (max 3)
 Step 4: Scaffold (if needed)
 Step 5: Codegen Context Assembly (repo conventions become hard constraints)
 Step 6: Per-task execution (parallel where independent):
@@ -29,7 +30,9 @@ Step 6: Per-task execution (parallel where independent):
   6c: Implementation
 Step 7: Definition of Done verification, including repo-convention items
 Step 8: Eval Council (HEAVY — post-execution, includes Convention Auditor)  ←── revision loop (max 3)
+Step 8a: Teach-first gate for active taste/operator-judgment dimensions
 Step 9: Stop Slop + PR hygiene scan
+Step 9a: Operator comprehension gate before engineer review for medium+ blast radius
 Step 10: Create PR from default branch unless a dependency is documented
 ```
 
@@ -38,12 +41,15 @@ Convention flow map:
 | Step | Convention Contract |
 |------|---------------------|
 | 2 | Ingest target repo `repo_conventions` and `product_vocabulary` before decomposition. |
-| 3 | Council audits planned task/file boundaries against extracted conventions. |
+| 2a | `operator-divergence-gate` requires options/prototypes/reaction only when `applicability_manifest.operator_surface` or task evidence activates divergence; otherwise it records `not_applicable`. |
+| 3 | `volatility-review` renders volatile decisions first, then council allocates proportional depth and records which volatile decisions were examined. |
 | 5 | Context assembly inlines conventions as hard constraints for each task package. |
 | 6a | LDD runs structural convention scans; file size and line count are not split criteria. |
 | 7 | Definition of Done includes active repo-convention checks and explicit waivers. |
 | 8 | Post-execution council audits implementation against the same convention evidence. |
+| 8a | `teach-first-gate` requires ratified criteria for taste or operator-judgment dimensions, citing the versioned criteria store when available. |
 | 9 | PR hygiene scans for ADLC artifacts, banned vocabulary, local paths, removed gates, and undocumented stacked bases. |
+| 9a | `operator-comprehension-gate` requires a passed quiz or recorded delegation for medium+ blast-radius changes before engineer review. |
 | 10 | PR creation uses the default branch unless a real code dependency is documented. |
 
 ### Step 1: PRD Agent
@@ -63,12 +69,14 @@ Convention flow map:
 - **Vocabulary firewall:** The brief MUST carry `product_vocabulary.mappings[]` and one shared `product_vocabulary.banned_tokens[]` list for internal ticket IDs, codenames, stack labels, and phase names that must not reach public identifiers, schemas, filenames, tests, comments, CLI output, PR titles, or PR bodies.
 - **Clarity gate:** The brief MUST carry an epistemic ledger of KNOWN, ASSUMED, and UNKNOWN claims. Run a blindspot pass covering prior art, removals and potholes, conventions docs, missing domain vocabulary, adjacent systems, and contract-surface inventory. Every blindspot item maps to a ledger entry.
 - **Interview loop:** Run `bin/adlc clarity-gate --build-brief <brief> --json` before finalization. If any architecture-affecting UNKNOWN remains or an `ask-user` ledger entry exists, interactive harnesses ask pending questions; headless harnesses emit pending questions and block instead of inventing defaults.
+- **Operator divergence:** Run `bin/adlc operator-divergence-gate --build-brief <brief> --json` before finalization. If divergence is active, store the options ladder, prototype refs, and operator reaction in ADLC process-artifact storage. Rejected-option reasons become user-ratified KNOWN ledger entries.
 - **Compatibility evidence:** When a task touches a published or versioned surface, run `bin/adlc contract-surface-inventory` and `bin/adlc compatibility-evidence`. The `compatibility_contract` must name the surface and verification predicate, and validation tasks must cite `compatibility_evidence_refs`.
 
 ### Step 3: Eval Council — Post-Brief
 - **Skill:** `eval-council` (HEAVY — manifest-aware core personas + active overlays, 3 rounds)
 - **Personas:** Core = Skeptic, Executioner, First Principles; overlays = Architect, Operator, Security Auditor when active
 - **Pre-check:** Static checks must pass before council tokens are spent; active personas come from the applicability manifest
+- **Volatility packet:** Render `bin/adlc volatility-review --build-brief <brief> --json` before council review. The canonical Build Brief section order stays unchanged; the packet orders likely-to-change tasks and decisions first for operator/council attention.
 - **Storage:** Store the council report in ADLC process artifact storage with `artifact-type eval`; reference it from the brief and work items instead of adding it to the target repo.
 - **Verdicts:** APPROVED → Step 4. REVISION REQUIRED → back to Step 2 (max 3 loops). BLOCKED → escalate.
 
@@ -96,10 +104,19 @@ Convention flow map:
 - **Storage:** Store the post-execution council report in ADLC process artifact storage with `artifact-type eval`.
 - **Verdicts:** APPROVED → Step 9. REVISION REQUIRED → back to Step 6 (max 3 loops).
 
+### Step 8a: Teach-First Calibration
+- **Skill:** `teach` plus `slop-judge` criteria reuse
+- **Gate:** Run `bin/adlc teach-first-gate --build-brief <brief> --criteria-store <store> --json` before approving an active taste or operator-judgment surface.
+- **Behavior:** If criteria already exist, cite the criteria ID. If not, emit a teach packet with key concepts, at least 3 concrete criteria, and a good-versus-bad contrast pair; the operator edits/ratifies it before the gate opens.
+
 ### Step 9: Stop Slop + PR Hygiene
 - **Skill:** `stop-slop` (content mode on PR description)
 - **Threshold:** 35/50
 - **Hygiene scan:** Run `bin/adlc pr-hygiene-scan --build-brief <brief> --title <title> --body <body> --base-branch <base> --default-branch <default> --json`. It fails on pipeline artifacts, banned internal tokens, absolute local paths, removed CI gates supplied to the scan, and undocumented stacked bases.
+
+### Step 9a: Operator Comprehension
+- **Gate:** Run `bin/adlc operator-comprehension-gate --build-brief <brief> --quiz <quiz> --json` before `engineer_review` when blast radius is medium or high.
+- **Behavior:** The quiz must cover behavior change, blast radius, and failure modes using concrete diff/task terms. A failed quiz emits remediation and blocks until retake passes; explicit delegation records as `delegated`, not `passed`, in the run report.
 
 ### Step 10: Create PR
 - **Diff contract:** PR diff contains product code, tests, and user-facing docs only. Pipeline artifacts - Build Briefs, eval/council reports, tech-debt audits, closeout or validation scripts, and goal prompts - live in ADLC process artifact storage keyed by target repo and task, not in the target repo diff.

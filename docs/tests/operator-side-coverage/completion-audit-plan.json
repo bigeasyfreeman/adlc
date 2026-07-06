@@ -1,0 +1,68 @@
+{
+  "claims": [
+    {
+      "id": "build-brief-valid",
+      "claim": "The operator-side coverage self-run Build Brief is schema-valid.",
+      "verifier": {
+        "type": "json_schema",
+        "path": "docs/build-briefs/operator-side-coverage.json",
+        "schema": "build-brief"
+      }
+    },
+    {
+      "id": "criterion-depth-valid",
+      "claim": "Every acceptance criterion in the self-run Build Brief has a schema-valid depth declaration.",
+      "verifier": {
+        "type": "json_schema",
+        "path": "docs/tests/operator-side-coverage/criterion-depth-report.json",
+        "schema": "criterion-depth-report"
+      }
+    },
+    {
+      "id": "clarity-pass",
+      "claim": "The self-run clarity gate report passes with no remaining unknowns.",
+      "verifier": {
+        "type": "command",
+        "command": "jq -e '.status == \"pass\" and (.honesty_surface.remaining_unknowns | length) == 0' docs/tests/operator-side-coverage/clarity-gate-report.json",
+        "expect_exit": 0
+      }
+    },
+    {
+      "id": "minimalism-pass",
+      "claim": "The self-run minimalism audit report passes and checked the predicate library.",
+      "verifier": {
+        "type": "command",
+        "command": "jq -e '.status == \"pass\" and (.checked_rule_ids | length) > 0 and (.findings | length) == 0' docs/tests/operator-side-coverage/minimalism-audit-report.json",
+        "expect_exit": 0
+      }
+    },
+    {
+      "id": "operator-dry-runs-covered",
+      "claim": "The CLI suite contains deterministic dry-run coverage for OPR-1 through OPR-4 and the no-nag inactive path.",
+      "verifier": {
+        "type": "command",
+        "command": "for pattern in 'OPR-1 divergence blocks missing artifact' 'OPR-2 volatility renderer orders data-model decisions' 'OPR-3 operator comprehension blocks missing' 'OPR-4 teach-first blocks without criteria' 'OPR no-nag inactive path records not_applicable'; do rg -q \"$pattern\" tests/test_adlc_cli.sh || exit 1; done",
+        "expect_exit": 0
+      }
+    },
+    {
+      "id": "readme-operator-loop-covered",
+      "claim": "The README harness loop documents the four inherited operator-side gates.",
+      "verifier": {
+        "type": "command",
+        "command": "for pattern in 'operator-divergence-gate' 'volatility-review' 'teach-first-gate' 'operator-comprehension-gate'; do rg -q \"$pattern\" README.md || exit 1; done",
+        "expect_exit": 0
+      }
+    },
+    {
+      "id": "canonical-ci-pass",
+      "claim": "The full canonical ADLC CI suite passes after the operator-side coverage implementation.",
+      "verifier": {
+        "type": "command",
+        "command": "bin/adlc ci --json | jq -e '.status == \"pass\" and all(.suites[]; .status == \"pass\")'",
+        "expect_exit": 0,
+        "timeout": 180
+      }
+    }
+  ]
+}

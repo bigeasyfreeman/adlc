@@ -299,12 +299,15 @@ Before filling the brief, compute one applicability manifest:
 
 - `task_classification`
 - `change_surface`
+- `operator_surface` only when operator judgment is evidenced
 - `claim_provenance`
 - `contamination`
 - `section_policy`
 - `verification_spec`
 
-Use that manifest to decide which brief sections are active and which are suppressed or not applicable. Build-validation and lint-cleanup tasks should not inherit security, observability, performance, or compatibility prose unless the change surface justifies it.
+Use that manifest to decide which brief sections are active and which are suppressed or not applicable. Build-validation and lint-cleanup tasks should not inherit security, observability, performance, compatibility, or operator-side gate prose unless the change surface justifies it.
+
+Use `operator_surface` to activate operator-side gates, not to create new brief sections. Set it when the task has wide solution space, taste/quality judgment, know-it-when-I-see-it approval, or medium/high blast radius. Keep it absent for deterministic mechanical work with no such surface. When active, include the evidence that triggered it so downstream gates can report divergence, volatility, teach-first, or comprehension requirements without nagging on inactive tasks.
 
 If `task_classification_confidence < 0.6` and no explicit human override is present, do not plan. Emit `escalate` with a concrete reason.
 
@@ -338,6 +341,7 @@ Task-writing rules:
 - Every task must cite a concrete `reference_impl` or existing pattern to extend. If no reusable implementation exists, say so explicitly and name the closest convention to follow.
 - Every task that changes code must cite `paved_road_refs` or explicitly state `no_paved_road_found` with the closest convention and review rationale.
 - Every task that changes an integration boundary, schema, emitter payload, workflow state, CLI contract, provider edge, or reusable framework surface must include `implementation_interface_contract`.
+- Every task with wide solution space, taste/quality judgment, know-it-when-I-see-it approval, or medium/high blast radius must include `operator_surface`. Use `divergence_artifact_ref` for required options/prototypes, `judgment_criteria_refs` for teach-first criteria, and `operator_comprehension_quiz_ref` when medium/high blast-radius work requires operator comprehension proof or explicit delegation. Do not add these fields as empty placeholders on low-blast mechanical work.
 - Every executable task must include a `module_plan` decision or match a registered structural paved-road pattern that can generate one. If it creates or reshapes modules, set `module_plan.applicability=required` and include files, one-line responsibilities without `and`, pure/impure markings, capabilities, and an architecture test with `write_first=true`; or cite `paved_road_refs` with a registered pattern ref and `module_root` so `module-plan-check` generates the plan. If there is no structural surface, set `module_plan.applicability=not_applicable` with a concrete reason. If the task matches a registered pattern but intentionally departs from it, include `module_plan.pattern_deviation_reason`.
 - Every executable task must include `task_sizing`: either `applicability=required` with `basis`, `change_surface`, and `split_decision`, or `applicability=not_applicable` with a validation-only or no-change-surface reason. Ready work covers one module, one coherent required `module_plan` file-set, or explicit `atomic_cross_module` work with `atomic_work_reason`. If `split_decision.required=true`, include proposed splits and keep the task blocked for emission.
 - Every task that makes a production support claim must include `productionization_gate`; use a lower Coverage State rather than overclaiming `production_ready`.

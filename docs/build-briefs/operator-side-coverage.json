@@ -1,0 +1,474 @@
+{
+  "version": "1.0.0",
+  "adlc_mode": "decompose_only",
+  "brief_id": "ADLC-OPERATOR-COVERAGE",
+  "prd_id": "ADLC-OPERATOR-COVERAGE-GOAL",
+  "applicability_manifest": {
+    "version": "1.0.0",
+    "task_classification": "feature",
+    "task_classification_confidence": 0.96,
+    "classification_evidence": [
+      "The goal adds inherited ADLC gates for operator-side divergence, review, comprehension, and teach-first calibration.",
+      "The work changes schema, CLI, skill, triage, and README control-plane surfaces."
+    ],
+    "change_surface": {
+      "new_attack_surface": false,
+      "runtime_path_change": true,
+      "service_boundary_change": false,
+      "external_integration": false,
+      "persistent_storage": false,
+      "api_change": true,
+      "data_format_change": true,
+      "auth_change": false,
+      "perf_sensitive": false,
+      "user_facing_operation": true
+    },
+    "operator_surface": {
+      "wide_solution_space": true,
+      "taste_surface": true,
+      "know_it_when_i_see_it": true,
+      "operator_judgment_required": true,
+      "blast_radius": "medium",
+      "quality_dimensions": [
+        "visual_quality",
+        "report_quality",
+        "operator_judgment"
+      ],
+      "evidence": [
+        "Goal prompt requires divergence for know-it-when-I-see-it work.",
+        "Goal prompt requires volatility-first operator review and teach-first calibration."
+      ]
+    },
+    "claim_provenance": {
+      "supported": [
+        {
+          "claim": "Operator divergence, volatility, comprehension, and teach-first gates are required by the goal prompt.",
+          "source_ref": "/Users/eric/ADLC_OPERATOR_COVERAGE_GOAL_PROMPT.md",
+          "extracted_from": "goal prompt"
+        }
+      ],
+      "unsupported": [],
+      "contradicted": []
+    },
+    "contamination": {
+      "flags": [],
+      "supported_claims": [
+        "Operator-side gates must activate from applicability manifest and task evidence.",
+        "Mechanical work must record not_applicable instead of nagging."
+      ],
+      "unsupported_claims": [],
+      "contradicted_claims": [],
+      "needs_clarification": [],
+      "suspect_phrases": []
+    },
+    "section_policy": [
+      {
+        "section_name": "5_security_review",
+        "status": "suppressed",
+        "reason": "No new attack surface or auth boundary is introduced."
+      },
+      {
+        "section_name": "6_observability_slo",
+        "status": "active",
+        "reason": "The CLI emits new gate reports and run-report fields."
+      },
+      {
+        "section_name": "11_validation_plan",
+        "status": "active",
+        "reason": "The goal is verified through CLI, contract, CI, and self-run gate reports."
+      }
+    ],
+    "verification_spec": {
+      "primary_verifier": {
+        "type": "command",
+        "target": "bin/adlc ci --json",
+        "expected_pre_change": "fail",
+        "expected_post_change": "pass",
+        "rationale": "The full inherited ADLC gate stack must remain passing after operator-side gates are added.",
+        "target_files": [
+          "scripts/adlc_runtime/cli.py",
+          "scripts/adlc_runtime/metadata.py",
+          "docs/schemas/build-brief.schema.json",
+          "tests/test_adlc_cli.sh"
+        ],
+        "expected_failure_mode": "operator-side gates missing or schema-invalid"
+      },
+      "secondary_verifiers": [
+        {
+          "type": "command",
+          "target": "bash tests/test_adlc_cli.sh",
+          "expected_pre_change": "fail",
+          "expected_post_change": "pass",
+          "rationale": "The CLI suite contains the dry runs for OPR-1 through OPR-4."
+        }
+      ],
+      "must_fail_before_change": true,
+      "must_be_deterministic": true,
+      "scope_note": "Use the repository's canonical validation gates and the self-run reports under docs/tests/operator-side-coverage."
+    }
+  },
+  "enterprise_readiness_contract": {
+    "production_grade_target": "Operator-side gates ship as inherited ADLC control-plane primitives with schema-backed reports and no per-repo configuration.",
+    "backward_compatibility": "Existing Build Brief canonical section order and prior CLI contracts remain valid.",
+    "forward_compatibility": "New operator_surface fields and process artifacts can be consumed by setup-installed shims and target repositories.",
+    "failure_mode_coverage": [
+      "Missing divergence artifacts block only when divergence triggers are active.",
+      "Mechanical low-blast work records not_applicable for all operator gates.",
+      "Volatility review orders likely-to-change decisions first without changing Build Brief section order."
+    ],
+    "definition_of_done": [
+      "OPR-1 through OPR-4 deterministic dry runs pass.",
+      "CLI, contracts, and canonical CI pass.",
+      "The goal's own clarity, criterion-depth, minimalism, completion-audit, and run-report artifacts pass schema-backed validation."
+    ],
+    "validation_tasks": [
+      "ADLC_OPERATOR_COVERAGE_SELF_AUDIT"
+    ],
+    "compliance_posture": "No compliance-specific claim is made; evidence is limited to deterministic ADLC control-plane gates."
+  },
+  "repo_conventions": {
+    "status": "extracted",
+    "sources": [
+      {
+        "path": "AGENTS.md",
+        "kind": "AGENTS.md",
+        "section": "graphify"
+      },
+      {
+        "path": "graphify-out/GRAPH_REPORT.md",
+        "kind": "other",
+        "section": "Graph Report"
+      }
+    ],
+    "rules": [
+      {
+        "id": "GRAPHIFY_FIRST",
+        "source_path": "AGENTS.md",
+        "rule": "Read graphify-out/GRAPH_REPORT.md before source inspection.",
+        "verification_predicate": "This brief records graphify-out/GRAPH_REPORT.md as a context source.",
+        "severity": "must",
+        "applies_to": [
+          "source-inspection"
+        ]
+      },
+      {
+        "id": "GRAPHIFY_UPDATE",
+        "source_path": "AGENTS.md",
+        "rule": "Run graphify update . after modifying code.",
+        "verification_predicate": "Final validation includes graphify update .",
+        "severity": "must",
+        "applies_to": [
+          "code-change"
+        ]
+      }
+    ]
+  },
+  "product_vocabulary": {
+    "status": "defined",
+    "mappings": [
+      {
+        "internal": "operator",
+        "product": "Human reviewer whose taste, comprehension, or judgment is required for the work.",
+        "applies_to": [
+          "operator-side gates"
+        ]
+      },
+      {
+        "internal": "operator_surface",
+        "product": "Manifest and task evidence that activates operator-side gates.",
+        "applies_to": [
+          "applicability manifest"
+        ]
+      }
+    ],
+    "banned_tokens": []
+  },
+  "epistemic_ledger": {
+    "contract_version": "1.0.0",
+    "entries": [
+      {
+        "id": "L-OPR-GOAL",
+        "status": "KNOWN",
+        "claim": "The goal requires inherited automatic operator-side gates with explicit not_applicable behavior.",
+        "architecture_affecting": true,
+        "sources": [
+          "/Users/eric/ADLC_OPERATOR_COVERAGE_GOAL_PROMPT.md"
+        ],
+        "disposition": "repo-evidence",
+        "related_blindspot_ids": [
+          "B-POST-MERGE"
+        ]
+      },
+      {
+        "id": "L-SELF-RUN",
+        "status": "KNOWN",
+        "claim": "The goal's own run must pass clarity, criterion depth, minimalism audit, independent completion audit, and run-report generation.",
+        "architecture_affecting": true,
+        "sources": [
+          "/Users/eric/ADLC_OPERATOR_COVERAGE_GOAL_PROMPT.md"
+        ],
+        "disposition": "repo-evidence",
+        "related_blindspot_ids": [
+          "B-SELF-RUN"
+        ]
+      }
+    ]
+  },
+  "blindspot_report_ref": "docs/build-briefs/operator-side-coverage.json#sections.18_blindspot_report",
+  "sections": {
+    "1_context": "This brief captures the self-run evidence for the ADLC operator-side coverage goal.",
+    "2_scope_and_constraints": "Scope is limited to operator-side ADLC gates, schemas, skills, tests, README harness guidance, and validation artifacts. Post-merge setup redeploy remains conditional on an actual merge.",
+    "3_repo_findings": "The implementation extends existing CLI, schema, skill, and manifest surfaces rather than introducing a parallel framework.",
+    "4_architecture": "Operator gates are schema-backed CLI/MCP commands driven by applicability manifest and task evidence.",
+    "5_security_review": null,
+    "6_observability_slo": "Gate reports and run-report evidence provide the observable control-plane surface.",
+    "7_execution_plan": "Validate the self-run Build Brief, generate clarity, minimalism, completion-audit, and run-report artifacts, then rerun canonical validation.",
+    "8_task_tickets": [
+      {
+        "artifact_type": "validation_task",
+        "task_id": "ADLC_OPERATOR_COVERAGE_SELF_AUDIT",
+        "title": "Validate operator-side coverage goal against inherited ADLC gates",
+        "objective": "Prove the operator-side coverage implementation and its own completion evidence with deterministic ADLC gates.",
+        "task_classification": "build_validation",
+        "decision_contract": {
+          "type1_decision": false,
+          "status": "resolved",
+          "owner": "codex",
+          "deadline": "2026-07-05",
+          "blocks_implementation": false,
+          "resolution": "Use inherited CLI/schema gates instead of adding per-repo configuration."
+        },
+        "scope": [
+          "Validate OPR-1 divergence behavior.",
+          "Validate OPR-2 volatility-first review behavior.",
+          "Validate OPR-3 operator comprehension behavior.",
+          "Validate OPR-4 teach-first calibration behavior.",
+          "Validate the goal's own clarity, depth, minimalism, completion-audit, and run-report artifacts."
+        ],
+        "out_of_scope": [
+          "Running post-merge setup redeploy before the branch is merged.",
+          "Changing target-repo product code."
+        ],
+        "dependencies": [],
+        "acceptance_criteria": [
+          {
+            "id": "AC-OPR1_DIVERGENCE",
+            "given": "A taste-surface feature activates divergence",
+            "when": "the operator divergence gate runs",
+            "then": "missing options block, three reacted options pass, rejected reasons cite ledger entries, and prototypes stay out of the target diff",
+            "verification_predicate": "tests/test_adlc_cli.sh contains and passes the OPR-1 divergence assertion plus pr-hygiene-scan check",
+            "substance_floor": "CLI test execution evidence and process-artifact payload validation, not documentation-only proof",
+            "allowed_payload_classes": [
+              "test-execution",
+              "process-artifact"
+            ]
+          },
+          {
+            "id": "AC-OPR2_VOLATILITY",
+            "given": "A Build Brief contains data-model and mechanical tasks",
+            "when": "the volatility review packet is rendered",
+            "then": "every entry has a tier, volatile decisions render first, and the canonical section order remains unchanged",
+            "verification_predicate": "tests/test_adlc_cli.sh contains and passes the OPR-2 volatility assertion and validates the volatility-review-packet schema",
+            "substance_floor": "Schema-backed packet plus CLI test execution evidence",
+            "allowed_payload_classes": [
+              "test-execution",
+              "process-artifact"
+            ]
+          },
+          {
+            "id": "AC-OPR3_COMPREHENSION",
+            "given": "A medium blast-radius operator surface reaches review",
+            "when": "the operator comprehension gate runs",
+            "then": "missing and failed quizzes block, pass and delegation satisfy the gate, remediation is emitted, and run-report records delegation distinctly",
+            "verification_predicate": "tests/test_adlc_cli.sh contains and passes the OPR-3 operator comprehension assertion",
+            "substance_floor": "CLI test execution evidence with quiz and run-report artifacts",
+            "allowed_payload_classes": [
+              "test-execution",
+              "human-review",
+              "process-artifact"
+            ]
+          },
+          {
+            "id": "AC-OPR4_TEACH_FIRST",
+            "given": "A taste dimension lacks ratified criteria",
+            "when": "teach-first gate runs",
+            "then": "it blocks without criteria, ratifies a teach packet, writes a versioned criteria store, and cites the existing record on a second run",
+            "verification_predicate": "tests/test_adlc_cli.sh contains and passes the OPR-4 teach-first assertion and validates judgment-criteria-store",
+            "substance_floor": "Schema-backed teach packet/store plus CLI test execution evidence",
+            "allowed_payload_classes": [
+              "test-execution",
+              "process-artifact",
+              "human-review"
+            ]
+          },
+          {
+            "id": "AC-SELF_RUN_STACK",
+            "given": "This goal has its own Build Brief",
+            "when": "the inherited ADLC stack runs",
+            "then": "clarity gate, criterion-depth declarations, minimalism audit, independent completion audit, and run-report generation pass before closeout",
+            "verification_predicate": "docs/tests/operator-side-coverage reports validate against their schemas and run-report status is pass",
+            "substance_floor": "Schema-backed ADLC process artifacts generated by bin/adlc commands",
+            "allowed_payload_classes": [
+              "process-artifact",
+              "test-execution"
+            ]
+          },
+          {
+            "id": "AC-README_INHERITANCE",
+            "given": "Adopters install ADLC through setup and shims",
+            "when": "they read the README harness loop and operating model",
+            "then": "operator-divergence, volatility-review, teach-first, and operator-comprehension steps are documented as inherited automatic overlays with not_applicable behavior",
+            "verification_predicate": "README.md contains the four operator commands and operating-model overlay text",
+            "substance_floor": "Documentation evidence plus contract-suite execution",
+            "allowed_payload_classes": [
+              "documentation",
+              "test-execution"
+            ]
+          }
+        ],
+        "anti_slop_rules": [
+          "Do not claim post-merge redeploy before merge.",
+          "Do not treat tests as broad evidence unless the assertion covers the named operator requirement."
+        ],
+        "tech_debt_boundaries": {
+          "prerequisite_debt": "none",
+          "deferred_debt": "Post-merge setup redeploy is deferred until a merge exists.",
+          "deferral_safety": "The goal prompt explicitly scopes redeploy as post-merge."
+        },
+        "compatibility_contract": {
+          "backward": "Existing Build Brief schema order and existing CLI commands remain valid.",
+          "forward": "New operator process artifacts are optional overlays driven by manifest evidence.",
+          "migration_or_rollout": "No target repo migration is required before setup redeploy after merge."
+        },
+        "implementation_notes": [
+          "Keep self-run artifacts in docs/tests/operator-side-coverage.",
+          "Generated reports must come from bin/adlc commands."
+        ],
+        "verification_spec": {
+          "primary_verifier": {
+            "type": "command",
+            "target": "bin/adlc run-report --provider codex --build-brief docs/build-briefs/operator-side-coverage.json --criterion-depth-report docs/tests/operator-side-coverage/criterion-depth-report.json --clarity-report docs/tests/operator-side-coverage/clarity-gate-report.json --json",
+            "expected_pre_change": "fail",
+            "expected_post_change": "pass",
+            "rationale": "The self-run is complete only when the generated run report passes with criterion-depth evidence.",
+            "target_files": [
+              "docs/build-briefs/operator-side-coverage.json",
+              "docs/tests/operator-side-coverage/criterion-depth-report.json"
+            ],
+            "expected_failure_mode": "missing self-run gate evidence"
+          },
+          "secondary_verifiers": [
+            {
+              "type": "command",
+              "target": "bin/adlc ci --json",
+              "expected_pre_change": "fail",
+              "expected_post_change": "pass",
+              "rationale": "The implementation must pass the full canonical repository gate.",
+              "target_files": [
+                "scripts/adlc_runtime/cli.py",
+                "tests/test_adlc_cli.sh"
+              ],
+              "expected_failure_mode": "canonical CI fails"
+            }
+          ],
+          "must_fail_before_change": true,
+          "must_be_deterministic": true,
+          "scope_note": "The self-run report proves inherited-stack evidence; CI proves repo-wide regression safety."
+        },
+        "evidence_responsibilities": [
+          "Generate clarity-gate-report.json from this Build Brief.",
+          "Generate minimalism-audit-report.json from this Build Brief and criterion-depth report.",
+          "Generate completion-audit-report.json before the final run-report.",
+          "Generate run-report.json with criterion-depth and reverified completion evidence."
+        ],
+        "definition_of_done": [
+          "Self-run reports validate against ADLC schemas.",
+          "CLI, contracts, and canonical CI pass.",
+          "Graphify has been updated after code/doc changes."
+        ],
+        "failure_modes": [
+          "HIGH: Claiming completion without the self-run artifacts would bypass the inherited-stack requirement.",
+          "MEDIUM: Running post-merge redeploy before merge would mutate shims at the wrong lifecycle point."
+        ],
+        "bpe_classification": "type_2",
+        "owner": "codex",
+        "files_to_modify": [
+          "scripts/adlc_runtime/cli.py",
+          "scripts/adlc_runtime/metadata.py",
+          "README.md",
+          "tests/test_adlc_cli.sh"
+        ],
+        "files_to_create": [
+          "docs/schemas/divergence-artifact.schema.json",
+          "docs/schemas/volatility-review-packet.schema.json",
+          "docs/schemas/operator-comprehension-quiz.schema.json",
+          "docs/schemas/teach-packet.schema.json",
+          "docs/schemas/judgment-criteria-store.schema.json",
+          "docs/tests/operator-side-coverage/run-report.json"
+        ],
+        "reference_impl": "clarity_gate_payload and pending-questions report pattern in scripts/adlc_runtime/cli.py",
+        "operator_surface": {
+          "wide_solution_space": true,
+          "taste_surface": true,
+          "know_it_when_i_see_it": true,
+          "operator_judgment_required": true,
+          "blast_radius": "medium",
+          "quality_dimensions": [
+            "operator_judgment",
+            "report_quality"
+          ],
+          "evidence": [
+            "Goal prompt requires operator-side judgment gates."
+          ]
+        },
+        "divergence_artifact_ref": "tests/test_adlc_cli.sh#OPR-1",
+        "operator_comprehension_quiz_ref": "tests/test_adlc_cli.sh#OPR-3",
+        "judgment_criteria_refs": [
+          "docs/solutions/predicate-library.json#PRED-UNRATIFIED-JUDGMENT-CRITERIA"
+        ]
+      }
+    ],
+    "9_risks": [
+      "Post-merge redeploy remains a conditional follow-up until a merge exists.",
+      "Self-run artifacts must not be mistaken for target-repo product changes."
+    ],
+    "10_rollout": "Merge the ADLC repo changes, then rerun setup.sh for claude /Users/eric and codex /Users/eric/interralis and verify the interralis shim health-check.",
+    "11_validation_plan": [
+      "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/operator-side-coverage.json --json",
+      "bin/adlc clarity-gate --build-brief docs/build-briefs/operator-side-coverage.json --output docs/tests/operator-side-coverage/clarity-gate-report.json --json",
+      "bin/adlc minimalism-audit --build-brief docs/build-briefs/operator-side-coverage.json --criterion-depth-report docs/tests/operator-side-coverage/criterion-depth-report.json --output docs/tests/operator-side-coverage/minimalism-audit-report.json --json",
+      "bin/adlc completion-audit --input docs/tests/operator-side-coverage/completion-audit-plan.json --workspace . --auditor independent --output docs/tests/operator-side-coverage/completion-audit-report.json --json",
+      "bin/adlc run-report --provider codex --runtime local --run-id ADLC-OPERATOR-COVERAGE --build-brief docs/build-briefs/operator-side-coverage.json --criterion-depth-report docs/tests/operator-side-coverage/criterion-depth-report.json --clarity-report docs/tests/operator-side-coverage/clarity-gate-report.json --output docs/tests/operator-side-coverage/run-report.json --json"
+    ],
+    "12_skill_trigger_configuration": [
+      {
+        "skill": "build-feature",
+        "status": "updated",
+        "reason": "Operator-side gates added as inherited overlays."
+      }
+    ],
+    "18_blindspot_report": {
+      "contract_version": "1.0.0",
+      "items": [
+        {
+          "id": "B-SELF-RUN",
+          "category": "completion_evidence",
+          "finding": "The goal could appear complete from green tests alone unless its own inherited-stack reports are generated.",
+          "source_refs": [
+            "/Users/eric/ADLC_OPERATOR_COVERAGE_GOAL_PROMPT.md"
+          ],
+          "ledger_entry_id": "L-SELF-RUN"
+        },
+        {
+          "id": "B-POST-MERGE",
+          "category": "rollout",
+          "finding": "Setup redeploy is explicitly post-merge and must not be claimed before merge.",
+          "source_refs": [
+            "/Users/eric/ADLC_OPERATOR_COVERAGE_GOAL_PROMPT.md"
+          ],
+          "ledger_entry_id": "L-OPR-GOAL"
+        }
+      ]
+    }
+  }
+}

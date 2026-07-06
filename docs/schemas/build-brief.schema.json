@@ -2026,6 +2026,24 @@
         },
         "generated_output_surface": {
           "$ref": "#/definitions/generated_output_surface"
+        },
+        "operator_surface": {
+          "$ref": "#/definitions/operator_surface"
+        },
+        "divergence_artifact_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operator_comprehension_quiz_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "judgment_criteria_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "allOf": [
@@ -2993,6 +3011,46 @@
         "expected_failure_mode": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "operator_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "wide_solution_space": {
+          "type": "boolean"
+        },
+        "taste_surface": {
+          "type": "boolean"
+        },
+        "know_it_when_i_see_it": {
+          "type": "boolean"
+        },
+        "operator_judgment_required": {
+          "type": "boolean"
+        },
+        "blast_radius": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "quality_dimensions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },

@@ -40,6 +40,14 @@
       "origin_finding": "Audit pattern: compatibility evidence refs were present but could point nowhere.",
       "applies_to": ["specificity-judge", "minimalism-auditor", "completion-audit"],
       "severity": "blocking"
+    },
+    {
+      "id": "PRED-UNRATIFIED-JUDGMENT-CRITERIA",
+      "pattern": "An operator approves taste or judgment-sensitive output without ratified criteria for the quality dimension.",
+      "predicate": "For every active taste-surface or operator-judgment dimension, require a versioned judgment-criteria record or a newly ratified teach packet before approval.",
+      "origin_finding": "Operator-side coverage audit: unjudgeable visual, prose, report, or domain-quality dimensions were approved on vibes instead of explicit criteria.",
+      "applies_to": ["teach-first-gate", "slop-judge", "eval-council"],
+      "severity": "blocking"
     }
   ]
 }

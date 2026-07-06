@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/divergence-artifact.schema.json",
+  "title": "ADLC Operator Divergence Artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "brief_id", "status", "activation", "options", "operator_reaction"],
+  "properties": {
+    "contract_version": {"type": "string"},
+    "brief_id": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string"},
+    "status": {"type": "string", "enum": ["active", "not_applicable"]},
+    "activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applicability", "reason", "trigger_fields"],
+      "properties": {
+        "applicability": {"type": "string", "enum": ["required", "not_applicable"]},
+        "reason": {"type": "string", "minLength": 1},
+        "trigger_fields": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "ambition_order", "cost_class", "tradeoff"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "label": {"type": "string", "minLength": 1},
+          "ambition_order": {"type": "integer", "minimum": 1},
+          "cost_class": {"type": "string", "enum": ["cheapest", "small", "medium", "large", "most_ambitious"]},
+          "tradeoff": {"type": "string", "minLength": 1},
+          "prototype_refs": {
+            "type": "array",
+            "items": {"$ref": "#/definitions/process_artifact_ref"}
+          }
+        }
+      }
+    },
+    "operator_reaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chosen_option_id", "rejected_options", "recorded_by", "recorded_at"],
+      "properties": {
+        "chosen_option_id": {"type": "string", "minLength": 1},
+        "rejected_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["option_id", "reason", "ledger_entry_id"],
+            "properties": {
+              "option_id": {"type": "string", "minLength": 1},
+              "reason": {"type": "string", "minLength": 1},
+              "ledger_entry_id": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "recorded_by": {"type": "string", "minLength": 1},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "process_artifacts_only": {"type": "boolean"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "active"}}},
+      "then": {
+        "properties": {
+          "activation": {"properties": {"applicability": {"const": "required"}}},
+          "options": {"minItems": 3},
+          "operator_reaction": {
+            "properties": {
+              "rejected_options": {"minItems": 1}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "not_applicable"}}},
+      "then": {
+        "properties": {
+          "activation": {"properties": {"applicability": {"const": "not_applicable"}}},
+          "options": {"maxItems": 0},
+          "operator_reaction": {
+            "properties": {
+              "chosen_option_id": {"const": "not_applicable"},
+              "rejected_options": {"maxItems": 0}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "process_artifact_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_type", "payload_class", "path", "surface_medium"],
+      "properties": {
+        "artifact_type": {"type": "string", "enum": ["prototype", "sample_output", "mock_page", "formatted_report"]},
+        "payload_class": {"type": "string", "enum": ["process-artifact"]},
+        "path": {"type": "string", "minLength": 1},
+        "surface_medium": {"type": "string", "enum": ["visual", "ux_flow", "prose", "report", "content", "other"]},
+        "renderable": {"type": "boolean"}
+      }
+    }
+  }
+}

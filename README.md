@@ -105,6 +105,10 @@ diff.
      file-set, or explicitly atomic cross-module work.
    - minimality_contract with exactly two fields: rung and decision. Decide it
      once. Repo conventions outrank minimality on file and module structure.
+   - operator_surface only when evidence shows a wide solution space,
+     taste/quality judgment, know-it-when-I-see-it approval, or medium/high
+     blast radius. Omit it for deterministic docs, lint, or build-validation
+     work with no operator decision surface.
 
 3. Inventory contract surfaces and pass the clarity gate before finalizing
    the brief:
@@ -120,8 +124,25 @@ diff.
    and emits a pending-questions artifact — answer the questions or
    explicitly delegate to the stated conservative default; the pipeline never
    self-answers.
+   Pending questions are ranked with the same operator-surface volatility
+   classifier used by the review packet, so schema/API/data-model questions
+   surface before generic low-volatility unknowns.
 
-4. Validate and prove readiness before codegen:
+4. Run operator-side overlays when the manifest or task surface activates
+   them:
+   bin/adlc operator-divergence-gate --build-brief <brief> --divergence-artifact <divergence> --json
+   bin/adlc volatility-review --build-brief <brief> --output <volatility-review> --json
+   bin/adlc teach-first-gate --build-brief <brief> --criteria-store <criteria-store> --teach-packet <teach-packet> --updated-store-output <criteria-store> --json
+
+   Divergence requires an ordered options ladder, rejected-option reasons, and
+   throwaway prototype refs for taste surfaces. Rejected reasons become
+   user-ratified KNOWN ledger entries. Volatility review puts the most
+   volatile decisions first while preserving the canonical Build Brief section
+   order. Teach-first blocks surface approval until the operator has ratified
+   criteria, then later runs cite the versioned criteria store instead of
+   re-teaching. Inactive low-blast mechanical work reports `not_applicable`.
+
+5. Validate and prove readiness before codegen:
    bin/adlc validate-artifact --schema build-brief --input <brief> --json
    bin/adlc emit-work-items --target linear --build-brief <brief> --workspace <target> --dry-run --require-ready --json
 
@@ -130,17 +151,18 @@ diff.
    split-required tasks, unready minimality, and other readiness issues. Fix
    until ready; never waive silently.
 
-5. Assemble codegen context and write the architecture test first:
+6. Assemble codegen context and write the architecture test first:
    bin/adlc run-phase context_assembly --brief-id <brief-id> --build-brief <brief> --workspace <target> --json
 
    Generate code only from the assembled context. For any task with a required
    module_plan, write and run the architecture test before production code.
 
-6. Gate the result before opening a PR:
+7. Gate the result before opening a PR:
    bin/adlc convention-scan --workspace <target> --build-brief <brief> --json
    bin/adlc compatibility-evidence --build-brief <brief> --inventory <inventory> --json
    bin/adlc deviation-log-validate --input <deviations> --json
    bin/adlc ponytail-admit --build-brief <brief> --diff-file <final.diff> --json
+   bin/adlc operator-comprehension-gate --build-brief <brief> --quiz <quiz> --diff-file <final.diff> --json
    bin/adlc pr-hygiene-scan --workspace <target> --build-brief <brief> --diff-file <final.diff> --title <title> --body <body> --base-branch main --default-branch main --json
 
    compatibility-evidence blocks tasks touching an inventoried contract
@@ -156,6 +178,9 @@ diff.
    removed validation/error/security/accessibility anatomy; see
    docs/specs/ponytail-minimality-contract.md for anatomy gate limits.
    Definition of Done blocks unsatisfied active contracts and verifier evidence.
+   operator-comprehension-gate blocks medium/high blast-radius work until the
+   operator passes a concrete quiz, records remediation after failure, or
+   explicitly delegates comprehension to the engineer review.
    pr-hygiene-scan blocks process artifacts, local paths, banned vocabulary,
    removed gates, and undocumented stacked bases.
 
@@ -163,7 +188,7 @@ diff.
    When another gate has a narrower flag format, put the same rule/who/why
    approval in the reason or reference field.
 
-7. Audit completion honestly before presenting the work as done:
+8. Audit completion honestly before presenting the work as done:
    bin/adlc minimalism-audit --build-brief <brief> --criterion-depth-report <depth> --json
    bin/adlc completion-audit --input <audit-plan> --workspace <target> --auditor independent --json
    bin/adlc run-report --json  # aggregate clarity, deviation, compatibility, and harness evidence
@@ -210,6 +235,7 @@ The shipped framework layers are:
 | Performance Envelope | Per-task data-path contract for expected input scale, hot-path complexity, benchmark requirement, and benchmark evidence | Required for executable tasks; no-data-path work may declare `not_applicable` only with a no-data-path reason |
 | Task Sizing | Decomposition-time proof that each executable task is one module, one coherent module-plan file-set, or explicitly atomic cross-module work | Required for executable tasks; split-required work blocks emission and returns proposed splits |
 | Slop Quality Gate | Output-side benchmark, threshold, eval cases, and failure action for generated-output surfaces | Active when a task changes prompt/model/agent/generated content behavior |
+| Operator Surface Gates | Divergence options, volatility-first review ordering, teach-first judgment criteria, and operator comprehension proof | Active when `operator_surface` or task evidence shows wide solution space, taste/quality judgment, know-it-when-I-see-it approval, or medium/high blast radius |
 | Loop Contract | LLM action-loop contract: job, win condition, allowed tools, real feedback, required tests, progress, control channel, safe checkpoint, independent truth, escalation, and optional `budget_guard` evidence | Active when a task delegates decisions, tool use, test selection, retry/repair, escalation, or maturity claims to an LLM loop |
 | Target Repo Conventions | `repo_conventions`, product vocabulary, structural convention scans, explicit waivers, and PR hygiene checks | Extracted before Build Brief planning; consumed by context assembly, LDD, DoD, Eval Council, and PR closeout |
 | Clarity Gate | Epistemic ledger (KNOWN/ASSUMED/UNKNOWN with sources and dispositions), blindspot report, interview loop with pending-questions artifacts, predicate-complete acceptance criteria, and substance floors on proof-type criteria | `clarity-gate` before brief finalization; ask-user unknowns block until a recorded human answer or signed accepted risk exists |
@@ -242,6 +268,7 @@ What is automatic today:
 - deviation-log validation classifying unspecified structural decisions as ledger-traceable or brief-generator defects, aggregated into the run report's defect count
 - minimalism audit against the versioned predicate library (`bin/adlc predicate-library`) with rule-ID citations and robust-declared-but-cheapest-shipped contradictions blocking approval
 - independent completion audit re-verifying completion claims against repository state, recording verified-versus-trusted splits, and blocking PR prep on contradicted claims
+- operator-side divergence, volatility review, teach-first criteria, and comprehension gates through `operator-divergence-gate`, `volatility-review`, `teach-first-gate`, and `operator-comprehension-gate`; inactive low-blast mechanical work returns `not_applicable`
 - non-Claude harness execution through `bin/adlc execution-adapter` with schema-backed adapter reports and dual-harness gate-outcome comparison
 
 What is still explicit:
@@ -255,8 +282,10 @@ What is still explicit:
 
 ```
 start → triage → compound_preflight (learning refs + resume context) → research (Graphify/Beads-aware) → plan ↔ plan_review → scaffold → gen_tests →
+  [operator_divergence if active] → [volatility_review if active] → [teach_first if active] →
   context_assembly → code (fan-out) ↔ code_review (comprehension gate) ↔ fixer →
   [security if active] → qa → [test_strength if active] → [slop_gate if generated-output active] →
+  [operator_comprehension if medium/high operator blast radius] →
   pr_prep → [learning_capture if verified reusable learning exists] → engineer_review → done
 ```
 
@@ -265,8 +294,13 @@ surface evidence. Implementation Interface contracts and Productionization Gate
 claims are optional Build Brief layers; they activate when repo integration or
 production-ready claims are in scope. Loop Contracts activate when ADLC delegates
 decisions, tool use, test selection, retry/repair, escalation, or maturity claims
-to an LLM-driven loop. Inactive overlays are skipped or recorded as explicit
-no-ops; they are not filler sections every task must satisfy.
+to an LLM-driven loop. Operator-side gates activate from `operator_surface`,
+change-surface volatility, task evidence, and blast-radius classification:
+divergence handles option ladders and prototypes, volatility review orders the
+review surface, teach-first stores ratified quality criteria, and operator
+comprehension blocks medium/high blast work before engineer review. Inactive
+overlays are skipped or recorded as explicit no-ops; they are not filler
+sections every task must satisfy.
 `compound_preflight` also no-ops explicitly when `docs/solutions` or
 `graphify-out` is missing, so new repos do not pay setup tax before research.
 Target-repo conventions are extracted before Build Brief decomposition,
@@ -439,7 +473,7 @@ Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 Skill definitions are injected into agents at startup. Runtime install counts are derived by `setup.sh` rather than hardcoded in docs.
 
 **Core Engineering:**
-`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` · `eval-council` (8 personas + Gate 0, incl. Clarity and Minimalism Auditors) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (applicability-aware core + overlay DoD) · `spec-to-tests` (failing-test authoring from Brief, with Loop Contract coverage tags and execution evidence when active)
+`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` (agent comprehension plus operator blast-radius quiz handoff) · `eval-council` (8 personas + Gate 0, incl. Clarity, Minimalism, and volatility-first review) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (applicability-aware core + overlay DoD) · `spec-to-tests` (failing-test authoring from Brief, with Loop Contract coverage tags and execution evidence when active)
 
 **Security:**
 `security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`
@@ -481,7 +515,7 @@ The Build Brief Agent produces a brief with an `applicability_manifest`, a core 
 | 17 | Productionization Gates (Coverage State, Validation Evidence, No-Overclaim, rollback/observability/security posture) | When a task makes or changes a production support claim |
 | 18 | Revision History (council finding IDs → changes) | Always |
 
-Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, `module_plan` decision or registered structural pattern match, failure modes, and enough acceptance criteria to define the verifier contract. Executable tasks also require an `honesty_contract`; required contracts name what the feature does not do, known limitations, unsafe claims, output surfaces, and required output fields. Pure internal work may set `honesty_contract.applicability=not_applicable` only with a reason that explicitly says there are no external claims. Tasks that emit artifacts require `no_overclaim` and `limitations`; tasks that emit docs require `doc_honesty_section`. Executable tasks also require a `performance_envelope`; data-path tasks set `applicability=required` with expected input scale, hot paths, complexity bounds, and `benchmark_required`, plus a benchmark spec when true. Non-data-path tasks may set `performance_envelope.applicability=not_applicable` only with a reason that explicitly says no data path. Executable tasks also require a `minimality_contract` with exactly `rung` and one-line `decision`; reuse evidence belongs in reuse-analysis output, not the task contract. `repo_conventions` and `module_plan` govern file/module structure, while Ponytail governs behavior scope, dependency additions, and speculative abstraction. Tasks that create or reshape modules must set `module_plan.applicability=required` with the planned file list, one-line responsibility per file, pure/impure marking, capabilities, and the architecture test that is written first; or cite an approved pattern such as `pattern:interralis:evidence-module?module_root=src/foo/bar` in `paved_road_refs` so `module-plan-check` generates the effective plan from `skills/paved-road-registry/patterns.json`. Behavior-only tasks must set `module_plan.applicability=not_applicable` with a reason. Pattern departures require `module_plan.pattern_deviation_reason`. Executable tasks also require `task_sizing`: the change surface must be one module, one coherent `module_plan` file-set, or explicitly atomic cross-module work with an atomic-work reason. If the split decision says splitting is required, readiness blocks and surfaces the proposed split. Size, line count, and SLOC alone are not valid criteria. Run `bin/adlc paved-road-patterns --json`, `bin/adlc module-plan-check --build-brief <brief> --json`, and `bin/adlc ponytail-admit --build-brief <brief> --json` before codegen context assembly. Tasks that touch integration boundaries should carry an `implementation_interface_contract`; tasks that claim `production_ready` must carry a `productionization_gate` with validation evidence and no-overclaim boundaries. Tasks that introduce or change LLM-driven loop behavior should carry a Loop Contract and the deterministic loop verifier commands that prove required tests, action admission, progress/control state, and maturity verdicts.
+Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, `module_plan` decision or registered structural pattern match, failure modes, and enough acceptance criteria to define the verifier contract. Executable tasks also require an `honesty_contract`; required contracts name what the feature does not do, known limitations, unsafe claims, output surfaces, and required output fields. Pure internal work may set `honesty_contract.applicability=not_applicable` only with a reason that explicitly says there are no external claims. Tasks that emit artifacts require `no_overclaim` and `limitations`; tasks that emit docs require `doc_honesty_section`. Executable tasks also require a `performance_envelope`; data-path tasks set `applicability=required` with expected input scale, hot paths, complexity bounds, and `benchmark_required`, plus a benchmark spec when true. Non-data-path tasks may set `performance_envelope.applicability=not_applicable` only with a reason that explicitly says no data path. Executable tasks also require a `minimality_contract` with exactly `rung` and one-line `decision`; reuse evidence belongs in reuse-analysis output, not the task contract. `repo_conventions` and `module_plan` govern file/module structure, while Ponytail governs behavior scope, dependency additions, and speculative abstraction. Tasks that create or reshape modules must set `module_plan.applicability=required` with the planned file list, one-line responsibility per file, pure/impure marking, capabilities, and the architecture test that is written first; or cite an approved pattern such as `pattern:interralis:evidence-module?module_root=src/foo/bar` in `paved_road_refs` so `module-plan-check` generates the effective plan from `skills/paved-road-registry/patterns.json`. Behavior-only tasks must set `module_plan.applicability=not_applicable` with a reason. Pattern departures require `module_plan.pattern_deviation_reason`. Executable tasks also require `task_sizing`: the change surface must be one module, one coherent `module_plan` file-set, or explicitly atomic cross-module work with an atomic-work reason. If the split decision says splitting is required, readiness blocks and surfaces the proposed split. Size, line count, and SLOC alone are not valid criteria. Run `bin/adlc paved-road-patterns --json`, `bin/adlc module-plan-check --build-brief <brief> --json`, and `bin/adlc ponytail-admit --build-brief <brief> --json` before codegen context assembly. Tasks that touch integration boundaries should carry an `implementation_interface_contract`; tasks that claim `production_ready` must carry a `productionization_gate` with validation evidence and no-overclaim boundaries. Tasks with wide solution space, taste/quality judgment, know-it-when-I-see-it approval, or medium/high blast radius should carry `operator_surface` plus refs such as `divergence_artifact_ref`, `operator_comprehension_quiz_ref`, and `judgment_criteria_refs`; keep the canonical 18-section order unchanged and store the supporting packets as process artifacts. Tasks that introduce or change LLM-driven loop behavior should carry a Loop Contract and the deterministic loop verifier commands that prove required tests, action admission, progress/control state, and maturity verdicts.
 
 Loop Contracts are task/workflow control artifacts, not a required Build Brief section for every task. Emit them as referenced JSON artifacts through `work_item_metadata.loop_contract_path`, `loop_action_path`, and `loop_maturity_report_path` when an LLM-driven loop surface is active.
 

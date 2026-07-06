@@ -89,6 +89,20 @@
     "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "criterion_depth": {"type": "array", "items": {"type": "object"}},
     "thinness_inventory": {"type": "array", "items": {"type": "object"}},
+    "operator_comprehension": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "evidence_ref"],
+        "properties": {
+          "task_id": {"type": "string"},
+          "status": {"type": "string", "enum": ["passed", "delegated", "failed", "not_applicable"]},
+          "blast_radius": {"type": "string", "enum": ["low", "medium", "high"]},
+          "evidence_ref": {"type": "string", "minLength": 1}
+        }
+      }
+    },
     "audit_surface": {
       "type": "object",
       "additionalProperties": false,

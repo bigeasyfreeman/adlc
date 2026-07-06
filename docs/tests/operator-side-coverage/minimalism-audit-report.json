@@ -1,0 +1,62 @@
+{
+  "auditor": {
+    "model": "gpt-5",
+    "persona": "minimalism_auditor",
+    "provider": "codex"
+  },
+  "checked_rule_ids": [
+    "PRED-PRESENCE-ONLY-VALIDATION",
+    "PRED-SCHEMA-VALID-EMPTY",
+    "PRED-STATIC-TEMPLATE-CONTENT",
+    "PRED-PROCESS-ARTIFACT-PROOF",
+    "PRED-UNRESOLVABLE-EVIDENCE-REF",
+    "PRED-UNRATIFIED-JUDGMENT-CRITERIA"
+  ],
+  "contract_version": "1.0.0",
+  "criteria": [
+    {
+      "cheapest_satisfying_implementation": "Satisfy the literal predicate with the smallest artifact class and shallowest property check.",
+      "criterion_id": "AC-OPR1_DIVERGENCE",
+      "declared_depth": "robust",
+      "shipped_equals_cheapest": false,
+      "task_id": "ADLC_OPERATOR_COVERAGE_SELF_AUDIT"
+    },
+    {
+      "cheapest_satisfying_implementation": "Satisfy the literal predicate with the smallest artifact class and shallowest property check.",
+      "criterion_id": "AC-OPR2_VOLATILITY",
+      "declared_depth": "robust",
+      "shipped_equals_cheapest": false,
+      "task_id": "ADLC_OPERATOR_COVERAGE_SELF_AUDIT"
+    },
+    {
+      "cheapest_satisfying_implementation": "Satisfy the literal predicate with the smallest artifact class and shallowest property check.",
+      "criterion_id": "AC-OPR3_COMPREHENSION",
+      "declared_depth": "robust",
+      "shipped_equals_cheapest": false,
+      "task_id": "ADLC_OPERATOR_COVERAGE_SELF_AUDIT"
+    },
+    {
+      "cheapest_satisfying_implementation": "Satisfy the literal predicate with the smallest artifact class and shallowest property check.",
+      "criterion_id": "AC-OPR4_TEACH_FIRST",
+      "declared_depth": "robust",
+      "shipped_equals_cheapest": false,
+      "task_id": "ADLC_OPERATOR_COVERAGE_SELF_AUDIT"
+    },
+    {
+      "cheapest_satisfying_implementation": "Satisfy the literal predicate with the smallest artifact class and shallowest property check.",
+      "criterion_id": "AC-SELF_RUN_STACK",
+      "declared_depth": "robust",
+      "shipped_equals_cheapest": false,
+      "task_id": "ADLC_OPERATOR_COVERAGE_SELF_AUDIT"
+    },
+    {
+      "cheapest_satisfying_implementation": "Satisfy the literal predicate with the smallest artifact class and shallowest property check.",
+      "criterion_id": "AC-README_INHERITANCE",
+      "declared_depth": "minimal",
+      "shipped_equals_cheapest": true,
+      "task_id": "ADLC_OPERATOR_COVERAGE_SELF_AUDIT"
+    }
+  ],
+  "findings": [],
+  "status": "pass"
+}

@@ -194,6 +194,8 @@ Detects AI writing patterns in prose, product output, and agent output when the
 Build Brief marks a generated-output surface active. It does not run on every
 `.md` or `.txt` file by default.
 
+When the task also activates teach-first calibration, `slop-judge` rubrics must cite the ratified Judgment Criteria Store record for the same quality dimension. If no criteria record exists, run `bin/adlc teach-first-gate` before scoring; do not substitute generic taste language.
+
 ### Content Mode Flow
 
 1. Run the deterministic regex / banned-pattern pass first.
@@ -210,6 +212,7 @@ Build Brief marks a generated-output surface active. It does not run on every
   "content": "string",
   "audience": "internal | external",
   "rubric": ["specific criterion"],
+  "judgment_criteria_refs": ["JCR-VISUAL-QUALITY"],
   "threshold": 0.7,
   "baseline_score": 0.82,
   "regression_tolerance": 0.03

@@ -1,0 +1,29 @@
+{
+  "build_brief_id": "ADLC-OPERATOR-COVERAGE",
+  "contract_version": "1.0.0",
+  "honesty_surface": {
+    "accepted_risks": [],
+    "knowns": [
+      "The goal requires inherited automatic operator-side gates with explicit not_applicable behavior.",
+      "The goal's own run must pass clarity, criterion depth, minimalism audit, independent completion audit, and run-report generation."
+    ],
+    "ratified_assumptions": [],
+    "remaining_unknowns": []
+  },
+  "issues": [],
+  "mode": "headless",
+  "pending_questions": {
+    "contract_version": "1.0.0",
+    "questions": [],
+    "status": "empty"
+  },
+  "status": "pass",
+  "summary": {
+    "blindspot_items": 2,
+    "issues": 0,
+    "ledger_entries": 2,
+    "questions": 0,
+    "warnings": 0
+  },
+  "warnings": []
+}

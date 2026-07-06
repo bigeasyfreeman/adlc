@@ -32,7 +32,7 @@ Use that deterministic summary as the input to classification. Do not invent the
 |-----------|----------------------|
 | Clear task objective described | Yes |
 | Target repo identifiable or inferable from context | Yes |
-| Not a pure question, brainstorm, or open-ended exploration | Yes |
+| Not a pure question or unbounded exploration | Yes |
 | Enough evidence to choose a task class | Yes |
 
 ## Confidence Bands
@@ -61,6 +61,8 @@ Choose the narrowest class that matches the task:
 | `infra` | Tooling, CI/CD, deployment, or orchestration changes |
 | `docs` | Documentation-only work |
 | `security` | Security policy, auth, trust boundary, or defense-in-depth work |
+
+Brainstorm-shaped input is not automatically non-admissible. If it has a target repo or product surface and asks the operator to compare possibilities, react to drafts, explore options, choose taste, or "know it when I see it", keep the label `proceed` or `low_confidence` as evidence allows and route it to `suggested_workflow: "divergence"`. Mark `operator_surface.wide_solution_space`, `taste_surface`, or `know_it_when_i_see_it` from the evidence. Only escalate brainstorms that lack a target, decision surface, or bounded operator choice.
 
 ## Change Surface
 
@@ -122,6 +124,14 @@ If unsupported text changes scope, mark the task `unclear` rather than silently 
     "perf_sensitive": false,
     "user_facing_operation": false
   },
+  "operator_surface": {
+    "wide_solution_space": false,
+    "taste_surface": false,
+    "know_it_when_i_see_it": false,
+    "operator_judgment_required": false,
+    "quality_dimensions": [],
+    "evidence": []
+  },
   "contamination": {
     "supported_claims": ["grounded claims"],
     "unsupported_claims": ["claims that should not become scope"],
@@ -160,7 +170,7 @@ No preamble. No explanation. The object MUST validate against
 docs/schemas/triage-output.schema.json.
 
 `suggested_workflow` MUST be exactly one of:
-`default`, `prd-first`, `bugfix`, `build_validation`, `lint_cleanup`, `refactor`, `infra`, `docs`, `security`.
+`default`, `prd-first`, `divergence`, `bugfix`, `build_validation`, `lint_cleanup`, `refactor`, `infra`, `docs`, `security`.
 Feature-class tasks use `default`. Do not emit `feature` as a workflow value — that is a `task_classification`, not a workflow.
 
 If the task cannot be classified, output a JSON object with label "escalate"

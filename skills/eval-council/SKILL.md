@@ -35,6 +35,8 @@ The Eval Council runs at these points in the ADLC lifecycle:
 
 The Eval Council evaluates active surfaces through core personas and overlay personas. Core personas ask different questions and catch different failure modes. Overlay personas activate only when the applicability manifest says the surface exists. They do not collaborate — they evaluate independently, then their verdicts are synthesized.
 
+Before Post-Brief council review, render the operator review surface with `bin/adlc volatility-review --build-brief <brief> --json`. The council must spend proportional depth on entries with `volatility_tier: "likely-to-change"` and record every volatile decision it individually examined in `volatile_decisions_examined`. Do not reorder the canonical Build Brief JSON; volatility is a review packet concern.
+
 ### Overlay Activation Trigger Table
 
 Core personas always run. Overlay personas activate from `change_surface` flags in the applicability manifest. This table is the authoritative mapping consumed by the deterministic council_personas evaluator. Any change here must be mirrored in `tests/backtest/evaluators/council_personas.sh`.
@@ -494,6 +496,21 @@ Each persona produces:
 }
 ```
 
+For Post-Brief evaluations, the synthesized report also includes:
+
+```json
+{
+  "volatile_decisions_examined": [
+    {
+      "id": "task:TASK_ID",
+      "volatility_tier": "likely-to-change",
+      "examined_by": ["architect", "operator", "skeptic"],
+      "finding_refs": ["F-API-CONTRACT"]
+    }
+  ]
+}
+```
+
 ### Step 3: Verdict Synthesis
 
 Individual evaluations are synthesized into a council verdict:
@@ -589,6 +606,7 @@ The council evaluates the complete Build Brief against these criteria:
 - [ ] Every Type 1 decision has a named owner and deadline
 - [ ] SLO targets are numeric and measurable when observability overlay is active
 - [ ] On-call rotation and escalation path have real names when operator overlay is active
+- [ ] Every `likely-to-change` volatility-review entry was individually examined by at least one relevant council persona and recorded in `volatile_decisions_examined`
 
 **Consistency**
 - [ ] Architecture patterns in Section 2 match what Codebase Research found
