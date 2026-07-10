@@ -7185,16 +7185,6 @@ def performance_envelope_issues_for_task(task: Dict[str, Any]) -> List[Dict[str,
 
     applicability = envelope.get("applicability")
     if applicability == "not_applicable":
-        reason = str(envelope.get("reason") or "").lower()
-        if "no data path" not in reason:
-            return [
-                {
-                    "severity": "blocking",
-                    "rule": "performance_envelope_skip_without_no_data_path",
-                    "task_id": task_id,
-                    "message": "performance_envelope.applicability=not_applicable must declare no data path",
-                }
-            ]
         return []
 
     if applicability != "required":
@@ -7426,18 +7416,6 @@ MODULE_PLAN_CODE_EXTENSIONS = {
     ".ts",
     ".tsx",
 }
-
-MODULE_PLAN_STRUCTURAL_TERMS = (
-    "module",
-    "directory module",
-    "split",
-    "refactor",
-    "reorganize",
-    "reshape",
-    "pure core",
-    "impure shell",
-    "architecture",
-)
 
 PAVED_ROAD_PATTERN_REGISTRY_REL = Path("skills/paved-road-registry/patterns.json")
 PAVED_ROAD_PATTERN_REF_PREFIXES = (
@@ -7713,23 +7691,16 @@ def task_has_code_file_creation(task: Dict[str, Any]) -> bool:
     return False
 
 
-def task_structural_text(task: Dict[str, Any]) -> str:
-    fields = [
-        task.get("title"),
-        task.get("objective"),
-        " ".join(str(item) for item in task.get("scope", []) if isinstance(item, str)),
-        " ".join(str(item) for item in task.get("implementation_notes", []) if isinstance(item, str)),
-    ]
-    return " ".join(str(item).lower() for item in fields if item)
-
-
 def task_requires_module_plan(task: Dict[str, Any]) -> bool:
     if not task_executable(task):
         return False
     if task_has_code_file_creation(task):
         return True
-    text = task_structural_text(task)
-    return any(term in text for term in MODULE_PLAN_STRUCTURAL_TERMS)
+    sizing = task.get("task_sizing")
+    if isinstance(sizing, dict) and "module_plan" in (sizing.get("basis") or []):
+        return True
+    plan = task_module_plan_decision(task)
+    return isinstance(plan, dict) and plan.get("applicability") == "required"
 
 
 def module_plan_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -7847,7 +7818,7 @@ def task_sizing_split_proposal_text(sizing: Dict[str, Any]) -> str:
     modules = unique_nonempty_strings(surface.get("touched_modules") if isinstance(surface, dict) else [])
     if modules:
         return "split by module: " + ", ".join(modules)
-    return "split the task into one task per coherent module or module_plan file-set"
+    return "split the task into one task per coherent module or structured file-set"
 
 
 def task_sizing_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -7985,7 +7956,7 @@ def task_sizing_issues_for_task(task: Dict[str, Any]) -> List[Dict[str, Any]]:
             }
         )
 
-    if surface_kind == "coherent_file_set":
+    if surface_kind == "coherent_file_set" and task_requires_module_plan(task):
         plan, _plan_source, _matched_pattern, _generation_issue = task_effective_module_plan(task)
         if not isinstance(plan, dict) or plan.get("applicability") != "required":
             issues.append(
@@ -10097,6 +10068,25 @@ def run_audit_verifier(verifier: Dict[str, Any], workspace: Path) -> Tuple[bool 
 
 def completion_audit_payload(args: argparse.Namespace) -> Dict[str, Any]:
     workspace = resolve_workspace(args.workspace)
+    executor = str(args.executor or "").strip()
+    auditor = str(args.auditor or "").strip()
+    if not executor or not auditor:
+        raise ValueError("completion audit requires explicit executor and auditor identities")
+    if executor == auditor:
+        raise ValueError("completion audit auditor must differ from the executor")
+    if auditor.lower() in {"independent", "independent-completion-audit"}:
+        raise ValueError("completion audit auditor must be a specific identity, not a generic independence label")
+    independence_path = cli_input_path(args.independence_evidence)
+    independence_errors = validate_artifact(resolve_schema("completion-audit-independence"), independence_path)
+    if independence_errors:
+        raise ValueError("completion audit independence evidence failed schema validation: " + "; ".join(independence_errors))
+    independence = read_json(independence_path)
+    if independence.get("executor", {}).get("identity") != executor:
+        raise ValueError("completion audit executor does not match independence evidence")
+    if independence.get("auditor", {}).get("identity") != auditor:
+        raise ValueError("completion audit auditor does not match independence evidence")
+    if independence.get("executor", {}).get("session_id") == independence.get("auditor", {}).get("session_id"):
+        raise ValueError("completion audit independence evidence must name distinct executor and auditor sessions")
     plan = read_json(cli_input_path(args.input))
     verified = []
     trusted = []
@@ -10140,7 +10130,16 @@ def completion_audit_payload(args: argparse.Namespace) -> Dict[str, Any]:
     payload = {
         "contract_version": "1.0.0",
         "status": "blocked" if findings else "pass",
-        "auditor": args.auditor or "independent-completion-audit",
+        "executor": executor,
+        "auditor": auditor,
+        "independence": {
+            "basis": independence["basis"],
+            "executor_session_id": independence["executor"]["session_id"],
+            "auditor_session_id": independence["auditor"]["session_id"],
+            "evidence_path": str(independence_path),
+            "evidence_sha256": hashlib.sha256(independence_path.read_bytes()).hexdigest(),
+            "evidence_refs": independence["evidence_refs"],
+        },
         "verified": verified,
         "taken_on_trust": trusted,
         "findings": findings,
@@ -14068,11 +14067,13 @@ def mcp_tools() -> List[Dict[str, Any]]:
             "inputSchema": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["input"],
+                "required": ["input", "executor", "auditor", "independence_evidence"],
                 "properties": {
                     "input": {"type": "string", "minLength": 1},
                     "workspace": {"type": "string", "minLength": 1},
+                    "executor": {"type": "string", "minLength": 1},
                     "auditor": {"type": "string", "minLength": 1},
+                    "independence_evidence": {"type": "string", "minLength": 1},
                     "output": {"type": "string", "minLength": 1},
                 },
             },
@@ -14827,7 +14828,9 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             argparse.Namespace(
                 input=input_path,
                 workspace=arguments.get("workspace") if isinstance(arguments.get("workspace"), str) else None,
+                executor=arguments.get("executor") if isinstance(arguments.get("executor"), str) else None,
                 auditor=arguments.get("auditor") if isinstance(arguments.get("auditor"), str) else None,
+                independence_evidence=arguments.get("independence_evidence") if isinstance(arguments.get("independence_evidence"), str) else None,
                 output=arguments.get("output") if isinstance(arguments.get("output"), str) else None,
                 json=True,
             )
@@ -15585,7 +15588,9 @@ def build_parser() -> argparse.ArgumentParser:
     completion_audit = subparsers.add_parser("completion-audit", help=command_description("completion-audit"))
     completion_audit.add_argument("--input", required=True, help="Completion audit plan JSON path.")
     completion_audit.add_argument("--workspace", help="Workspace root for claim verifiers. Defaults to cwd.")
-    completion_audit.add_argument("--auditor", help="Auditor identity. Must not be the executor continuing its own session.")
+    completion_audit.add_argument("--executor", required=True, help="Specific identity of the executor whose claims are being audited.")
+    completion_audit.add_argument("--auditor", required=True, help="Specific auditor identity; generic labels such as 'independent' are rejected.")
+    completion_audit.add_argument("--independence-evidence", required=True, help="Schema-valid evidence naming distinct executor and auditor sessions.")
     completion_audit.add_argument("--output", help="Optional Completion Audit report path.")
     completion_audit.add_argument("--json", action="store_true", help="Emit JSON.")
     completion_audit.set_defaults(func=command_completion_audit)

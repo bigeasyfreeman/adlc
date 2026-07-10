@@ -16,6 +16,7 @@ SCHEMA_ALIASES = {
     "clarity-gate-report": "docs/schemas/clarity-gate-report.schema.json",
     "compatibility-evidence-report": "docs/schemas/compatibility-evidence-report.schema.json",
     "completion-audit-report": "docs/schemas/completion-audit-report.schema.json",
+    "completion-audit-independence": "docs/schemas/completion-audit-independence.schema.json",
     "contract-surface-inventory": "docs/schemas/contract-surface-inventory.schema.json",
     "control-plane-drift-report": "docs/schemas/control-plane-drift-report.schema.json",
     "council-verdict": "docs/schemas/council-verdict-output.schema.json",

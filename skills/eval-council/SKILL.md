@@ -179,7 +179,7 @@ Any FAIL = the task is not agent-ready. This is a **major finding**.
 - Does the task decomposition preserve the target repo's one-responsibility, coordinator, and pure-core/impure-shell rules before implementation starts?
 - Does every planned file have one distinct job and a verification predicate from `repo_conventions.rules[]`?
 - Do planned files avoid catch-all responsibilities that would force multiple jobs into one implementation file?
-- Does every executable task have `task_sizing` proving one module, one coherent `module_plan` file-set, or explicitly atomic cross-module work before codegen starts?
+- Does every executable task have `task_sizing` proving one module, one coherent structured file-set, or explicitly atomic cross-module work before codegen starts? Require `module_plan` from code-module creation or an explicit sizing basis, never from prose keywords.
 
 **Post-Execution asks:**
 - For each changed file, what are its distinct jobs: types cluster, data shape, each logic domain, each I/O site, and coordination?

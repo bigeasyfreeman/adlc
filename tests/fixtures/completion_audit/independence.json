@@ -1,0 +1,15 @@
+{
+  "contract_version": "1.0.0",
+  "basis": "separate_session",
+  "executor": {
+    "identity": "test-executor",
+    "session_id": "test-executor-session"
+  },
+  "auditor": {
+    "identity": "test-auditor",
+    "session_id": "test-auditor-session"
+  },
+  "evidence_refs": [
+    "tests/test_adlc_cli.sh"
+  ]
+}

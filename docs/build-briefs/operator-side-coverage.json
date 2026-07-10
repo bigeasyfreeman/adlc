@@ -437,7 +437,7 @@
       "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/operator-side-coverage.json --json",
       "bin/adlc clarity-gate --build-brief docs/build-briefs/operator-side-coverage.json --output docs/tests/operator-side-coverage/clarity-gate-report.json --json",
       "bin/adlc minimalism-audit --build-brief docs/build-briefs/operator-side-coverage.json --criterion-depth-report docs/tests/operator-side-coverage/criterion-depth-report.json --output docs/tests/operator-side-coverage/minimalism-audit-report.json --json",
-      "bin/adlc completion-audit --input docs/tests/operator-side-coverage/completion-audit-plan.json --workspace . --auditor independent --output docs/tests/operator-side-coverage/completion-audit-report.json --json",
+      "bin/adlc completion-audit --input docs/tests/operator-side-coverage/completion-audit-plan.json --workspace . --executor \"$EXECUTOR_ID\" --auditor \"$AUDITOR_ID\" --independence-evidence \"$INDEPENDENCE_EVIDENCE\" --output docs/tests/operator-side-coverage/completion-audit-report.json --json",
       "bin/adlc run-report --provider codex --runtime local --run-id ADLC-OPERATOR-COVERAGE --build-brief docs/build-briefs/operator-side-coverage.json --criterion-depth-report docs/tests/operator-side-coverage/criterion-depth-report.json --clarity-report docs/tests/operator-side-coverage/clarity-gate-report.json --output docs/tests/operator-side-coverage/run-report.json --json"
     ],
     "12_skill_trigger_configuration": [
