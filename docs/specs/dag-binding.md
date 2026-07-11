@@ -63,9 +63,9 @@ Before execution, runners should verify:
 
 ## Runtime Invocation Sources
 
-- Smoke harness execution uses `tests/smoke/adapters/` as the source of truth for runtime-specific invocation logic.
+- Production and smoke execution use `scripts/adlc_runtime/adapters/` as the single source of truth for runtime-specific invocation logic.
 - Production orchestration uses `WORKFLOW.md` frontmatter `backends` as the source of truth for backend commands and auth environment names.
-- Runners must keep these two surfaces aligned: the adapter contract (`invoke_agent --agent --input --output --tools [--schema]`) is the canonical smoke shape, and `WORKFLOW.md` backends mirror that shape for production.
+- Runners must keep the adapter contract (`invoke_agent --agent --input --output --tools [--schema]`) aligned with the `WORKFLOW.md` backend commands.
 - Judge skills resolve `model_class` slots such as `fast_judge` and `deep_judge` through `skills/manifest.json` for the active runtime before the adapter executes the call.
 
 ## Retry Semantics
@@ -78,4 +78,5 @@ Before execution, runners should verify:
 
 - `gen_tests` is an authoring agent stage.
 - `test_strength` is an audit agent stage that runs after `qa` passes and before downstream delivery gates.
+- The `security` workflow node is owned by `agents/security-reviewer.md`; `security-review` supplies the STRIDE contract at planning and review surfaces, while the five domain skills supply the node's specialized checks.
 - If prose elsewhere describes an implicit stage, runners still bind only what `WORKFLOW.md` explicitly declares.

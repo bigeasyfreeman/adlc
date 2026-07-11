@@ -485,7 +485,7 @@ def phase_invocation_plan(
         "agent": node.get("agent"),
         "agent_path": agent_path,
         "runtime": runtime,
-        "adapter_path": f"tests/smoke/adapters/{runtime}.sh",
+        "adapter_path": f"scripts/adlc_runtime/adapters/{runtime}.sh",
         "input": str(input_path) if input_path else None,
         "output": str(output_path),
         "tools": tools_csv if tools_csv is not None else DEFAULT_PHASE_TOOLS.get(phase, ""),
@@ -813,6 +813,61 @@ def context_packages_for_brief(
             }
         )
     return packages
+
+
+def goal_prompt_payload(brief_path: Path, task_id: str, workspace: Path) -> Dict[str, Any]:
+    errors = validate_artifact(resolve_schema("build-brief"), brief_path)
+    if errors:
+        raise ValueError("build brief failed schema validation: " + "; ".join(errors))
+    brief = read_json(brief_path)
+    task = next((item for item in build_brief_tasks(brief) if item.get("task_id") == task_id), None)
+    if not task:
+        raise ValueError(f"task not found in build brief: {task_id}")
+    may_touch = [*task.get("files_to_modify", []), *task.get("files_to_create", [])]
+    if not may_touch:
+        may_touch = ["No product files; produce only the declared process artifact."]
+    done = [str(item) for item in task.get("definition_of_done", []) if str(item).strip()]
+    if not done:
+        done = [str(item.get("then")) for item in task.get("acceptance_criteria", []) if isinstance(item, dict) and item.get("then")]
+    gates = [
+        {"command": command, "expected_result": "exit 0 with the declared post-change condition satisfied"}
+        for command in task_verifier_commands(task)
+    ]
+    if not gates:
+        raise ValueError(f"task has no executable verifier commands: {task_id}")
+    stop_conditions = [
+        "Stop if the requested change requires touching a path outside may_touch.",
+        "Stop if a Type 1 decision, credential, spend authorization, or destructive action is required.",
+        "Stop and report evidence if a verifier fails twice for the same unresolved cause.",
+    ]
+    for item in task.get("out_of_scope", []):
+        stop_conditions.append(f"Do not proceed into out-of-scope work: {item}")
+    payload = {
+        "contract_version": "1.0.0",
+        "status": "not_yet_ga",
+        "brief_id": str(brief.get("brief_id")),
+        "task_id": task_id,
+        "objective": str(task.get("objective") or task.get("title") or task_id),
+        "definition_of_done": done,
+        "may_touch": may_touch,
+        "must_not_touch": [str(item) for item in task.get("out_of_scope", [])] or ["Files outside may_touch."],
+        "verification_gates": gates,
+        "stop_conditions": stop_conditions,
+        "zero_context": {
+            "workspace": str(workspace.resolve()),
+            "build_brief": str(brief_path.resolve()),
+            "source_refs": [str(brief.get("brief_id")), task_id, *[str(ref) for ref in task.get("work_item_metadata", {}).get("external_refs", [])]],
+        },
+        "trust_boundary": {
+            "trusted_input": "schema_validated_build_brief",
+            "executes_content": False,
+            "security_review": "blocking_pre_ga",
+        },
+    }
+    prompt_errors = validate_artifact_payload(resolve_schema("goal-prompt"), payload)
+    if prompt_errors:
+        raise ValueError("generated goal prompt failed schema validation: " + "; ".join(prompt_errors))
+    return payload
 
 
 PIPELINE_ARTIFACT_PATTERNS = (
@@ -1187,7 +1242,6 @@ MUST_RULE_SIGNALS = (
     " don't ",
     " no ",
     " not ",
-    " should ",
     " always ",
     " can't ",
     " cannot ",
@@ -1315,8 +1369,11 @@ def extract_convention_rules_from_doc(path: Path, workspace: Path) -> Tuple[List
             return
         rule = clean_markdown_rule(" ".join(current_rule_lines))
         normalized = f" {rule.lower()} "
-        has_signal = any(signal in normalized for signal in MUST_RULE_SIGNALS)
+        signals = tuple(signal for signal in MUST_RULE_SIGNALS if signal != " use ") if current_rule_kind == "prose" else MUST_RULE_SIGNALS
+        has_signal = any(signal in normalized for signal in signals)
         if rule and (current_rule_in_conventions or has_signal) and (has_signal or current_rule_kind == "checklist"):
+            if current_rule_kind == "prose":
+                warnings_out.append(convention_warning("prose_convention_candidate", rel, current_rule_line, "Prose contains convention language; extracted as a complete paragraph rule."))
             rules.append(
                 {
                     "id": convention_rule_id(rel, len(rules) + 1),
@@ -1336,7 +1393,8 @@ def extract_convention_rules_from_doc(path: Path, workspace: Path) -> Tuple[List
         current_rule_in_conventions = False
         current_rule_kind = "bullet"
 
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    doc_lines = path.read_text(encoding="utf-8").splitlines()
+    for line_number, line in enumerate(doc_lines, start=1):
         stripped = line.strip()
         if stripped.startswith("```"):
             flush_rule()
@@ -1366,6 +1424,8 @@ def extract_convention_rules_from_doc(path: Path, workspace: Path) -> Tuple[List
             continue
         if in_conventions and stripped.startswith("|") and not markdown_table_separator(stripped):
             flush_rule()
+            if line_number < len(doc_lines) and markdown_table_separator(doc_lines[line_number].strip()):
+                continue
             cells = [cell for cell in markdown_table_cells(stripped) if cell]
             if cells:
                 normalized = f" {clean_markdown_rule(' '.join(cells)).lower()} "
@@ -1394,25 +1454,16 @@ def extract_convention_rules_from_doc(path: Path, workspace: Path) -> Tuple[List
             current_rule_end_line = line_number
             continue
         if in_conventions and stripped and not stripped.startswith("#"):
-            normalized = f" {clean_markdown_rule(stripped).lower()} "
-            if any(signal in normalized for signal in MUST_RULE_SIGNALS):
-                warnings_out.append(convention_warning("prose_convention_candidate", rel, line_number, "Prose contains convention language; extracted as a deterministic rule."))
-                if current_rule_kind != "prose":
-                    flush_rule()
-                    current_rule_lines = [stripped]
-                    current_rule_line = line_number
-                    current_rule_end_line = line_number
-                    current_rule_in_conventions = True
-                    current_rule_kind = "prose"
-                else:
-                    current_rule_lines.append(stripped)
-                    current_rule_end_line = line_number
-                continue
             if current_rule_kind == "prose" and current_rule_lines:
                 current_rule_lines.append(stripped)
                 current_rule_end_line = line_number
-                continue
-            flush_rule()
+            else:
+                flush_rule()
+                current_rule_lines = [stripped]
+                current_rule_line = line_number
+                current_rule_end_line = line_number
+                current_rule_in_conventions = True
+                current_rule_kind = "prose"
             continue
         flush_rule()
         normalized = f" {clean_markdown_rule(stripped).lower()} "
@@ -3696,6 +3747,10 @@ CI_SUITES = {
         "description": "Target install/setup contract tests",
         "command": ["bash", "tests/test_setup.sh"],
     },
+    "drift": {
+        "description": "Installed skill and agent digest drift verification",
+        "command": ["bash", "tests/test_drift_verification.sh"],
+    },
     "acceptance": {
         "description": "Provider-free public control-plane acceptance test",
         "command": ["bash", "tests/acceptance/run_public_acceptance.sh"],
@@ -3714,7 +3769,7 @@ CI_SUITES = {
     },
 }
 
-DEFAULT_CI_SUITE_ORDER = ("health-check", "cli", "contracts", "setup", "acceptance", "os12-acceptance", "backtest", "py-compile")
+DEFAULT_CI_SUITE_ORDER = ("health-check", "cli", "contracts", "setup", "drift", "acceptance", "os12-acceptance", "backtest", "py-compile")
 
 
 def ci_command_for_suite(suite_name: str) -> List[str]:
@@ -9734,6 +9789,18 @@ def prepare_execution_adapter_git_baseline(workdir: Path) -> None:
 
 def execution_adapter_payload(args: argparse.Namespace) -> Dict[str, Any]:
     provider = args.provider
+    source = resolve_workspace(args.workdir)
+    if args.prompt_file:
+        prompt_path = resolve_input_path(args.prompt_file, source)
+        prompt_errors = validate_artifact(resolve_schema("goal-prompt"), prompt_path)
+        if prompt_errors:
+            return {
+                "contract_version": "1.0.0", "status": "failed", "provider": provider,
+                "model": args.model or "", "exit_code": None, "duration_seconds": 0.0,
+                "stdout": "", "stderr": "; ".join(prompt_errors), "diff": "",
+                "workdir": str(source), "prompt_file": args.prompt_file,
+                "failure_reason": "invalid_goal_prompt",
+            }
     if provider == "anthropic":
         return {
             "contract_version": "1.0.0",
@@ -9749,7 +9816,6 @@ def execution_adapter_payload(args: argparse.Namespace) -> Dict[str, Any]:
             "prompt_file": args.prompt_file,
             "failure_reason": "anthropic_provider_must_not_invoke_execution_adapter",
         }
-    source = resolve_workspace(args.workdir)
     sandbox = Path(tempfile.mkdtemp(prefix="adlc-exec-adapter-"))
     workdir = sandbox / source.name
     shutil.copytree(source, workdir, ignore=execution_adapter_copy_ignore(source))
@@ -13137,6 +13203,22 @@ def command_execution_adapter(args: argparse.Namespace) -> int:
     return 0 if payload["status"] in {"completed", "skipped"} else 1
 
 
+def command_goal_prompt(args: argparse.Namespace) -> int:
+    try:
+        workspace = resolve_workspace(args.workspace)
+        payload = goal_prompt_payload(resolve_input_path(args.build_brief, workspace), args.task_id, workspace)
+        if args.output:
+            write_artifact(cli_input_path(args.output), payload, "goal-prompt")
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['task_id']}: goal prompt {payload['status']}")
+    return 0
+
+
 def command_run_report(args: argparse.Namespace) -> int:
     try:
         payload = run_report_payload(args)
@@ -15539,6 +15621,14 @@ def build_parser() -> argparse.ArgumentParser:
     deviation.add_argument("--input", required=True, help="Execution deviation log JSON path.")
     deviation.add_argument("--json", action="store_true", help="Emit JSON.")
     deviation.set_defaults(func=command_deviation_log_validate)
+
+    goal_prompt = subparsers.add_parser("goal-prompt", help=command_description("goal-prompt"))
+    goal_prompt.add_argument("--build-brief", required=True, help="Schema-valid Build Brief JSON path.")
+    goal_prompt.add_argument("--task-id", required=True, help="Task ID to convert into a bounded goal prompt.")
+    goal_prompt.add_argument("--workspace", default=".", help="Target workspace used for zero-context path context.")
+    goal_prompt.add_argument("--output", help="Optional goal-prompt JSON output path.")
+    goal_prompt.add_argument("--json", action="store_true", help="Emit JSON.")
+    goal_prompt.set_defaults(func=command_goal_prompt)
 
     execution_adapter = subparsers.add_parser("execution-adapter", help=command_description("execution-adapter"))
     execution_adapter.add_argument("--provider", required=True, help="Provider name, for example codex.")

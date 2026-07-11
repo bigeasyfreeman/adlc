@@ -458,7 +458,7 @@ Public-repo hygiene is intentional:
 | **triage** | Classify, route, or escalate | Sonnet | none |
 | **researcher** | Graph-backed codebase analysis, learning refs, PRD cross-reference, dark-code risk notes | Opus | graph-research, codebase-research, paved-road-registry, dark-code-audit, grafana |
 | **planner** | PRD + research into an applicability-aware Build Brief | Opus | graph-research, codegen-context, architecture, reuse-analysis, paved-road-registry, context-layers |
-| **plan-reviewer** | 8-persona Eval Council with Gate 0 pre-checks | Opus | eval-council |
+| **plan-reviewer** | 3 core + 7 conditional-overlay Eval Council personas with Gate 0 pre-checks | Opus | eval-council |
 | **test-author** | Authors failing verifier tests from Brief | Sonnet | spec-to-tests, tdd-enforcement, qa-test-data |
 | **coder** | Verifier-led execution per task class | Sonnet | tdd-enforcement, systematic-debugging |
 | **code-reviewer** | Quality, correctness, and comprehension review | Opus | eval-council, graph-research, paved-road-registry, comprehension-gate |
@@ -475,7 +475,7 @@ Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 Skill definitions are injected into agents at startup. Runtime install counts are derived by `setup.sh` rather than hardcoded in docs.
 
 **Core Engineering:**
-`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` (agent comprehension plus operator blast-radius quiz handoff) · `eval-council` (8 personas + Gate 0, incl. Clarity, Minimalism, and volatility-first review) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (applicability-aware core + overlay DoD) · `spec-to-tests` (failing-test authoring from Brief, with Loop Contract coverage tags and execution evidence when active)
+`graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` (agent comprehension plus operator blast-radius quiz handoff) · `eval-council` (3 core + 7 conditional overlays + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (applicability-aware core + overlay DoD) · `spec-to-tests` (failing-test authoring from Brief, with Loop Contract coverage tags and execution evidence when active)
 
 **Security:**
 `security-review` (STRIDE + OWASP Top 10) · `appsec-threat-model` · `llm-security` · `agentic-security` · `api-security` · `infra-security`

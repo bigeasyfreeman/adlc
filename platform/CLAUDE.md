@@ -17,7 +17,7 @@ Agents are in `.claude/agents/`. Each is a subagent with preloaded skills:
 - **triage** — Classify tasks, route to pipeline or escalate
 - **researcher** — Graph-backed codebase analysis + PRD cross-reference + dark-code risk notes
 - **planner** — PRD → Build Brief (spec/plan/tasks/context artifacts)
-- **plan-reviewer** — 8-persona Eval Council validation
+- **plan-reviewer** — 3 core + 7 conditional-overlay Eval Council validation
 - **coder** — verifier-led execution per task class
 - **code-reviewer** — Quality, correctness, and comprehension review
 - **fixer** — 4-phase systematic debugging

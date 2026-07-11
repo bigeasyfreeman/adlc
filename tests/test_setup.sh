@@ -120,6 +120,8 @@ assert_file_exists "triage agent" "$TARGET/.claude/agents/triage.md"
 assert_file_exists "researcher agent" "$TARGET/.claude/agents/researcher.md"
 assert_file_exists "coder agent" "$TARGET/.claude/agents/coder.md"
 assert_file_exists "security-reviewer agent" "$TARGET/.claude/agents/security-reviewer.md"
+assert_file_exists "fixer agent" "$TARGET/.claude/agents/fixer.md"
+assert_file_contains "fixer preserves systematic root-cause contract" "$TARGET/.claude/agents/fixer.md" "root cause"
 
 # Verify non-installable reference docs did not leak into installed agents
 assert "No reference docs in agents" "[ ! -f '$TARGET/.claude/agents/ADLC-BUILD-BRIEF-AGENT.md' ] && [ ! -f '$TARGET/.claude/agents/PM-PRD-AGENT.md' ]"

@@ -169,6 +169,89 @@ verify_skills() {
   echo "  ✓ $verified skill digests verified"
 }
 
+sync_agents() {
+  local dest="$1"
+  local manifest="$dest/.adlc-agent-manifest"
+  local tmp_manifest="$manifest.tmp"
+  local copied=0
+  local pruned=0
+  local name source_hash dest_file
+
+  mkdir -p "$dest"
+  : > "$tmp_manifest"
+  for agent in "$ADLC_DIR"/agents/*.md; do
+    name="$(basename "$agent")"
+    case "$name" in
+      ADLC-BUILD-BRIEF-AGENT.md|PM-PRD-AGENT.md) continue ;;
+    esac
+    source_hash="$(skill_digest "$agent")"
+    dest_file="$dest/$name"
+    if [ ! -f "$dest_file" ] || [ "$(skill_digest "$dest_file")" != "$source_hash" ]; then
+      cp "$agent" "$dest_file"
+      copied=$((copied + 1))
+    fi
+    printf '%s  %s\n' "$source_hash" "$name" >> "$tmp_manifest"
+  done
+  if [ -f "$manifest" ]; then
+    while read -r _ name; do
+      [ -n "$name" ] || continue
+      if ! awk -v candidate="$name" '$2 == candidate { found = 1 } END { exit found ? 0 : 1 }' "$tmp_manifest"; then
+        rm -f "$dest/$name"
+        pruned=$((pruned + 1))
+      fi
+    done < "$manifest"
+  fi
+  mv "$tmp_manifest" "$manifest"
+  echo "  ✓ $INSTALLABLE_AGENT_COUNT installable agents synced ($copied updated, $pruned pruned)"
+  verify_agents "$dest"
+}
+
+verify_agents() {
+  local dest="$1"
+  local manifest="$dest/.adlc-agent-manifest"
+  local failures=0
+  local verified=0
+  local agent name source_hash dest_hash recorded_hash
+
+  for agent in "$ADLC_DIR"/agents/*.md; do
+    name="$(basename "$agent")"
+    case "$name" in
+      ADLC-BUILD-BRIEF-AGENT.md|PM-PRD-AGENT.md) continue ;;
+    esac
+    if [ ! -f "$dest/$name" ]; then
+      echo "  ✗ missing agent: $name"
+      failures=$((failures + 1))
+      continue
+    fi
+    source_hash="$(skill_digest "$agent")"
+    dest_hash="$(skill_digest "$dest/$name")"
+    if [ "$source_hash" != "$dest_hash" ]; then
+      echo "  ✗ digest mismatch: $name"
+      failures=$((failures + 1))
+    else
+      verified=$((verified + 1))
+    fi
+  done
+  if [ ! -f "$manifest" ]; then
+    echo "  ✗ missing agent digest manifest"
+    failures=$((failures + 1))
+  else
+    while read -r recorded_hash name; do
+      [ -n "$name" ] || continue
+      agent="$ADLC_DIR/agents/$name"
+      if [ ! -f "$agent" ] || [ "$recorded_hash" != "$(skill_digest "$agent")" ]; then
+        echo "  ✗ stale agent manifest digest: $name"
+        failures=$((failures + 1))
+      fi
+    done < "$manifest"
+  fi
+  if [ "$failures" -ne 0 ]; then
+    echo "  ✗ agent verification failed: $failures issue(s)"
+    return 1
+  fi
+  echo "  ✓ $verified agent digests verified"
+}
+
 install_claude() {
   echo "→ Claude Code"
 
@@ -176,15 +259,7 @@ install_claude() {
   sync_skills "$TARGET/.claude/skills"
 
   # Agents (subagents)
-  mkdir -p "$TARGET/.claude/agents"
-  for agent in "$ADLC_DIR"/agents/*.md; do
-    name="$(basename "$agent")"
-    # Skip non-installable top-level reference docs
-    [[ "$name" == "ADLC-BUILD-BRIEF-AGENT.md" ]] && continue
-    [[ "$name" == "PM-PRD-AGENT.md" ]] && continue
-    cp "$agent" "$TARGET/.claude/agents/$name"
-  done
-  echo "  ✓ $INSTALLABLE_AGENT_COUNT installable agents installed to .claude/agents/"
+  sync_agents "$TARGET/.claude/agents"
 
   # CLAUDE.md instructions
   cp "$ADLC_DIR/platform/CLAUDE.md" "$TARGET/CLAUDE.md"
@@ -299,7 +374,8 @@ verify_claude() {
   INSTALL_RUNTIME=0
   echo "→ Claude Code skill verification"
   verify_skills "$TARGET/.claude/skills"
-  echo "  ✓ Claude Code skills match ADLC source"
+  verify_agents "$TARGET/.claude/agents"
+  echo "  ✓ Claude Code skills and agents match ADLC source"
 }
 
 echo "ADLC Setup"

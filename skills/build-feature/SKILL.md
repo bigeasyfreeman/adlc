@@ -120,6 +120,7 @@ Convention flow map:
 
 ### Step 10: Create PR
 - **Diff contract:** PR diff contains product code, tests, and user-facing docs only. Pipeline artifacts - Build Briefs, eval/council reports, tech-debt audits, closeout or validation scripts, and goal prompts - live in ADLC process artifact storage keyed by target repo and task, not in the target repo diff.
+- **Cross-harness handoff:** Generate bounded JSON with `bin/adlc goal-prompt --build-brief <path> --task-id <id> --output <process-artifact-path>`. The artifact remains `not_yet_ga`, requires blocking security review, and must validate before `execution-adapter` will dispatch it.
 - **Base policy:** Cut from the target repo default branch. A non-default base is allowed only when the brief documents a genuine code dependency on an unmerged PR; dependent PRs remain drafts and name the dependency in the body.
 - **Language contract:** PR title/body use product language from `product_vocabulary`; internal codenames, ticket IDs, stack labels, and phase names are banned.
 - **Output:** PR with: summary, active overlay summaries, DoD checklist, council verdict, test results, risk tier, PR hygiene scan result
