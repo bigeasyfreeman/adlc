@@ -342,6 +342,7 @@ The repo ships with these verification layers:
 
 - `tests/test_adlc_cli.sh` exercises the `bin/adlc` CLI surface end to end, including the clarity gate, contract-surface inventory, compatibility evidence, deviation validation, minimalism and completion audits, and the dual-harness feature-slice comparison.
 - `tests/test_adlc_contracts.sh` checks prompt/schema/runtime wiring and the checked-in golden artifacts.
+- `tests/test_drift_verification.sh` proves installed skill and agent digests fail closed when stale and pass after redeployment.
 - `tests/backtest/run_backtest.sh` replays the deterministic evaluators against the benchmark fixture set.
 - `tests/smoke/run_smoke.sh` runs the real staged agents through a tiny repo using the selected runtime adapter.
 - `tests/acceptance/run_public_acceptance.sh` runs the provider-free public acceptance path: install ADLC into a realistic target repo, plan from repo/ticket signals, install a packaged loop, exercise queue/worktree gates, prove a verifier fails before a bounded repair and passes after it, complete the queue item, and dry-run tracker sync.
@@ -355,6 +356,7 @@ bash tests/acceptance/run_public_acceptance.sh
 bash tests/acceptance/run_os12_acceptance.sh
 bash tests/test_adlc_cli.sh
 bash tests/test_adlc_contracts.sh
+bash tests/test_drift_verification.sh
 bash tests/backtest/run_backtest.sh
 ADLC_RUNTIME=codex ADLC_SMOKE_SETTINGS_CODEX=~/path/to/config.toml SMOKE=1 MODEL=gpt-5-codex bash tests/smoke/run_smoke.sh
 ```
@@ -367,6 +369,7 @@ bin/adlc list-phases --json
 bin/adlc health-check --json
 bin/adlc ci --json
 bin/adlc validate-artifact --schema build-brief --input .adlc/build_brief.json --json
+bin/adlc goal-prompt --build-brief .adlc/build_brief.json --task-id TASK-123 --output .adlc/goal-prompt.json --json
 bin/adlc repo-conventions --workspace . --output .adlc/repo_conventions.json --json
 bin/adlc convention-scan --workspace . --file src/lib.rs --json
 bin/adlc pr-hygiene-scan --workspace . --build-brief .adlc/build_brief.json --base origin/main --base-branch feature --default-branch main --dependency PR-123 --json
@@ -555,8 +558,8 @@ adlc/
 ├── docs/                   # build-briefs/, schemas/, specs/, tests/, adlc-v2-spec, tickets
 ├── docs/loop-library/      # Packaged assisted-loop templates for harness installation
 ├── docs/solutions/         # Schema-validated compound engineering learning store
-├── tests/                  # contract checks, backtests, smoke harness
-└── scripts/                # stable CLI entrypoint, adlc_runtime package, and validation utilities
+├── tests/                  # contract checks, drift proof, backtests, smoke harness
+└── scripts/                # stable CLI, production runtime adapters, adlc_runtime package, and validators
 ```
 
 ## Principles
@@ -581,6 +584,7 @@ adlc/
 - [`docs/specs/graph-research-and-comprehension.md`](docs/specs/graph-research-and-comprehension.md) — Graphify, Beads, context-layer, and comprehension-gate contract
 - [`docs/specs/scalable-ai-code-primitives.md`](docs/specs/scalable-ai-code-primitives.md) — Graph-backed context, paved-road reuse, verifiability, and production invariant contract
 - [`docs/specs/implementation-interfaces-and-productionization.md`](docs/specs/implementation-interfaces-and-productionization.md) — Implementation Interface, Productionization Gate, Coverage State, and No-Overclaim contract
+- [`docs/design/runtime-decomposition-plan.md`](docs/design/runtime-decomposition-plan.md) — Approved-for-review boundary proposal and independently landable migration sequence for the runtime entrypoint; implementation remains human-gated
 - [`docs/specs/loop-system-maturity-audit.md`](docs/specs/loop-system-maturity-audit.md) — Loop Contract, LLM Action Envelope, non-gameable test selection, control channel, and maturity audit contract
 - [`docs/specs/slop-eval-loop.md`](docs/specs/slop-eval-loop.md) — Output-side slop benchmark, threshold, regression, and case-promotion contract
 - [`docs/specs/compound-engineering-learning-store.md`](docs/specs/compound-engineering-learning-store.md) — `docs/solutions` learning-entry schema, capture, refresh, and preflight contract

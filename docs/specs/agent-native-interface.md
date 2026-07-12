@@ -14,7 +14,7 @@ Define the minimum contract an external agent or orchestrator needs to discover,
 | `docs/schemas/*.schema.json` | Boundary validation for manifests, Build Briefs, agent outputs, workflow state, work queues, permissions, logs, and tool registry |
 | `docs/solutions/` | Optional compound engineering learning store consumed as compact `learning_refs` |
 | `docs/architecture/decisions/` | Optional architecture memory entries consumed and audited as boundary evidence |
-| `tests/smoke/adapters/*.sh` | Runtime-specific `invoke_agent` and `preflight` adapter contracts |
+| `scripts/adlc_runtime/adapters/*.sh` | Production runtime-specific `invoke_agent` and `preflight` adapter contracts shared by workflow and smoke execution |
 | `bin/adlc` | Thin local CLI for discovery, workflow inspection, schema validation, workflow state transitions, dry-run/runtime phase execution, emitter payloads, and MCP stdio exposure |
 | `docs/specs/emitter-contract.md` | Normalized work-item and document emitter contract for MCP-backed integrations |
 | `docs/specs/executable-tool-nodes.md` | Deterministic tool-node execution, artifact, and fail-closed mutation contract |
@@ -47,6 +47,7 @@ bin/adlc list-phases --json
 bin/adlc health-check --json
 bin/adlc ci --json
 bin/adlc validate-artifact --schema build-brief --input .adlc/build_brief.json --json
+bin/adlc goal-prompt --build-brief .adlc/build_brief.json --task-id TASK-123 --output .adlc/goal-prompt.json --json
 bin/adlc run --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase triage --brief-id BRF-123 --workspace . --dry-run --json
 bin/adlc run-phase context_assembly --build-brief .adlc/build_brief.json --workspace . --json

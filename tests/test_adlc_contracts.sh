@@ -1179,7 +1179,7 @@ assert "manifest carries runtime_model_map on every modeled agent" "jq -e 'all(.
 echo ""
 echo "--- Agent-Native Interface ---"
 assert "agent-native interface spec exists" "[ -f '$ROOT/docs/specs/agent-native-interface.md' ]"
-assert "agent-native interface names machine-readable anchors" "rg -q 'skills/manifest\\.json|WORKFLOW\\.dot|docs/schemas/|tests/smoke/adapters/|emitter-contract' '$ROOT/docs/specs/agent-native-interface.md'"
+assert "agent-native interface names machine-readable anchors" "rg -q 'skills/manifest\\.json|WORKFLOW\\.dot|docs/schemas/|scripts/adlc_runtime/adapters/|emitter-contract' '$ROOT/docs/specs/agent-native-interface.md'"
 assert "agent-native interface documents quick hook contract" "rg -q 'Quick Hook Contract|ADLC_RUNTIME|validate.*schema|local MCP provider' '$ROOT/docs/specs/agent-native-interface.md'"
 assert "agent-native interface documents workflow runner and emitter hooks" "rg -q 'adlc run|run-phase|resume-workflow|emit-work-items|allow_mutation|provider_command' '$ROOT/docs/specs/agent-native-interface.md'"
 assert "agent-native interface documents executable tool nodes" "rg -q 'Executable Tool-Node Contract|phase_artifacts|tool-node-result|context_assembly|learning_capture' '$ROOT/docs/specs/agent-native-interface.md'"
