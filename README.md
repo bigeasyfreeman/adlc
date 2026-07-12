@@ -101,8 +101,8 @@ diff.
    - honesty_contract with explicit limitations and no-overclaim boundaries.
    - performance_envelope with scale, hot paths, benchmark requirement, and
      benchmark evidence when applicable.
-   - task_sizing proving one task is one module, one coherent module_plan
-     file-set, or explicitly atomic cross-module work.
+   - task_sizing proving one task is one module, one coherent structured
+     file-set (with module_plan when code structure requires it), or explicitly atomic cross-module work.
    - minimality_contract with exactly two fields: rung and decision. Decide it
      once. Repo conventions outrank minimality on file and module structure.
    - operator_surface only when evidence shows a wide solution space,
@@ -190,7 +190,7 @@ diff.
 
 8. Audit completion honestly before presenting the work as done:
    bin/adlc minimalism-audit --build-brief <brief> --criterion-depth-report <depth> --json
-   bin/adlc completion-audit --input <audit-plan> --workspace <target> --auditor independent --json
+   bin/adlc completion-audit --input <audit-plan> --workspace <target> --executor <executor-id> --auditor <auditor-id> --independence-evidence <independence.json> --json
    bin/adlc run-report --json  # aggregate clarity, deviation, compatibility, and harness evidence
 
    Every acceptance criterion declares a depth (minimal or robust) with a
@@ -199,7 +199,9 @@ diff.
    shipping the cheapest satisfying implementation blocks approval. The
    completion audit re-verifies completion claims against actual repo state
    with an auditor that is not the executor, records what was verified versus
-   taken on trust, and blocks PR prep on any contradicted claim.
+   taken on trust, and blocks PR prep on any contradicted claim. Independence
+   evidence names distinct executor/auditor sessions and is hashed into the
+   report; orchestration remains responsible for supplying truthful identities.
 ```
 
 ## Best Use / Anti-Patterns
@@ -208,8 +210,8 @@ diff.
 - Store Build Briefs, council output, audits, validation summaries, and closeout
   packages in ADLC-side process artifact storage per
   `docs/specs/process-artifact-storage.md`; never add them to target diffs.
-- Keep one task to one module plan, one coherent module-plan file-set, or one
-  explicitly atomic cross-module change.
+- Keep one task to one module plan, one coherent structured file-set (including
+  non-code file sets), or one explicitly atomic cross-module change.
 - Do not use file size, line count, or SLOC as split, design, or DoD criteria.
 - Feed maintainer PR comments back through `bin/adlc feedback-conventions`; do
   not bake one-off review comments into hidden prompt lore.
@@ -232,7 +234,7 @@ The shipped framework layers are:
 | Implementation Interface | Task-scoped contract for what a change reuses, consumes, emits, preserves, integrates with, and validates | Active when a task touches repo boundaries, schemas, emitters, providers, workflow state, CLI contracts, or reusable framework surfaces |
 | Productionization Gate | Bounded production claim with Coverage State, evidence, rollback/observability/security posture, reliability risks, and No-Overclaim boundaries | Active when a task claims production support or production readiness |
 | Honesty Contract | Per-feature statement of what the task does not do, limitations, unsafe claims, and required doc or artifact output fields such as `doc_honesty_section`, `no_overclaim`, and `limitations` | Required for executable tasks; pure internal work may declare `not_applicable` only with a no-external-claims reason |
-| Performance Envelope | Per-task data-path contract for expected input scale, hot-path complexity, benchmark requirement, and benchmark evidence | Required for executable tasks; no-data-path work may declare `not_applicable` only with a no-data-path reason |
+| Performance Envelope | Per-task data-path contract for expected input scale, hot-path complexity, benchmark requirement, and benchmark evidence | Required for executable tasks; non-data-path work uses structured `not_applicable` with a meaningful reason |
 | Task Sizing | Decomposition-time proof that each executable task is one module, one coherent module-plan file-set, or explicitly atomic cross-module work | Required for executable tasks; split-required work blocks emission and returns proposed splits |
 | Slop Quality Gate | Output-side benchmark, threshold, eval cases, and failure action for generated-output surfaces | Active when a task changes prompt/model/agent/generated content behavior |
 | Operator Surface Gates | Divergence options, volatility-first review ordering, teach-first judgment criteria, and operator comprehension proof | Active when `operator_surface` or task evidence shows wide solution space, taste/quality judgment, know-it-when-I-see-it approval, or medium/high blast radius |
@@ -408,7 +410,7 @@ bin/adlc compatibility-evidence --build-brief .adlc/build_brief.json --inventory
 bin/adlc deviation-log-validate --input .adlc/deviations.json --json
 bin/adlc predicate-library --json
 bin/adlc minimalism-audit --build-brief .adlc/build_brief.json --criterion-depth-report .adlc/criterion_depth.json --json
-bin/adlc completion-audit --input .adlc/completion_audit_plan.json --workspace . --auditor independent --json
+bin/adlc completion-audit --input .adlc/completion_audit_plan.json --workspace . --executor "$EXECUTOR_ID" --auditor "$AUDITOR_ID" --independence-evidence .adlc/completion_audit_independence.json --json
 bin/adlc execution-adapter --provider codex --command 'codex exec --help' --workdir . --prompt-file .adlc/task_prompt.md --json
 bin/adlc run-report --json
 bin/adlc mcp-tools --json
@@ -515,7 +517,7 @@ The Build Brief Agent produces a brief with an `applicability_manifest`, a core 
 | 17 | Productionization Gates (Coverage State, Validation Evidence, No-Overclaim, rollback/observability/security posture) | When a task makes or changes a production support claim |
 | 18 | Revision History (council finding IDs → changes) | Always |
 
-Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, `module_plan` decision or registered structural pattern match, failure modes, and enough acceptance criteria to define the verifier contract. Executable tasks also require an `honesty_contract`; required contracts name what the feature does not do, known limitations, unsafe claims, output surfaces, and required output fields. Pure internal work may set `honesty_contract.applicability=not_applicable` only with a reason that explicitly says there are no external claims. Tasks that emit artifacts require `no_overclaim` and `limitations`; tasks that emit docs require `doc_honesty_section`. Executable tasks also require a `performance_envelope`; data-path tasks set `applicability=required` with expected input scale, hot paths, complexity bounds, and `benchmark_required`, plus a benchmark spec when true. Non-data-path tasks may set `performance_envelope.applicability=not_applicable` only with a reason that explicitly says no data path. Executable tasks also require a `minimality_contract` with exactly `rung` and one-line `decision`; reuse evidence belongs in reuse-analysis output, not the task contract. `repo_conventions` and `module_plan` govern file/module structure, while Ponytail governs behavior scope, dependency additions, and speculative abstraction. Tasks that create or reshape modules must set `module_plan.applicability=required` with the planned file list, one-line responsibility per file, pure/impure marking, capabilities, and the architecture test that is written first; or cite an approved pattern such as `pattern:interralis:evidence-module?module_root=src/foo/bar` in `paved_road_refs` so `module-plan-check` generates the effective plan from `skills/paved-road-registry/patterns.json`. Behavior-only tasks must set `module_plan.applicability=not_applicable` with a reason. Pattern departures require `module_plan.pattern_deviation_reason`. Executable tasks also require `task_sizing`: the change surface must be one module, one coherent `module_plan` file-set, or explicitly atomic cross-module work with an atomic-work reason. If the split decision says splitting is required, readiness blocks and surfaces the proposed split. Size, line count, and SLOC alone are not valid criteria. Run `bin/adlc paved-road-patterns --json`, `bin/adlc module-plan-check --build-brief <brief> --json`, and `bin/adlc ponytail-admit --build-brief <brief> --json` before codegen context assembly. Tasks that touch integration boundaries should carry an `implementation_interface_contract`; tasks that claim `production_ready` must carry a `productionization_gate` with validation evidence and no-overclaim boundaries. Tasks with wide solution space, taste/quality judgment, know-it-when-I-see-it approval, or medium/high blast radius should carry `operator_surface` plus refs such as `divergence_artifact_ref`, `operator_comprehension_quiz_ref`, and `judgment_criteria_refs`; keep the canonical 18-section order unchanged and store the supporting packets as process artifacts. Tasks that introduce or change LLM-driven loop behavior should carry a Loop Contract and the deterministic loop verifier commands that prove required tests, action admission, progress/control state, and maturity verdicts.
+Every task requires: files_to_create/modify, reference_impl, dependencies, `task_classification`, `verification_spec`, `module_plan` decision or registered structural pattern match, failure modes, and enough acceptance criteria to define the verifier contract. Executable tasks also require an `honesty_contract`; required contracts name what the feature does not do, known limitations, unsafe claims, output surfaces, and required output fields. Pure internal work may set `honesty_contract.applicability=not_applicable` only with a reason that explicitly says there are no external claims. Tasks that emit artifacts require `no_overclaim` and `limitations`; tasks that emit docs require `doc_honesty_section`. Executable tasks also require a `performance_envelope`; data-path tasks set `applicability=required` with expected input scale, hot paths, complexity bounds, and `benchmark_required`, plus a benchmark spec when true. Non-data-path tasks set `performance_envelope.applicability=not_applicable` with a meaningful reason; readiness uses the structured applicability value and does not parse magic words from the reason. Executable tasks also require a `minimality_contract` with exactly `rung` and one-line `decision`; reuse evidence belongs in reuse-analysis output, not the task contract. `repo_conventions` and `module_plan` govern file/module structure, while Ponytail governs behavior scope, dependency additions, and speculative abstraction. Tasks that create code modules or explicitly declare `module_plan` in their sizing basis must set `module_plan.applicability=required` with the planned file list, one-line responsibility per file, pure/impure marking, capabilities, and the architecture test that is written first; or cite an approved pattern such as `pattern:interralis:evidence-module?module_root=src/foo/bar` in `paved_road_refs` so `module-plan-check` generates the effective plan from `skills/paved-road-registry/patterns.json`. Behavior-only and coherent non-code file-set tasks may set `module_plan.applicability=not_applicable` with a reason. Readiness uses these structured fields rather than structural words in prose. Pattern departures require `module_plan.pattern_deviation_reason`. Executable tasks also require `task_sizing`: the change surface must be one module, one coherent file-set, or explicitly atomic cross-module work with an atomic-work reason. If the split decision says splitting is required, readiness blocks and surfaces the proposed split. Size, line count, and SLOC alone are not valid criteria. Run `bin/adlc paved-road-patterns --json`, `bin/adlc module-plan-check --build-brief <brief> --json`, and `bin/adlc ponytail-admit --build-brief <brief> --json` before codegen context assembly. Tasks that touch integration boundaries should carry an `implementation_interface_contract`; tasks that claim `production_ready` must carry a `productionization_gate` with validation evidence and no-overclaim boundaries. Tasks with wide solution space, taste/quality judgment, know-it-when-I-see-it approval, or medium/high blast radius should carry `operator_surface` plus refs such as `divergence_artifact_ref`, `operator_comprehension_quiz_ref`, and `judgment_criteria_refs`; keep the canonical 18-section order unchanged and store the supporting packets as process artifacts. Tasks that introduce or change LLM-driven loop behavior should carry a Loop Contract and the deterministic loop verifier commands that prove required tests, action admission, progress/control state, and maturity verdicts.
 
 Loop Contracts are task/workflow control artifacts, not a required Build Brief section for every task. Emit them as referenced JSON artifacts through `work_item_metadata.loop_contract_path`, `loop_action_path`, and `loop_maturity_report_path` when an LLM-driven loop surface is active.
 

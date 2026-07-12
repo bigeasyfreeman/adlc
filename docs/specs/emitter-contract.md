@@ -296,7 +296,7 @@ Platform-specific config may extend the shared contract, but it must not redefin
 4.8. Ensure decomposition-mode payloads include automatic validation tasks in the enterprise readiness contract, and emit those validation tasks as first-class work items when the target supports work-item artifacts.
 4.9. Preserve implementation-interface contracts and productionization gates without broadening their claims. Emitters must not translate `evidence_only`, `monitor_only`, `not_yet_ga`, or `governed` into production-ready ticket language.
 4.10. Preserve honesty contracts without weakening them. Artifact-emitting tasks must expose `no_overclaim` and `limitations`; document emitters must render a visible honesty or limitations section when `doc_honesty_section` is required. `not_applicable` skips are valid only when the reason explicitly says there are no external claims.
-4.11. Preserve performance envelopes without weakening them. Data-path tasks must expose expected input scale, hot-path complexity, benchmark requirement, and benchmark spec; `not_applicable` skips are valid only when the reason explicitly says there is no data path.
+4.11. Preserve performance envelopes without weakening them. Data-path tasks must expose expected input scale, hot-path complexity, benchmark requirement, and benchmark spec; `not_applicable` is the structured non-data-path decision and requires a meaningful reason without a magic literal.
 5. Compute per-artifact idempotency keys before any external mutation.
 6. Emit permission logging entries before and after every mutating external action.
 7. Return created artifact metadata and dedupe status in a structured response.
@@ -371,7 +371,7 @@ The readiness checker validates:
    - `implementation_interface_contract` for active integration or reusable framework surfaces
    - `productionization_gate` for active production support claims
    - `honesty_contract`, unless the executable task declares `not_applicable` with a no-external-claims reason
-   - `performance_envelope`, unless the executable task declares `not_applicable` with a no-data-path reason
+   - `performance_envelope`, unless the executable task declares structured `not_applicable` with a meaningful reason
    - `module_plan` and `task_sizing`, unless the executable task declares the relevant surface `not_applicable` with a concrete no-change-surface or no-structure reason
    - `slop_quality_gate` when `generated_output_surface.active=true`; if the brief includes `slop_quality_gate` for an inactive surface it must use `applicability=not_applicable` with a concrete reason
    - Loop Contract refs when LLM-driven action, test-selection, control-channel, escalation, or maturity evidence is active
@@ -379,8 +379,8 @@ The readiness checker validates:
 7. **Loop action checks** — LLM-driven action tickets must preserve loop refs and name the deterministic verifier (`loop-test-selection`, `loop-action-validate`, or `loop-maturity-audit`) that admits or blocks the action.
 8. **Phase-project map** — when a `--phase-project-map` is provided, any task with a `phase_label` that exists in the map must have a matching `target_project` in `work_item_metadata`.
 9. **Honesty contract checks** — executable tasks must carry `honesty_contract`. Required contracts must include `does_not_do`, `limitations`, `unsafe_claims`, `output_surfaces`, and `required_output_fields`; artifact surfaces require `no_overclaim` plus `limitations`, and docs surfaces require `doc_honesty_section`.
-10. **Performance envelope checks** — executable tasks must carry `performance_envelope`. Data-path tasks require expected input scale, hot-path complexity bounds, and an explicit `benchmark_required` decision; benchmark-required tasks require `benchmark_spec.command` and must preserve benchmark evidence when present. No-data-path skips are valid only when the reason explicitly says there is no data path.
-11. **Task sizing checks** — executable tasks must carry `task_sizing`. A ready task covers one module, one coherent `module_plan` file-set, or explicit atomic cross-module work. Split-required tasks must return the proposed split and must not mutate providers. Size, line count, and SLOC alone are not valid criteria.
+10. **Performance envelope checks** — executable tasks must carry `performance_envelope`. Data-path tasks require expected input scale, hot-path complexity bounds, and an explicit `benchmark_required` decision; benchmark-required tasks require `benchmark_spec.command` and must preserve benchmark evidence when present. For non-data-path work, `applicability=not_applicable` is authoritative and the reason is explanatory rather than a parsed gate marker.
+11. **Task sizing checks** — executable tasks must carry `task_sizing`. A ready task covers one module, one coherent structured file-set, or explicit atomic cross-module work. Code-module creation and sizing that explicitly cites `module_plan` require a real module plan; coherent non-code file sets do not. Split-required tasks must return the proposed split and must not mutate providers. Size, line count, and SLOC alone are not valid criteria.
 
 ### CLI Flags
 
