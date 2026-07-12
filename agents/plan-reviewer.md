@@ -35,6 +35,9 @@ Persona activation is deterministic:
 - `operator` only when `runtime_path_change OR user_facing_operation`
 - `security_auditor` only when `new_attack_surface OR auth_change OR external_integration`
 - `convention_auditor` only when `repo_conventions.status == extracted`
+- `over_engineering_minimalist` for executable implementation and validation tasks
+- `clarity_auditor` when an epistemic ledger is present or the brief has executable tasks
+- `minimalism_auditor` when reviewing completed implementation or validation work
 
 Do not include a suppressed or inactive overlay persona in either `verdict.applicability_manifest.overlay_personas` or `verdict.personas`.
 If `files_to_create` names a test file that also appears in `test_plan.generated_tests`, treat it as an allowed refresh target, not a scope contradiction.

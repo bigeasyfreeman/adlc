@@ -59,7 +59,7 @@ assert_case() {
 
 assert_sourceable() {
   local runtime="$1"
-  local adapter="$ROOT/tests/smoke/adapters/${runtime}.sh"
+  local adapter="$ROOT/scripts/adlc_runtime/adapters/${runtime}.sh"
 
   assert_case \
     "${runtime} adapter sources cleanly" \
@@ -70,7 +70,7 @@ assert_sourceable() {
 
 assert_auth_missing() {
   local runtime="$1"
-  local adapter="$ROOT/tests/smoke/adapters/${runtime}.sh"
+  local adapter="$ROOT/scripts/adlc_runtime/adapters/${runtime}.sh"
   local pattern="$2"
 
   assert_case \
@@ -86,7 +86,7 @@ assert_auth_missing() {
 
 assert_missing_output() {
   local runtime="$1"
-  local adapter="$ROOT/tests/smoke/adapters/${runtime}.sh"
+  local adapter="$ROOT/scripts/adlc_runtime/adapters/${runtime}.sh"
 
   assert_case \
     "${runtime} invoke_agent without output exits 64" \
@@ -100,7 +100,7 @@ assert_missing_output() {
 
 assert_cli_missing() {
   local runtime="$1"
-  local adapter="$ROOT/tests/smoke/adapters/${runtime}.sh"
+  local adapter="$ROOT/scripts/adlc_runtime/adapters/${runtime}.sh"
   local env_name="$2"
   local env_value="$3"
   local pattern="$4"
@@ -129,7 +129,7 @@ assert_case \
   "antigravity invoke_agent without native CLI exits 77" \
   77 \
   'antigravity CLI not installed; ADLC does not use provider API keys for this runtime' \
-  env -i PATH="/usr/bin:/bin" /bin/bash "$ROOT/tests/smoke/adapters/antigravity.sh" invoke_agent \
+  env -i PATH="/usr/bin:/bin" /bin/bash "$ROOT/scripts/adlc_runtime/adapters/antigravity.sh" invoke_agent \
     --agent "$dummy_agent" \
     --input "$dummy_input" \
     --output "$dummy_output" \

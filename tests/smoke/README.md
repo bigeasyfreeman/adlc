@@ -33,7 +33,7 @@ ADLC_RUNTIME=cursor       CURSOR_API_KEY=... SMOKE=1 MODEL=cursor-default bash t
 ADLC_RUNTIME=factory      FACTORY_API_KEY=... SMOKE=1 MODEL=factory-default bash tests/smoke/run_smoke.sh
 ```
 
-The harness recreates `tests/smoke/artifacts/workspace/` at the start of every stage. Each stage invokes the checked-in agent markdown through `tests/smoke/stages/_invoke.sh`, which dispatches to a runtime adapter under `tests/smoke/adapters/`. Adapters isolate config state, enforce explicit tool grants, and enable CLI-side schema enforcement only when the selected runtime supports it. Triage and council receive a read-only workspace copy.
+The harness recreates `tests/smoke/artifacts/workspace/` at the start of every stage. Each stage invokes the checked-in agent markdown through `tests/smoke/stages/_invoke.sh`, which dispatches to a production runtime adapter under `scripts/adlc_runtime/adapters/`. Adapters isolate config state, enforce explicit tool grants, and enable CLI-side schema enforcement only when the selected runtime supports it. Triage and council receive a read-only workspace copy.
 
 ## Runtime Notes
 

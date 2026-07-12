@@ -2,7 +2,7 @@
 
 Every smoke stage sources `tests/smoke/stages/_invoke.sh` and `tests/smoke/stages/_validate.sh`.
 
-`_invoke.sh` is a runtime dispatcher. It reads `ADLC_RUNTIME` (default `claude`), sources the matching adapter under `tests/smoke/adapters/`, and forwards `preflight` / `invoke_agent` without inlining runtime-specific flags.
+`_invoke.sh` is a runtime dispatcher. It reads `ADLC_RUNTIME` (default `claude`), sources the matching production adapter under `scripts/adlc_runtime/adapters/`, and forwards `preflight` / `invoke_agent` without inlining runtime-specific flags.
 
 Each adapter is responsible for:
 

@@ -44,7 +44,7 @@ ADLC treats deterministic code as the measurement layer and LLMs as the judgemen
 Judge skills do not hardcode a runtime name or concrete model. They request a `model_class` slot and let the runtime binding resolve it:
 
 1. `skills/manifest.json` declares `runtime_model_map.<runtime>.fast_judge` and `runtime_model_map.<runtime>.deep_judge` for every modeled agent.
-2. Smoke runs dispatch through `tests/smoke/stages/_invoke.sh`, which sources `tests/smoke/adapters/<runtime>.sh`.
+2. Smoke runs dispatch through `tests/smoke/stages/_invoke.sh`, which sources the shared production adapter at `scripts/adlc_runtime/adapters/<runtime>.sh`.
 3. Production runners mirror the same adapter contract through `WORKFLOW.md` backend commands and the binding rules in `docs/specs/dag-binding.md`.
 
 The adapter layer is therefore the only place that knows how a runtime actually turns a model slot into a live invocation.

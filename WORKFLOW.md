@@ -6,25 +6,25 @@ workflow: WORKFLOW.dot
 
 backends:
   claude:
-    command: "tests/smoke/adapters/claude.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
+    command: "scripts/adlc_runtime/adapters/claude.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
     env:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
       ADLC_SMOKE_SETTINGS: "${ADLC_SMOKE_SETTINGS}"
   codex:
-    command: "tests/smoke/adapters/codex.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
+    command: "scripts/adlc_runtime/adapters/codex.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
     env:
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
       ADLC_SMOKE_SETTINGS_CODEX: "${ADLC_SMOKE_SETTINGS_CODEX}"
   cursor:
-    command: "tests/smoke/adapters/cursor.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
+    command: "scripts/adlc_runtime/adapters/cursor.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
     env:
       CURSOR_API_KEY: "${CURSOR_API_KEY}"
   antigravity:
-    command: "tests/smoke/adapters/antigravity.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
+    command: "scripts/adlc_runtime/adapters/antigravity.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
     env:
       ADLC_RUNTIME_SESSION: "${ADLC_RUNTIME_SESSION}"
   factory:
-    command: "tests/smoke/adapters/factory.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
+    command: "scripts/adlc_runtime/adapters/factory.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
     env:
       FACTORY_API_KEY: "${FACTORY_API_KEY}"
     # Factory-specific notes:

@@ -922,6 +922,20 @@
       "dag_nodes": []
     },
     {
+      "name": "goal-prompt-generation",
+      "path": "skills/goal-prompt-generation/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["context_assembly"]
+    },
+    {
+      "name": "drift-maintenance",
+      "path": "skills/drift-maintenance/SKILL.md",
+      "contract_version": "1.0.0",
+      "side_effect_profile": "read_only",
+      "dag_nodes": ["pr_prep"]
+    },
+    {
       "name": "specificity-judge",
       "path": "skills/specificity-judge/SKILL.md",
       "contract_version": "1.0.0",

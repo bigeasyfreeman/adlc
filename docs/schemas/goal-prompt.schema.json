@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/goal-prompt.schema.json",
+  "title": "ADLC Goal Prompt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "status", "brief_id", "task_id", "objective", "definition_of_done", "may_touch", "must_not_touch", "verification_gates", "stop_conditions", "zero_context", "trust_boundary"],
+  "properties": {
+    "contract_version": {"const": "1.0.0"},
+    "status": {"const": "not_yet_ga"},
+    "brief_id": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "objective": {"type": "string", "minLength": 20},
+    "definition_of_done": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "may_touch": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "must_not_touch": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "verification_gates": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["command", "expected_result"],
+        "properties": {"command": {"type": "string", "minLength": 1}, "expected_result": {"type": "string", "minLength": 1}}
+      }
+    },
+    "stop_conditions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "zero_context": {
+      "type": "object", "additionalProperties": false,
+      "required": ["workspace", "build_brief", "source_refs"],
+      "properties": {
+        "workspace": {"type": "string", "minLength": 1},
+        "build_brief": {"type": "string", "minLength": 1},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "trust_boundary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["trusted_input", "executes_content", "security_review"],
+      "properties": {
+        "trusted_input": {"const": "schema_validated_build_brief"},
+        "executes_content": {"const": false},
+        "security_review": {"const": "blocking_pre_ga"}
+      }
+    }
+  }
+}

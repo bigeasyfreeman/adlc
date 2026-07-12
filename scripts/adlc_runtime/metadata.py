@@ -24,6 +24,7 @@ SCHEMA_ALIASES = {
     "divergence-artifact": "docs/schemas/divergence-artifact.schema.json",
     "eval-council-verdict": "docs/schemas/eval-council-verdict.schema.json",
     "execution-adapter-report": "docs/schemas/execution-adapter-report.schema.json",
+    "goal-prompt": "docs/schemas/goal-prompt.schema.json",
     "epistemic-ledger": "docs/schemas/epistemic-ledger.schema.json",
     "judgment-criteria-store": "docs/schemas/judgment-criteria-store.schema.json",
     "learning-entry": "docs/schemas/learning-entry.schema.json",
@@ -106,6 +107,10 @@ COMMAND_METADATA = {
     "health-check": {
         "mcp_name": "adlc_health_check",
         "description": "Check deterministic ADLC runtime dependencies, schema aliases, and CLI wrapper availability.",
+    },
+    "goal-prompt": {
+        "mcp_name": "adlc_goal_prompt",
+        "description": "Generate a bounded not-yet-GA goal prompt from one schema-valid Build Brief task.",
     },
     "repo-conventions": {
         "mcp_name": "adlc_repo_conventions",

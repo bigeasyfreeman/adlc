@@ -1,0 +1,14 @@
+{
+  "contract_version": "1.0.0",
+  "status": "not_yet_ga",
+  "brief_id": "BRF-EXAMPLE",
+  "task_id": "TASK-1",
+  "objective": "Implement the bounded example change without expanding its declared scope.",
+  "definition_of_done": ["The declared verifier passes."],
+  "may_touch": ["src/example.py"],
+  "must_not_touch": ["Files outside the declared task scope."],
+  "verification_gates": [{"command": "pytest tests/test_example.py", "expected_result": "exit 0"}],
+  "stop_conditions": ["Stop if required files are missing or scope must expand."],
+  "zero_context": {"workspace": ".", "build_brief": ".adlc/build-brief.json", "source_refs": ["BRF-EXAMPLE", "TASK-1"]},
+  "trust_boundary": {"trusted_input": "schema_validated_build_brief", "executes_content": false, "security_review": "blocking_pre_ga"}
+}

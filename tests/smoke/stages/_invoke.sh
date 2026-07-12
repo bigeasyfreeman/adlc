@@ -29,7 +29,7 @@ _adlc_smoke_source_adapter() {
     return 0
   fi
 
-  adapter_path="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/adapters/${runtime}.sh"
+  adapter_path="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/scripts/adlc_runtime/adapters/${runtime}.sh"
   if [ ! -r "$adapter_path" ]; then
     echo "smoke adapter missing: $adapter_path" >&2
     return 66
