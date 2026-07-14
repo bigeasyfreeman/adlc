@@ -8,6 +8,28 @@
   "baseline_head": "fcf6b3eac2c02bb06baa607fb676ee78563ad1ae",
   "reviewed_baseline_checkpoint": "6ee9e1f",
   "remote_default_branch_head": "fcf6b3eac2c02bb06baa607fb676ee78563ad1ae",
+  "landing": {
+    "pull_request": "https://github.com/bigeasyfreeman/adlc/pull/53",
+    "head_commit": "7623e2ae11d315d7896d86472f97277f6855a7a5",
+    "merge_commit": "07a5e955d82d965c8f0a05f01e604748edf8a7c0",
+    "merged_at": "2026-07-14T17:54:42Z",
+    "default_branch": "main",
+    "public_readme": "https://github.com/bigeasyfreeman/adlc/blob/07a5e955d82d965c8f0a05f01e604748edf8a7c0/README.md",
+    "hosted_checks": [
+      {
+        "name": "ci (3.9)",
+        "conclusion": "SUCCESS",
+        "details": "https://github.com/bigeasyfreeman/adlc/actions/runs/29355369626/job/87161536730"
+      },
+      {
+        "name": "ci (3.13)",
+        "conclusion": "SUCCESS",
+        "details": "https://github.com/bigeasyfreeman/adlc/actions/runs/29355369626/job/87161536735"
+      }
+    ],
+    "remote_feature_branch_retained": true,
+    "remote_branch_deletion_requires_separate_approval": true
+  },
   "pre_evidence_dirty_state": {
     "digest_algorithm": "sha256",
     "digest": "fc639e84868a3f089f302175732fea54c5cbee87e604e78aa540cf6c2a6c5267",
