@@ -106,6 +106,16 @@ def _kind(relative_path):
     return "instruction"
 
 
+def _is_applicable(relative_path, target_scope):
+    if relative_path.as_posix() in ADLC_PATHS:
+        return True
+    try:
+        target_scope.relative_to(relative_path.parent)
+        return True
+    except ValueError:
+        return False
+
+
 def _discover(workspace):
     candidates = [
         workspace / relative
@@ -146,6 +156,82 @@ def _bounded_utf8(raw, limit):
     return "", 0
 
 
+def render_context_manifest(manifest):
+    """Render the canonical emitted form used for the manifest byte contract."""
+    return json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+
+def _set_manifest_bytes(manifest):
+    for _ in range(8):
+        measured = len(render_context_manifest(manifest).encode("utf-8"))
+        if manifest["totals"]["manifest_bytes"] == measured:
+            return measured
+        manifest["totals"]["manifest_bytes"] = measured
+    return len(render_context_manifest(manifest).encode("utf-8"))
+
+
+def _refresh_manifest_derived(manifest):
+    manifest["totals"]["source_count"] = len(manifest["sources"])
+    manifest["totals"]["excerpt_bytes"] = sum(
+        item["excerpt_bytes"] for item in manifest["sources"]
+    )
+    by_name = {}
+    for record in manifest["sources"]:
+        if record["kind"] == "instruction":
+            by_name.setdefault(Path(record["path"]).name, []).append(record["path"])
+    manifest["conflicts"] = [
+        {
+            "subject": name,
+            "paths": paths,
+            "resolution": "Use the lowest precedence number; retain all sources as evidence.",
+        }
+        for name, paths in sorted(by_name.items())
+        if len(paths) > 1
+    ]
+    available_paths = {record["path"] for record in manifest["sources"]}
+    manifest["missing_decisions"] = [
+        "Missing {}; record this decision before relying on it.".format(path)
+        for path in ADLC_PATHS
+        if path not in available_paths
+    ]
+
+
+def _fit_emitted_manifest(manifest, max_bytes):
+    warned = any("byte limit" in warning for warning in manifest["warnings"])
+    while _set_manifest_bytes(manifest) > max_bytes:
+        record = next(
+            (item for item in reversed(manifest["sources"]) if item["excerpt_bytes"]),
+            None,
+        )
+        if record is None:
+            if manifest["sources"]:
+                manifest["sources"].pop()
+                _refresh_manifest_derived(manifest)
+                if not warned:
+                    manifest["warnings"].append(
+                        "Context byte limit omitted one or more discovered candidates."
+                    )
+                    warned = True
+                continue
+            raise ValueError("max_bytes is too small for manifest metadata")
+        excess = manifest["totals"]["manifest_bytes"] - max_bytes
+        raw = record["excerpt"].encode("utf-8")
+        excerpt, excerpt_bytes = _bounded_utf8(
+            raw, max(0, len(raw) - max(excess, 1))
+        )
+        record["excerpt"] = excerpt
+        record["excerpt_bytes"] = excerpt_bytes
+        record["truncated"] = excerpt_bytes < record["original_bytes"]
+        record["omitted_bytes"] = record["original_bytes"] - excerpt_bytes
+        _refresh_manifest_derived(manifest)
+        if not warned:
+            manifest["warnings"].append(
+                "Context byte limit truncated one or more bounded excerpts."
+            )
+            warned = True
+    _set_manifest_bytes(manifest)
+
+
 def build_context_manifest(
     workspace,
     command,
@@ -167,8 +253,13 @@ def build_context_manifest(
 
     target_scope = _target_scope(workspace, target)
     discovered, hard_limited = _discover(workspace)
+    applicable = [
+        path
+        for path in discovered
+        if _is_applicable(path.relative_to(workspace), target_scope)
+    ]
     ordered = sorted(
-        discovered,
+        applicable,
         key=lambda path: (
             _precedence(path.relative_to(workspace), target_scope),
             _relative(workspace, path),
@@ -242,7 +333,7 @@ def build_context_manifest(
     reference_path = Path(__file__).resolve().parents[1] / "reference" / (
         "command-{}.md".format(command)
     )
-    return {
+    manifest = {
         "contract_version": CONTRACT_VERSION,
         "workspace": ".",
         "target": target_scope.as_posix() if target_scope.parts else ".",
@@ -256,14 +347,17 @@ def build_context_manifest(
         },
         "sources": sources,
         "totals": {
-            "discovered_count": len(discovered),
+            "discovered_count": len(applicable),
             "source_count": len(sources),
             "excerpt_bytes": sum(record["excerpt_bytes"] for record in sources),
+            "manifest_bytes": 0,
         },
         "warnings": warnings,
         "conflicts": conflicts,
         "missing_decisions": missing_decisions,
     }
+    _fit_emitted_manifest(manifest, max_bytes)
+    return manifest
 
 
 def initialize_adlc_context(workspace):
@@ -311,7 +405,7 @@ def main(argv=None):
         max_bytes=args.max_bytes,
         per_file_bytes=args.per_file_bytes,
     )
-    rendered = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    rendered = render_context_manifest(manifest)
     if args.output:
         output = Path(args.output)
         if output.exists():

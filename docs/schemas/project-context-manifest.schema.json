@@ -62,11 +62,12 @@
     "totals": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["discovered_count", "source_count", "excerpt_bytes"],
+      "required": ["discovered_count", "source_count", "excerpt_bytes", "manifest_bytes"],
       "properties": {
         "discovered_count": { "type": "integer", "minimum": 0 },
         "source_count": { "type": "integer", "minimum": 0 },
-        "excerpt_bytes": { "type": "integer", "minimum": 0, "maximum": 100000 }
+        "excerpt_bytes": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "manifest_bytes": { "type": "integer", "minimum": 1, "maximum": 100000 }
       }
     },
     "warnings": { "type": "array", "items": { "type": "string", "minLength": 1 } },

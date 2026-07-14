@@ -43,7 +43,7 @@ def test_manifest_is_schema_valid_deterministic_and_bounded(project):
         "command": "fix",
         "target": project / "src" / "service",
         "max_files": 20,
-        "max_bytes": 1_500,
+        "max_bytes": 10_000,
         "per_file_bytes": 400,
     }
     first = context.build_context_manifest(**kwargs)
@@ -55,7 +55,7 @@ def test_manifest_is_schema_valid_deterministic_and_bounded(project):
     assert first["command"] == "fix"
     assert first["selected_reference"] == "skill/reference/command-fix.md"
     assert first["reference_status"] == "pending"
-    assert first["totals"]["excerpt_bytes"] <= 1_500
+    assert first["totals"]["manifest_bytes"] <= 10_000
     assert first["totals"]["source_count"] <= 20
 
     records = {record["path"]: record for record in first["sources"]}
@@ -72,13 +72,27 @@ def test_excerpts_are_utf8_safe_and_report_truncation(tmp_path):
     context = load_context_module()
     (tmp_path / "README.md").write_text("é" * 1_000)
     manifest = context.build_context_manifest(
-        tmp_path, "shape", max_bytes=128, per_file_bytes=80
+        tmp_path, "shape", max_bytes=3_000, per_file_bytes=80
     )
     record = manifest["sources"][0]
     record["excerpt"].encode("utf-8")
     assert record["truncated"] is True
     assert record["excerpt_bytes"] <= 80
     assert manifest["warnings"]
+    rendered = context.render_context_manifest(manifest).encode("utf-8")
+    assert len(rendered) == manifest["totals"]["manifest_bytes"]
+    assert len(rendered) <= 3_000
+
+
+def test_emitted_manifest_not_only_excerpts_respects_byte_cap(tmp_path):
+    context = load_context_module()
+    (tmp_path / "README.md").write_text("é\n\"" * 50_000)
+    manifest = context.build_context_manifest(
+        tmp_path, "shape", max_bytes=12_000, per_file_bytes=100_000
+    )
+    emitted = context.render_context_manifest(manifest).encode("utf-8")
+    assert len(emitted) <= 12_000
+    assert len(emitted) == manifest["totals"]["manifest_bytes"]
 
 
 def test_secret_like_files_are_never_discovered(tmp_path):
@@ -140,14 +154,30 @@ def test_symlinked_context_is_not_read(tmp_path):
     assert "secret" not in json.dumps(manifest)
 
 
+def test_unrelated_sibling_instructions_do_not_consume_target_context(tmp_path):
+    context = load_context_module()
+    (tmp_path / "AGENTS.md").write_text("root")
+    target = tmp_path / "src" / "service"
+    target.mkdir(parents=True)
+    (tmp_path / "src" / "AGENTS.md").write_text("applicable")
+    sibling = tmp_path / "other"
+    sibling.mkdir()
+    (sibling / "AGENTS.md").write_text("unrelated")
+    manifest = context.build_context_manifest(tmp_path, "fix", target=target)
+    paths = {record["path"] for record in manifest["sources"]}
+    assert paths == {"AGENTS.md", "src/AGENTS.md"}
+    assert manifest["conflicts"][0]["paths"] == ["src/AGENTS.md", "AGENTS.md"]
+
+
 def test_performance_is_bounded_at_two_hundred_candidates(tmp_path):
     context = load_context_module()
+    target = tmp_path
     for index in range(200):
-        directory = tmp_path / f"package-{index:03d}"
-        directory.mkdir()
-        (directory / "AGENTS.md").write_text(f"instruction {index}")
+        target = target / "d"
+        target.mkdir()
+        (target / "AGENTS.md").write_text(f"instruction {index}")
     manifest = context.build_context_manifest(
-        tmp_path, "status", max_files=20, max_bytes=10_000
+        tmp_path, "status", target=target, max_files=20, max_bytes=100_000
     )
     assert manifest["totals"]["source_count"] == 20
     assert any("file limit" in warning for warning in manifest["warnings"])
