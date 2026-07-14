@@ -1531,7 +1531,8 @@
         "owner": "adlc-skill-owner",
         "files_to_modify": [
           "skill/SKILL.src.md",
-          "docs/migration/legacy-surface-ledger.json"
+          "docs/migration/legacy-surface-ledger.json",
+          "tests/test_skill_context.py"
         ],
         "files_to_create": [
           "skill/reference/command-init.md",
