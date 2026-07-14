@@ -6,6 +6,7 @@
   "repository": "https://github.com/bigeasyfreeman/adlc.git",
   "branch": "main",
   "baseline_head": "fcf6b3eac2c02bb06baa607fb676ee78563ad1ae",
+  "reviewed_baseline_checkpoint": "6ee9e1f",
   "remote_default_branch_head": "fcf6b3eac2c02bb06baa607fb676ee78563ad1ae",
   "pre_evidence_dirty_state": {
     "digest_algorithm": "sha256",
@@ -129,6 +130,12 @@
       "summary": "10 of 10 canonical suites passed"
     },
     {
+      "command": "git worktree add --detach <temporary-path> 6ee9e1f && bin/adlc ci --json",
+      "exit_status": 0,
+      "result": "pass",
+      "summary": "10 of 10 canonical suites passed from the exact detached baseline checkpoint and post-validation git status was empty"
+    },
+    {
       "command": "PYTHONPATH=scripts python3 -m pytest tests/test_atomic_write.py tests/test_provider_conformance_schema.py -q",
       "exit_status": 0,
       "result": "pass",
@@ -160,6 +167,15 @@
     "required_findings": [],
     "disposition": "baseline_is_locally_green_and_ready_for_reviewable_landing"
   },
+  "deviations": [
+    {
+      "owner": "validation_wrapper",
+      "expected": "capture the clean-checkout CI exit code and remove the temporary worktree",
+      "actual": "CI returned status pass, then zsh rejected assignment to its reserved read-only variable named status",
+      "impact": "none on repository validation; cleanup was performed in the next command and the temporary checkout had an empty git status",
+      "repair": "use a non-reserved variable name such as result_code in future wrappers"
+    }
+  ],
   "doc_honesty_section": "This artifact proves only local baseline attribution and deterministic validation at the recorded dirty state.",
   "no_overclaim": [
     "The baseline is not landed on the remote default branch.",
