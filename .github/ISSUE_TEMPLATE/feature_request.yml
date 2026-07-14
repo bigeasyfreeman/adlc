@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose a bounded ADLC capability or contract change.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the operator or control-plane problem, not only the proposed mechanism.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: State the observable result and who benefits.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and examples
+      description: Link public examples or provide sanitized reproductions.
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Safety and compatibility boundaries
+      description: Identify mutation, approval, provider, schema, or backward-compatibility constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Proposed verification
+      description: Explain what would prove the capability works without overclaiming.
+    validations:
+      required: true

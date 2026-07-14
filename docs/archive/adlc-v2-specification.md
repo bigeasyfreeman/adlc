@@ -1,8 +1,8 @@
-# ADLC v2 Specification
+# ADLC v2 Specification (Superseded)
 
 **Version:** 2.0
 **Date:** 2026-04-05
-**Status:** Draft
+**Status:** Superseded; retained for historical reference
 **Scope:** Universal — governs SWElfare, Ratatosk, Magnus, and all future Torbin Network agents
 
 > Alignment note: this draft predates the applicability-manifest refactor. Any

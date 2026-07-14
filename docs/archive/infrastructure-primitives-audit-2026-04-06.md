@@ -1,4 +1,7 @@
-# Infrastructure Primitives Audit — ADLC System
+# Archived Infrastructure Primitives Audit — ADLC System
+
+> Historical snapshot from 2026-04-06. It predates the current workflow state,
+> permission engine, audit trail, health checks, and runtime validation.
 
 > Gap analysis of the ADLC system against the 12 infrastructure primitives that constitute the plumbing beneath the LLM call in production agentic AI systems.
 

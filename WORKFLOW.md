@@ -1,78 +1,9 @@
----
-# ADLC Workflow Configuration
-# This file defines agents, backends, routing, and retry caps for the bounded directed workflow.
+# ADLC Workflow Reference
 
-workflow: WORKFLOW.dot
-
-backends:
-  claude:
-    command: "scripts/adlc_runtime/adapters/claude.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
-    env:
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
-      ADLC_SMOKE_SETTINGS: "${ADLC_SMOKE_SETTINGS}"
-  codex:
-    command: "scripts/adlc_runtime/adapters/codex.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
-    env:
-      OPENAI_API_KEY: "${OPENAI_API_KEY}"
-      ADLC_SMOKE_SETTINGS_CODEX: "${ADLC_SMOKE_SETTINGS_CODEX}"
-  cursor:
-    command: "scripts/adlc_runtime/adapters/cursor.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
-    env:
-      CURSOR_API_KEY: "${CURSOR_API_KEY}"
-  antigravity:
-    command: "scripts/adlc_runtime/adapters/antigravity.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
-    env:
-      ADLC_RUNTIME_SESSION: "${ADLC_RUNTIME_SESSION}"
-  factory:
-    command: "scripts/adlc_runtime/adapters/factory.sh invoke_agent --agent {{ agent_path | shellquote }} --input {{ input_path | shellquote }} --output {{ output_path | shellquote }} --tools {{ tools_csv | shellquote }} {{ schema_arg }}"
-    env:
-      FACTORY_API_KEY: "${FACTORY_API_KEY}"
-    # Factory-specific notes:
-    #   Fan-out: Factory's Task tool enables parallel subagent dispatch.
-    #     Independent coding tasks dispatch via Task("adlc-coder", "<context>")
-    #     and converge at code review. Maps directly to ADLC's fan-out model.
-    #   Model mapping:
-    #     - Fast agents (triage, coder, fixer, pr-preparer): model: inherit
-    #       Inherits the session model (typically Sonnet-tier).
-    #     - Deep agents (researcher, planner, plan-reviewer, security-reviewer,
-    #       code-reviewer): model: claude-opus-4-6 for deep reasoning.
-    #   Skills: Installed to .factory/docs/skills/ and auto-injected into droid context.
-    #   Droids: YAML configs in .factory/droids/ define agent capabilities and tool access.
-    #   MCP: External integrations (Jira, Slack, Grafana) use MCP servers configured
-    #     at the workspace level, not per-droid.
-
-default_backend: claude
-
-concurrency:
-  max_concurrent_agents: 8
-  max_fan_out: 6
-
-iteration_limits:
-  plan_review: 3          # Eval Council max loops
-  intent_validation: 3    # Human narrative gate max revisions before escalate
-  code_review: 3          # Code review max loops
-  fixer: 2                # Fix attempts before escalate
-  test_strength_retry: 2  # Weak-test strengthening attempts before escalate
-  qa_retry: 2             # CI retry before escalate
-
-labels:
-  - lgtm                  # Approved, proceed to next node
-  - revise                # Send back for revision
-  - escalate              # Human intervention needed
-  - low_confidence        # Triage confidence requires extra research before planning
-  - blocked               # Cannot proceed, critical issue
-  - pass                  # Deterministic gate passed
-  - fail                  # Deterministic gate failed
-  - weak                  # Test-strength audit failed thresholds
-  - proceed               # Triage approved or deterministic preflight complete
-  - unclear               # Triage cannot classify
-  - fixed                 # Fixer resolved the issue
-  - stuck                 # Fixer cannot resolve
-  - approve               # Engineer approved
-  - skipped               # Conditional deterministic node had no work
----
-
-# ADLC Pipeline Configuration
+`WORKFLOW.dot` and `skills/manifest.json` are the machine-readable sources of
+truth. Runtime adapters are selected by `ADLC_RUNTIME`; retry caps live as
+`max_retries` edge metadata in the DOT graph and are enforced in persisted
+workflow state. This file is explanatory and is not parsed as configuration.
 
 ## Agents
 

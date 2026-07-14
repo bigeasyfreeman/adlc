@@ -1,4 +1,7 @@
-# Tech Debt Audit - ADLC Loop-Budget Productionization
+# Archived Tech Debt Audit - ADLC Loop-Budget Productionization
+
+> Historical snapshot from 2026-06-09. File and line references may no longer
+> match the current runtime; this document is retained for provenance only.
 
 Generated: 2026-06-09
 Mode: repeat-run update of the living ADLC tech-debt audit.

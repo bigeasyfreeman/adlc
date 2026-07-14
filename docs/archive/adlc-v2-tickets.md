@@ -1,7 +1,7 @@
-# ADLC v2 Implementation Tickets
+# ADLC v2 Implementation Tickets (Superseded)
 
 **Date:** 2026-04-05
-**Source:** adlc-v2-specification.md
+**Source:** `adlc-v2-specification.md` in this archive
 **Decomposition principle:** Every ticket is binary (done/not-done). One ticket = one verifiable outcome. No ticket requires judgment to determine completion — it either passes its acceptance criteria or it doesn't.
 
 > Alignment note: this roadmap predates the applicability-manifest refactor. Tickets that describe universal observability, security, or TDD ceremony should now be interpreted through the live contract in `agents/triage.md`, `agents/planner.md`, and `docs/schemas/*.json`.

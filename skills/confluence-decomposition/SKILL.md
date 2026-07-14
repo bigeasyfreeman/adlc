@@ -10,7 +10,7 @@ Activated immediately on Build Brief completion. Consumes the full Build Brief m
 
 ## Emitter Contract Alignment
 
-This skill is a document emitter and must conform to [docs/specs/emitter-contract.md](/Users/eric/adlc/docs/specs/emitter-contract.md). Honor the Build Brief's `applicability_manifest`; suppressed sections stay omitted or explicitly marked not applicable. Every mutation requires `contract_version`, idempotency handling, and permission logging.
+This skill is a document emitter and must conform to the [emitter contract](../../docs/specs/emitter-contract.md). Honor the Build Brief's `applicability_manifest`; suppressed sections stay omitted or explicitly marked not applicable. Every mutation requires `contract_version`, idempotency handling, and permission logging.
 
 ## Local MCP Model
 

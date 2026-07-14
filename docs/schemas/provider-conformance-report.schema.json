@@ -1,0 +1,121 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://adlc.dev/schemas/provider-conformance-report.schema.json",
+  "title": "ADLC Provider Conformance Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "evidence_status",
+    "runtime",
+    "model",
+    "source_commit",
+    "source_tree_clean",
+    "adapter",
+    "fixture_sha256",
+    "auth_path",
+    "started_at",
+    "finished_at",
+    "stages",
+    "overall",
+    "cost_estimate_tokens"
+  ],
+  "properties": {
+    "contract_version": {"const": "1.0.0"},
+    "evidence_status": {
+      "enum": [
+        "current_conformance",
+        "candidate_conformance",
+        "failed_conformance"
+      ]
+    },
+    "runtime": {
+      "enum": ["claude", "codex", "cursor", "antigravity", "factory"]
+    },
+    "model": {"type": "string", "minLength": 1},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_tree_clean": {"type": "boolean"},
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^scripts/adlc_runtime/adapters/[a-z0-9_-]+\\.sh$"
+        },
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "fixture_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "auth_path": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "ok", "artifact", "duration_ms"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "ok": {"type": "boolean"},
+          "artifact": {"type": "string", "minLength": 1},
+          "duration_ms": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "overall": {"enum": ["pass", "fail"]},
+    "cost_estimate_tokens": {"type": "integer", "minimum": 0}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"overall": {"const": "pass"}}},
+      "then": {
+        "properties": {
+          "evidence_status": {
+            "enum": ["current_conformance", "candidate_conformance"]
+          },
+          "stages": {
+            "items": {"properties": {"ok": {"const": true}}}
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "overall": {"const": "pass"},
+          "source_tree_clean": {"const": true}
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence_status": {"const": "current_conformance"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "overall": {"const": "pass"},
+          "source_tree_clean": {"const": false}
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence_status": {"const": "candidate_conformance"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"overall": {"const": "fail"}}},
+      "then": {
+        "properties": {
+          "evidence_status": {"const": "failed_conformance"}
+        }
+      }
+    }
+  ]
+}

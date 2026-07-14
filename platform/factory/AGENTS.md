@@ -7,7 +7,7 @@ This project uses the ADLC framework for AI-assisted development, adapted for th
 The ADLC pipeline converts PRDs into production code through a DAG of specialized agents:
 
 ```
-Triage → Research → Plan ↔ Review → Code (parallel) → QA → Security → PR → Engineer Review
+Triage → Compound Preflight → Research → Plan ↔ Review → Intent Approval → Scaffold → Tests → Context → Code ↔ Review/Fix → Conditional Security → QA → Conditional Quality Gates → PR → Learning Capture → Engineer Review
 ```
 
 ## Factory Concept Mapping

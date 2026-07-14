@@ -1,4 +1,7 @@
-# Backwards & Forwards Compatibility Analysis — ADLC System
+# Archived Backwards & Forwards Compatibility Analysis — ADLC System
+
+> Historical snapshot from 2026-04-06. Many gaps described here were closed by
+> later schema, runtime, and permission work; use current specs for live behavior.
 
 > Analysis of contract surfaces, versioning gaps, and migration risks across the ADLC pipeline's inter-component boundaries.
 

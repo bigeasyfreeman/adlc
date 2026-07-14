@@ -64,7 +64,7 @@ Default thresholds:
 
 Every failure should produce a candidate eval case before it becomes a new style rule. Candidate sources include human edits, council rejections, runtime failures, production samples, incidents, support tickets, and analytics drops tied to generated-output quality.
 
-See [docs/specs/slop-eval-loop.md](/Users/eric/adlc/docs/specs/slop-eval-loop.md).
+See the [slop evaluation loop](../../docs/specs/slop-eval-loop.md).
 
 ## Mode 1: Code Slop
 
