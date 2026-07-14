@@ -169,6 +169,26 @@ def test_unrelated_sibling_instructions_do_not_consume_target_context(tmp_path):
     assert manifest["conflicts"][0]["paths"] == ["src/AGENTS.md", "AGENTS.md"]
 
 
+def test_byte_pressure_preserves_discovered_conflicts_and_missing_truth(tmp_path):
+    context = load_context_module()
+    target = tmp_path / "src" / "service"
+    target.mkdir(parents=True)
+    (tmp_path / "AGENTS.md").write_text("root\n" + "r" * 1_500)
+    (tmp_path / "src" / "AGENTS.md").write_text("nested\n" + "n" * 1_500)
+    (tmp_path / ".adlc").mkdir()
+    for relative in ("PROJECT.md", "ENGINEERING.md"):
+        (tmp_path / ".adlc" / relative).write_text(relative + "\n" + "x" * 2_000)
+    (tmp_path / ".adlc" / "config.json").write_text('{"value": "' + "x" * 2_000 + '"}')
+
+    manifest = context.build_context_manifest(
+        tmp_path, "fix", target=target, max_bytes=2_200, per_file_bytes=2_200
+    )
+
+    assert manifest["missing_decisions"] == []
+    assert manifest["conflicts"][0]["paths"] == ["src/AGENTS.md", "AGENTS.md"]
+    assert manifest["totals"]["manifest_bytes"] <= 2_200
+
+
 def test_performance_is_bounded_at_two_hundred_candidates(tmp_path):
     context = load_context_module()
     target = tmp_path
@@ -181,3 +201,14 @@ def test_performance_is_bounded_at_two_hundred_candidates(tmp_path):
     )
     assert manifest["totals"]["source_count"] == 20
     assert any("file limit" in warning for warning in manifest["warnings"])
+
+
+def test_performance_hard_discovery_limit_reports_truncation(tmp_path):
+    context = load_context_module()
+    for index in range(2_001):
+        directory = tmp_path / f"p{index:04d}"
+        directory.mkdir()
+        (directory / "AGENTS.md").write_text(str(index))
+    manifest = context.build_context_manifest(tmp_path, "status")
+    assert manifest["totals"]["discovered_count"] == 0
+    assert any("2000-candidate safety limit" in warning for warning in manifest["warnings"])

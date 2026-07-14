@@ -170,30 +170,11 @@ def _set_manifest_bytes(manifest):
     return len(render_context_manifest(manifest).encode("utf-8"))
 
 
-def _refresh_manifest_derived(manifest):
+def _refresh_manifest_totals(manifest):
     manifest["totals"]["source_count"] = len(manifest["sources"])
     manifest["totals"]["excerpt_bytes"] = sum(
         item["excerpt_bytes"] for item in manifest["sources"]
     )
-    by_name = {}
-    for record in manifest["sources"]:
-        if record["kind"] == "instruction":
-            by_name.setdefault(Path(record["path"]).name, []).append(record["path"])
-    manifest["conflicts"] = [
-        {
-            "subject": name,
-            "paths": paths,
-            "resolution": "Use the lowest precedence number; retain all sources as evidence.",
-        }
-        for name, paths in sorted(by_name.items())
-        if len(paths) > 1
-    ]
-    available_paths = {record["path"] for record in manifest["sources"]}
-    manifest["missing_decisions"] = [
-        "Missing {}; record this decision before relying on it.".format(path)
-        for path in ADLC_PATHS
-        if path not in available_paths
-    ]
 
 
 def _fit_emitted_manifest(manifest, max_bytes):
@@ -206,7 +187,7 @@ def _fit_emitted_manifest(manifest, max_bytes):
         if record is None:
             if manifest["sources"]:
                 manifest["sources"].pop()
-                _refresh_manifest_derived(manifest)
+                _refresh_manifest_totals(manifest)
                 if not warned:
                     manifest["warnings"].append(
                         "Context byte limit omitted one or more discovered candidates."
@@ -223,7 +204,7 @@ def _fit_emitted_manifest(manifest, max_bytes):
         record["excerpt_bytes"] = excerpt_bytes
         record["truncated"] = excerpt_bytes < record["original_bytes"]
         record["omitted_bytes"] = record["original_bytes"] - excerpt_bytes
-        _refresh_manifest_derived(manifest)
+        _refresh_manifest_totals(manifest)
         if not warned:
             manifest["warnings"].append(
                 "Context byte limit truncated one or more bounded excerpts."
@@ -310,9 +291,10 @@ def build_context_manifest(
         warnings.append("Context byte limit omitted one or more discovered candidates.")
 
     by_name = {}
-    for record in sources:
-        if record["kind"] == "instruction":
-            by_name.setdefault(Path(record["path"]).name, []).append(record["path"])
+    for path in ordered:
+        relative = path.relative_to(workspace)
+        if _kind(relative) == "instruction":
+            by_name.setdefault(relative.name, []).append(relative.as_posix())
     conflicts = [
         {
             "subject": name,
@@ -323,7 +305,7 @@ def build_context_manifest(
         if len(paths) > 1
     ]
 
-    available_paths = {record["path"] for record in sources}
+    available_paths = {path.relative_to(workspace).as_posix() for path in applicable}
     missing_decisions = [
         "Missing {}; record this decision before relying on it.".format(path)
         for path in ADLC_PATHS
