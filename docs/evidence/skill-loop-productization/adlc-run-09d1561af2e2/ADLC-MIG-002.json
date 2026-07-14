@@ -118,6 +118,24 @@
     },
     "runner_note": "The enclosing zsh cleanup wrapper exited 1 after successful CI because it assigned the reserved variable name status; the CI JSON itself reports pass with 10/10 suites and the temporary worktree was removed separately."
   },
+  "clean_checkout_verification": {
+    "commit": "c3f3063",
+    "worktree_mode": "detached",
+    "primary_verifier": "pass commands=11 labels=4 surfaces=68 decisions=6",
+    "canonical_ci": {
+      "status": "pass",
+      "passed_suites": 10,
+      "failed_suites": 0,
+      "notable_counts": {
+        "cli": "326/326",
+        "contracts": "537/537",
+        "setup": "131/131",
+        "backtest": "126/126"
+      }
+    },
+    "worktree_removed": true,
+    "runner_exit_status": 0
+  },
   "review_history": [
     {
       "auditor_identity": "codex-thread-019f61fd-63e1-7f40-a706-e0bfb49718c6",
