@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://adlc.dev/schemas/project-context-manifest.schema.json",
+  "title": "ADLC Project Context Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "workspace",
+    "target",
+    "command",
+    "selected_reference",
+    "reference_status",
+    "budget",
+    "sources",
+    "totals",
+    "warnings",
+    "conflicts",
+    "missing_decisions"
+  ],
+  "properties": {
+    "contract_version": { "const": "1.0.0" },
+    "workspace": { "type": "string", "const": "." },
+    "target": { "type": "string", "minLength": 1 },
+    "command": {
+      "enum": ["init", "shape", "build", "fix", "review", "harden", "ship", "status", "resume", "doctor", "learn"]
+    },
+    "selected_reference": {
+      "type": "string",
+      "pattern": "^skill/reference/command-(init|shape|build|fix|review|harden|ship|status|resume|doctor|learn)\\.md$"
+    },
+    "reference_status": { "enum": ["available", "pending"] },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_files", "max_bytes", "per_file_bytes"],
+      "properties": {
+        "max_files": { "type": "integer", "minimum": 1 },
+        "max_bytes": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "per_file_bytes": { "type": "integer", "minimum": 1, "maximum": 100000 }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "precedence", "sha256", "original_bytes", "excerpt", "excerpt_bytes", "truncated", "omitted_bytes"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["instruction", "package", "adlc"] },
+          "precedence": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "original_bytes": { "type": "integer", "minimum": 0 },
+          "excerpt": { "type": "string" },
+          "excerpt_bytes": { "type": "integer", "minimum": 0 },
+          "truncated": { "type": "boolean" },
+          "omitted_bytes": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discovered_count", "source_count", "excerpt_bytes", "manifest_bytes"],
+      "properties": {
+        "discovered_count": { "type": "integer", "minimum": 0 },
+        "source_count": { "type": "integer", "minimum": 0 },
+        "excerpt_bytes": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "manifest_bytes": { "type": "integer", "minimum": 1, "maximum": 100000 }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["subject", "paths", "resolution"],
+        "properties": {
+          "subject": { "type": "string", "minLength": 1 },
+          "paths": { "type": "array", "minItems": 2, "items": { "type": "string", "minLength": 1 } },
+          "resolution": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "missing_decisions": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}
