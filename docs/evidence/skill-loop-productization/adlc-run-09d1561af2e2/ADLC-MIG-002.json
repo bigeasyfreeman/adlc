@@ -153,7 +153,22 @@
         "Recorded the user's approval with identity, role, time, source statement, and exact approved surfaces.",
         "Strengthened the verifier and added adversarial checks for missing reversal paths and approval timestamps."
       ],
-      "reaudit_status": "pending"
+      "reaudit_status": "pass",
+      "reaudit_at": "2026-07-14T19:16:21Z",
+      "reaudit_closure": {
+        "structured_product_owner_approval": "closed",
+        "task_diff_scope": "closed",
+        "substantive_verifier_enforcement": "closed"
+      },
+      "reaudit_checks": [
+        "Exact product-contract verifier passed.",
+        "Diff contained exactly the seven Build Brief paths.",
+        "Temporary removal of an ADR reversal path failed the verifier.",
+        "Temporary removal of the approval timestamp failed the verifier.",
+        "Clean-checkout commit c3f3063 was verified as real and ancestral."
+      ],
+      "new_findings": [],
+      "recommendation": "safe_to_publish_and_merge"
     }
   ],
   "doc_honesty_section": "This evidence proves product-contract completeness and inventory coverage, not implementation or provider behavior.",
