@@ -178,14 +178,15 @@
   ],
   "pr_hygiene": {
     "command": "bin/adlc pr-hygiene-scan --workspace . --build-brief docs/build-briefs/adlc-skill-loop-productization.json --diff-file <origin-main-to-head.diff> --base-branch main --default-branch main --json",
-    "status": "blocked_pending_human_waiver",
+    "status": "pass_with_human_waiver",
     "blocking_rule": "pipeline_artifact_in_pr",
     "matches": [
       "docs/build-briefs/",
       ".adlc/build_brief",
       "TECH_DEBT_AUDIT"
     ],
-    "disposition": "The matches are tracked ADLC product fixtures, the required migration inventory, a retained historical rename, and test-fixture text. Removing them would contradict the baseline task. An authorized maintainer must provide the required rule:who:why waiver before PR landing."
+    "waiver": "pipeline_artifact_in_pr:eric:ADLC canonical product fixtures baseline evidence and historical archival are intentional",
+    "disposition": "The matches are tracked ADLC product fixtures, the required migration inventory, a retained historical rename, and test-fixture text. The user approved the required waiver and the rerun passed with zero remaining issues."
   },
   "doc_honesty_section": "This artifact proves only local baseline attribution and deterministic validation at the recorded dirty state.",
   "no_overclaim": [
