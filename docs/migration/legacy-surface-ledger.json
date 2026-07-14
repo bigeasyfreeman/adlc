@@ -22,6 +22,107 @@
     "beta",
     "supported"
   ],
+  "command_mappings": [
+    {
+      "command": "init",
+      "reference": "skill/reference/command-init.md",
+      "kernel_commands": ["bin/adlc repo-conventions", "bin/adlc health-check"],
+      "legacy_surfaces": [],
+      "schema_refs": ["docs/schemas/project-context-manifest.schema.json"],
+      "workflow_phases": ["triage"],
+      "deterministic_checks": ["context manifest schema validation", "collision refusal"]
+    },
+    {
+      "command": "shape",
+      "reference": "skill/reference/command-shape.md",
+      "kernel_commands": ["bin/adlc goal-prompt", "bin/adlc validate-artifact"],
+      "legacy_surfaces": ["skills/prd-generation/SKILL.md", "skills/goal-prompt-generation/SKILL.md", "agents/ADLC-BUILD-BRIEF-AGENT.md", "agents/PM-PRD-AGENT.md"],
+      "schema_refs": ["docs/schemas/build-brief.schema.json"],
+      "workflow_phases": ["triage", "research", "plan", "plan_review", "intent_validation"],
+      "deterministic_checks": ["Build Brief schema validation", "intent approval"]
+    },
+    {
+      "command": "build",
+      "reference": "skill/reference/command-build.md",
+      "kernel_commands": ["bin/adlc run", "bin/adlc ci"],
+      "legacy_surfaces": ["skills/build-feature/SKILL.md"],
+      "schema_refs": ["docs/schemas/loop-contract.schema.json", "docs/schemas/workflow-state.schema.json"],
+      "workflow_phases": ["triage", "plan", "intent_validation", "gen_tests", "code", "code_review", "qa", "pr_prep"],
+      "deterministic_checks": ["declared task verifier", "bin/adlc ci", "independent review"]
+    },
+    {
+      "command": "fix",
+      "reference": "skill/reference/command-fix.md",
+      "kernel_commands": ["bin/adlc ci", "bin/adlc completion-audit"],
+      "legacy_surfaces": ["skills/systematic-debugging/SKILL.md", "skills/fix-loop/SKILL.md", "skills/fix-bug/SKILL.md"],
+      "schema_refs": ["docs/schemas/loop-contract.schema.json", "docs/schemas/workflow-state.schema.json"],
+      "workflow_phases": ["triage", "gen_tests", "fixer", "code", "code_review", "qa", "pr_prep"],
+      "deterministic_checks": ["reproduction evidence", "failing verifier expected reason", "bin/adlc ci", "independent review"]
+    },
+    {
+      "command": "review",
+      "reference": "skill/reference/command-review.md",
+      "kernel_commands": ["bin/adlc completion-audit", "bin/adlc pr-hygiene-scan"],
+      "legacy_surfaces": [],
+      "schema_refs": ["docs/schemas/loop-contract.schema.json"],
+      "workflow_phases": ["triage", "code_review", "qa", "engineer_review"],
+      "deterministic_checks": ["target bytes unchanged", "declared verifier observation", "evidence-backed findings"]
+    },
+    {
+      "command": "harden",
+      "reference": "skill/reference/command-harden.md",
+      "kernel_commands": ["bin/adlc convention-scan", "bin/adlc slop-gate"],
+      "legacy_surfaces": [],
+      "schema_refs": ["docs/schemas/security-review-output.schema.json"],
+      "workflow_phases": ["security", "qa", "test_strength", "slop_gate"],
+      "deterministic_checks": ["applicability resolved", "activated gates observed"]
+    },
+    {
+      "command": "ship",
+      "reference": "skill/reference/command-ship.md",
+      "kernel_commands": ["bin/adlc pr-hygiene-scan", "bin/adlc completion-audit"],
+      "legacy_surfaces": ["skills/ship-content/SKILL.md"],
+      "schema_refs": ["docs/schemas/run-report.schema.json"],
+      "workflow_phases": ["pr_prep", "engineer_review"],
+      "deterministic_checks": ["completion audit", "PR hygiene scan", "human approval"]
+    },
+    {
+      "command": "status",
+      "reference": "skill/reference/command-status.md",
+      "kernel_commands": ["bin/adlc status"],
+      "legacy_surfaces": [],
+      "schema_refs": ["docs/schemas/workflow-state.schema.json"],
+      "workflow_phases": [],
+      "deterministic_checks": ["read-only workflow state inspection"]
+    },
+    {
+      "command": "resume",
+      "reference": "skill/reference/command-resume.md",
+      "kernel_commands": ["bin/adlc resume"],
+      "legacy_surfaces": [],
+      "schema_refs": ["docs/schemas/workflow-state.schema.json"],
+      "workflow_phases": [],
+      "deterministic_checks": ["workspace identity", "task fingerprint", "side-effect idempotency keys"]
+    },
+    {
+      "command": "doctor",
+      "reference": "skill/reference/command-doctor.md",
+      "kernel_commands": ["bin/adlc health-check"],
+      "legacy_surfaces": [],
+      "schema_refs": ["docs/schemas/provider-conformance-report.schema.json"],
+      "workflow_phases": [],
+      "deterministic_checks": ["binary provenance", "schema aliases", "provider bundle discovery"]
+    },
+    {
+      "command": "learn",
+      "reference": "skill/reference/command-learn.md",
+      "kernel_commands": ["bin/adlc memory-health", "bin/adlc run-phase"],
+      "legacy_surfaces": ["skills/feedback-loop/SKILL.md", "skills/learning-capture/SKILL.md", "skills/learning-refresh/SKILL.md"],
+      "schema_refs": ["docs/schemas/learning-entry.schema.json"],
+      "workflow_phases": ["learning_capture"],
+      "deterministic_checks": ["evidence provenance", "redaction validation", "memory health"]
+    }
+  ],
   "architecture_decisions": [
     {
       "decision_id": "ADR-ADLC-001",

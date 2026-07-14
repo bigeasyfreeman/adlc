@@ -1,0 +1,94 @@
+{
+  "contract_version": "1.0.0",
+  "contract_id": "adlc-public-fix-1",
+  "autonomy_claim": "assisted_loop",
+  "job_win_condition": {
+    "job": "Repair one reproduced defect with the smallest evidence-backed change.",
+    "done_when": "terminal:pr_ready is reached after reproduction, red-to-green verifier evidence, affected gates, and independent review.",
+    "deterministic_checks": [
+      "reproduction_evidence",
+      "failing_verifier_expected_reason",
+      "bin/adlc ci",
+      "bin/adlc completion-audit"
+    ],
+    "semantic_intent_check": "The repair removes the reproduced cause without weakening the verifier or broadening behavior."
+  },
+  "allowed_tools": [
+    {
+      "name": "target verifier",
+      "actions": ["reproduce", "record_failure", "prove_red_to_green"]
+    },
+    {
+      "name": "workspace editor",
+      "actions": ["mutate_after_reproduction", "smallest_repair", "preserve_user_work"]
+    },
+    {
+      "name": "bin/adlc ci",
+      "actions": ["run_tests", "observe_gate_results"]
+    },
+    {
+      "name": "human-escalation",
+      "actions": ["steer", "abort", "approve_destructive_recovery", "approve_external_action"]
+    }
+  ],
+  "feedback_channels": [
+    {"after_action": "phase:reproduce", "observes": ["failure", "expected_reason", "environment"]},
+    {"after_action": "phase:triage", "observes": ["scope", "authority", "risk"]},
+    {"after_action": "phase:gen_tests", "observes": ["failing_verifier", "coverage_tags"]},
+    {"after_action": "phase:fixer", "observes": ["cause", "changed_paths", "verifier_status"]},
+    {"after_action": "phase:code_review", "observes": ["independent_findings", "verdict"]},
+    {"after_action": "phase:qa", "observes": ["affected_suite", "canonical_gates"]},
+    {"after_action": "phase:pr_prep", "observes": ["scope", "reproduction_refs", "gate_refs"]}
+  ],
+  "stop_escalate_rules": {
+    "max_iterations": 5,
+    "no_progress_after": 2,
+    "escalate_when": [
+      "terminal:not_reproduced",
+      "terminal:blocked_missing_evidence",
+      "terminal:failed_verification",
+      "terminal:escalated"
+    ]
+  },
+  "test_selection": {
+    "mandatory_floor": [
+      {
+        "id": "fix:contract",
+        "command": "bin/adlc validate-artifact --schema loop-contract --input docs/loop-library/public-fix.json --json",
+        "coverage_tags": ["schema", "public-fix"]
+      },
+      {
+        "id": "fix:reproduction",
+        "command": "record the task verifier failing for the expected reason before mutation",
+        "coverage_tags": ["reproduction", "red"]
+      }
+    ],
+    "required_from_task_signals": [
+      {
+        "id": "fix:affected-suite",
+        "signal": "the repair changes product or test behavior",
+        "command": "bin/adlc ci",
+        "coverage_tags": ["green", "affected-suite", "canonical-ci"]
+      }
+    ],
+    "additive_agent_tests": true
+  },
+  "safe_bail_state": {
+    "state": "terminal:blocked_safe_checkpoint with reproduction, dirty paths, last verifier result, and next experiment recorded",
+    "rollback": "revert only the attempted repair while retaining reproduction and test evidence",
+    "idempotency": "external and destructive effects never run without fresh approval and an unused effect key"
+  },
+  "progress_signal": {
+    "signals": ["reproduced_failure", "narrower_cause", "changed_verifier_status", "resolved_review_finding"],
+    "no_progress_rule": "Two experiments with identical evidence and no narrower cause escalate."
+  },
+  "control_channel": {
+    "supports": ["steer", "abort", "interrupt", "escalate"],
+    "safe_checkpoint_required": true
+  },
+  "independent_truth": {
+    "type": "external_command",
+    "evidence": ["reproduction command", "task verifier", "affected test suite", "independent review"]
+  },
+  "redaction_posture": "Preserve exact failure shape with bounded output; remove secrets, credentials, and unrelated user data."
+}

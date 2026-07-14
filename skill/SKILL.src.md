@@ -12,8 +12,9 @@ Use ADLC as an evidence-driven engineering loop. Read the target repository's in
 1. Run `python3 skill/scripts/context.py --workspace <repo> --target <path> --command <command>`.
 2. Inspect warnings, conflicts, missing decisions, hashes, and excerpt limits before acting.
 3. Load exactly one command reference: the manifest's `selected_reference`.
-4. Stop with a clear dependency if its `reference_status` is `pending`; command references land in the next migration.
-5. Load an optional internal pack only when the selected command reference declares it applicable.
+4. Refuse execution if its `reference_status` is not `available`.
+5. For Build, Fix, or Review, load the loop contract named by that command reference.
+6. Load an optional internal pack only when the selected command reference declares it applicable.
 
 The bounded manifest and one command reference are the default context. Do not preload every command, provider adapter, or legacy document.
 
