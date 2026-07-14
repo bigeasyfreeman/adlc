@@ -6,6 +6,7 @@ from typing import Dict
 
 
 SCHEMA_ALIASES = {
+    "approval-record": "docs/schemas/approval-record.schema.json",
     "applicability-manifest": "docs/schemas/applicability-manifest.schema.json",
     "architecture-memory-report": "docs/schemas/architecture-memory-report.schema.json",
     "build-brief": "docs/schemas/build-brief.schema.json",
@@ -47,9 +48,11 @@ SCHEMA_ALIASES = {
     "paved-road-pattern-registry": "docs/schemas/paved-road-pattern-registry.schema.json",
     "predicate-library": "docs/schemas/predicate-library.schema.json",
     "prd-template": "docs/schemas/prd-template.schema.json",
+    "provider-conformance-report": "docs/schemas/provider-conformance-report.schema.json",
     "repo-map": "docs/schemas/repo-map.schema.json",
     "run-report": "docs/schemas/run-report.schema.json",
     "security-assessment": "docs/schemas/security-assessment.schema.json",
+    "security-review-output": "docs/schemas/security-review-output.schema.json",
     "session-state": "docs/schemas/session-state.schema.json",
     "streaming-events": "docs/schemas/streaming-events.schema.json",
     "system-log": "docs/schemas/system-log.schema.json",
@@ -167,6 +170,10 @@ COMMAND_METADATA = {
     "resume-workflow": {
         "mcp_name": "adlc_resume_workflow",
         "description": "Load ADLC workflow state, increment resume_count, and return the next runnable action.",
+    },
+    "status": {
+        "mcp_name": "adlc_status",
+        "description": "Inspect ADLC workflow state and the next action without modifying persisted state.",
     },
     "emit-work-items": {
         "mcp_name": "adlc_emit_work_items",

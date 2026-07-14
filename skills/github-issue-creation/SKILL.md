@@ -10,7 +10,7 @@ Activated after the engineer approves the Build Brief. Consumes the schema-valid
 
 ## Emitter Contract Alignment
 
-This skill is a work-item emitter and must conform to [docs/specs/emitter-contract.md](/Users/eric/adlc/docs/specs/emitter-contract.md). Suppressed sections do not become filler issue content. Every mutation requires `contract_version`, idempotency handling, and permission logging.
+This skill is a work-item emitter and must conform to the [emitter contract](../../docs/specs/emitter-contract.md). Suppressed sections do not become filler issue content. Every mutation requires `contract_version`, idempotency handling, and permission logging.
 
 ## Local MCP Model
 

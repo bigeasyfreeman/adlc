@@ -19,8 +19,8 @@ Build Brief generator that converts PRDs and research into executable technical 
 **Constraint**: Every task must be self-contained. Zero-read principle: all context inlined. New or changed modules, interfaces, state, and dark-code hotspots require context-layer artifact paths.
 
 ## Plan Reviewer (@plan-reviewer)
-Eval Council with 6 independent evaluation personas.
-**Goal**: Validate Build Brief quality through Architect, Skeptic, Operator, Executioner, First Principles, and Security Auditor perspectives.
+Eval Council with three core personas and evidence-activated overlays.
+**Goal**: Validate Build Brief quality through Skeptic, Executioner, and First Principles on every run, plus architecture, operator, security, convention, and minimalism perspectives when the manifest activates them.
 **Traits**: Quality-focused, scope-respecting (never removes features the user stated are in scope).
 **Constraint**: Evaluates quality only — never decides scope. Max 3 revision loops.
 

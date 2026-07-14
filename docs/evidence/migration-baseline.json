@@ -1,0 +1,172 @@
+{
+  "contract_version": "1.0.0",
+  "task_id": "ADLC-MIG-001",
+  "run_id": "adlc-run-09d1561af2e2",
+  "recorded_at": "2026-07-14T17:12:12Z",
+  "repository": "https://github.com/bigeasyfreeman/adlc.git",
+  "branch": "main",
+  "baseline_head": "fcf6b3eac2c02bb06baa607fb676ee78563ad1ae",
+  "remote_default_branch_head": "fcf6b3eac2c02bb06baa607fb676ee78563ad1ae",
+  "pre_evidence_dirty_state": {
+    "digest_algorithm": "sha256",
+    "digest": "fc639e84868a3f089f302175732fea54c5cbee87e604e78aa540cf6c2a6c5267",
+    "path_count": 68,
+    "counts": {
+      "modified": 36,
+      "deleted": 7,
+      "untracked": 25
+    }
+  },
+  "ownership": {
+    "classification": "pre_existing_user_owned_baseline",
+    "reason": "Every listed path was present before ADLC-MIG-001 execution began and was preserved for review.",
+    "intent_groups": [
+      {
+        "intent": "runtime_hardening_and_truthful_workflow_contract",
+        "paths": [
+          "WORKFLOW.dot",
+          "WORKFLOW.md",
+          "docs/schemas/approval-record.schema.json",
+          "docs/schemas/security-review-output.schema.json",
+          "docs/schemas/workflow-state.schema.json",
+          "docs/specs/dag-binding.md",
+          "docs/specs/llm-vs-deterministic.md",
+          "scripts/adlc_runtime/cli.py",
+          "scripts/adlc_runtime/metadata.py",
+          "tests/test_atomic_write.py",
+          "tests/test_adlc_cli.sh",
+          "tests/test_adlc_contracts.sh"
+        ]
+      },
+      {
+        "intent": "provider_conformance_evidence_and_smoke_honesty",
+        "paths": [
+          "docs/evidence/provider-conformance/README.md",
+          "docs/schemas/provider-conformance-report.schema.json",
+          "tests/smoke/README.md",
+          "tests/smoke/artifacts/smoke_report.json",
+          "tests/smoke/fixtures/historical-codex-smoke-report.json",
+          "tests/smoke/run_smoke.sh",
+          "tests/smoke/support/adlc_mutmut_compat.py",
+          "tests/test_provider_conformance_schema.py"
+        ]
+      },
+      {
+        "intent": "public_repository_hygiene_and_release_metadata",
+        "paths": [
+          ".github/ISSUE_TEMPLATE/bug_report.yml",
+          ".github/ISSUE_TEMPLATE/config.yml",
+          ".github/ISSUE_TEMPLATE/feature_request.yml",
+          ".github/PULL_REQUEST_TEMPLATE.md",
+          ".github/dependabot.yml",
+          ".github/workflows/ci.yml",
+          ".gitignore",
+          "CHANGELOG.md",
+          "CODE_OF_CONDUCT.md",
+          "CONTRIBUTING.md",
+          "README.md",
+          "SECURITY.md",
+          "pyproject.toml",
+          "tests/backtest/last_report.json",
+          "tests/backtest/run_backtest.sh",
+          "tests/check_markdown_links.py",
+          "tests/test_drift_verification.sh",
+          "tests/test_public_hygiene.sh"
+        ]
+      },
+      {
+        "intent": "historical_document_archival_and_reference_repair",
+        "paths": [
+          "TECH_DEBT_AUDIT.md",
+          "docs/COMPATIBILITY_ANALYSIS.md",
+          "docs/INFRASTRUCTURE_PRIMITIVES_AUDIT.md",
+          "docs/INFRASTRUCTURE_ROADMAP.md",
+          "docs/adlc-v2-specification.md",
+          "docs/adlc-v2-tickets.md",
+          "docs/archive/adlc-v2-specification.md",
+          "docs/archive/adlc-v2-tickets.md",
+          "docs/archive/compatibility-analysis-2026-04-06.md",
+          "docs/archive/infrastructure-primitives-audit-2026-04-06.md",
+          "docs/archive/infrastructure-roadmap-2026-04-06.md",
+          "docs/archive/tech-debt-audit-2026-06-09.md",
+          "docs/build-briefs/compound-engineering-workflow-integration.json",
+          "docs/build-briefs/multi-emitter-publishing.md",
+          "docs/build-briefs/operator-side-coverage.json",
+          "docs/specs/emitter-contract.md",
+          "docs/tests/operator-side-coverage/completion-audit-report.json"
+        ]
+      },
+      {
+        "intent": "installed_platform_and_skill_truth_corrections",
+        "paths": [
+          "platform/AGENTS.md",
+          "platform/CLAUDE.md",
+          "platform/agents-antigravity.md",
+          "platform/factory/AGENTS.md",
+          "skills/confluence-decomposition/SKILL.md",
+          "skills/drift-maintenance/SKILL.md",
+          "skills/github-issue-creation/SKILL.md",
+          "skills/jira-ticket-creation/SKILL.md",
+          "skills/linear-ticket-creation/SKILL.md",
+          "skills/notion-decomposition/SKILL.md",
+          "skills/stop-slop/SKILL.md"
+        ]
+      },
+      {
+        "intent": "productization_execution_contract_preserved_for_later_tasks",
+        "paths": [
+          "docs/build-briefs/adlc-skill-loop-productization.json",
+          "docs/research/adlc-skill-loop-productization-strategy.md"
+        ]
+      }
+    ]
+  },
+  "verification": [
+    {
+      "command": "bin/adlc ci --json",
+      "exit_status": 0,
+      "result": "pass",
+      "summary": "10 of 10 canonical suites passed"
+    },
+    {
+      "command": "PYTHONPATH=scripts python3 -m pytest tests/test_atomic_write.py tests/test_provider_conformance_schema.py -q",
+      "exit_status": 0,
+      "result": "pass",
+      "summary": "6 focused tests passed"
+    },
+    {
+      "command": "python3 tests/check_markdown_links.py",
+      "exit_status": 0,
+      "result": "pass",
+      "summary": "repository-local Markdown links passed"
+    },
+    {
+      "command": "uvx ruff check scripts tests",
+      "exit_status": 0,
+      "result": "pass",
+      "summary": "Python lint passed"
+    },
+    {
+      "command": "git diff --check",
+      "exit_status": 0,
+      "result": "pass",
+      "summary": "no whitespace errors"
+    }
+  ],
+  "review": {
+    "implementation_identity": "prior-adlc-public-cleanup-session-019f5cce-73e2-78b3-b494-102b5f1b24a3",
+    "audit_identity": "adlc-run-09d1561af2e2",
+    "independent": true,
+    "required_findings": [],
+    "disposition": "baseline_is_locally_green_and_ready_for_reviewable_landing"
+  },
+  "doc_honesty_section": "This artifact proves only local baseline attribution and deterministic validation at the recorded dirty state.",
+  "no_overclaim": [
+    "The baseline is not landed on the remote default branch.",
+    "No live provider conformance or productization task is proved by this artifact."
+  ],
+  "limitations": [
+    "The working tree remains intentionally dirty until coherent checkpoints are committed.",
+    "Remote default-branch landing requires the explicit human merge or push gate."
+  ]
+}

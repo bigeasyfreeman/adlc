@@ -30,7 +30,7 @@ def _safe_set_start_method(method=None, *args, **kwargs):
 
 mp.set_start_method = _safe_set_start_method
 
-import mutmut.__main__ as mutmut_main
+import mutmut.__main__ as mutmut_main  # noqa: E402 -- multiprocessing must be patched before mutmut imports
 
 _original_strip_prefix = mutmut_main.strip_prefix
 

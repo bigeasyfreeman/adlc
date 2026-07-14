@@ -1,4 +1,7 @@
-# ADLC Infrastructure Roadmap
+# Archived ADLC Infrastructure Roadmap
+
+> Historical plan from 2026-04-06. Checkbox state is not current; retained for
+> provenance rather than active planning.
 
 > Prioritized implementation plan for closing infrastructure gaps identified in the Infrastructure Primitives Audit and Backwards/Forwards Compatibility Analysis.
 
@@ -133,5 +136,5 @@ Idempotency          Circuit Breakers         Boundary Validation      Maintenan
 
 ## Cross-References
 
-- [Infrastructure Primitives Audit](./INFRASTRUCTURE_PRIMITIVES_AUDIT.md) — full audit findings and risk assessment
-- [Backwards/Forwards Compatibility Analysis](./COMPATIBILITY_ANALYSIS.md) — contract surface analysis and versioning gaps
+- [Infrastructure Primitives Audit](infrastructure-primitives-audit-2026-04-06.md) — historical audit findings and risk assessment
+- [Backwards/Forwards Compatibility Analysis](compatibility-analysis-2026-04-06.md) — historical contract-surface analysis

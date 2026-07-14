@@ -5,6 +5,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
+if [ -d "$ROOT/.claude" ] || [ -f "$ROOT/CLAUDE.md" ]; then
+  "$ROOT/setup.sh" verify-claude "$ROOT" >/dev/null
+  echo "live root install verified"
+fi
+
 "$ROOT/setup.sh" claude "$TMP_ROOT" >/dev/null
 "$ROOT/setup.sh" verify-claude "$TMP_ROOT" >/dev/null
 

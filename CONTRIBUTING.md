@@ -2,6 +2,27 @@
 
 Thanks for your interest in contributing to the Agentic Development Lifecycle.
 
+By participating, you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Development Setup
+
+```bash
+git clone https://github.com/bigeasyfreeman/adlc.git
+cd adlc
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install 'jsonschema>=4,<5'
+bin/adlc health-check --json
+```
+
+ADLC currently runs from a source checkout so adapters and schema assets remain
+co-located. The optional audit tools listed in `pyproject.toml` can be installed
+into the same virtual environment when working on audit or release hygiene.
+
+Use `graphify-out/GRAPH_REPORT.md` as the initial architecture map when a graph
+is present. After code changes, run `graphify update .` so the map matches the
+source being reviewed.
+
 ## Adding a Skill
 
 Skills are the primary extension point. Each skill is a markdown file that encodes domain expertise.
@@ -45,7 +66,10 @@ Checklist of what must be true before the skill's output is accepted.
 
 ## Adding an Agent
 
-Agents are thin configs. Keep them under 150 lines.
+Agents should remain contract-focused. Prefer a small routing prompt, but size
+is not a quality gate: comprehensive generators and reviewers may be longer
+when their tested output contract requires it. Do not split an agent merely to
+satisfy a line-count target.
 
 1. Create `agents/[name].md` with YAML frontmatter:
 ```yaml
@@ -67,7 +91,7 @@ labels: [lgtm, revise]
 ## Modifying the Pipeline
 
 1. Edit `WORKFLOW.dot` — add, remove, or rewire nodes
-2. Update `WORKFLOW.md` — adjust configs if needed
+2. Update `WORKFLOW.md` when explanatory operator guidance changes
 3. Visualize: `dot -Tpng WORKFLOW.dot -o pipeline.png`
 4. Update `README.md` if the pipeline structure changed
 
@@ -88,6 +112,9 @@ preserve the target repo convention contract:
    token into task packages.
 5. Structural gates must not use file size, line count, or SLOC as a split or
    quality criterion.
+6. PRs must run `bin/adlc pr-hygiene-scan` and keep ADLC goal prompts, Build
+   Brief drafts, council scratch artifacts, and local paths out of target
+   diffs.
 
 ## Process Artifact Storage
 
@@ -100,9 +127,6 @@ path with `bin/adlc process-artifact-path` and write the artifact under the
 ADLC-side storage contract in `docs/specs/process-artifact-storage.md`. Target
 repos may contain ignored transient state for a local run, but canonical process
 artifacts stay keyed by target repo and task in the ADLC store.
-6. PRs must run `bin/adlc pr-hygiene-scan` and keep ADLC goal prompts, Build
-   Brief drafts, council scratch artifacts, and local paths out of target diffs.
-
 ## Code Style
 
 - Agent configs: YAML frontmatter + concise markdown
@@ -112,6 +136,20 @@ artifacts stay keyed by target repo and task in the ADLC store.
 
 ## Pull Requests
 
-- One skill/agent per PR
-- Include a brief description of what the skill/agent does and why
-- If modifying the pipeline graph, include a screenshot of the new DAG
+- Keep each PR focused on one coherent behavior or contract change.
+- Explain what changed, why it changed, compatibility impact, and rollback.
+- Run `bin/adlc ci --json`; the complete suite must pass without creating a new
+  tracked diff.
+- Run `ruff check scripts tests` when changing Python. GitHub CI enforces the
+  same check on the supported Python-version matrix.
+- Run `bin/adlc pr-hygiene-scan` against the final diff and remove local paths,
+  process artifacts, secrets, and internal-only goal prompts.
+- If modifying the pipeline graph, include a rendered DAG or a concise edge
+  summary and update the graph-derived documentation.
+- Do not commit provider credentials, local settings, `.adlc/` state, generated
+  self-installs, or smoke logs.
+
+## Reporting Security Issues
+
+Do not open a public issue for a suspected vulnerability. Follow
+[SECURITY.md](SECURITY.md) and use a private GitHub Security Advisory.

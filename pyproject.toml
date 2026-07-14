@@ -2,6 +2,11 @@
 name = "adlc"
 version = "0.1.0"
 description = "Agentic Development Lifecycle contracts, schemas, runtime adapters, and deterministic validators."
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+  {name = "Eric Freeman"}
+]
 requires-python = ">=3.9"
 dependencies = [
   "jsonschema>=4.0,<5.0"
@@ -18,6 +23,12 @@ audit = [
   "vulture>=2.11",
   "mypy>=1.10"
 ]
+
+[project.urls]
+Homepage = "https://github.com/bigeasyfreeman/adlc"
+Repository = "https://github.com/bigeasyfreeman/adlc"
+Issues = "https://github.com/bigeasyfreeman/adlc/issues"
+Changelog = "https://github.com/bigeasyfreeman/adlc/blob/main/CHANGELOG.md"
 
 [tool.ruff]
 line-length = 120

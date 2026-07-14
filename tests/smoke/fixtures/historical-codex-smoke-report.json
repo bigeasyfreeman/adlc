@@ -1,4 +1,6 @@
 {
+  "evidence_status": "historical_fixture_not_current_conformance",
+  "runtime": "codex",
   "run_at": "2026-04-14T13:16:18Z",
   "model": "gpt-5-codex",
   "stages": [

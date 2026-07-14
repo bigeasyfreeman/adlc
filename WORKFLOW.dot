@@ -85,7 +85,7 @@ digraph ADLC {
 
     // Plan ↔ Review loop
     plan -> plan_review
-    plan_review -> plan          [label="revise", style=dashed, color="#cc6600"]
+    plan_review -> plan          [label="revise", max_retries=3, style=dashed, color="#cc6600"]
     plan_review -> intent_validation [label="lgtm"]
     plan_review -> escalate      [label="blocked", color="red"]
     plan_review -> escalate      [label="stuck", color="red"]
@@ -93,7 +93,7 @@ digraph ADLC {
 
     // Intent Validation (human gate) → Scaffold or back to Plan
     intent_validation -> scaffold [label="approved"]
-    intent_validation -> plan     [label="revise\n(max 3)", style=dashed, color="#cc6600"]
+    intent_validation -> plan     [label="revise", max_retries=3, style=dashed, color="#cc6600"]
     intent_validation -> escalate [label="rejected", color="red"]
 
     // Scaffold → Tests → Context Assembly
@@ -105,7 +105,7 @@ digraph ADLC {
 
     // Code → Review loop
     code -> code_review
-    code_review -> fixer         [label="revise", style=dashed, color="#cc6600"]
+    code_review -> fixer         [label="revise", max_retries=3, style=dashed, color="#cc6600"]
     code_review -> security      [label="lgtm + security active"]
     code_review -> qa            [label="lgtm + security inactive", style=dashed, color="#666666"]
     fixer -> code                [label="fixed"]
@@ -113,33 +113,34 @@ digraph ADLC {
 
     // Security gate
     security -> qa               [label="pass"]
-    security -> fixer            [label="fail", color="red"]
+    security -> fixer            [label="fail", max_retries=2, color="red"]
 
     // QA gate
     qa -> test_strength          [label="pass + test-strength active"]
     qa -> slop_gate              [label="pass + test-strength inactive + slop active", style=dashed, color="#666666"]
     qa -> pr_prep                [label="pass + overlays inactive", style=dashed, color="#666666"]
-    qa -> fixer                  [label="fail", style=dashed, color="#cc6600"]
+    qa -> fixer                  [label="fail", max_retries=2, style=dashed, color="#cc6600"]
 
     // Test-strength gate
     test_strength -> slop_gate   [label="pass + slop active"]
     test_strength -> pr_prep     [label="pass + slop inactive", style=dashed, color="#666666"]
-    test_strength -> fixer       [label="weak", color="red"]
+    test_strength -> fixer       [label="weak", max_retries=2, color="red"]
     test_strength -> escalate    [label="stuck", color="red"]
 
     // Slop gate
     slop_gate -> pr_prep         [label="pass"]
-    slop_gate -> fixer           [label="fail", style=dashed, color="#cc6600"]
+    slop_gate -> fixer           [label="fail", max_retries=2, style=dashed, color="#cc6600"]
 
     // PR → Learning Capture → Human Gate
     pr_prep -> learning_capture
     learning_capture -> engineer_review [label="pass"]
     learning_capture -> engineer_review [label="skipped", style=dashed, color="#666666"]
-    learning_capture -> fixer           [label="fail", style=dashed, color="#cc6600"]
+    learning_capture -> fixer           [label="fail", max_retries=2, style=dashed, color="#cc6600"]
 
     // Human gate routing
     engineer_review -> done      [label="approve", color="green"]
     engineer_review -> plan      [label="revise", style=dashed, color="#cc6600"]
+    engineer_review -> escalate  [label="rejected", color="red"]
 
     // ─── Subgraph: Legend ───
     subgraph cluster_legend {

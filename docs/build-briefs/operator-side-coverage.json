@@ -43,7 +43,7 @@
       "supported": [
         {
           "claim": "Operator divergence, volatility, comprehension, and teach-first gates are required by the goal prompt.",
-          "source_ref": "/Users/eric/ADLC_OPERATOR_COVERAGE_GOAL_PROMPT.md",
+          "source_ref": "external:operator-coverage-goal-prompt",
           "extracted_from": "goal prompt"
         }
       ],
@@ -192,7 +192,7 @@
         "claim": "The goal requires inherited automatic operator-side gates with explicit not_applicable behavior.",
         "architecture_affecting": true,
         "sources": [
-          "/Users/eric/ADLC_OPERATOR_COVERAGE_GOAL_PROMPT.md"
+          "external:operator-coverage-goal-prompt"
         ],
         "disposition": "repo-evidence",
         "related_blindspot_ids": [
@@ -205,7 +205,7 @@
         "claim": "The goal's own run must pass clarity, criterion depth, minimalism audit, independent completion audit, and run-report generation.",
         "architecture_affecting": true,
         "sources": [
-          "/Users/eric/ADLC_OPERATOR_COVERAGE_GOAL_PROMPT.md"
+          "external:operator-coverage-goal-prompt"
         ],
         "disposition": "repo-evidence",
         "related_blindspot_ids": [
@@ -432,7 +432,7 @@
       "Post-merge redeploy remains a conditional follow-up until a merge exists.",
       "Self-run artifacts must not be mistaken for target-repo product changes."
     ],
-    "10_rollout": "Merge the ADLC repo changes, then rerun setup.sh for claude /Users/eric and codex /Users/eric/interralis and verify the interralis shim health-check.",
+    "10_rollout": "Merge the ADLC repo changes, reinstall Claude and Codex integrations in the intended target repositories, and verify each installed runtime shim with health-check.",
     "11_validation_plan": [
       "bin/adlc validate-artifact --schema build-brief --input docs/build-briefs/operator-side-coverage.json --json",
       "bin/adlc clarity-gate --build-brief docs/build-briefs/operator-side-coverage.json --output docs/tests/operator-side-coverage/clarity-gate-report.json --json",
@@ -455,7 +455,7 @@
           "category": "completion_evidence",
           "finding": "The goal could appear complete from green tests alone unless its own inherited-stack reports are generated.",
           "source_refs": [
-            "/Users/eric/ADLC_OPERATOR_COVERAGE_GOAL_PROMPT.md"
+            "external:operator-coverage-goal-prompt"
           ],
           "ledger_entry_id": "L-SELF-RUN"
         },
@@ -464,7 +464,7 @@
           "category": "rollout",
           "finding": "Setup redeploy is explicitly post-merge and must not be claimed before merge.",
           "source_refs": [
-            "/Users/eric/ADLC_OPERATOR_COVERAGE_GOAL_PROMPT.md"
+            "external:operator-coverage-goal-prompt"
           ],
           "ledger_entry_id": "L-OPR-GOAL"
         }

@@ -1,5 +1,8 @@
 # ADLC
 
+[![CI](https://github.com/bigeasyfreeman/adlc/actions/workflows/ci.yml/badge.svg)](https://github.com/bigeasyfreeman/adlc/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Agentic Development Lifecycle.
 
 ADLC is an agent control plane for AI-assisted engineering. It packages skills, agents, schemas, verifiers, queue/worktree primitives, loop templates, learning memory, and a bounded meta-harness planner so an LLM or external harness can turn repo, ticket, and signal input into reviewed work without relying on ad hoc prompt chains.
@@ -13,13 +16,17 @@ Fix Loop:    capture → confirm → investigate → conventions → fix → pro
 Feedback:    human edits + maintainer PR comments → diff capture → pattern distill → skill, convention, vocabulary, or memory update
 ```
 
-Works with Claude Code, Codex, Cursor, Antigravity, and Factory.
+Claude Code and Codex have implemented runtime adapters; live conformance is
+still pending. Cursor, Antigravity, and Factory adapters are experimental and
+fail closed until their invocation surfaces are verified.
+Current support claims and the evidence required to change them are recorded in
+[`docs/evidence/provider-conformance/`](docs/evidence/provider-conformance/README.md).
 
 ## Why This Exists
 
 AI coding stops scaling when the human remains the inner prompter. ADLC moves the leverage point to the control plane: what work is admissible, which loop should run, what context is allowed, which tools may act, how evidence is checked, where state is recorded, and when a human must decide.
 
-ADLC is a directed graph plus a schema-backed CLI/MCP runtime. Agents emit labels (`lgtm`, `revise`, `escalate`). Edges route to the next step. Independent work can be queued and isolated in worktrees. Lint, test, scaffold, readiness, budget, and contract checks burn zero model tokens. Every review loop has a cap so nothing spins forever.
+ADLC is a directed graph plus a schema-backed CLI/MCP runtime. Agents emit labels (`lgtm`, `revise`, `escalate`). Edges route to the next step. Independent work can be queued and isolated in worktrees. Lint, test, scaffold, readiness, budget, and contract checks burn zero model tokens. Retry edges carry runtime-enforced caps in `WORKFLOW.dot`; `--max-phases` separately bounds each invocation.
 
 The framework stays composable. Skills are injectable knowledge, agents are thin configs, contracts are Markdown plus JSON, and deterministic tool nodes fail closed before a harness can mutate state.
 
@@ -71,7 +78,21 @@ bin/adlc ci --json
 "$TARGET/.adlc/bin/adlc" health-check --json
 ```
 
-`WORKFLOW.md` is the deep reference for phase routing, retry caps, tool-node
+Persisted workflows have separate inspection and mutation commands:
+
+```bash
+bin/adlc status --workspace "$TARGET" --json
+bin/adlc resume --workspace "$TARGET" --json
+bin/adlc resume --workspace "$TARGET" --approve intent_validation --json
+bin/adlc resume --workspace "$TARGET" --approve engineer_review \
+  --decision revise --reason "The evidence package is incomplete." --json
+```
+
+`status` is strictly read-only. Gate decisions are schema-validated approval
+records under `.adlc/approvals/`; revise and rejected decisions require a human
+rationale.
+
+`WORKFLOW.md` is the deep reference for phase routing, enforced retry limits, tool-node
 semantics, and approval points. The README keeps only the operator path.
 
 ## Prompt Your Harness To Do The Following
@@ -244,7 +265,7 @@ The shipped framework layers are:
 | Compatibility Evidence | Contract-surface inventory (policy-sourced over heuristic, confidence-tiered, with consumer discovery), per-surface verification predicates, and evidence refs that must dereference to real artifacts | `contract-surface-inventory` at research time; `compatibility-evidence` before PR |
 | Honest Completion | Per-criterion depth declarations (minimal/robust), typed proof payload classes, deviation classification against the ledger, Minimalism Auditor checks against the versioned predicate library, and independent completion-claim re-verification | `deviation-log-validate`, `minimalism-audit`, `completion-audit`, and `run-report` before work is presented as done |
 
-The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, retry caps, workflow state, compound context, readiness gates, test-strength checks, Loop Contract admission gates, and execution-backed required-test evidence when `loop-test-result` artifacts are supplied. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, failure handling, or budget evidence. Missing, stale, warning, alert, or exhausted `budget_status` blocks `self_autonomous`; healthy local budget evidence is necessary but not sufficient. Tag-only Loop Contract coverage is intentionally capped below robust.
+The current truthful maturity state is **assisted loop**. ADLC has a directed workflow, deterministic validators, runtime-enforced retry caps, an invocation bound, workflow state, compound context, readiness gates, test-strength checks, Loop Contract admission gates, and execution-backed required-test evidence when `loop-test-result` artifacts are supplied. A workflow only earns **self-autonomous** status when `bin/adlc loop-maturity-audit` scores it robustly, with no weak score on win condition rigor, non-gameable test selection, failure handling, or budget evidence. Missing, stale, warning, alert, or exhausted `budget_status` blocks `self_autonomous`; healthy local budget evidence is necessary but not sufficient. Tag-only Loop Contract coverage is intentionally capped below robust.
 
 What is automatic today:
 
@@ -334,7 +355,7 @@ Labels drive routing:
 | `fixed`/`stuck` | Fixer result. |
 | `blocked` | Council blocked. Human decision required. |
 
-Every loop caps. Plan review: 3. Code review: 3. Fixer: 2. QA: 2. Hit the wall and it comes to you.
+Retry edges enforce their `max_retries` values from `WORKFLOW.dot` in persisted workflow state. Exhaustion stops with `stop_reason: cap_exhausted` and a named failure signature; `--max-phases` separately bounds each invocation.
 
 ## Verification
 
@@ -343,10 +364,11 @@ The repo ships with these verification layers:
 - `tests/test_adlc_cli.sh` exercises the `bin/adlc` CLI surface end to end, including the clarity gate, contract-surface inventory, compatibility evidence, deviation validation, minimalism and completion audits, and the dual-harness feature-slice comparison.
 - `tests/test_adlc_contracts.sh` checks prompt/schema/runtime wiring and the checked-in golden artifacts.
 - `tests/test_drift_verification.sh` proves installed skill and agent digests fail closed when stale and pass after redeployment.
-- `tests/backtest/run_backtest.sh` replays the deterministic evaluators against the benchmark fixture set.
+- `tests/test_public_hygiene.sh` blocks developer-local paths, credential-like values, malformed JSON, broken local Markdown links, and missing community files.
+- `tests/backtest/run_backtest.sh` replays the deterministic evaluators against the benchmark fixture set and writes to a temporary report by default. Set `ADLC_BACKTEST_REPORT=/path/report.json` when a durable report is needed; the committed `tests/backtest/last_report.json` remains a reviewed golden snapshot.
 - `tests/smoke/run_smoke.sh` runs the real staged agents through a tiny repo using the selected runtime adapter.
 - `tests/acceptance/run_public_acceptance.sh` runs the provider-free public acceptance path: install ADLC into a realistic target repo, plan from repo/ticket signals, install a packaged loop, exercise queue/worktree gates, prove a verifier fails before a bounded repair and passes after it, complete the queue item, and dry-run tracker sync.
-- `tests/acceptance/run_os12_acceptance.sh` runs the OS-12 end-to-end acceptance proof: extract target conventions, validate a Build Brief with module_plan, honesty, performance, and task_sizing, assemble context, generate code/tests in one shot, pass gates, and prove the flat-file, process-artifact, banned-token, and oversized-task negative controls fail at the named gates.
+- `tests/acceptance/run_os12_acceptance.sh` is a provider-free gate proof on a controlled fixture: it extracts target conventions, validates a Build Brief with module_plan, honesty, performance, and task_sizing, assembles context, exercises generated code/tests, passes gates, and proves the flat-file, process-artifact, banned-token, and oversized-task negative controls fail at the named gates. The harness writes the fixture implementation itself, so it is not evidence of one-shot agent execution.
 
 Typical verification flow:
 
@@ -452,7 +474,9 @@ Public-repo hygiene is intentional:
 
 - auth examples use placeholders only
 - runtime credentials are read from env vars or local settings files, never committed
-- smoke runs write ephemeral stage logs under `tests/smoke/artifacts/`; the tracked golden file is the summary report only
+- smoke runs write only ephemeral logs and reports under `tests/smoke/artifacts/`;
+  the historical fixture under `tests/smoke/fixtures/` is regression data, not
+  current provider-conformance evidence
 
 ## Agents
 
@@ -555,7 +579,7 @@ adlc/
 ├── skills/                 # Skill definitions + manifest.json
 ├── platform/               # CLAUDE.md, AGENTS.md, agents-antigravity.md
 ├── examples/               # Example PRD
-├── docs/                   # build-briefs/, schemas/, specs/, tests/, adlc-v2-spec, tickets
+├── docs/                   # build-briefs/, schemas/, specs/, tests/, archive/
 ├── docs/loop-library/      # Packaged assisted-loop templates for harness installation
 ├── docs/solutions/         # Schema-validated compound engineering learning store
 ├── tests/                  # contract checks, drift proof, backtests, smoke harness
@@ -580,7 +604,6 @@ adlc/
 
 ## Docs
 
-- [`docs/adlc-v2-specification.md`](docs/adlc-v2-specification.md) — Full ADLC v2 spec (philosophy, pipeline, cross-cutting concerns)
 - [`docs/specs/graph-research-and-comprehension.md`](docs/specs/graph-research-and-comprehension.md) — Graphify, Beads, context-layer, and comprehension-gate contract
 - [`docs/specs/scalable-ai-code-primitives.md`](docs/specs/scalable-ai-code-primitives.md) — Graph-backed context, paved-road reuse, verifiability, and production invariant contract
 - [`docs/specs/implementation-interfaces-and-productionization.md`](docs/specs/implementation-interfaces-and-productionization.md) — Implementation Interface, Productionization Gate, Coverage State, and No-Overclaim contract
@@ -590,7 +613,11 @@ adlc/
 - [`docs/specs/compound-engineering-learning-store.md`](docs/specs/compound-engineering-learning-store.md) — `docs/solutions` learning-entry schema, capture, refresh, and preflight contract
 - [`docs/specs/packaged-loop-library.md`](docs/specs/packaged-loop-library.md) — Packaged assisted-loop catalog, install artifacts, and action-admitted install flow
 - [`docs/specs/self-actioning-meta-harness.md`](docs/specs/self-actioning-meta-harness.md) — Bounded candidate ranking, packaged-loop selection, queue seed, tracker-sync, and planned-command contract
-- [`docs/adlc-v2-tickets.md`](docs/adlc-v2-tickets.md) — 58-ticket implementation roadmap
+- [`docs/archive/adlc-v2-specification.md`](docs/archive/adlc-v2-specification.md) and [`docs/archive/adlc-v2-tickets.md`](docs/archive/adlc-v2-tickets.md) — superseded v2 design history; retained for provenance, not current operator guidance
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — development setup, change expectations, and validation requirements
+- [`SECURITY.md`](SECURITY.md) — private vulnerability reporting and support boundaries
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — community participation standards
+- [`CHANGELOG.md`](CHANGELOG.md) — release-oriented change history
 
 ## Acknowledgments
 

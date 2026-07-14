@@ -60,6 +60,16 @@ The stages run in this order:
 
 Each stage writes a log to `tests/smoke/artifacts/<stage>.log`. The final machine-readable summary is `tests/smoke/artifacts/smoke_report.json`.
 
+Everything under `tests/smoke/artifacts/` except `.gitkeep` is ephemeral and
+must remain untracked. `tests/smoke/fixtures/historical-codex-smoke-report.json`
+preserves an older harness result for regression context only; it is not proof
+of current provider support. A release-facing conformance result must identify
+the runtime, model, commit, and run time and be reviewed before it is recorded
+outside the ephemeral artifacts directory.
+
+The release evidence policy and recording location are documented in
+[`docs/evidence/provider-conformance/README.md`](../../docs/evidence/provider-conformance/README.md).
+
 All auth values in this README are placeholders. Do not commit real keys, local settings files, or copied auth state.
 
 ## Cost

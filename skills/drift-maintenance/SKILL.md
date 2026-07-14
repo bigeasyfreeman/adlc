@@ -8,7 +8,7 @@
 
 Activated as a sub-step of any work-item emitter (`linear-ticket-creation`, `jira-ticket-creation`, `github-issue-creation`) when the emitter discovers an existing artifact via idempotency key. Drift refresh runs BEFORE the emitter completes its update mutation.
 
-This skill is required by [docs/specs/emitter-contract.md](/Users/eric/adlc/docs/specs/emitter-contract.md) under the "Source Context Refresh" section.
+This skill is required by the [emitter contract](../../docs/specs/emitter-contract.md) under the "Source Context Refresh" section.
 
 ## Why This Exists
 
@@ -26,7 +26,7 @@ Without refresh, every codebase change orphans the tickets that reference the ol
 {
   "ticket_id": "string",
   "ticket_description": "string — the current full description of the existing artifact",
-  "workspace_repo_path": "string — absolute path to the workspace repo (e.g., /Users/eric/interralis)",
+  "workspace_repo_path": "string — absolute path to the workspace repo (e.g., /path/to/project)",
   "build_brief_id": "string",
   "current_adlc_source_context": "string — parsed from ticket description if present"
 }
@@ -95,7 +95,7 @@ Without refresh, every codebase change orphans the tickets that reference the ol
 ## Relationship to Other Skills
 
 - **`linear-ticket-creation` / `jira-ticket-creation` / `github-issue-creation`:** These emitters invoke drift-maintenance as a sub-step before completing update mutations. Drift refresh is mandatory for re-runs against existing artifacts.
-- **`audit-tickets` (interralis-specific, not in ADLC):** The board-level drift audit script at `/Users/eric/interralis/.tmp/board-reform/audit-tickets.py` becomes obsolete once drift-maintenance is wired into the emitters — refresh happens at emission time, not as a separate post-hoc audit.
+- **External board-level audit scripts:** project-specific post-hoc drift audits become obsolete once drift-maintenance is wired into emitters; refresh happens at emission time.
 
 ## Verification
 

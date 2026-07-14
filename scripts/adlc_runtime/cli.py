@@ -74,6 +74,12 @@ DEFAULT_PROCESS_ARTIFACT_FILENAMES = {
     "review": "volatility-review-packet.json",
 }
 
+PHASE_OUTPUT_SCHEMAS = {
+    "plan_review": "council-verdict",
+    "security": "security-review-output",
+    "test_strength": "test-strength-output",
+}
+
 
 def read_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
@@ -83,6 +89,30 @@ def read_json(path: Path) -> Any:
 def write_json(payload: Any) -> None:
     json.dump(payload, sys.stdout, indent=2, sort_keys=True)
     sys.stdout.write("\n")
+
+
+def atomic_write_text(path: Path, content: str) -> None:
+    """Durably replace a text file without exposing a partially written state."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=str(path.parent),
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, path)
+    except BaseException:
+        temporary_path.unlink(missing_ok=True)
+        raise
+
+
+def atomic_write_json(path: Path, payload: Any) -> None:
+    atomic_write_text(path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
 def rel_path(path: Path) -> str:
@@ -227,6 +257,7 @@ def workflow_nodes_and_edges() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any
                     "from": source,
                     "to": target,
                     "label": attrs.get("label"),
+                    "max_retries": int(attrs["max_retries"]) if attrs.get("max_retries", "").isdigit() else None,
                 }
             )
 
@@ -313,7 +344,7 @@ def workflow_maps() -> Tuple[Dict[str, Dict[str, Any]], Dict[str, List[Dict[str,
     return node_by_id, outgoing
 
 
-def next_phase(current_phase: str, label: str | None = None) -> str | None:
+def transition_edge(current_phase: str, label: str | None = None) -> Dict[str, Any] | None:
     _, outgoing = workflow_maps()
     candidates = outgoing.get(current_phase, [])
     if not candidates:
@@ -321,15 +352,56 @@ def next_phase(current_phase: str, label: str | None = None) -> str | None:
     if label is not None:
         for edge in candidates:
             if edge.get("label") == label:
-                return edge["to"]
+                return edge
         raise ValueError(f"no transition from {current_phase} with label {label}")
     if len(candidates) == 1:
-        return candidates[0]["to"]
+        return candidates[0]
     for default_label in DEFAULT_SUCCESS_LABELS:
         for edge in candidates:
             if edge.get("label") == default_label:
-                return edge["to"]
+                return edge
     return None
+
+
+def next_phase(current_phase: str, label: str | None = None) -> str | None:
+    edge = transition_edge(current_phase, label)
+    return edge["to"] if edge else None
+
+
+def record_edge_retry(
+    state: Dict[str, Any], edge: Dict[str, Any], label: str | None
+) -> Tuple[Dict[str, Any] | None, bool]:
+    cap = edge.get("max_retries")
+    if not isinstance(cap, int):
+        return None, False
+    signature = f"{edge['from']}:{label or 'default'}"
+    counters = state.setdefault("edge_counters", [])
+    counter = next(
+        (
+            item
+            for item in counters
+            if item.get("from") == edge["from"]
+            and item.get("to") == edge["to"]
+            and item.get("failure_signature") == signature
+        ),
+        None,
+    )
+    if counter is None:
+        counter = {
+            "from": edge["from"],
+            "to": edge["to"],
+            "label": label,
+            "failure_signature": signature,
+            "count": 0,
+            "cap": cap,
+        }
+        counters.append(counter)
+    if counter["count"] >= counter["cap"]:
+        counter["updated_at"] = utc_now()
+        return counter, True
+    counter["count"] += 1
+    counter["updated_at"] = utc_now()
+    return counter, False
 
 
 def infer_brief_id(input_arg: str | None) -> str | None:
@@ -424,11 +496,10 @@ def load_workflow_state(path: Path) -> Dict[str, Any]:
 
 def save_workflow_state(path: Path, state: Dict[str, Any]) -> None:
     ensure_workflow_identity(state)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    errors = validate_artifact(resolve_schema("workflow-state"), path)
+    errors = validate_artifact_payload(resolve_schema("workflow-state"), state)
     if errors:
         raise ValueError("workflow state failed schema validation: " + "; ".join(errors))
+    atomic_write_json(path, state)
 
 
 def workflow_state_for_args(args: argparse.Namespace, workspace: Path) -> Tuple[Path, Dict[str, Any]]:
@@ -478,7 +549,8 @@ def phase_invocation_plan(
 
     input_path = resolve_input_path(input_arg, workspace) if input_arg else None
     output_path = resolve_under_workspace(output_arg, workspace, f".adlc/outputs/{phase}.json")
-    schema_path = resolve_schema(schema_arg) if schema_arg else None
+    schema_alias = schema_arg or PHASE_OUTPUT_SCHEMAS.get(phase)
+    schema_path = resolve_schema(schema_alias) if schema_alias else None
     return {
         "phase": phase,
         "node_type": node["type"],
@@ -490,6 +562,7 @@ def phase_invocation_plan(
         "output": str(output_path),
         "tools": tools_csv if tools_csv is not None else DEFAULT_PHASE_TOOLS.get(phase, ""),
         "schema": str(schema_path) if schema_path else None,
+        "schema_alias": schema_alias,
     }
 
 
@@ -505,6 +578,59 @@ def read_output_label(output_path: str | None) -> str | None:
         return None
     label = payload.get("label") if isinstance(payload, dict) else None
     return label if isinstance(label, str) and label else None
+
+
+def validated_phase_output_label(plan: Dict[str, Any]) -> str | None:
+    output_path = Path(str(plan["output"]))
+    schema_alias = plan.get("schema_alias")
+    if schema_alias:
+        errors = validate_artifact(resolve_schema(str(schema_alias)), output_path)
+        if errors:
+            raise ValueError(f"{plan['phase']} output failed {schema_alias} validation: " + "; ".join(errors))
+    return read_output_label(plan["output"])
+
+
+def parse_label_waiver(raw: str | None) -> Dict[str, str] | None:
+    if raw is None:
+        return None
+    parts = raw.split(":", 2)
+    if len(parts) != 3 or not all(part.strip() for part in parts):
+        raise ValueError("--waive-label must use rule:who:why format")
+    rule, who, reason = (part.strip() for part in parts)
+    if rule != "label_override":
+        raise ValueError("--waive-label rule must be label_override")
+    return {"rule": rule, "who": who, "reason": reason}
+
+
+def record_label_waiver(workspace: Path, state: Dict[str, Any], phase: str, waiver: Dict[str, str]) -> str:
+    entry = {
+        "decision_id": f"decision-{uuid.uuid4().hex[:12]}",
+        "tool_name": "adlc-workflow",
+        "action": "override_label",
+        "tier": "requires_approval",
+        "decision": "approved",
+        "reason": waiver["reason"],
+        "decided_by": "human",
+        "timestamp": utc_now(),
+        "session_id": state["session_id"],
+        "brief_id": state["brief_id"],
+        "run_id": state["run_id"],
+        "phase": phase,
+        "side_effect_profile": "mutating",
+        "policy_ref": waiver["rule"],
+        "human_approval_ref": waiver["who"],
+    }
+    new_trail = permission_audit_trail_for_entry(
+        state["session_id"],
+        state["brief_id"],
+        state["run_id"],
+        entry,
+        [],
+    )
+    audit_path = workspace / ".adlc" / "permission_audit_trail.json"
+    trail = merged_permission_audit_trail(audit_path, new_trail)
+    write_permission_audit_trail(audit_path, trail)
+    return str(audit_path.relative_to(workspace))
 
 
 def invoke_agent_phase(plan: Dict[str, Any], workspace: Path) -> subprocess.CompletedProcess[str]:
@@ -562,7 +688,24 @@ def apply_phase_result(
         append_history(state, event)
         return state
 
-    destination = next_phase(phase, label)
+    edge = transition_edge(phase, label)
+    destination = edge["to"] if edge else None
+    retry_counter, cap_exhausted = (
+        record_edge_retry(state, edge, label) if edge else (None, False)
+    )
+    if retry_counter:
+        event["retry_counter"] = dict(retry_counter)
+        if cap_exhausted:
+            event["next_phase"] = None
+            event["stop_reason"] = "cap_exhausted"
+            append_history(state, event)
+            state["phase"] = phase
+            state["status"] = "failed"
+            state["step"] = "failed"
+            state["updated_at"] = utc_now()
+            state["stop_reason"] = "cap_exhausted"
+            state["failure_signature"] = retry_counter["failure_signature"]
+            return state
     event["next_phase"] = destination
     append_history(state, event)
     state["updated_at"] = utc_now()
@@ -2588,13 +2731,8 @@ def upsert_phase_artifact_state(state: Dict[str, Any], phase: str, artifact_ref:
 
 
 def persist_tool_node_result(output_path: Path, result: Dict[str, Any]) -> str:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     result.setdefault("outputs", {})["artifact_ref"] = rel_path(output_path)
-    output_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    errors = validate_artifact(resolve_schema("tool-node-result"), output_path)
-    if errors:
-        raise ValueError("tool-node result failed schema validation: " + "; ".join(errors))
-    return rel_path(output_path)
+    return write_artifact(output_path, result, "tool-node-result")
 
 
 def finish_tool_node_phase(
@@ -3061,6 +3199,9 @@ def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
 
     node_by_id, _ = workflow_maps()
     node_type = node_by_id[phase]["type"]
+    label_waiver = parse_label_waiver(getattr(args, "waive_label", None))
+    if args.label and node_type == "agent" and not args.dry_run and not label_waiver:
+        raise ValueError("agent phase --label overrides require --waive-label label_override:who:why")
     convention_check = run_phase_repo_conventions_check(args, workspace, state, phase)
     if convention_check:
         return block_run_phase_for_repo_conventions(state_path, state, phase, plan, convention_check)
@@ -3103,7 +3244,7 @@ def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
             dry_run=True,
         )
         save_workflow_state(state_path, state)
-        return 0, {
+        return (1 if state.get("stop_reason") == "cap_exhausted" else 0), {
             "state_path": rel_path(state_path),
             "run_identity": workflow_identity_payload(state),
             "state": state,
@@ -3112,7 +3253,29 @@ def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
         }
 
     result = invoke_agent_phase(plan, workspace)
-    label = args.label or read_output_label(plan["output"])
+    try:
+        output_label = validated_phase_output_label(plan) if result.returncode == 0 else None
+    except ValueError as exc:
+        state["phase"] = phase
+        state["status"] = "failed"
+        state["step"] = "failed"
+        state["stop_reason"] = "invalid_phase_artifact"
+        state["updated_at"] = utc_now()
+        append_history(state, {"phase": phase, "status": "failed", "stop_reason": "invalid_phase_artifact", "error": str(exc)})
+        save_workflow_state(state_path, state)
+        return 1, {
+            "state_path": rel_path(state_path),
+            "run_identity": workflow_identity_payload(state),
+            "state": state,
+            "plan": plan,
+            "returncode": 1,
+            "stdout": result.stdout,
+            "stderr": str(exc),
+        }
+    if label_waiver:
+        plan["label_waiver"] = label_waiver
+        plan["label_waiver_audit_ref"] = record_label_waiver(workspace, state, phase, label_waiver)
+    label = args.label or output_label
     state = apply_phase_result(
         state=state,
         phase=phase,
@@ -3133,7 +3296,7 @@ def run_phase_payload(args: argparse.Namespace) -> Tuple[int, Dict[str, Any]]:
         "stdout": result.stdout,
         "stderr": result.stderr,
     }
-    return result.returncode, payload
+    return (1 if state.get("stop_reason") == "cap_exhausted" else result.returncode), payload
 
 
 def command_run_phase(args: argparse.Namespace) -> int:
@@ -3177,10 +3340,75 @@ def command_run(args: argparse.Namespace) -> int:
     return exit_code
 
 
-def resume_workflow_payload(workspace_arg: str | None, state_arg: str | None) -> Dict[str, Any]:
+def approval_transition_label(phase: str, decision: str) -> str:
+    if decision == "approved":
+        return "approve" if phase == "engineer_review" else "approved"
+    return decision
+
+
+def record_gate_approval(
+    workspace: Path,
+    state: Dict[str, Any],
+    gate_id: str,
+    decision: str,
+    reason: str | None,
+) -> Dict[str, Any]:
+    node_by_id, _ = workflow_maps()
+    phase = str(state.get("phase") or "")
+    if state.get("status") != "awaiting_approval" or node_by_id.get(phase, {}).get("type") != "human_gate":
+        raise ValueError("--approve requires workflow state stopped at a human gate")
+    if gate_id != phase:
+        raise ValueError(f"approval gate id must match current phase: {phase}")
+    if decision in {"revise", "rejected"} and not str(reason or "").strip():
+        raise ValueError("--reason is required for revise or rejected decisions")
+    transition_label = approval_transition_label(phase, decision)
+    transition_edge(phase, transition_label)
+
+    approval_id = f"approval-{uuid.uuid4().hex[:12]}"
+    approval_path = workspace / ".adlc" / "approvals" / f"{approval_id}.json"
+    record = {
+        "contract_version": "1.0.0",
+        "approval_id": approval_id,
+        "gate_id": gate_id,
+        "decision": decision,
+        "reason": str(reason or "Human approved the recorded ADLC gate.").strip(),
+        "decided_by": "human",
+        "timestamp": utc_now(),
+        "brief_id": state["brief_id"],
+        "run_id": state["run_id"],
+        "session_id": state["session_id"],
+        "artifact_ref": str(approval_path.relative_to(workspace)),
+    }
+    write_artifact(approval_path, record, "approval-record")
+    state.setdefault("approval_records", []).append(record)
+    return apply_phase_result(
+        state=state,
+        phase=phase,
+        status="completed",
+        label=transition_label,
+        plan={
+            "phase": phase,
+            "node_type": "human_gate",
+            "approval_record": record["artifact_ref"],
+        },
+        dry_run=False,
+    )
+
+
+def resume_workflow_payload(
+    workspace_arg: str | None,
+    state_arg: str | None,
+    approve_gate: str | None = None,
+    decision: str = "approved",
+    reason: str | None = None,
+) -> Dict[str, Any]:
     workspace = resolve_workspace(workspace_arg)
     state_path = resolve_under_workspace(state_arg, workspace, DEFAULT_STATE_PATH)
     state = ensure_workflow_identity(load_workflow_state(state_path))
+    if approve_gate:
+        state = record_gate_approval(workspace, state, approve_gate, decision, reason)
+    elif decision != "approved" or reason:
+        raise ValueError("--decision and --reason require --approve <gate-id>")
     state["resume_count"] = int(state.get("resume_count", 0)) + 1
     state["attempt"] = int(state.get("attempt", 1)) + 1
     resumed_at = utc_now()
@@ -3197,9 +3425,45 @@ def resume_workflow_payload(workspace_arg: str | None, state_arg: str | None) ->
     }
 
 
+def workflow_status_payload(workspace_arg: str | None, state_arg: str | None) -> Dict[str, Any]:
+    workspace = resolve_workspace(workspace_arg)
+    state_path = resolve_under_workspace(state_arg, workspace, DEFAULT_STATE_PATH)
+    state = load_workflow_state(state_path)
+    errors = validate_artifact_payload(resolve_schema("workflow-state"), state)
+    if errors:
+        raise ValueError("workflow state failed schema validation: " + "; ".join(errors))
+    return {
+        "state_path": rel_path(state_path),
+        "run_identity": workflow_identity_payload(state),
+        "state": state,
+        "next_action": resume_next_action_payload(state),
+        "read_only": True,
+    }
+
+
+def command_workflow_status(args: argparse.Namespace) -> int:
+    try:
+        payload = workflow_status_payload(args.workspace, args.state)
+        state = payload["state"]
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{state['brief_id']}: {state['phase']} ({state['status']})")
+    return 0
+
+
 def command_resume_workflow(args: argparse.Namespace) -> int:
     try:
-        payload = resume_workflow_payload(args.workspace, args.state)
+        payload = resume_workflow_payload(
+            args.workspace,
+            args.state,
+            getattr(args, "approve", None),
+            getattr(args, "decision", "approved"),
+            getattr(args, "reason", None),
+        )
         state = payload["state"]
     except Exception as exc:
         print(str(exc), file=sys.stderr)
@@ -3756,12 +4020,16 @@ CI_SUITES = {
         "command": ["bash", "tests/acceptance/run_public_acceptance.sh"],
     },
     "os12-acceptance": {
-        "description": "OS-12 end-to-end one-shot acceptance proof",
+        "description": "Provider-free OS-12 gate proof on a controlled fixture",
         "command": ["bash", "tests/acceptance/run_os12_acceptance.sh"],
     },
     "backtest": {
         "description": "Deterministic evaluator backtest",
         "command": ["bash", "tests/backtest/run_backtest.sh"],
+    },
+    "public-hygiene": {
+        "description": "Public repository metadata, path, credential, JSON, and link checks",
+        "command": ["bash", "tests/test_public_hygiene.sh"],
     },
     "py-compile": {
         "description": "Python syntax compilation over scripts/",
@@ -3769,7 +4037,7 @@ CI_SUITES = {
     },
 }
 
-DEFAULT_CI_SUITE_ORDER = ("health-check", "cli", "contracts", "setup", "drift", "acceptance", "os12-acceptance", "backtest", "py-compile")
+DEFAULT_CI_SUITE_ORDER = ("health-check", "cli", "contracts", "setup", "drift", "acceptance", "os12-acceptance", "backtest", "public-hygiene", "py-compile")
 
 
 def ci_command_for_suite(suite_name: str) -> List[str]:
@@ -3929,11 +4197,10 @@ def load_work_queue(path: Path) -> Dict[str, Any]:
 
 def save_work_queue(path: Path, queue: Dict[str, Any]) -> None:
     queue["updated_at"] = utc_now()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(queue, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    errors = validate_artifact(resolve_schema("work-queue"), path)
+    errors = validate_artifact_payload(resolve_schema("work-queue"), queue)
     if errors:
-        raise ValueError("work queue failed schema validation after write: " + "; ".join(errors))
+        raise ValueError("work queue failed schema validation: " + "; ".join(errors))
+    atomic_write_json(path, queue)
 
 
 def queue_task_key(task: Dict[str, Any]) -> Tuple[int, str, str]:
@@ -4925,12 +5192,6 @@ def command_compound_context(args: argparse.Namespace) -> int:
             f"{payload['summary']['task_refs']} task refs, {payload['summary']['no_ops']} no-ops"
         )
     return 0
-
-
-def string_list(value: Any) -> List[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item).strip() for item in value if str(item).strip()]
 
 
 def architecture_memory_dir(workspace: Path) -> Path:
@@ -8524,10 +8785,6 @@ KNOW_IT_WHEN_RE = re.compile(r"\b(know it when i see it|vibes|taste|feel|looks? 
 DATA_MODEL_RE = re.compile(r"\b(schema|data model|migration|public contract|api|dependency|interface|format|ux|visual|type 1)\b", re.IGNORECASE)
 
 
-def build_brief_tasks(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
-    return [task for task in brief.get("sections", {}).get("8_task_tickets", []) if isinstance(task, dict)]
-
-
 def collect_strings(value: Any) -> List[str]:
     if isinstance(value, str):
         return [value]
@@ -11654,11 +11911,10 @@ def merged_permission_audit_trail(path: Path, new_trail: Dict[str, Any]) -> Dict
 
 
 def write_permission_audit_trail(path: Path, trail: Dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(trail, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    errors = validate_artifact(resolve_schema("permission-audit-trail"), path)
+    errors = validate_artifact_payload(resolve_schema("permission-audit-trail"), trail)
     if errors:
         raise ValueError("permission audit trail failed schema validation: " + "; ".join(errors))
+    atomic_write_json(path, trail)
 
 
 def action_stop_reason(status: str, issues: List[Dict[str, Any]]) -> str | None:
@@ -12594,12 +12850,11 @@ def control_plane_loop_action(drift: Dict[str, Any], required_verifiers: List[st
 
 
 def write_artifact(path: Path, payload: Dict[str, Any], schema_alias: str | None = None) -> str:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if schema_alias:
-        errors = validate_artifact(resolve_schema(schema_alias), path)
+        errors = validate_artifact_payload(resolve_schema(schema_alias), payload)
         if errors:
             raise ValueError(f"{schema_alias} artifact failed schema validation: " + "; ".join(errors))
+    atomic_write_json(path, payload)
     return rel_path(path)
 
 
@@ -13544,6 +13799,7 @@ def mcp_tools() -> List[Dict[str, Any]]:
                     "tools": {"type": "string"},
                     "schema": {"type": "string"},
                     "label": {"type": "string"},
+                    "waive_label": {"type": "string", "pattern": "^label_override:[^:]+:.+$"},
                     "dry_run": {"type": "boolean", "default": True},
                 },
             },
@@ -13551,6 +13807,21 @@ def mcp_tools() -> List[Dict[str, Any]]:
         {
             "name": command_mcp_name("resume-workflow"),
             "description": command_description("resume-workflow"),
+            "inputSchema": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "workspace": {"type": "string", "minLength": 1},
+                    "state": {"type": "string", "minLength": 1},
+                    "approve": {"type": "string", "minLength": 1},
+                    "decision": {"type": "string", "enum": ["approved", "revise", "rejected"], "default": "approved"},
+                    "reason": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        {
+            "name": command_mcp_name("status"),
+            "description": command_description("status"),
             "inputSchema": {
                 "type": "object",
                 "additionalProperties": False,
@@ -14486,13 +14757,24 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             tools=arguments.get("tools"),
             schema=arguments.get("schema"),
             label=arguments.get("label"),
+            waive_label=arguments.get("waive_label"),
             dry_run=arguments.get("dry_run", True),
             json=True,
         )
         exit_code, payload = run_phase_payload(args)
         return tool_result(payload, is_error=exit_code != 0)
     if name == "adlc_resume_workflow":
-        return tool_result(resume_workflow_payload(arguments.get("workspace"), arguments.get("state")))
+        return tool_result(
+            resume_workflow_payload(
+                arguments.get("workspace"),
+                arguments.get("state"),
+                arguments.get("approve"),
+                arguments.get("decision", "approved"),
+                arguments.get("reason"),
+            )
+        )
+    if name == "adlc_status":
+        return tool_result(workflow_status_payload(arguments.get("workspace"), arguments.get("state")))
     if name == "adlc_compound_context":
         args = argparse.Namespace(
             workspace=arguments.get("workspace"),
@@ -15337,6 +15619,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--tools", help="Runtime tool allowlist CSV for agent phases.")
     run.add_argument("--schema", help="Schema alias or path for agent output enforcement.")
     run.add_argument("--label", help="Transition label to use after this phase.")
+    run.add_argument("--waive-label", help="Audited agent-label override in label_override:who:why form.")
     run.add_argument("--max-phases", type=int, default=1, help="Maximum phases to advance in this invocation.")
     add_tool_phase_arguments(run)
     run.add_argument("--dry-run", action="store_true", help="Plan and advance state without invoking runtime adapters.")
@@ -15354,6 +15637,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_phase.add_argument("--tools", help="Runtime tool allowlist CSV for agent phases.")
     run_phase.add_argument("--schema", help="Schema alias or path for agent output enforcement.")
     run_phase.add_argument("--label", help="Transition label to use after this phase.")
+    run_phase.add_argument("--waive-label", help="Audited agent-label override in label_override:who:why form.")
     add_tool_phase_arguments(run_phase)
     run_phase.add_argument("--dry-run", action="store_true", help="Plan and advance state without invoking runtime adapters.")
     run_phase.add_argument("--json", action="store_true", help="Emit JSON.")
@@ -15362,8 +15646,26 @@ def build_parser() -> argparse.ArgumentParser:
     resume = subparsers.add_parser("resume-workflow", help=command_description("resume-workflow"))
     resume.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
     resume.add_argument("--state", help=f"Workflow state path. Defaults to {DEFAULT_STATE_PATH} under workspace.")
+    resume.add_argument("--approve", metavar="GATE_ID", help="Record a human decision for the current persisted gate and advance it.")
+    resume.add_argument("--decision", choices=("approved", "revise", "rejected"), default="approved", help="Gate decision recorded with --approve. Defaults to approved.")
+    resume.add_argument("--reason", help="Human rationale; required for revise or rejected decisions.")
     resume.add_argument("--json", action="store_true", help="Emit JSON.")
     resume.set_defaults(func=command_resume_workflow)
+
+    resume_alias = subparsers.add_parser("resume", help="Resume a persisted ADLC workflow.")
+    resume_alias.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    resume_alias.add_argument("--state", help=f"Workflow state path. Defaults to {DEFAULT_STATE_PATH} under workspace.")
+    resume_alias.add_argument("--approve", metavar="GATE_ID", help="Record a human decision for the current persisted gate and advance it.")
+    resume_alias.add_argument("--decision", choices=("approved", "revise", "rejected"), default="approved", help="Gate decision recorded with --approve. Defaults to approved.")
+    resume_alias.add_argument("--reason", help="Human rationale; required for revise or rejected decisions.")
+    resume_alias.add_argument("--json", action="store_true", help="Emit JSON.")
+    resume_alias.set_defaults(func=command_resume_workflow)
+
+    status = subparsers.add_parser("status", help="Inspect persisted ADLC workflow state without modifying it.")
+    status.add_argument("--workspace", help="Workspace root. Defaults to cwd.")
+    status.add_argument("--state", help=f"Workflow state path. Defaults to {DEFAULT_STATE_PATH} under workspace.")
+    status.add_argument("--json", action="store_true", help="Emit JSON.")
+    status.set_defaults(func=command_workflow_status)
 
     compound = subparsers.add_parser("compound-context", help=command_description("compound-context"))
     compound.add_argument("--workspace", help="Workspace root. Defaults to cwd.")

@@ -27,8 +27,8 @@ ADLC says integrations are swappable, but the repo only defines JIRA and Conflue
 
 - **Pattern:** One normalized Build Brief input, many platform adapters.
 - **Transport boundary:** ADLC emits normalized payloads; local MCP providers own auth and vendor API transport.
-- **Shared contract:** [docs/specs/emitter-contract.md](/Users/eric/adlc/docs/specs/emitter-contract.md)
-- **Existing references:** [skills/jira-ticket-creation/SKILL.md](/Users/eric/adlc/skills/jira-ticket-creation/SKILL.md), [skills/confluence-decomposition/SKILL.md](/Users/eric/adlc/skills/confluence-decomposition/SKILL.md)
+- **Shared contract:** [emitter contract](../specs/emitter-contract.md)
+- **Existing references:** [Jira emitter](../../skills/jira-ticket-creation/SKILL.md), [Confluence emitter](../../skills/confluence-decomposition/SKILL.md)
 - **Constraint:** Platform-specific configuration belongs in emitter-specific config blocks. The Build Brief task schema stays platform-neutral.
 
 ## 4. Data Model Changes
@@ -65,7 +65,7 @@ Not applicable. No runtime path is introduced.
 
 - **Problem statement:** JIRA and Confluence encode their own assumptions, so adding GitHub, Linear, and Notion would otherwise duplicate and drift.
 - **Files to create:** `docs/specs/emitter-contract.md`
-- **Files to modify:** `README.md`, `docs/adlc-v2-specification.md`, `docs/specs/version-compatibility-matrix.md`
+- **Files to modify:** `README.md`, `docs/archive/adlc-v2-specification.md`, `docs/specs/version-compatibility-matrix.md`
 - **Reference implementation:** `skills/jira-ticket-creation/SKILL.md`, `skills/confluence-decomposition/SKILL.md`
 - **Dependency IDs:** none
 - **Acceptance criteria:**
@@ -74,7 +74,7 @@ Not applicable. No runtime path is introduced.
   - [ ] README/spec surfaces reference the shared contract instead of implying only JIRA/Confluence are real.
 - **Verification spec:**
   - Primary verifier: command
-  - Target: `rg -n 'GitHub|Linear|Notion|contract_version|idempotency' docs/specs/emitter-contract.md README.md docs/adlc-v2-specification.md`
+  - Target: `rg -n 'GitHub|Linear|Notion|contract_version|idempotency' docs/specs/emitter-contract.md README.md docs/archive/adlc-v2-specification.md`
 
 ### EMIT-002: Add GitHub issue emitter
 

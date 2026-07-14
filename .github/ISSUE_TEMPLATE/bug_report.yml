@@ -1,0 +1,66 @@
+name: Bug report
+description: Report reproducible incorrect behavior in ADLC.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Do not report vulnerabilities here. Use the private process in
+        SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Provide the release version or full commit SHA.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - CLI or MCP
+        - Workflow or state
+        - Schema or validator
+        - Runtime adapter
+        - Skill or agent contract
+        - Setup or installation
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include exact commands and sanitized input. Remove credentials and private repository data.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Validation evidence
+      description: Add relevant redacted output, state, or failing test references.
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: Submission checks
+      options:
+        - label: I removed credentials, tokens, and private target-repository data.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

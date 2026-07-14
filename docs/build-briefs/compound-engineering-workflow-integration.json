@@ -27,7 +27,7 @@
       "supported": [
         {
           "claim": "ADLC already defines a graph-backed build loop, injected skills, workflow state, work-item emitters, reuse analysis, codegen context, and feedback loop.",
-          "source_ref": "README.md, WORKFLOW.md, docs/adlc-v2-specification.md, scripts/adlc.py",
+          "source_ref": "README.md, WORKFLOW.md, docs/archive/adlc-v2-specification.md, scripts/adlc.py",
           "extracted_from": "Repo research and Graphify query"
         },
         {
@@ -297,7 +297,7 @@
           ]
         },
         "construct_map_refs": [
-          "docs/adlc-v2-specification.md#feedback-loop"
+          "docs/archive/adlc-v2-specification.md#feedback-loop"
         ],
         "paved_road_refs": [
           "skills/feedback-loop/SKILL.md",
@@ -1318,7 +1318,7 @@
         "WORKFLOW.md",
         "WORKFLOW.dot",
         "scripts/adlc.py",
-        "docs/adlc-v2-specification.md",
+        "docs/archive/adlc-v2-specification.md",
         "skills/manifest.json"
       ]
     },

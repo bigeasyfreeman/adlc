@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/approval-record.schema.json",
+  "title": "ADLC Human Gate Approval Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "approval_id",
+    "gate_id",
+    "decision",
+    "reason",
+    "decided_by",
+    "timestamp",
+    "brief_id",
+    "run_id",
+    "session_id",
+    "artifact_ref"
+  ],
+  "properties": {
+    "contract_version": {"type": "string", "const": "1.0.0"},
+    "approval_id": {"type": "string", "pattern": "^approval-[a-f0-9]{12}$"},
+    "gate_id": {"type": "string", "enum": ["intent_validation", "engineer_review"]},
+    "decision": {"type": "string", "enum": ["approved", "revise", "rejected"]},
+    "reason": {"type": "string", "minLength": 1},
+    "decided_by": {"type": "string", "const": "human"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "brief_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "artifact_ref": {"type": "string", "minLength": 1}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"gate_id": {"const": "intent_validation"}}
+      },
+      "then": {
+        "properties": {
+          "decision": {"enum": ["approved", "revise"]}
+        }
+      }
+    }
+  ]
+}

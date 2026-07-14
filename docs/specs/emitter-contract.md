@@ -305,8 +305,8 @@ Platform-specific config may extend the shared contract, but it must not redefin
 
 ## Idempotency and Permission Logging
 
-- Key format is defined in [docs/specs/idempotency-keys.md](/Users/eric/adlc/docs/specs/idempotency-keys.md).
-- Permission log shape is defined in [docs/specs/permission-logging.md](/Users/eric/adlc/docs/permission-logging.md).
+- Key format is defined in [idempotency-keys.md](idempotency-keys.md).
+- Permission log shape is defined in [permission-logging.md](permission-logging.md).
 - Mutation providers must return per-artifact metadata keyed by `idempotency_key` when they create, update, or deduplicate work items. The item should include `artifact_id` and `artifact_ref`; target-native names such as `key`, `identifier`, `number`, `id`, or `url` are accepted and normalized into workflow state.
 - Retries must return prior artifact metadata when the key is already terminal.
 
@@ -326,7 +326,7 @@ Procedure:
 3. Update `adlc:source_context` with the refreshed commit and PRD version.
 4. Populate `adlc:last_refreshed_at` with the current ISO8601 timestamp.
 
-This is the systemic fix for ticket drift. Without it, every codebase change orphans the artifacts that reference the old state. See [skills/drift-maintenance/SKILL.md](/Users/eric/adlc/skills/drift-maintenance/SKILL.md) for the canonical implementation.
+This is the systemic fix for ticket drift. Without it, every codebase change orphans the artifacts that reference the old state. See the [drift-maintenance skill](../../skills/drift-maintenance/SKILL.md) for the canonical implementation.
 
 ## Readiness Gate
 
@@ -390,7 +390,7 @@ The readiness checker validates:
 
 ## Reconciliation
 
-Existing tracker estates must be reconciled through the product-neutral process in [docs/specs/work-item-reconciliation.md](/Users/eric/adlc/docs/specs/work-item-reconciliation.md). Generic emitter skills must not embed product-specific tracker IDs, phase maps, or cleanup runbooks.
+Existing tracker estates must be reconciled through the product-neutral process in [work-item-reconciliation.md](work-item-reconciliation.md). Generic emitter skills must not embed product-specific tracker IDs, phase maps, or cleanup runbooks.
 
 ## Stop Reasons
 

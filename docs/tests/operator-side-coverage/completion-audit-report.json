@@ -11,7 +11,7 @@
       "id": "build-brief-valid",
       "observed": {
         "errors": [],
-        "path": "/Users/eric/adlc-main/docs/build-briefs/operator-side-coverage.json",
+        "path": "docs/build-briefs/operator-side-coverage.json",
         "schema": "build-brief"
       }
     },
@@ -20,7 +20,7 @@
       "id": "criterion-depth-valid",
       "observed": {
         "errors": [],
-        "path": "/Users/eric/adlc-main/docs/tests/operator-side-coverage/criterion-depth-report.json",
+        "path": "docs/tests/operator-side-coverage/criterion-depth-report.json",
         "schema": "criterion-depth-report"
       }
     },

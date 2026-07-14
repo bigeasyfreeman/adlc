@@ -13,6 +13,7 @@ REPORT_PATH="$ARTIFACTS_DIR/smoke_report.json"
 COST_ESTIMATE_TOKENS=50000
 MODEL_NAME="${MODEL:-}"
 RUNTIME_NAME="${ADLC_RUNTIME:-claude}"
+RUN_STARTED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 report_items_file="$(mktemp)"
 
 # shellcheck source=/dev/null
@@ -28,23 +29,77 @@ now_ms() {
   python3 -c 'import time; print(int(time.time() * 1000))'
 }
 
+path_digest() {
+  python3 - "$1" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+digest = hashlib.sha256()
+paths = [root] if root.is_file() else sorted(path for path in root.rglob("*") if path.is_file())
+for path in paths:
+    relative = path.name if root.is_file() else path.relative_to(root).as_posix()
+    digest.update(relative.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(path.read_bytes())
+    digest.update(b"\0")
+print(digest.hexdigest())
+PY
+}
+
 finalize_report() {
   local overall="$1"
-  local run_at
-  run_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  local finished_at source_commit source_tree_clean adapter_path adapter_sha256 fixture_sha256 evidence_status
+  finished_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  source_commit="$(git -C "$ROOT" rev-parse HEAD)"
+  source_tree_clean="true"
+  [ -z "$(git -C "$ROOT" status --porcelain --untracked-files=all)" ] || source_tree_clean="false"
+  adapter_path="scripts/adlc_runtime/adapters/${RUNTIME_NAME}.sh"
+  adapter_sha256="$(path_digest "$ROOT/$adapter_path")"
+  fixture_sha256="$(path_digest "$FIXTURE_DIR")"
+  evidence_status="failed_conformance"
+  if [ "$overall" = "pass" ]; then
+    evidence_status="candidate_conformance"
+    [ "$source_tree_clean" = "true" ] && evidence_status="current_conformance"
+  fi
 
   jq -s \
-    --arg run_at "$run_at" \
+    --arg contract_version "1.0.0" \
+    --arg evidence_status "$evidence_status" \
+    --arg runtime "$RUNTIME_NAME" \
     --arg model "$MODEL_NAME" \
+    --arg source_commit "$source_commit" \
+    --argjson source_tree_clean "$source_tree_clean" \
+    --arg adapter_path "$adapter_path" \
+    --arg adapter_sha256 "$adapter_sha256" \
+    --arg fixture_sha256 "$fixture_sha256" \
+    --arg auth_path "$AUTH_PATH" \
+    --arg started_at "$RUN_STARTED_AT" \
+    --arg finished_at "$finished_at" \
     --arg overall "$overall" \
     --argjson cost_estimate_tokens "$COST_ESTIMATE_TOKENS" \
     '{
-      run_at: $run_at,
+      contract_version: $contract_version,
+      evidence_status: $evidence_status,
+      runtime: $runtime,
       model: $model,
+      source_commit: $source_commit,
+      source_tree_clean: $source_tree_clean,
+      adapter: {path: $adapter_path, sha256: $adapter_sha256},
+      fixture_sha256: $fixture_sha256,
+      auth_path: $auth_path,
+      started_at: $started_at,
+      finished_at: $finished_at,
       stages: .,
       overall: $overall,
       cost_estimate_tokens: $cost_estimate_tokens
     }' "$report_items_file" > "$REPORT_PATH"
+
+  "$ROOT/bin/adlc" validate-artifact \
+    --schema provider-conformance-report \
+    --input "$REPORT_PATH" \
+    --json >/dev/null
 }
 
 record_stage() {

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# tests/backtest/last_report.json is overwritten on each run.
+# Writes to a temporary report by default so validation leaves the worktree clean.
+# Set ADLC_BACKTEST_REPORT to retain a report at a caller-selected path.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 FIXTURE="$ROOT/tests/fixtures/applicability-issue-set.json"
 EVALUATORS_DIR="$ROOT/tests/backtest/evaluators"
-REPORT="$ROOT/tests/backtest/last_report.json"
+REPORT="${ADLC_BACKTEST_REPORT:-${TMPDIR:-/tmp}/adlc-backtest-last-report.json}"
 
 stages=(
   triage
@@ -163,5 +164,6 @@ jq -s \
   }' "$report_cases_file" > "$REPORT"
 
 echo "RESULTS passed=$passed failed=$failed total=$total"
+echo "REPORT $REPORT"
 
 [ "$failed" -eq 0 ]
