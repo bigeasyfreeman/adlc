@@ -1,0 +1,1960 @@
+{
+  "contract_version": "1.0.0",
+  "ledger_id": "ADLC-LEGACY-SURFACE-1",
+  "source_commit": "07a5e955d82d965c8f0a05f01e604748edf8a7c0",
+  "generated_at": "2026-07-14T17:54:42Z",
+  "public_commands": [
+    "init",
+    "shape",
+    "build",
+    "fix",
+    "review",
+    "harden",
+    "ship",
+    "status",
+    "resume",
+    "doctor",
+    "learn"
+  ],
+  "support_labels": [
+    "unsupported",
+    "experimental",
+    "beta",
+    "supported"
+  ],
+  "architecture_decisions": [
+    {
+      "decision_id": "ADR-ADLC-001",
+      "topic": "one canonical public skill",
+      "record": "docs/decisions/skill-loop-product-surface.md#adr-adlc-001--one-canonical-public-skill",
+      "reversal_path": "Version the product contract and prove a behavioral need for another public skill."
+    },
+    {
+      "decision_id": "ADR-ADLC-002",
+      "topic": "bounded .adlc context ownership",
+      "record": "docs/decisions/skill-loop-product-surface.md#adr-adlc-002--adlc-owns-only-bounded-adlc-context",
+      "reversal_path": "Add a versioned context migration, collision tests, rollback, and target-repository consent."
+    },
+    {
+      "decision_id": "ADR-ADLC-003",
+      "topic": "Python distribution",
+      "record": "docs/decisions/skill-loop-product-surface.md#adr-adlc-003--python-is-the-distribution-path",
+      "reversal_path": "Reproduce the lifecycle matrix and migration path in a replacement distribution."
+    },
+    {
+      "decision_id": "ADR-ADLC-004",
+      "topic": "multidimensional provider claims",
+      "record": "docs/decisions/skill-loop-product-surface.md#adr-adlc-004--provider-claims-are-multidimensional",
+      "reversal_path": "Replace only with a stronger taxonomy that preserves evidence and limitations."
+    },
+    {
+      "decision_id": "ADR-ADLC-005",
+      "topic": "telemetry off by default",
+      "record": "docs/decisions/skill-loop-product-surface.md#adr-adlc-005--telemetry-is-off-by-default",
+      "reversal_path": "Require privacy review, explicit consent, minimization, deletion controls, and opt-out verification."
+    },
+    {
+      "decision_id": "ADR-ADLC-006",
+      "topic": "0.x beta compatibility window",
+      "record": "docs/decisions/skill-loop-product-surface.md#adr-adlc-006--preserve-a-compatibility-window",
+      "reversal_path": "Require consumer, replacement, migration, validation, rollback, and maintainer approval evidence."
+    }
+  ],
+  "summary": {
+    "skills": 55,
+    "agents": 13,
+    "manifest_agents": 11,
+    "total": 68
+  },
+  "surfaces": [
+    {
+      "surface_id": "skill:agentic-security",
+      "surface_type": "skill",
+      "name": "agentic-security",
+      "path": "skills/agentic-security/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable security work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=agentic-security]",
+        "WORKFLOW.dot#security",
+        "skills/manifest.json#agents[name=security-reviewer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:api-security",
+      "surface_type": "skill",
+      "name": "api-security",
+      "path": "skills/api-security/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable security work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=api-security]",
+        "WORKFLOW.dot#security",
+        "skills/manifest.json#agents[name=security-reviewer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:appsec-threat-model",
+      "surface_type": "skill",
+      "name": "appsec-threat-model",
+      "path": "skills/appsec-threat-model/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable security work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=appsec-threat-model]",
+        "WORKFLOW.dot#security",
+        "skills/manifest.json#agents[name=security-reviewer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:architecture-pattern",
+      "surface_type": "skill",
+      "name": "architecture-pattern",
+      "path": "skills/architecture-pattern/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable plan, scaffold work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=architecture-pattern]",
+        "WORKFLOW.dot#plan",
+        "WORKFLOW.dot#scaffold",
+        "skills/manifest.json#agents[name=planner]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:brief-clarity-judge",
+      "surface_type": "skill",
+      "name": "brief-clarity-judge",
+      "path": "skills/brief-clarity-judge/SKILL.md",
+      "manifest_member": true,
+      "disposition": "deterministic_command",
+      "replacement": "bin/adlc clarity-gate",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=brief-clarity-judge]",
+        "WORKFLOW.dot#triage"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "The stable enforcement responsibility belongs to the deterministic kernel; retain the skill as compatibility guidance until migration evidence passes.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:ci-cd-pipeline",
+      "surface_type": "skill",
+      "name": "ci-cd-pipeline",
+      "path": "skills/ci-cd-pipeline/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable pr_prep work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=ci-cd-pipeline]",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:helm-argocd-deployment",
+      "surface_type": "skill",
+      "name": "helm-argocd-deployment",
+      "path": "skills/helm-argocd-deployment/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable scaffold, qa, pr_prep work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=helm-argocd-deployment]",
+        "WORKFLOW.dot#scaffold",
+        "WORKFLOW.dot#qa",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:codebase-research",
+      "surface_type": "skill",
+      "name": "codebase-research",
+      "path": "skills/codebase-research/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable research work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=codebase-research]",
+        "WORKFLOW.dot#research",
+        "skills/manifest.json#agents[name=researcher]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:graph-research",
+      "surface_type": "skill",
+      "name": "graph-research",
+      "path": "skills/graph-research/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable research, plan, code_review work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=graph-research]",
+        "WORKFLOW.dot#research",
+        "WORKFLOW.dot#plan",
+        "WORKFLOW.dot#code_review",
+        "skills/manifest.json#agents[name=researcher]",
+        "skills/manifest.json#agents[name=planner]",
+        "skills/manifest.json#agents[name=code-reviewer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:codegen-context",
+      "surface_type": "skill",
+      "name": "codegen-context",
+      "path": "skills/codegen-context/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable plan, context_assembly work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=codegen-context]",
+        "WORKFLOW.dot#plan",
+        "WORKFLOW.dot#context_assembly",
+        "skills/manifest.json#agents[name=planner]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:context-layers",
+      "surface_type": "skill",
+      "name": "context-layers",
+      "path": "skills/context-layers/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable plan, context_assembly, code_review work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=context-layers]",
+        "WORKFLOW.dot#plan",
+        "WORKFLOW.dot#context_assembly",
+        "WORKFLOW.dot#code_review",
+        "skills/manifest.json#agents[name=planner]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:dark-code-audit",
+      "surface_type": "skill",
+      "name": "dark-code-audit",
+      "path": "skills/dark-code-audit/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable research, plan work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=dark-code-audit]",
+        "WORKFLOW.dot#research",
+        "WORKFLOW.dot#plan",
+        "skills/manifest.json#agents[name=researcher]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:comprehension-gate",
+      "surface_type": "skill",
+      "name": "comprehension-gate",
+      "path": "skills/comprehension-gate/SKILL.md",
+      "manifest_member": true,
+      "disposition": "deterministic_command",
+      "replacement": "bin/adlc operator-comprehension-gate",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=comprehension-gate]",
+        "WORKFLOW.dot#code_review",
+        "WORKFLOW.dot#pr_prep",
+        "skills/manifest.json#agents[name=code-reviewer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "The stable enforcement responsibility belongs to the deterministic kernel; retain the skill as compatibility guidance until migration evidence passes.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:confluence-decomposition",
+      "surface_type": "skill",
+      "name": "confluence-decomposition",
+      "path": "skills/confluence-decomposition/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable pr_prep work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=confluence-decomposition]",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:github-issue-creation",
+      "surface_type": "skill",
+      "name": "github-issue-creation",
+      "path": "skills/github-issue-creation/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable pr_prep work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=github-issue-creation]",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:eval-council",
+      "surface_type": "skill",
+      "name": "eval-council",
+      "path": "skills/eval-council/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable plan_review, code_review work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=eval-council]",
+        "WORKFLOW.dot#plan_review",
+        "WORKFLOW.dot#code_review",
+        "skills/manifest.json#agents[name=plan-reviewer]",
+        "skills/manifest.json#agents[name=code-reviewer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:figma-integration",
+      "surface_type": "skill",
+      "name": "figma-integration",
+      "path": "skills/figma-integration/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable research, plan work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=figma-integration]",
+        "WORKFLOW.dot#research",
+        "WORKFLOW.dot#plan"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:gong-customer-evidence",
+      "surface_type": "skill",
+      "name": "gong-customer-evidence",
+      "path": "skills/gong-customer-evidence/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable engineering work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=gong-customer-evidence]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:grafana-observability",
+      "surface_type": "skill",
+      "name": "grafana-observability",
+      "path": "skills/grafana-observability/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable research, pr_prep work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=grafana-observability]",
+        "WORKFLOW.dot#research",
+        "WORKFLOW.dot#pr_prep",
+        "skills/manifest.json#agents[name=researcher]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:incident-runbook",
+      "surface_type": "skill",
+      "name": "incident-runbook",
+      "path": "skills/incident-runbook/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable pr_prep work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=incident-runbook]",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:notion-decomposition",
+      "surface_type": "skill",
+      "name": "notion-decomposition",
+      "path": "skills/notion-decomposition/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable pr_prep work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=notion-decomposition]",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:infra-security",
+      "surface_type": "skill",
+      "name": "infra-security",
+      "path": "skills/infra-security/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable security work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=infra-security]",
+        "WORKFLOW.dot#security",
+        "skills/manifest.json#agents[name=security-reviewer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:jira-ticket-creation",
+      "surface_type": "skill",
+      "name": "jira-ticket-creation",
+      "path": "skills/jira-ticket-creation/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable pr_prep work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=jira-ticket-creation]",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:linear-ticket-creation",
+      "surface_type": "skill",
+      "name": "linear-ticket-creation",
+      "path": "skills/linear-ticket-creation/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable pr_prep work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=linear-ticket-creation]",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:llm-security",
+      "surface_type": "skill",
+      "name": "llm-security",
+      "path": "skills/llm-security/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable security work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=llm-security]",
+        "WORKFLOW.dot#security",
+        "skills/manifest.json#agents[name=security-reviewer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:mutant-materiality-judge",
+      "surface_type": "skill",
+      "name": "mutant-materiality-judge",
+      "path": "skills/mutant-materiality-judge/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable test_strength work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=mutant-materiality-judge]",
+        "WORKFLOW.dot#test_strength"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:prd-generation",
+      "surface_type": "skill",
+      "name": "prd-generation",
+      "path": "skills/prd-generation/SKILL.md",
+      "manifest_member": true,
+      "disposition": "command_reference",
+      "replacement": "skill/reference/command-shape.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=prd-generation]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Fold the verified procedure into the bounded public command reference while preserving the legacy path during migration.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:qa-test-data",
+      "surface_type": "skill",
+      "name": "qa-test-data",
+      "path": "skills/qa-test-data/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable gen_tests work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=qa-test-data]",
+        "WORKFLOW.dot#gen_tests",
+        "skills/manifest.json#agents[name=test-author]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:slack-orchestration",
+      "surface_type": "skill",
+      "name": "slack-orchestration",
+      "path": "skills/slack-orchestration/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable triage, plan_review, engineer_review work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=slack-orchestration]",
+        "WORKFLOW.dot#triage",
+        "WORKFLOW.dot#plan_review",
+        "WORKFLOW.dot#engineer_review"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:spec-to-tests",
+      "surface_type": "skill",
+      "name": "spec-to-tests",
+      "path": "skills/spec-to-tests/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable gen_tests work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=spec-to-tests]",
+        "WORKFLOW.dot#gen_tests",
+        "skills/manifest.json#agents[name=test-author]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:systematic-debugging",
+      "surface_type": "skill",
+      "name": "systematic-debugging",
+      "path": "skills/systematic-debugging/SKILL.md",
+      "manifest_member": true,
+      "disposition": "command_reference",
+      "replacement": "skill/reference/command-fix.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=systematic-debugging]",
+        "WORKFLOW.dot#fixer",
+        "WORKFLOW.dot#code",
+        "skills/manifest.json#agents[name=coder]",
+        "skills/manifest.json#agents[name=fixer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Fold the verified procedure into the bounded public command reference while preserving the legacy path during migration.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:tdd-enforcement",
+      "surface_type": "skill",
+      "name": "tdd-enforcement",
+      "path": "skills/tdd-enforcement/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable code, gen_tests work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=tdd-enforcement]",
+        "WORKFLOW.dot#code",
+        "WORKFLOW.dot#gen_tests",
+        "skills/manifest.json#agents[name=test-author]",
+        "skills/manifest.json#agents[name=coder]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:test-strength",
+      "surface_type": "skill",
+      "name": "test-strength",
+      "path": "skills/test-strength/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable test_strength work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=test-strength]",
+        "WORKFLOW.dot#test_strength",
+        "skills/manifest.json#agents[name=test-strength-auditor]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:ux-flow-builder",
+      "surface_type": "skill",
+      "name": "ux-flow-builder",
+      "path": "skills/ux-flow-builder/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable engineering work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=ux-flow-builder]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:security-review",
+      "surface_type": "skill",
+      "name": "security-review",
+      "path": "skills/security-review/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable plan, code_review, security work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=security-review]",
+        "WORKFLOW.dot#plan",
+        "WORKFLOW.dot#code_review",
+        "WORKFLOW.dot#security"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:section-policy-judge",
+      "surface_type": "skill",
+      "name": "section-policy-judge",
+      "path": "skills/section-policy-judge/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable plan, plan_review work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=section-policy-judge]",
+        "WORKFLOW.dot#plan",
+        "WORKFLOW.dot#plan_review"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:ldd-enforcement",
+      "surface_type": "skill",
+      "name": "ldd-enforcement",
+      "path": "skills/ldd-enforcement/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable code work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=ldd-enforcement]",
+        "WORKFLOW.dot#code"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:observability-contract",
+      "surface_type": "skill",
+      "name": "observability-contract",
+      "path": "skills/observability-contract/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable plan, code_review work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=observability-contract]",
+        "WORKFLOW.dot#plan",
+        "WORKFLOW.dot#code_review"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:reuse-analysis",
+      "surface_type": "skill",
+      "name": "reuse-analysis",
+      "path": "skills/reuse-analysis/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable plan, code_review work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=reuse-analysis]",
+        "WORKFLOW.dot#plan",
+        "WORKFLOW.dot#code_review",
+        "skills/manifest.json#agents[name=planner]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:paved-road-registry",
+      "surface_type": "skill",
+      "name": "paved-road-registry",
+      "path": "skills/paved-road-registry/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable research, plan, context_assembly, code_review work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=paved-road-registry]",
+        "WORKFLOW.dot#research",
+        "WORKFLOW.dot#plan",
+        "WORKFLOW.dot#context_assembly",
+        "WORKFLOW.dot#code_review",
+        "skills/manifest.json#agents[name=researcher]",
+        "skills/manifest.json#agents[name=planner]",
+        "skills/manifest.json#agents[name=code-reviewer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:definition-of-done",
+      "surface_type": "skill",
+      "name": "definition-of-done",
+      "path": "skills/definition-of-done/SKILL.md",
+      "manifest_member": true,
+      "disposition": "deterministic_command",
+      "replacement": "bin/adlc completion-audit",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=definition-of-done]",
+        "WORKFLOW.dot#code_review",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "The stable enforcement responsibility belongs to the deterministic kernel; retain the skill as compatibility guidance until migration evidence passes.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:fix-loop",
+      "surface_type": "skill",
+      "name": "fix-loop",
+      "path": "skills/fix-loop/SKILL.md",
+      "manifest_member": true,
+      "disposition": "command_reference",
+      "replacement": "skill/reference/command-fix.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=fix-loop]",
+        "WORKFLOW.dot#fixer"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Fold the verified procedure into the bounded public command reference while preserving the legacy path during migration.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:feedback-loop",
+      "surface_type": "skill",
+      "name": "feedback-loop",
+      "path": "skills/feedback-loop/SKILL.md",
+      "manifest_member": true,
+      "disposition": "command_reference",
+      "replacement": "skill/reference/command-learn.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=feedback-loop]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Fold the verified procedure into the bounded public command reference while preserving the legacy path during migration.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:learning-capture",
+      "surface_type": "skill",
+      "name": "learning-capture",
+      "path": "skills/learning-capture/SKILL.md",
+      "manifest_member": true,
+      "disposition": "command_reference",
+      "replacement": "skill/reference/command-learn.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=learning-capture]",
+        "WORKFLOW.dot#pr_prep",
+        "WORKFLOW.dot#learning_capture",
+        "skills/manifest.json#agents[name=pr-preparer]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Fold the verified procedure into the bounded public command reference while preserving the legacy path during migration.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:learning-refresh",
+      "surface_type": "skill",
+      "name": "learning-refresh",
+      "path": "skills/learning-refresh/SKILL.md",
+      "manifest_member": true,
+      "disposition": "command_reference",
+      "replacement": "skill/reference/command-learn.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=learning-refresh]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Fold the verified procedure into the bounded public command reference while preserving the legacy path during migration.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:stop-slop",
+      "surface_type": "skill",
+      "name": "stop-slop",
+      "path": "skills/stop-slop/SKILL.md",
+      "manifest_member": true,
+      "disposition": "deterministic_command",
+      "replacement": "bin/adlc slop-gate",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=stop-slop]",
+        "WORKFLOW.dot#slop_gate",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "The stable enforcement responsibility belongs to the deterministic kernel; retain the skill as compatibility guidance until migration evidence passes.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:slop-judge",
+      "surface_type": "skill",
+      "name": "slop-judge",
+      "path": "skills/slop-judge/SKILL.md",
+      "manifest_member": true,
+      "disposition": "deterministic_command",
+      "replacement": "bin/adlc slop-gate",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=slop-judge]",
+        "WORKFLOW.dot#slop_gate",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "The stable enforcement responsibility belongs to the deterministic kernel; retain the skill as compatibility guidance until migration evidence passes.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:build-feature",
+      "surface_type": "skill",
+      "name": "build-feature",
+      "path": "skills/build-feature/SKILL.md",
+      "manifest_member": true,
+      "disposition": "command_reference",
+      "replacement": "skill/reference/command-build.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=build-feature]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Fold the verified procedure into the bounded public command reference while preserving the legacy path during migration.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:fix-bug",
+      "surface_type": "skill",
+      "name": "fix-bug",
+      "path": "skills/fix-bug/SKILL.md",
+      "manifest_member": true,
+      "disposition": "command_reference",
+      "replacement": "skill/reference/command-fix.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=fix-bug]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Fold the verified procedure into the bounded public command reference while preserving the legacy path during migration.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:ship-content",
+      "surface_type": "skill",
+      "name": "ship-content",
+      "path": "skills/ship-content/SKILL.md",
+      "manifest_member": true,
+      "disposition": "command_reference",
+      "replacement": "skill/reference/command-ship.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=ship-content]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Fold the verified procedure into the bounded public command reference while preserving the legacy path during migration.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:execute-trade",
+      "surface_type": "skill",
+      "name": "execute-trade",
+      "path": "skills/execute-trade/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable engineering work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=execute-trade]"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:goal-prompt-generation",
+      "surface_type": "skill",
+      "name": "goal-prompt-generation",
+      "path": "skills/goal-prompt-generation/SKILL.md",
+      "manifest_member": true,
+      "disposition": "command_reference",
+      "replacement": "skill/reference/command-shape.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=goal-prompt-generation]",
+        "WORKFLOW.dot#context_assembly"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Fold the verified procedure into the bounded public command reference while preserving the legacy path during migration.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:drift-maintenance",
+      "surface_type": "skill",
+      "name": "drift-maintenance",
+      "path": "skills/drift-maintenance/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable pr_prep work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=drift-maintenance]",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:specificity-judge",
+      "surface_type": "skill",
+      "name": "specificity-judge",
+      "path": "skills/specificity-judge/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable plan_review, code_review work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=specificity-judge]",
+        "WORKFLOW.dot#plan_review",
+        "WORKFLOW.dot#code_review"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "skill:verifier-semantic-judge",
+      "surface_type": "skill",
+      "name": "verifier-semantic-judge",
+      "path": "skills/verifier-semantic-judge/SKILL.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal capability pack selected by the canonical adlc skill for applicable plan_review, code_review work",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#skills[name=verifier-semantic-judge]",
+        "WORKFLOW.dot#plan_review",
+        "WORKFLOW.dot#code_review"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:ADLC-BUILD-BRIEF-AGENT",
+      "surface_type": "agent",
+      "name": "ADLC-BUILD-BRIEF-AGENT",
+      "path": "agents/ADLC-BUILD-BRIEF-AGENT.md",
+      "manifest_member": false,
+      "disposition": "deprecation",
+      "replacement": "skill/reference/command-shape.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "agents/ADLC-BUILD-BRIEF-AGENT.md",
+        "setup.sh#count_installable_agents",
+        "tests/test_setup.sh"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "This legacy reference agent is already excluded from provider installation; preserve it until Shape migration and consumer evidence are complete.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:PM-PRD-AGENT",
+      "surface_type": "agent",
+      "name": "PM-PRD-AGENT",
+      "path": "agents/PM-PRD-AGENT.md",
+      "manifest_member": false,
+      "disposition": "deprecation",
+      "replacement": "skill/reference/command-shape.md",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "agents/PM-PRD-AGENT.md",
+        "setup.sh#count_installable_agents",
+        "tests/test_setup.sh"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "This legacy reference agent is already excluded from provider installation; preserve it until Shape migration and consumer evidence are complete.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:code-reviewer",
+      "surface_type": "agent",
+      "name": "code-reviewer",
+      "path": "agents/code-reviewer.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for code_review",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=code-reviewer]",
+        "WORKFLOW.dot#code_review"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:coder",
+      "surface_type": "agent",
+      "name": "coder",
+      "path": "agents/coder.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for code",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=coder]",
+        "WORKFLOW.dot#code"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:fixer",
+      "surface_type": "agent",
+      "name": "fixer",
+      "path": "agents/fixer.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for fixer",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=fixer]",
+        "WORKFLOW.dot#fixer"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:plan-reviewer",
+      "surface_type": "agent",
+      "name": "plan-reviewer",
+      "path": "agents/plan-reviewer.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for plan_review",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=plan-reviewer]",
+        "WORKFLOW.dot#plan_review"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:planner",
+      "surface_type": "agent",
+      "name": "planner",
+      "path": "agents/planner.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for plan",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=planner]",
+        "WORKFLOW.dot#plan"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:pr-preparer",
+      "surface_type": "agent",
+      "name": "pr-preparer",
+      "path": "agents/pr-preparer.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for pr_prep",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=pr-preparer]",
+        "WORKFLOW.dot#pr_prep"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:researcher",
+      "surface_type": "agent",
+      "name": "researcher",
+      "path": "agents/researcher.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for research",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=researcher]",
+        "WORKFLOW.dot#research"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:security-reviewer",
+      "surface_type": "agent",
+      "name": "security-reviewer",
+      "path": "agents/security-reviewer.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for security",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=security-reviewer]",
+        "WORKFLOW.dot#security"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:test-author",
+      "surface_type": "agent",
+      "name": "test-author",
+      "path": "agents/test-author.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for gen_tests",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=test-author]",
+        "WORKFLOW.dot#gen_tests"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:test-strength-auditor",
+      "surface_type": "agent",
+      "name": "test-strength-auditor",
+      "path": "agents/test-strength-auditor.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for test_strength",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=test-strength-auditor]",
+        "WORKFLOW.dot#test_strength"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    },
+    {
+      "surface_id": "agent:triage",
+      "surface_type": "agent",
+      "name": "triage",
+      "path": "agents/triage.md",
+      "manifest_member": true,
+      "disposition": "internal_capability_pack",
+      "replacement": "internal loop role selected by the canonical adlc skill for triage",
+      "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
+      "consumer_refs": [
+        "skills/manifest.json#agents[name=triage]",
+        "WORKFLOW.dot#triage"
+      ],
+      "validation_refs": [
+        "tests/test_setup.sh",
+        "tests/test_drift_verification.sh",
+        "ADLC-MIG-008",
+        "ADLC-MIG-009"
+      ],
+      "reason": "Keep the execution role internal to Build, Fix, or Review; users invoke outcomes rather than agent personas.",
+      "removal_authorized": false,
+      "removal_prerequisites": [
+        "Complete ADLC-MIG-008 behavioral proof.",
+        "Complete ADLC-MIG-009 consumer and replacement validation.",
+        "Publish dated migration guidance and rollback evidence."
+      ]
+    }
+  ]
+}

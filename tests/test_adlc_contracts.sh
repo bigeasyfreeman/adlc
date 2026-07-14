@@ -699,6 +699,7 @@ echo "Root: $ROOT"
 echo ""
 
 echo "--- JSON ---"
+assert "product contract is complete and legacy surfaces are mapped" "python3 '$ROOT/tests/check_product_contract.py' '$ROOT/PRODUCT.md' '$ROOT/docs/STYLE.md' '$ROOT/docs/migration/legacy-surface-ledger.json' >/dev/null"
 assert "applicability-manifest schema parses" "jq empty '$ROOT/docs/schemas/applicability-manifest.schema.json' >/dev/null 2>&1"
 assert "build-brief schema parses" "jq empty '$ROOT/docs/schemas/build-brief.schema.json' >/dev/null 2>&1"
 assert "learning-entry schema parses" "jq empty '$ROOT/docs/schemas/learning-entry.schema.json' >/dev/null 2>&1"
