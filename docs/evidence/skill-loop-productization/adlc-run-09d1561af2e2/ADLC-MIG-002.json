@@ -1,0 +1,150 @@
+{
+  "contract_version": "1.0.0",
+  "task_id": "ADLC-MIG-002",
+  "run_id": "adlc-run-09d1561af2e2",
+  "recorded_at": "2026-07-14T18:09:00Z",
+  "source_commit": "07a5e955d82d965c8f0a05f01e604748edf8a7c0",
+  "dirty_state": {
+    "digest_algorithm": "sha256",
+    "digest_before_evidence": "c3a6b8a7a7302cda6d8dc5f52ebe8dc58e12671118ba8c9cf9da8e84c24b09f8"
+  },
+  "pre_change": {
+    "command": "python3 tests/check_product_contract.py PRODUCT.md docs/STYLE.md docs/migration/legacy-surface-ledger.json",
+    "exit_status": 2,
+    "observed_failure": "tests/check_product_contract.py did not exist"
+  },
+  "architecture_test_red": {
+    "command": "python3 tests/check_product_contract.py PRODUCT.md docs/STYLE.md docs/migration/legacy-surface-ledger.json",
+    "exit_status": 1,
+    "observed_failure": "missing required file: PRODUCT.md"
+  },
+  "inventory": {
+    "skills": 55,
+    "agents": 13,
+    "manifest_agents": 11,
+    "total_surfaces": 68,
+    "dispositions": {
+      "command_reference": 10,
+      "internal_capability_pack": 51,
+      "deterministic_command": 5,
+      "deprecation": 2,
+      "deletion": 0
+    },
+    "removal_authorized": 0
+  },
+  "product_contract": {
+    "public_promise": "Run repeatable build, fix, and review loops with your coding agent, with every completion claim tied to evidence.",
+    "initial_user": "senior engineer or hands-on engineering lead already using Claude Code or Codex",
+    "first_wedge": "Fix loop",
+    "public_commands": 11,
+    "support_labels": 4,
+    "architecture_decisions": 6,
+    "approval_source": "resolved ADLC-MIG-002 decision contract and companion strategy"
+  },
+  "product_owner_approval": {
+    "status": "approved",
+    "approved_by": {
+      "identity": "eric",
+      "role": "adlc-product-owner"
+    },
+    "approved_at": "2026-07-14T19:08:29Z",
+    "source": "User message in the execution session: approved continue the entire process",
+    "approved_surfaces": [
+      "public_promise",
+      "initial_user",
+      "first_wedge",
+      "public_commands",
+      "support_labels",
+      "brand_voice",
+      "architecture_decisions"
+    ],
+    "scope": "Approves the ADLC-MIG-002 product contract and continued ordered execution; downstream support and release claims still require their task evidence."
+  },
+  "verification": [
+    {
+      "command": "python3 tests/check_product_contract.py PRODUCT.md docs/STYLE.md docs/migration/legacy-surface-ledger.json",
+      "exit_status": 0,
+      "result": "pass",
+      "summary": "commands=11 labels=4 surfaces=68 decisions=6"
+    },
+    {
+      "command": "python3 tests/check_markdown_links.py",
+      "exit_status": 0,
+      "result": "pass"
+    },
+    {
+      "command": "bash tests/test_public_hygiene.sh",
+      "exit_status": 0,
+      "result": "pass"
+    },
+    {
+      "command": "uvx ruff check scripts tests",
+      "exit_status": 0,
+      "result": "pass"
+    },
+    {
+      "command": "bash tests/test_drift_verification.sh",
+      "exit_status": 0,
+      "result": "pass"
+    },
+    {
+      "command": "bin/adlc ci --json",
+      "exit_status": 0,
+      "result": "pass",
+      "summary": "10/10 canonical suites passed before checkpoint; product-contract verifier was then added to the contracts suite and revalidated"
+    },
+    {
+      "command": "bash tests/test_adlc_contracts.sh",
+      "exit_status": 0,
+      "result": "pass",
+      "summary": "537/537 contract checks passed with product-contract drift enforcement enabled"
+    }
+  ],
+  "superseded_candidate_verification": {
+    "status": "superseded_after_independent_audit",
+    "commit": "b4ada35",
+    "worktree_mode": "detached",
+    "primary_verifier": "pass commands=11 labels=4 surfaces=68 decisions=6",
+    "canonical_ci": {
+      "status": "pass",
+      "passed_suites": 10,
+      "failed_suites": 0,
+      "notable_counts": {
+        "cli": "326/326",
+        "contracts": "537/537",
+        "setup": "131/131",
+        "backtest": "126/126"
+      }
+    },
+    "runner_note": "The enclosing zsh cleanup wrapper exited 1 after successful CI because it assigned the reserved variable name status; the CI JSON itself reports pass with 10/10 suites and the temporary worktree was removed separately."
+  },
+  "review_history": [
+    {
+      "auditor_identity": "codex-thread-019f61fd-63e1-7f40-a706-e0bfb49718c6",
+      "model": "gpt-5.4",
+      "executor_distinct": true,
+      "review_mode": "read_only",
+      "verdict": "fail",
+      "findings": [
+        "Product-owner approval lacked structured identity, timestamp, and approved-surface coverage.",
+        "The candidate branch mixed program-contract and ADLC-MIG-001 closeout files into ADLC-MIG-002 scope.",
+        "The verifier did not prove substantive ADR rationale, reversal paths, or approval evidence."
+      ],
+      "remediation": [
+        "Landed the authoritative program contract and ADLC-MIG-001 closeout separately in PR #56 before rebuilding this branch.",
+        "Recorded the user's approval with identity, role, time, source statement, and exact approved surfaces.",
+        "Strengthened the verifier and added adversarial checks for missing reversal paths and approval timestamps."
+      ],
+      "reaudit_status": "pending"
+    }
+  ],
+  "doc_honesty_section": "This evidence proves product-contract completeness and inventory coverage, not implementation or provider behavior.",
+  "no_overclaim": [
+    "No public command, provider bundle, or loop behavior is implemented by ADLC-MIG-002.",
+    "No legacy surface is authorized for removal."
+  ],
+  "limitations": [
+    "Positioning remains a hypothesis until external beta use is measured.",
+    "Behavioral, installation, release, and support claims remain owned by downstream tasks."
+  ]
+}
