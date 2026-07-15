@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import jsonschema
@@ -126,3 +128,54 @@ def test_verifier_scoring_ignores_commands_that_only_embed_the_verifier():
         },
     ]
     assert runner.verifier_exit_codes(events, verifier) == [0]
+
+
+def copy_published_bundle(tmp_path, monkeypatch, runner):
+    source = ROOT / "docs/evidence/benchmarks/v0.1.0"
+    destination = tmp_path / "docs/evidence/benchmarks/v0.1.0"
+    shutil.copytree(source, destination)
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    return destination
+
+
+def test_checked_in_publication_bundle_verifies_jointly():
+    runner = load_runner()
+    result = runner.verify_published_bundle(
+        ROOT / "docs/evidence/benchmarks/v0.1.0/publication-attestation.json"
+    )
+    assert result["status"] == "pass"
+    assert result["reports"] == 2
+    assert result["attempts"] == 6
+    assert result["evidence_files"] == 56
+
+
+def test_bundle_verification_fails_when_an_attested_report_hash_drifts(tmp_path, monkeypatch):
+    runner = load_runner()
+    bundle = copy_published_bundle(tmp_path, monkeypatch, runner)
+    primary = bundle / "benchmark-report.json"
+    primary.write_text(primary.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    try:
+        runner.verify_published_bundle(bundle / "publication-attestation.json")
+    except runner.BenchmarkError as exc:
+        assert "hash mismatch" in str(exc)
+    else:
+        raise AssertionError("bundle verification accepted a drifted report hash")
+
+
+def test_bundle_verification_fails_when_reports_diverge(tmp_path, monkeypatch):
+    runner = load_runner()
+    bundle = copy_published_bundle(tmp_path, monkeypatch, runner)
+    replay_path = bundle / "independent-replay/benchmark-report.json"
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    replay["fixture"]["id"] = "divergent-fixture"
+    replay_path.write_text(json.dumps(replay, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    attestation_path = bundle / "publication-attestation.json"
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    attestation["independent_replay"]["sha256"] = hashlib.sha256(replay_path.read_bytes()).hexdigest()
+    attestation_path.write_text(json.dumps(attestation, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        runner.verify_published_bundle(attestation_path)
+    except runner.BenchmarkError as exc:
+        assert "diverge on fixture" in str(exc)
+    else:
+        raise AssertionError("bundle verification accepted divergent reports")

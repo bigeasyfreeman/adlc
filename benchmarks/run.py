@@ -25,6 +25,7 @@ import jsonschema
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "docs/schemas/benchmark-report.schema.json"
 RUN_REPORT_SCHEMA = ROOT / "docs/schemas/run-report.schema.json"
+PUBLICATION_ATTESTATION_SCHEMA = ROOT / "docs/schemas/benchmark-publication-attestation.schema.json"
 SECRET_PATTERN = re.compile(
     r"(?:sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._~+/=-]{8,}|password\s*[=:]\s*[^\s\"']+|"
     r"(?:api|access|secret)[_-]?key\s*[=:]\s*[^\s\"']+)",
@@ -922,6 +923,75 @@ def verify_published(report_path: Path) -> Dict[str, Any]:
     }
 
 
+def resolve_published_path(value: str) -> Path:
+    path = (ROOT / value).resolve()
+    if path != ROOT and ROOT.resolve() not in path.parents:
+        raise BenchmarkError(f"published benchmark path escapes the repository: {value}")
+    return path
+
+
+def verify_published_bundle(attestation_path: Path) -> Dict[str, Any]:
+    attestation_path = attestation_path.resolve()
+    attestation = read_json(attestation_path)
+    validate_json(attestation, PUBLICATION_ATTESTATION_SCHEMA, "benchmark publication attestation")
+    ensure_redacted(attestation_path.read_text(encoding="utf-8", errors="replace"))
+
+    reports: Dict[str, Dict[str, Any]] = {}
+    evidence_paths = set()
+    verification: Dict[str, Dict[str, Any]] = {}
+    for key in ("primary_report", "independent_replay"):
+        expected = attestation[key]
+        report_path = resolve_published_path(expected["path"])
+        if not report_path.is_file():
+            raise BenchmarkError(f"attested benchmark report is missing: {expected['path']}")
+        actual_hash = sha256_bytes(report_path.read_bytes())
+        if actual_hash != expected["sha256"]:
+            raise BenchmarkError(f"attested benchmark report hash mismatch: {expected['path']}")
+        report = read_json(report_path)
+        if len(report.get("attempts", [])) != expected["attempts"]:
+            raise BenchmarkError(f"attested benchmark attempt count mismatch: {expected['path']}")
+        reports[key] = report
+        verification[key] = verify_published(report_path)
+        evidence_paths.add(report_path)
+        evidence_paths.update(
+            (report_path.parent / ref).resolve()
+            for attempt in report["attempts"]
+            for ref in attempt["evidence_refs"]
+        )
+
+    primary = reports["primary_report"]
+    replay = reports["independent_replay"]
+    for field in ("source_commit", "product_version", "fixture", "configuration", "plan"):
+        if primary[field] != replay[field]:
+            raise BenchmarkError(f"published benchmark reports diverge on {field}")
+    if [attempt["status"] for attempt in primary["attempts"]] != [
+        attempt["status"] for attempt in replay["attempts"]
+    ]:
+        raise BenchmarkError("published benchmark reports diverge on terminal classes")
+    if {attempt["invariant_sha256"] for attempt in primary["attempts"]} != {
+        attempt["invariant_sha256"] for attempt in replay["attempts"]
+    }:
+        raise BenchmarkError("published benchmark reports diverge on calculated invariants")
+    if len(evidence_paths) != attestation["redaction_review"]["files_reviewed"]:
+        raise BenchmarkError("publication attestation file count does not match the evidence bundle")
+
+    return {
+        "contract_version": "1.0.0",
+        "status": "pass",
+        "attestation": str(attestation_path),
+        "reports": 2,
+        "attempts": sum(len(report["attempts"]) for report in reports.values()),
+        "evidence_files": len(evidence_paths),
+        "same_fixture": True,
+        "same_configuration": True,
+        "matching_terminal_class": True,
+        "matching_invariants": True,
+        "secret_matches": 0,
+        "absolute_path_matches": 0,
+        "report_verification": verification,
+    }
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture", type=Path, required=True)
@@ -931,12 +1001,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--verify-replay", action="store_true")
     parser.add_argument("--verify-published", type=Path)
+    parser.add_argument("--verify-published-bundle", type=Path)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
     try:
-        if args.verify_published:
+        if args.verify_published_bundle:
+            payload = verify_published_bundle(args.verify_published_bundle)
+            exit_code = 0
+        elif args.verify_published:
             payload = verify_published(args.verify_published)
             exit_code = 0
         else:
