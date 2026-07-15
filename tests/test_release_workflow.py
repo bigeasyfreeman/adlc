@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import tarfile
 from pathlib import Path
 
 import jsonschema
@@ -67,3 +68,20 @@ def test_packet_fixture_is_schema_valid_and_external_actions_are_pending():
     jsonschema.validate(packet, schema)
     assert packet["status"] == "awaiting_human_approval"
     assert all(action["status"] == "pending_human_approval" for action in packet["external_actions"])
+
+
+def test_sdist_normalization_removes_archive_timestamp_drift(tmp_path):
+    release = load_release()
+    source = tmp_path / "payload.txt"
+    source.write_text("stable payload\n", encoding="utf-8")
+    archives = []
+    for index, mtime in enumerate((100, 200), start=1):
+        archive_path = tmp_path / f"build-{index}.tar.gz"
+        with tarfile.open(archive_path, "w:gz") as archive:
+            info = archive.gettarinfo(str(source), arcname="adlc-0.9.0/payload.txt")
+            info.mtime = mtime
+            with source.open("rb") as payload:
+                archive.addfile(info, payload)
+        release.canonicalize_sdist(archive_path, 123456789)
+        archives.append(archive_path)
+    assert release.sha256_path(archives[0]) == release.sha256_path(archives[1])

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import io
 import json
@@ -197,7 +198,37 @@ def build_once(index: int, temporary: Path, epoch: int, evidence_dir: Path) -> P
     artifacts = sorted(path for path in output.iterdir() if path.suffix in {".whl", ".gz"})
     if len(artifacts) != 2:
         raise ReleaseBlocked(f"build {index} did not produce exactly one wheel and one source archive")
+    canonicalize_sdist(next(path for path in artifacts if path.suffix == ".gz"), epoch)
     return output
+
+
+def canonicalize_sdist(path: Path, epoch: int) -> None:
+    with tempfile.TemporaryDirectory(prefix="adlc-sdist-normalize-") as temporary_name:
+        temporary = Path(temporary_name)
+        with tarfile.open(path, mode="r:gz") as archive:
+            archive.extractall(temporary)
+        replacement = path.with_suffix(path.suffix + ".normalized")
+        with replacement.open("wb") as raw:
+            with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=epoch) as compressed:
+                with tarfile.open(fileobj=compressed, mode="w", format=tarfile.GNU_FORMAT) as archive:
+                    for item in sorted(temporary.rglob("*"), key=lambda value: value.relative_to(temporary).as_posix()):
+                        relative = item.relative_to(temporary).as_posix()
+                        info = archive.gettarinfo(str(item), arcname=relative)
+                        info.uid = 0
+                        info.gid = 0
+                        info.uname = ""
+                        info.gname = ""
+                        info.mtime = epoch
+                        if info.isdir():
+                            info.mode = 0o755
+                            archive.addfile(info)
+                        elif info.isfile():
+                            info.mode = 0o755 if item.stat().st_mode & 0o111 else 0o644
+                            with item.open("rb") as source:
+                                archive.addfile(info, source)
+                        else:
+                            archive.addfile(info)
+        os.replace(replacement, path)
 
 
 def compare_builds(first: Path, second: Path, artifact_dir: Path, epoch: int) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
