@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adlc"
-version = "0.1.0"
+version = "0.9.0"
 description = "Agentic Development Lifecycle contracts, schemas, runtime adapters, and deterministic validators."
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -57,6 +57,10 @@ include = ["adlc_runtime*"]
 "share/adlc/skill/loops" = ["skill/loops/*.json"]
 "share/adlc/schemas" = [
   "docs/schemas/install-manifest.schema.json",
+  "docs/schemas/release-approval-packet.schema.json",
+  "docs/schemas/benchmark-report.schema.json",
+  "docs/schemas/benchmark-evidence-manifest.schema.json",
+  "docs/schemas/benchmark-publication-attestation.schema.json",
   "docs/schemas/provider-ci-attestation.schema.json",
   "docs/schemas/provider-conformance-report.schema.json",
   "docs/schemas/skill-behavior-report.schema.json",

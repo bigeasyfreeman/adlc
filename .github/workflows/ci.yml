@@ -35,5 +35,7 @@ jobs:
         run: bin/adlc ci --json
       - name: Run benchmark architecture contract
         run: python -m pytest tests/test_benchmark_contract.py -q
+      - name: Run release architecture contract
+        run: python -m pytest tests/test_release_workflow.py -q
       - name: Run Python lint
         run: ruff check scripts tests benchmarks examples/fix-demo

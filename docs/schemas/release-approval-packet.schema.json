@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/release-approval-packet.schema.json",
+  "title": "ADLC Release Approval Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "status",
+    "release",
+    "source",
+    "artifacts",
+    "reproducibility",
+    "gates",
+    "support_claims",
+    "provenance",
+    "rollback",
+    "external_actions",
+    "approval",
+    "honesty"
+  ],
+  "properties": {
+    "contract_version": {"type": "string", "const": "1.0.0"},
+    "status": {"type": "string", "const": "awaiting_human_approval"},
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tag", "version", "repository", "fixture", "generated_at"],
+      "properties": {
+        "tag": {"type": "string", "pattern": "^(fixture-)?v[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "repository": {"type": "string", "enum": ["test", "pypi"]},
+        "fixture": {"type": "boolean"},
+        "generated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "tree_clean", "tag_ref_verified", "changelog_sha256"],
+      "properties": {
+        "commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "tree_clean": {"const": true},
+        "tag_ref_verified": {"type": "boolean"},
+        "changelog_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"$ref": "#/definitions/digest_ref"}
+    },
+    "reproducibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "builds", "matching_names", "matching_sha256", "source_date_epoch", "build_digests"],
+      "properties": {
+        "status": {"const": "pass"},
+        "builds": {"const": 2},
+        "matching_names": {"const": true},
+        "matching_sha256": {"const": true},
+        "source_date_epoch": {"type": "integer", "minimum": 1},
+        "build_digests": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["build", "artifacts"],
+            "properties": {
+              "build": {"type": "integer", "minimum": 1, "maximum": 2},
+              "artifacts": {"type": "array", "minItems": 2, "items": {"$ref": "#/definitions/digest_ref"}}
+            }
+          }
+        }
+      }
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "evidence_ref", "evidence_sha256"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "status": {"const": "pass"},
+          "evidence_ref": {"type": "string", "minLength": 1},
+          "evidence_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    },
+    "support_claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "source_sha256", "configurations", "limitations", "no_overclaim"],
+      "properties": {
+        "source": {"const": "docs/evidence/provider-conformance/support-matrix.json"},
+        "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "configurations": {"type": "array", "minItems": 1},
+        "limitations": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "no_overclaim": {"type": "string", "minLength": 1}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["predicate_type", "builder", "source_commit", "artifact_digests", "signed"],
+      "properties": {
+        "predicate_type": {"const": "https://slsa.dev/provenance/v1"},
+        "builder": {"type": "string", "minLength": 1},
+        "source_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "artifact_digests": {"type": "array", "minItems": 2, "items": {"$ref": "#/definitions/digest_ref"}},
+        "signed": {"const": false}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "mode", "manifest_ref", "reinstall_verified", "prior_public_release"],
+      "properties": {
+        "status": {"const": "pass"},
+        "mode": {"const": "local-test-index-candidate-restore"},
+        "manifest_ref": {"type": "string", "minLength": 1},
+        "reinstall_verified": {"const": true},
+        "prior_public_release": {"type": ["string", "null"]}
+      }
+    },
+    "external_actions": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "status", "environment", "approval_required"],
+        "properties": {
+          "action": {"type": "string", "enum": ["pypi_upload", "github_release", "pages_deploy", "launch_communication"]},
+          "status": {"const": "pending_human_approval"},
+          "environment": {"type": "string", "minLength": 1},
+          "approval_required": {"const": true}
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "required_approver", "packet_sha256_bound_at_approval"],
+      "properties": {
+        "decision": {"const": "pending"},
+        "required_approver": {"const": "human-release-owner"},
+        "packet_sha256_bound_at_approval": {"const": true}
+      }
+    },
+    "honesty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_honesty_section", "no_overclaim", "limitations"],
+      "properties": {
+        "doc_honesty_section": {"type": "string", "minLength": 1},
+        "no_overclaim": {"type": "string", "minLength": 1},
+        "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    }
+  },
+  "definitions": {
+    "digest_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256", "size"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "size": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

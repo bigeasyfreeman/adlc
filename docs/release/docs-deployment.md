@@ -22,13 +22,13 @@ python3 scripts/check_docs_release.py --tag "$RELEASE_TAG" --json
 
 ## Deployment
 
-Pull requests and `v*` tag pushes build and validate without deployment. Publication requires a manually dispatched workflow naming an existing GitHub Release and setting `confirm_publication`; the workflow refuses a ref that is not the exact tag commit or a tag that differs from `project.version` in `pyproject.toml` or `extra.adlc_version` in `mkdocs.yml`. It then uploads the generated Pages artifact and deploys through the `github-pages` environment. Configure required reviewers on that environment as a second approval boundary.
+Pull requests and `v*` tag pushes run `.github/workflows/docs.yml` for build and validation only; that workflow has no manual dispatch or Pages write permission. Publication is available only through `.github/workflows/release.yml` after the immutable tag prepares a release packet. A human `release_publication` approval record must name the exact packet path and SHA-256, `confirm_publication` must be set, and the protected `github-pages` environment must approve. The Pages job revalidates the packet-bound record, checks tag/version agreement, builds the exact tagged sources, runs the rendered and viewport contracts, and deploys that artifact directly.
 
 ## Rollback
 
 1. Identify the last known-good Pages deployment and matching release tag.
-2. Re-run the Docs workflow with that exact tag from its source commit.
-3. Approve the `github-pages` environment deployment.
+2. Prepare a new release packet from that exact immutable source and record the recovery rationale; never reuse or move a release tag.
+3. Bind a fresh human approval record to the exact recovery packet and approve the `github-pages` environment deployment through the release workflow.
 4. Verify the canonical URL, version banner, search index, and first-Fix page.
 5. Preserve the failed deployment and reason; do not rewrite its tag.
 

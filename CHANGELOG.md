@@ -16,5 +16,8 @@ versioning once a release is tagged.
   security, contribution, and changelog surfaces.
 - Record a scoped Codex Fix beta row from three passing provider runs; other
   providers and dimensions remain unclaimed unless their own evidence passes.
+- Prepare reproducible 0.9.0 release-candidate artifacts, evidence-derived
+  support claims, protected publication workflows, and rollback evidence while
+  keeping every external release action human-approval-bound.
 
 No release has been tagged yet.

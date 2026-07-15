@@ -10,22 +10,14 @@ on:
       - "pyproject.toml"
       - "scripts/check_docs_release.py"
       - "scripts/render_support_matrix.py"
+      - "scripts/release.py"
+      - "tests/test_release_workflow.py"
+      - ".github/workflows/release.yml"
       - "tests/check_built_docs.py"
       - "tests/check_docs_viewports.py"
       - ".github/workflows/docs.yml"
   push:
     tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: Existing release tag to publish after environment approval
-        required: true
-        type: string
-      confirm_publication:
-        description: Confirm publication of the existing GitHub Release documentation
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -39,8 +31,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -49,17 +39,11 @@ jobs:
       - name: Validate release and documentation versions
         if: github.event_name != 'pull_request'
         env:
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
           test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
           python scripts/check_docs_release.py --tag "$RELEASE_TAG" --json
-      - name: Verify existing GitHub Release
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: test "$(gh api "repos/${{ github.repository }}/releases/tags/$RELEASE_TAG" --jq .tag_name)" = "$RELEASE_TAG"
       - name: Strict build
         run: mkdocs build --strict
       - name: Rendered site contract
@@ -72,24 +56,3 @@ jobs:
         with:
           name: docs-preview-${{ github.sha }}
           path: docs-preview
-      - uses: actions/configure-pages@v5
-        if: github.event_name == 'workflow_dispatch' && inputs.confirm_publication
-      - uses: actions/upload-pages-artifact@v3
-        if: github.event_name == 'workflow_dispatch' && inputs.confirm_publication
-        with:
-          path: site
-
-  deploy:
-    if: github.event_name == 'workflow_dispatch' && inputs.confirm_publication
-    needs: build
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy approved Pages artifact
-        id: deployment
-        uses: actions/deploy-pages@v4
