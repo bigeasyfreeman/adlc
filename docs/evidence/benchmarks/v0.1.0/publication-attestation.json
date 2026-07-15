@@ -13,11 +13,9 @@
     "status": "pass"
   },
   "limitations": [
-    "This attestation covers only the two published benchmark reports and their 54 referenced local evidence files at the reviewed paths and hashes.",
-    "The audit verified published artifacts, schemas, offline verifier results, report hashes, and redaction state; it did not rerun live provider calls or establish behavior outside this fixture, commit, configuration, and review time.",
-    "The project verifier currently requires a fixture argument even in --verify-published mode, so the offline verification was executed with the published fixture path as a CLI compatibility workaround."
+    "This attestation is limited to the reviewed local evidence bundle at these exact paths and SHA-256 hashes and does not independently rerun live provider calls, so it does not establish behavior outside this fixture, commit, configuration, and review time."
   ],
-  "no_overclaim": "This approval attests only that the reviewed benchmark evidence set is internally consistent, schema-valid, redacted by the applied scans, and approved for candidate benchmark evidence publication at these exact paths and hashes.",
+  "no_overclaim": "This approval attests only that the reviewed benchmark evidence bundle is internally consistent, schema-valid, redacted by the applied scans, and approved for candidate benchmark evidence publication at these exact paths and hashes.",
   "primary_report": {
     "attempts": 3,
     "path": "docs/evidence/benchmarks/v0.1.0/benchmark-report.json",
@@ -38,11 +36,11 @@
     "secret_matches": 0,
     "status": "pass"
   },
-  "reviewed_at": "2026-07-15T07:29:53Z",
+  "reviewed_at": "2026-07-15T08:02:24Z",
   "reviewer": {
     "basis": "separate_codex_session",
     "identity": "independent-codex-publication-auditor",
-    "session_id": "019f64aa-a71f-78b1-a88c-3198d745c20e"
+    "session_id": "019f64c9-e087-71d0-99bc-270807aadb02"
   },
   "status": "approved"
 }
