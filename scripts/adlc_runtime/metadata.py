@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Any, Dict
 
 
 SCHEMA_ALIASES = {
@@ -68,6 +68,8 @@ SCHEMA_ALIASES = {
     "work-item-sync": "docs/schemas/work-item-sync.schema.json",
     "work-queue": "docs/schemas/work-queue.schema.json",
     "workflow-state": "docs/schemas/workflow-state.schema.json",
+    "public-operation": "docs/schemas/public-operation.schema.json",
+    "public-operation-result": "docs/schemas/public-operation-result.schema.json",
 }
 
 DEFAULT_STATE_PATH = ".adlc/workflow_state.json"
@@ -95,6 +97,10 @@ DEFAULT_PHASE_TOOLS = {
 }
 
 COMMAND_METADATA = {
+    "public-operation": {
+        "mcp_name": "adlc_public_operation",
+        "description": "Run one experimental schema-backed public ADLC operation through the deterministic kernel.",
+    },
     "list-agents": {
         "mcp_name": "adlc_list_agents",
         "description": "List ADLC agents from skills/manifest.json.",
@@ -341,8 +347,28 @@ COMMAND_METADATA = {
     },
 }
 
+PUBLIC_OPERATION_METADATA = {
+    "init": {"kernel": ["health-check"], "support": "experimental"},
+    "shape": {"kernel": ["goal-prompt"], "support": "experimental"},
+    "build": {"kernel": ["action-admit", "queue-status", "run-phase"], "support": "experimental"},
+    "fix": {"kernel": ["action-admit", "queue-status", "run-phase"], "support": "experimental"},
+    "review": {"kernel": ["completion-audit"], "support": "experimental"},
+    "harden": {"kernel": ["action-admit", "run-phase"], "support": "experimental"},
+    "ship": {"kernel": ["completion-audit"], "support": "experimental"},
+    "status": {"kernel": ["status"], "support": "experimental"},
+    "resume": {"kernel": ["action-admit", "resume-workflow"], "support": "experimental"},
+    "doctor": {"kernel": ["health-check"], "support": "experimental"},
+    "learn": {"kernel": ["memory-health"], "support": "experimental"},
+}
 
-def command_metadata(cli_name: str) -> Dict[str, str]:
+LOW_LEVEL_COMPATIBILITY = {
+    name: {"deprecated": False, "replacement": "public-operation", "retained_through": "0.x"}
+    for metadata in PUBLIC_OPERATION_METADATA.values()
+    for name in metadata["kernel"]
+}
+
+
+def command_metadata(cli_name: str) -> Dict[str, Any]:
     return COMMAND_METADATA[cli_name]
 
 

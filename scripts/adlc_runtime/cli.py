@@ -3455,6 +3455,24 @@ def command_workflow_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_public_operation(args: argparse.Namespace) -> int:
+    try:
+        from adlc_runtime.public_facade import dispatch_public_operation
+
+        request = read_json(cli_input_path(args.input))
+        if not isinstance(request, dict):
+            raise ValueError("public operation input must be a JSON object")
+        payload = dispatch_public_operation(request)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.json:
+        write_json(payload)
+    else:
+        print(f"{payload['operation']}: {payload['status']} ({payload['stop_reason'] or 'no stop'})")
+    return 0 if payload["status"] in {"completed", "planned"} else 1
+
+
 def command_resume_workflow(args: argparse.Namespace) -> int:
     try:
         payload = resume_workflow_payload(
@@ -15430,6 +15448,11 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--input", required=True, help="Artifact JSON path.")
     validate.add_argument("--json", action="store_true", help="Emit JSON.")
     validate.set_defaults(func=command_validate_artifact)
+
+    public_operation = subparsers.add_parser("public-operation", help=command_description("public-operation"))
+    public_operation.add_argument("--input", required=True, help="Schema-valid public operation request JSON path.")
+    public_operation.add_argument("--json", action="store_true", help="Emit JSON.")
+    public_operation.set_defaults(func=command_public_operation)
 
     health = subparsers.add_parser("health-check", help=command_description("health-check"))
     health.add_argument("--include-optional", action="store_true", help="Include optional audit and PDF tooling checks.")
