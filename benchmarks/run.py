@@ -976,6 +976,10 @@ def verify_published_bundle(attestation_path: Path) -> Dict[str, Any]:
     if [attempt["status"] for attempt in primary["attempts"]] != [
         attempt["status"] for attempt in replay["attempts"]
     ]:
+        raise BenchmarkError("published benchmark reports diverge on attempt statuses")
+    if [attempt["terminal_class"] for attempt in primary["attempts"]] != [
+        attempt["terminal_class"] for attempt in replay["attempts"]
+    ]:
         raise BenchmarkError("published benchmark reports diverge on terminal classes")
     if [attempt["invariant_sha256"] for attempt in primary["attempts"]] != [
         attempt["invariant_sha256"] for attempt in replay["attempts"]

@@ -223,3 +223,22 @@ def test_bundle_verification_compares_ordered_attempt_invariants(tmp_path, monke
         assert "diverge on calculated invariants" in str(exc)
     else:
         raise AssertionError("bundle verification accepted reordered attempt invariants")
+
+
+def test_bundle_verification_compares_terminal_class_not_only_status(tmp_path, monkeypatch):
+    runner = load_runner()
+    bundle = copy_published_bundle(tmp_path, monkeypatch, runner)
+    replay_path = bundle / "independent-replay/benchmark-report.json"
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    replay["attempts"][1]["terminal_class"] = "failed"
+    replay_path.write_text(json.dumps(replay, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    attestation_path = bundle / "publication-attestation.json"
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    attestation["independent_replay"]["sha256"] = hashlib.sha256(replay_path.read_bytes()).hexdigest()
+    attestation_path.write_text(json.dumps(attestation, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        runner.verify_published_bundle(attestation_path)
+    except runner.BenchmarkError as exc:
+        assert "diverge on terminal classes" in str(exc)
+    else:
+        raise AssertionError("bundle verification accepted divergent terminal classes")
