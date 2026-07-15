@@ -44,7 +44,7 @@ Internal `test-author` uses `spec-to-tests` for failing-test authoring from Brie
 
 `./setup.sh claude <target>` and `./setup.sh verify-claude <target>` remain the dated wrapper forms. Each target receives `<target>/.adlc/bin/adlc`; its `ADLC_ROOT` points to the source checkout. The [installation guide](../start/installation.md) is the current user path.
 
-Harness authors must treat repo_conventions.status=none_found only when no convention documents exist. Waivers are recorded, not skipped. Put process artifacts under the [`process-artifact-storage.md` contract](https://github.com/bigeasyfreeman/adlc/blob/v0.9.0/docs/specs/process-artifact-storage.md), and feed durable maintainer rules through `feedback-conventions`.
+Harness authors must treat repo_conventions.status=none_found only when no convention documents exist. Waivers are recorded, not skipped. Put process artifacts under the [`process-artifact-storage.md` contract](https://github.com/bigeasyfreeman/adlc/blob/v0.9.1/docs/specs/process-artifact-storage.md), and feed durable maintainer rules through `feedback-conventions`.
 
 `doc_honesty_section`: Low-level command availability proves an interface exists, not that a provider used it correctly.
 

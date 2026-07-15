@@ -5,7 +5,7 @@ knowing what happened around the change: whether the failure was reproduced,
 which verifier turned red and then green, what the review found, and what still
 needs a human decision.
 
-ADLC 0.9.0 beta gives an existing coding agent three repeatable loops—Build,
+ADLC 0.9.1 beta gives an existing coding agent three repeatable loops—Build,
 Fix, and read-only Review—and keeps deterministic truth in schemas, state,
 permissions, tests, and evidence records. The product promise is deliberately
 narrow: every completion claim should point to evidence, or the loop should say

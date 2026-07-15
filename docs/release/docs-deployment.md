@@ -22,7 +22,7 @@ python3 scripts/check_docs_release.py --tag "$RELEASE_TAG" --json
 
 ## Deployment
 
-Pull requests and `v*` tag pushes run `.github/workflows/docs.yml` for build and validation only; that workflow has no manual dispatch or Pages write permission. Publication is available only through `.github/workflows/release.yml` after the immutable tag prepares a release packet. A human `release_publication` approval record must name the exact packet path and SHA-256, `confirm_publication` must be set, and the protected `github-pages` environment must approve. The Pages job revalidates the packet-bound record, checks tag/version agreement, builds the exact tagged sources, runs the rendered and viewport contracts, and deploys that artifact directly.
+Pull requests and `v*` tag pushes run `.github/workflows/docs.yml` for build and validation only; that workflow has no manual dispatch or Pages write permission. Publication is available only through `.github/workflows/release.yml` after the immutable tag prepares a release packet. A human `release_publication` approval record must name the exact packet path and SHA-256, `approval_packet_run_id` must identify the reviewed preparation-only run, `confirm_publication` must be set, and the protected `github-pages` environment must approve. The Pages job reuses the exact approved candidate, revalidates the packet-bound record and artifact digests, checks tag/version agreement, builds the exact tagged sources, runs the rendered and viewport contracts, and deploys that artifact directly.
 
 ## Rollback
 

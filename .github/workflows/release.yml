@@ -17,8 +17,14 @@ on:
         required: false
         default: ""
         type: string
+      approval_packet_run_id:
+        description: Successful preparation-only workflow run containing the exact approved candidate artifact
+        required: false
+        default: ""
+        type: string
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -45,15 +51,47 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install preparation dependencies
+        if: ${{ !inputs.confirm_publication }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install 'jsonschema>=4,<5' 'pytest>=7,<9' 'ruff>=0.5,<1' 'mkdocs==1.6.1' 'mkdocs-material==9.7.6'
           sudo apt-get update
           sudo apt-get install -y jq ripgrep
       - name: Prepare reproducible approval packet
+        if: ${{ !inputs.confirm_publication }}
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: python scripts/release.py prepare --tag "$RELEASE_TAG" --repository pypi --verify-reproducible --rehearse-rollback --json
+      - name: Require an exact previously prepared candidate
+        if: ${{ inputs.confirm_publication }}
+        env:
+          APPROVAL_PACKET_RUN_ID: ${{ inputs.approval_packet_run_id }}
+        run: test -n "$APPROVAL_PACKET_RUN_ID"
+      - name: Reuse the exact packet-approved candidate
+        if: ${{ inputs.confirm_publication }}
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.approval_packet_run_id }}
+          name: release-candidate-${{ inputs.release_tag }}
+          path: release-out/${{ inputs.release_tag }}
+      - name: Verify reused candidate identity
+        if: ${{ inputs.confirm_publication }}
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          PACKET="release-out/$RELEASE_TAG/release-approval-packet.json"
+          test -f "$PACKET"
+          PACKET="$PACKET" RELEASE_COMMIT="$(git rev-parse HEAD)" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          packet = json.loads(Path(os.environ["PACKET"]).read_text(encoding="utf-8"))
+          assert packet["release"]["tag"] == os.environ["RELEASE_TAG"]
+          assert packet["release"]["repository"] == "pypi"
+          assert packet["source"]["commit"] == os.environ["RELEASE_COMMIT"]
+          PY
       - name: Export packet digest
         id: packet
         env:
@@ -70,6 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
+      actions: read
       id-token: write
       attestations: write
       contents: read
@@ -77,6 +116,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.release_tag }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install approval validator dependency
+        run: python -m pip install 'jsonschema>=4,<5'
       - uses: actions/download-artifact@v4
         with:
           name: release-candidate-${{ inputs.release_tag }}
@@ -102,11 +146,17 @@ jobs:
     runs-on: ubuntu-latest
     environment: github-release
     permissions:
+      actions: read
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.release_tag }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install approval validator dependency
+        run: python -m pip install 'jsonschema>=4,<5'
       - uses: actions/download-artifact@v4
         with:
           name: release-candidate-${{ inputs.release_tag }}
@@ -134,6 +184,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: github-pages
     permissions:
+      actions: read
       pages: write
       id-token: write
       contents: read
@@ -141,6 +192,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.release_tag }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install approval validator dependency
+        run: python -m pip install 'jsonschema>=4,<5'
       - uses: actions/download-artifact@v4
         with:
           name: release-candidate-${{ inputs.release_tag }}
@@ -153,9 +209,6 @@ jobs:
           test -n "$APPROVAL_RECORD_JSON"
           printf '%s' "$APPROVAL_RECORD_JSON" > "$RUNNER_TEMP/release-approval.json"
           python scripts/release.py publish --packet "release-out/$RELEASE_TAG/release-approval-packet.json" --approval-record "$RUNNER_TEMP/release-approval.json" --target pages_deploy --confirm-external-publication --json
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
       - name: Build the approved tagged documentation
         run: |
           python -m pip install '.[docs]'
