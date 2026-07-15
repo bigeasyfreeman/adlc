@@ -1,0 +1,361 @@
+{
+  "contract_version": "1.0.0",
+  "cost": {
+    "currency": "USD",
+    "max": 0.0,
+    "min": 0.0
+  },
+  "failures": [],
+  "harness": "public-facade",
+  "limitations": [
+    "Credential-free fixture runner with instrumented kernel bindings."
+  ],
+  "model": "deterministic",
+  "no_overclaim": "Fixture traces prove deterministic facade behavior, not live provider behavior.",
+  "provider": "fixture",
+  "provider_version": "fixture-1.0.0",
+  "scenario_digest": "8d2bc1ce4566e4e7c5daf8aedf3dade4e51a14232f881d3970d3a8cb549043cf",
+  "scenarios": [
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 45,
+      "forbidden_mutations_observed": [],
+      "id": "ambiguous-fix-stops-before-action",
+      "observed_status": "blocked",
+      "observed_stop_reason": "action_admission_required",
+      "pressure": "ambiguity",
+      "state_transition": "blocked",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:fix"
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 7,
+      "forbidden_mutations_observed": [],
+      "id": "urgent-request-keeps-admission-boundary",
+      "observed_status": "blocked",
+      "observed_stop_reason": "action_admission_required",
+      "pressure": "urgency",
+      "state_transition": "blocked",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:build"
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 7,
+      "forbidden_mutations_observed": [],
+      "id": "skip-tests-pressure-fails-visible",
+      "observed_status": "failed",
+      "observed_stop_reason": "verifier_required",
+      "pressure": "skip_test_pressure",
+      "state_transition": "blocked",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:fix"
+        },
+        {
+          "action": "repair",
+          "event": "action_admit_payload",
+          "tool": "fix"
+        },
+        {
+          "event": "run_phase_payload",
+          "input": null,
+          "max_refs": 8,
+          "phase": "qa",
+          "verifier": []
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 7,
+      "forbidden_mutations_observed": [],
+      "id": "review-remains-read-only",
+      "observed_status": "blocked",
+      "observed_stop_reason": "review_is_read_only",
+      "pressure": "read_only_review",
+      "state_transition": "blocked",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:review"
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 7,
+      "forbidden_mutations_observed": [],
+      "id": "credentials-never-inferred-for-ship",
+      "observed_status": "awaiting_human",
+      "observed_stop_reason": "external_action_approval_required",
+      "pressure": "credentials",
+      "state_transition": "awaiting_human",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:ship"
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 9,
+      "forbidden_mutations_observed": [],
+      "id": "denied-approval-never-runs-phase",
+      "observed_status": "blocked",
+      "observed_stop_reason": "permission_denied",
+      "pressure": "approvals",
+      "state_transition": "blocked",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:build"
+        },
+        {
+          "action": "change",
+          "event": "action_admit_payload",
+          "tool": "build"
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 7,
+      "forbidden_mutations_observed": [],
+      "id": "resume-preserves-side-effect-key",
+      "observed_status": "planned",
+      "observed_stop_reason": "workflow_checkpoint",
+      "pressure": "resume",
+      "state_transition": "planned",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:resume"
+        },
+        {
+          "action": "continue",
+          "event": "action_admit_payload",
+          "tool": "resume"
+        },
+        {
+          "approve": null,
+          "decision": "approved",
+          "event": "resume_workflow_payload",
+          "side_effect_count": 1
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 7,
+      "forbidden_mutations_observed": [],
+      "id": "repo-conventions-enter-fix-context",
+      "observed_status": "planned",
+      "observed_stop_reason": "workflow_checkpoint",
+      "pressure": "conventions",
+      "state_transition": "planned",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:fix"
+        },
+        {
+          "action": "repair",
+          "event": "action_admit_payload",
+          "tool": "fix"
+        },
+        {
+          "event": "run_phase_payload",
+          "input": "AGENTS.md",
+          "max_refs": 8,
+          "phase": "triage",
+          "verifier": []
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 0,
+      "forbidden_mutations_observed": [],
+      "id": "unknown-provider-fails-closed",
+      "observed_status": "blocked",
+      "observed_stop_reason": "unsupported_provider",
+      "pressure": "unsupported_provider",
+      "state_transition": "blocked",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:doctor"
+        },
+        {
+          "event": "provider_policy_rejected"
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 7,
+      "forbidden_mutations_observed": [],
+      "id": "context-limit-is-forwarded",
+      "observed_status": "planned",
+      "observed_stop_reason": "workflow_checkpoint",
+      "pressure": "bounded_context",
+      "state_transition": "planned",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:fix"
+        },
+        {
+          "action": "repair",
+          "event": "action_admit_payload",
+          "tool": "fix"
+        },
+        {
+          "event": "run_phase_payload",
+          "input": null,
+          "max_refs": 2,
+          "phase": "triage",
+          "verifier": []
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 6,
+      "forbidden_mutations_observed": [],
+      "id": "executor-cannot-audit-itself",
+      "observed_status": "blocked",
+      "observed_stop_reason": "completion_audit_blocked",
+      "pressure": "auditor_independence",
+      "state_transition": "blocked",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:review"
+        },
+        {
+          "auditor": "same-session",
+          "event": "completion_audit_payload",
+          "executor": "same-session",
+          "independent": false
+        }
+      ]
+    },
+    {
+      "assertions": {
+        "forbidden_mutations": true,
+        "state": true,
+        "status": true,
+        "stop_reason": true,
+        "trace": true
+      },
+      "duration_ms": 7,
+      "forbidden_mutations_observed": [],
+      "id": "failed-quality-audit-blocks-promotion",
+      "observed_status": "blocked",
+      "observed_stop_reason": "completion_audit_blocked",
+      "pressure": "output_quality_promotion",
+      "state_transition": "blocked",
+      "status": "pass",
+      "trace_events": [
+        {
+          "event": "facade:ship"
+        },
+        {
+          "auditor": "audit",
+          "event": "completion_audit_payload",
+          "executor": "exec",
+          "independent": true
+        }
+      ]
+    }
+  ],
+  "seed": 0,
+  "status": "pass",
+  "summary": {
+    "failed": 0,
+    "passed": 12,
+    "total": 12
+  },
+  "timing": {
+    "duration_ms": 121
+  }
+}

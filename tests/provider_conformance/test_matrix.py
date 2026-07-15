@@ -34,6 +34,8 @@ def report(provider, model, dimensions, *, status="pass", credential_status="ava
         "failures": [] if status == "pass" else ["behavior_failed"],
         "no_overclaim": "Named configuration only.",
         "limitations": ["Fixture report."],
+        "source_commit": "a" * 40,
+        "fixture_sha256": "b" * 64,
     }
 
 
@@ -97,6 +99,32 @@ def test_failures_variance_timing_cost_and_raw_traces_remain_visible():
     assert excluded["duration_ms"] == {"min": 100, "max": 400}
     assert excluded["cost"]["max"] >= excluded["cost"]["min"]
     assert len(excluded["evidence_refs"]) == 2
+
+
+def test_historical_failure_does_not_poison_fixed_source_cohort():
+    failed = report(
+        "codex",
+        "gpt-5.4",
+        {"installation": "pass", "invocation": "pass", "behavior": "fail", "end_to_end": "fail"},
+        status="fail",
+        run_id="old-fail",
+    )
+    current = [
+        report(
+            "codex",
+            "gpt-5.4",
+            {dimension: "pass" for dimension in matrix.CONFORMANCE_DIMENSIONS},
+            run_id=f"current-{index}",
+        )
+        for index in range(3)
+    ]
+    for item in current:
+        item["source_commit"] = "c" * 40
+        item["fixture_sha256"] = "d" * 64
+    support = matrix.derive_support_matrix([failed, *current])
+    assert support["configurations"][0]["label"] == "beta"
+    assert support["configurations"][0]["source_commit"] == "c" * 40
+    assert support["excluded"][0]["failed_runs"] == 1
 
 
 def test_invalid_dimension_value_fails_closed():

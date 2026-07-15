@@ -1,5 +1,39 @@
 {
-  "configurations": [],
+  "configurations": [
+    {
+      "cost": {
+        "currency": "USD",
+        "max": 0.0,
+        "min": 0.0
+      },
+      "dimensions": {
+        "behavior": "pass",
+        "end_to_end": "pass",
+        "installation": "pass",
+        "invocation": "pass"
+      },
+      "duration_ms": {
+        "max": 48315,
+        "min": 45615
+      },
+      "evidence_refs": [
+        "docs/evidence/provider-conformance/codex-fix-ea1f2d193bc2-1.report.json",
+        "docs/evidence/provider-conformance/codex-fix-ea1f2d193bc2-2.report.json",
+        "docs/evidence/provider-conformance/codex-fix-ea1f2d193bc2-3.report.json"
+      ],
+      "failed_runs": 0,
+      "failures": [],
+      "fixture_sha256": "4d9f3f1a94b0fa86476b4344c62ec961365d32b0e86b6e7a07ed4dbd706fcfd2",
+      "harness": "codex-cli-installed-skill",
+      "label": "beta",
+      "loop": "fix",
+      "model": "gpt-5.4",
+      "provider": "codex",
+      "provider_version": "0.137.0",
+      "run_count": 3,
+      "source_commit": "ea1f2d193bc2a7a64961ae3298ff7e12f9ae8165"
+    }
+  ],
   "contract_version": "1.0.0",
   "dimensions": [
     "installation",
@@ -7,11 +41,114 @@
     "behavior",
     "end_to_end"
   ],
-  "excluded": [],
+  "excluded": [
+    {
+      "cost": {
+        "currency": "USD",
+        "max": 0.0,
+        "min": 0.0
+      },
+      "dimensions": {
+        "behavior": "not_run",
+        "end_to_end": "not_run",
+        "installation": "not_run",
+        "invocation": "blocked"
+      },
+      "duration_ms": {
+        "max": 0,
+        "min": 0
+      },
+      "evidence_refs": [
+        "docs/evidence/provider-conformance/claude-fix-ea1f2d193bc2-credentials-missing.report.json"
+      ],
+      "failed_runs": 1,
+      "failures": [
+        "credentials_missing"
+      ],
+      "fixture_sha256": "f52b7871a5e80864b54ed540fd3405499ac97a44a2e1b0175429c6a7912d21b4",
+      "harness": "claude-code-credential-preflight",
+      "loop": "fix",
+      "model": "not-invoked",
+      "provider": "claude",
+      "provider_version": "2.1.210",
+      "reason": "credentials_missing",
+      "run_count": 1,
+      "source_commit": "ea1f2d193bc2a7a64961ae3298ff7e12f9ae8165"
+    },
+    {
+      "cost": {
+        "currency": "USD",
+        "max": 0.0,
+        "min": 0.0
+      },
+      "dimensions": {
+        "behavior": "fail",
+        "end_to_end": "fail",
+        "installation": "pass",
+        "invocation": "pass"
+      },
+      "duration_ms": {
+        "max": 90057,
+        "min": 60631
+      },
+      "evidence_refs": [
+        "docs/evidence/provider-conformance/codex-fix-4739d5dabcc2-1.report.json",
+        "docs/evidence/provider-conformance/codex-fix-4739d5dabcc2-2.report.json",
+        "docs/evidence/provider-conformance/codex-fix-4739d5dabcc2-3.report.json"
+      ],
+      "failed_runs": 2,
+      "failures": [
+        "provider_test_trace",
+        "provider_test_trace"
+      ],
+      "fixture_sha256": "c712eccb4af3415c9d1215f1a42513e94f0ec9b9829cc890e8c242c82ef2a954",
+      "harness": "codex-cli-installed-skill",
+      "loop": "fix",
+      "model": "gpt-5.4",
+      "provider": "codex",
+      "provider_version": "0.137.0",
+      "reason": "behavioral_failure",
+      "run_count": 3,
+      "source_commit": "4739d5dabcc20b225187ae88316c4107ab1b88ff"
+    },
+    {
+      "cost": {
+        "currency": "USD",
+        "max": 0.0,
+        "min": 0.0
+      },
+      "dimensions": {
+        "behavior": "pass",
+        "end_to_end": "pass",
+        "installation": "pass",
+        "invocation": "not_run"
+      },
+      "duration_ms": {
+        "max": 3408,
+        "min": 3408
+      },
+      "evidence_refs": [
+        "docs/evidence/provider-conformance/public-fix-fixture.report.json"
+      ],
+      "failed_runs": 0,
+      "failures": [
+        "incomplete_evidence"
+      ],
+      "fixture_sha256": "b5b211907d33aa6c107bfc9ab9dee48a2f1a8f294bd027f0458984bd14baba98",
+      "harness": "public-fix-deterministic",
+      "loop": "fix",
+      "model": "not-invoked",
+      "provider": "codex",
+      "provider_version": "not-invoked",
+      "reason": "incomplete_evidence",
+      "run_count": 1,
+      "source_commit": "4739d5dabcc20b225187ae88316c4107ab1b88ff"
+    }
+  ],
   "limitations": [
     "Experimental requires one passing run; beta requires at least three passing runs with no hidden failures.",
     "A report does not guarantee future provider or model behavior."
   ],
-  "no_overclaim": "Labels apply only to the named provider, harness, model, version, evidence, and dimensions.",
-  "source_report_count": 0
+  "no_overclaim": "Labels apply only to the named provider, harness, model, version, source commit, fixture, evidence, and dimensions.",
+  "source_report_count": 8
 }

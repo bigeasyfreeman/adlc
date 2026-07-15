@@ -1,7 +1,9 @@
 # Provider Conformance Evidence
 
-ADLC does not currently claim a live-supported provider. Runtime adapters may
-be implemented while conformance remains pending.
+ADLC currently publishes one evidence-bounded live result: the Codex CLI
+`0.137.0` with GPT-5.4 and the installed-skill Fix fixture is `beta` at source
+commit `ea1f2d193bc2a7a64961ae3298ff7e12f9ae8165`. This is not a Build, Review,
+Claude, cross-model, GA, or universal provider claim.
 
 A provider becomes eligible for a public support claim only after the live
 smoke harness produces a schema-valid
@@ -31,7 +33,9 @@ but they do not establish provider support.
 
 ## Dimension and label policy
 
-Provider evidence is never inherited across providers, models, harnesses, versions, or loops. Each report records four separate dimensions:
+Provider evidence is never inherited across providers, models, harnesses,
+versions, loops, source commits, or fixture digests. Each report records four
+separate dimensions:
 
 - `installation`: the canonical generated skill is present and digest-valid;
 - `invocation`: the named provider actually launched and emitted a structured tool trace;
@@ -44,7 +48,14 @@ The public table is generated from `*.report.json` files; labels are not authore
 python3 tests/provider_conformance/matrix.py --json
 ```
 
-One clean passing run across all four dimensions is `experimental`. Three or more clean passing runs with no failed run are `beta`. A missing credential, failed run, or incomplete dimension is listed under `excluded` with its evidence and never appears as a passing configuration. This task does not issue a GA or universal provider claim.
+One clean passing run across all four dimensions is `experimental`. Three or
+more clean passing runs within the exact source-and-fixture cohort, with no
+failed run in that cohort, are `beta`. A missing credential, failed run, or
+incomplete dimension is listed under `excluded` with its evidence and never
+appears as a passing configuration. The initial `4739d5d` cohort is retained
+as a 1/3 diagnostic result with two trace-grading failures; the fixed
+`ea1f2d1` cohort is 3/3. Claude remains visibly blocked on missing explicit
+credentials. This task does not issue a GA or universal provider claim.
 
 ## Proof lanes
 

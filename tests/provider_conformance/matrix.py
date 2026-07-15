@@ -36,6 +36,9 @@ def _validate_report(report: Mapping[str, Any]) -> None:
     for key in ("provider", "harness", "model", "provider_version", "loop", "run_id", "status", "credential_status"):
         if not isinstance(report.get(key), str) or not report[key]:
             raise ValueError(f"conformance report requires {key}")
+    for key in ("source_commit", "fixture_sha256"):
+        if not isinstance(report.get(key), str) or not report[key]:
+            raise ValueError(f"conformance report requires {key}")
 
 
 def _dimension_summary(reports: list[Mapping[str, Any]]) -> Dict[str, str]:
@@ -68,6 +71,8 @@ def _aggregate(reports: list[Mapping[str, Any]]) -> Dict[str, Any]:
         "model": reports[0]["model"],
         "provider_version": reports[0]["provider_version"],
         "loop": reports[0]["loop"],
+        "source_commit": reports[0]["source_commit"],
+        "fixture_sha256": reports[0]["fixture_sha256"],
         "dimensions": dimensions,
         "run_count": len(reports),
         "failed_runs": failed_runs,
@@ -83,10 +88,18 @@ def _aggregate(reports: list[Mapping[str, Any]]) -> Dict[str, Any]:
 
 
 def derive_support_matrix(reports: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
-    grouped: Dict[tuple[str, str, str, str, str], list[Mapping[str, Any]]] = {}
+    grouped: Dict[tuple[str, str, str, str, str, str, str], list[Mapping[str, Any]]] = {}
     for report in reports:
         _validate_report(report)
-        key = (report["provider"], report["harness"], report["model"], report["provider_version"], report["loop"])
+        key = (
+            report["provider"],
+            report["harness"],
+            report["model"],
+            report["provider_version"],
+            report["loop"],
+            report["source_commit"],
+            report["fixture_sha256"],
+        )
         grouped.setdefault(key, []).append(report)
     configurations = []
     excluded = []
@@ -117,7 +130,7 @@ def derive_support_matrix(reports: Iterable[Mapping[str, Any]]) -> Dict[str, Any
         "configurations": configurations,
         "excluded": excluded,
         "source_report_count": sum(len(items) for items in grouped.values()),
-        "no_overclaim": "Labels apply only to the named provider, harness, model, version, evidence, and dimensions.",
+        "no_overclaim": "Labels apply only to the named provider, harness, model, version, source commit, fixture, evidence, and dimensions.",
         "limitations": [
             "Experimental requires one passing run; beta requires at least three passing runs with no hidden failures.",
             "A report does not guarantee future provider or model behavior.",
