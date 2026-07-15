@@ -82,6 +82,18 @@ def test_redaction_precedes_publication(tmp_path):
     assert "[REDACTED]" in rendered
 
 
+def test_redaction_covers_literal_and_resolved_workspace_aliases():
+    workspace = Path("/var/folders/example/target")
+    payload = {
+        "literal": "/var/folders/example/target/app.py",
+        "resolved": f"{workspace.resolve()}/app.py",
+    }
+    assert behavior_runner.redact_payload(payload, workspace) == {
+        "literal": "<WORKSPACE>/app.py",
+        "resolved": "<WORKSPACE>/app.py",
+    }
+
+
 def test_invalid_scenario_expectation_fails_visibly(tmp_path):
     scenario_path = tmp_path / "scenarios.json"
     scenario_path.write_text(

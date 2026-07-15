@@ -257,7 +257,9 @@ def run_scenarios(
 def _redact_string(value: str, workspace: Path | None) -> str:
     redacted = value
     if workspace:
-        redacted = redacted.replace(str(workspace.resolve()), "<WORKSPACE>")
+        aliases = {str(workspace), str(workspace.resolve())}
+        for alias in sorted(aliases, key=len, reverse=True):
+            redacted = redacted.replace(alias, "<WORKSPACE>")
     redacted = SECRET_PATTERNS[0].sub(r"\1\2[REDACTED]", redacted)
     redacted = SECRET_PATTERNS[1].sub(r"\1[REDACTED]", redacted)
     return SECRET_PATTERNS[2].sub("[REDACTED]", redacted)

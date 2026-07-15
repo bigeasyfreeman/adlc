@@ -50,6 +50,7 @@ def test_compiler_emits_provider_bundle_with_canonical_skill(provider):
     assert "loops/public-review.json" in bundle.files
     assert b"skill/scripts/context.py" not in bundle.files["SKILL.md"]
     assert b"skill/reference/" not in bundle.files["SKILL.md"]
+    assert b"relative to the directory containing this `SKILL.md`" in bundle.files["SKILL.md"]
     assert b"skill/reference/" not in bundle.files["scripts/context.py"]
     assert b"loops/public-fix.json" in bundle.files["reference/command-fix.md"]
     assert all(len(digest) == 64 for digest in bundle.digests.values())

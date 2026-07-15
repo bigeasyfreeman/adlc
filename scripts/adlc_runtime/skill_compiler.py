@@ -29,6 +29,14 @@ def _installed_content(relative: str, content: bytes) -> bytes:
     if relative in {"SKILL.src.md", "scripts/context.py"}:
         content = content.replace(b"skill/scripts/", b"scripts/")
         content = content.replace(b"skill/reference/", b"reference/")
+    if relative == "SKILL.src.md":
+        content = content.replace(
+            b"# ADLC\n\n",
+            b"# ADLC\n\nResolve every `scripts/`, `reference/`, and `loops/` path below "
+            b"relative to the directory containing this `SKILL.md`, never from the target "
+            b"repository root.\n\n",
+            1,
+        )
     if relative in {
         "reference/command-build.md",
         "reference/command-fix.md",
