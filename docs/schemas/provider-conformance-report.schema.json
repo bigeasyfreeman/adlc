@@ -110,6 +110,18 @@
       }
     },
     "failures": {"type": "array", "items": {"type": "string"}},
+    "canonical_ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "status", "source_commit", "source_tree_clean", "evidence_ref"],
+      "properties": {
+        "command": {"const": ["bin/adlc", "ci", "--json"]},
+        "status": {"const": "pass"},
+        "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "source_tree_clean": {"const": true},
+        "evidence_ref": {"type": "string", "minLength": 1}
+      }
+    },
     "no_overclaim": {"type": "string", "minLength": 1},
     "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "analysis": {"type": "object"},

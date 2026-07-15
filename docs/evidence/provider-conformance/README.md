@@ -5,6 +5,10 @@ ADLC currently publishes one evidence-bounded live result: the Codex CLI
 commit `4a629f313ee411282478cd0e15b948a7bd02c9a3`. This is not a Build, Review,
 Claude, cross-model, GA, or universal provider claim.
 
+The active reports reference a schema-valid canonical-CI attestation for the
+same clean source commit. Matrix generation fails the cohort closed when that
+reference is absent, failed, or names a different commit.
+
 A provider becomes eligible for a public support claim only after the live
 smoke harness produces a schema-valid
 `provider-conformance-report` with:

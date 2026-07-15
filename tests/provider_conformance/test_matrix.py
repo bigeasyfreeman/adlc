@@ -37,6 +37,13 @@ def report(provider, model, dimensions, *, status="pass", credential_status="ava
         "evidence_status": "current_conformance",
         "source_commit": "a" * 40,
         "fixture_sha256": "b" * 64,
+        "canonical_ci": {
+            "command": list(matrix.CANONICAL_CI_COMMAND),
+            "status": "pass",
+            "source_commit": "a" * 40,
+            "source_tree_clean": True,
+            "evidence_ref": "evidence:canonical-ci",
+        },
     }
 
 
@@ -122,6 +129,7 @@ def test_historical_failure_does_not_poison_fixed_source_cohort():
     for item in current:
         item["source_commit"] = "c" * 40
         item["fixture_sha256"] = "d" * 64
+        item["canonical_ci"]["source_commit"] = "c" * 40
     support = matrix.derive_support_matrix([failed, *current])
     assert support["configurations"][0]["label"] == "beta"
     assert support["configurations"][0]["source_commit"] == "c" * 40
@@ -143,6 +151,20 @@ def test_superseded_passing_cohort_is_visible_but_not_active_support():
     support = matrix.derive_support_matrix(reports)
     assert support["configurations"] == []
     assert support["excluded"][0]["reason"] == "superseded_evidence"
+
+
+def test_missing_or_mismatched_canonical_ci_is_not_support_eligible():
+    missing = report("codex", "gpt-5.4", {dimension: "pass" for dimension in matrix.CONFORMANCE_DIMENSIONS})
+    missing.pop("canonical_ci")
+    support = matrix.derive_support_matrix([missing])
+    assert support["configurations"] == []
+    assert support["excluded"][0]["reason"] == "canonical_ci_missing_or_invalid"
+
+    mismatched = report("codex", "gpt-5.4", {dimension: "pass" for dimension in matrix.CONFORMANCE_DIMENSIONS})
+    mismatched["canonical_ci"]["source_commit"] = "c" * 40
+    support = matrix.derive_support_matrix([mismatched])
+    assert support["configurations"] == []
+    assert support["excluded"][0]["reason"] == "canonical_ci_missing_or_invalid"
 
 
 def test_invalid_dimension_value_fails_closed():
@@ -213,3 +235,20 @@ def test_live_report_shape_validates_provider_conformance_schema():
     schema = json.loads((ROOT / "docs/schemas/provider-conformance-report.schema.json").read_text())
     assert schema["properties"]["dimensions"]["required"] == list(matrix.CONFORMANCE_DIMENSIONS)
     assert schema["properties"]["loop"]["minLength"] == 1
+
+
+def test_active_reports_reference_schema_valid_same_commit_canonical_ci():
+    evidence = ROOT / "docs/evidence/provider-conformance"
+    report_schema = json.loads((ROOT / "docs/schemas/provider-conformance-report.schema.json").read_text())
+    ci_schema = json.loads((ROOT / "docs/schemas/provider-ci-attestation.schema.json").read_text())
+    import jsonschema
+
+    active = [payload for payload in matrix.load_reports(evidence) if payload.get("canonical_ci")]
+    assert active
+    for payload in active:
+        jsonschema.validate({key: value for key, value in payload.items() if key != "_evidence_ref"}, report_schema)
+        ci = payload["canonical_ci"]
+        attestation = json.loads((ROOT / ci["evidence_ref"]).read_text())
+        jsonschema.validate(attestation, ci_schema)
+        assert attestation["source_commit"] == payload["source_commit"] == ci["source_commit"]
+        assert attestation["suite_count"] == len(attestation["suites"])

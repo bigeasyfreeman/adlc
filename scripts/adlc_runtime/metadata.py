@@ -49,6 +49,7 @@ SCHEMA_ALIASES = {
     "predicate-library": "docs/schemas/predicate-library.schema.json",
     "prd-template": "docs/schemas/prd-template.schema.json",
     "provider-conformance-report": "docs/schemas/provider-conformance-report.schema.json",
+    "provider-ci-attestation": "docs/schemas/provider-ci-attestation.schema.json",
     "skill-behavior-report": "docs/schemas/skill-behavior-report.schema.json",
     "repo-map": "docs/schemas/repo-map.schema.json",
     "run-report": "docs/schemas/run-report.schema.json",

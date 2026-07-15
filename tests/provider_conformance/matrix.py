@@ -15,6 +15,7 @@ from run import redact_payload  # noqa: E402
 
 CONFORMANCE_DIMENSIONS = ("installation", "invocation", "behavior", "end_to_end")
 DIMENSION_STATES = frozenset({"pass", "fail", "blocked", "not_run"})
+CANONICAL_CI_COMMAND = ["bin/adlc", "ci", "--json"]
 
 
 def load_reports(directory: Path) -> list[Dict[str, Any]]:
@@ -60,6 +61,19 @@ def _evidence_ref(report: Mapping[str, Any]) -> str:
     return str(report.get("_evidence_ref") or f"run:{report['run_id']}")
 
 
+def _canonical_ci_valid(report: Mapping[str, Any]) -> bool:
+    evidence = report.get("canonical_ci")
+    return (
+        isinstance(evidence, dict)
+        and evidence.get("command") == CANONICAL_CI_COMMAND
+        and evidence.get("status") == "pass"
+        and evidence.get("source_commit") == report.get("source_commit")
+        and evidence.get("source_tree_clean") is True
+        and isinstance(evidence.get("evidence_ref"), str)
+        and bool(evidence["evidence_ref"])
+    )
+
+
 def _aggregate(reports: list[Mapping[str, Any]]) -> Dict[str, Any]:
     durations = [int(report.get("duration_ms", 0)) for report in reports]
     costs = [report.get("cost", {}) for report in reports]
@@ -83,6 +97,13 @@ def _aggregate(reports: list[Mapping[str, Any]]) -> Dict[str, Any]:
             "max": round(sum(float(cost.get("max", 0.0)) for cost in costs), 6),
         },
         "evidence_refs": [_evidence_ref(report) for report in reports],
+        "canonical_ci_evidence_refs": sorted(
+            {
+                str(report["canonical_ci"]["evidence_ref"])
+                for report in reports
+                if _canonical_ci_valid(report)
+            }
+        ),
         "failures": [failure for report in reports for failure in report.get("failures", [])],
     }
 
@@ -108,10 +129,10 @@ def derive_support_matrix(reports: Iterable[Mapping[str, Any]]) -> Dict[str, Any
         aggregate = _aggregate(run_reports)
         credentials_missing = any(report["credential_status"] == "missing" for report in run_reports)
         superseded = any(report.get("evidence_status") == "superseded_conformance" for report in run_reports)
-        all_pass = aggregate["failed_runs"] == 0 and all(
-            value == "pass" for value in aggregate["dimensions"].values()
-        )
-        if all_pass and not credentials_missing and not superseded:
+        canonical_ci_valid = all(_canonical_ci_valid(report) for report in run_reports)
+        dimensions_complete = all(value == "pass" for value in aggregate["dimensions"].values())
+        all_pass = aggregate["failed_runs"] == 0 and dimensions_complete
+        if all_pass and not credentials_missing and not superseded and canonical_ci_valid:
             aggregate["label"] = "beta" if aggregate["run_count"] >= 3 else "experimental"
             configurations.append(aggregate)
         else:
@@ -122,6 +143,10 @@ def derive_support_matrix(reports: Iterable[Mapping[str, Any]]) -> Dict[str, Any
                 if superseded
                 else "behavioral_failure"
                 if aggregate["failed_runs"]
+                else "incomplete_evidence"
+                if not dimensions_complete
+                else "canonical_ci_missing_or_invalid"
+                if not canonical_ci_valid
                 else "incomplete_evidence"
             )
             if not aggregate["failures"]:

@@ -32,6 +32,13 @@
   },
   "cost_estimate_tokens": 96804,
   "credential_status": "available",
+  "canonical_ci": {
+    "command": ["bin/adlc", "ci", "--json"],
+    "status": "pass",
+    "source_commit": "4a629f313ee411282478cd0e15b948a7bd02c9a3",
+    "source_tree_clean": true,
+    "evidence_ref": "docs/evidence/provider-conformance/codex-fix-4a629f313ee4-canonical-ci.json"
+  },
   "dimensions": {
     "behavior": "pass",
     "end_to_end": "pass",
