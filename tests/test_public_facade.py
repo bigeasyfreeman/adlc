@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import inspect
-import json
 import sys
 from pathlib import Path
 from time import monotonic
@@ -11,8 +10,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from adlc_runtime import cli
-from adlc_runtime import public_facade
+from adlc_runtime import cli  # noqa: E402
+from adlc_runtime import public_facade  # noqa: E402
 
 
 def request(operation: str, *, allow_mutation: bool = False, approved: bool = False, arguments=None, workspace=None, state=None):

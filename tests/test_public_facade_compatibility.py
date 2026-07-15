@@ -9,8 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from adlc_runtime import cli
-from adlc_runtime.metadata import COMMAND_METADATA, LOW_LEVEL_COMPATIBILITY, PUBLIC_OPERATION_METADATA, SCHEMA_ALIASES
+from adlc_runtime import cli  # noqa: E402
+from adlc_runtime.metadata import COMMAND_METADATA, LOW_LEVEL_COMPATIBILITY, PUBLIC_OPERATION_METADATA, SCHEMA_ALIASES  # noqa: E402
 
 
 def run_cli(*args):
