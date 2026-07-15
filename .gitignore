@@ -29,6 +29,8 @@ venv/
 .ruff_cache/
 .coverage
 htmlcov/
+site/
+docs-preview/
 
 # ADLC workspace artifacts
 .adlc/

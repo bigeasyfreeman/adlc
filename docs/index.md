@@ -38,7 +38,7 @@ ADLC runs evidence-bound Build, Fix, and read-only Review loops through an exist
 - [Behavioral scenarios](contribute/behavioral-scenarios.md)
 - [Release process](contribute/release-process.md)
 
-`doc_honesty_section`: These pages document the source beta. The versioned site and released-package proof are later release gates.
+`doc_honesty_section`: These pages document the source beta. Released-package proof remains a later release gate.
 
 `no_overclaim`: Documentation structure does not establish product behavior or support.
 
