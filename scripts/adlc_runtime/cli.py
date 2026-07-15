@@ -4126,6 +4126,12 @@ def command_ci(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def command_skill_distribution(args: argparse.Namespace) -> int:
+    from adlc_runtime import install as skill_install
+
+    return skill_install.main(args.skill_args)
+
+
 def stable_hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
@@ -16026,6 +16032,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp_serve = subparsers.add_parser("mcp-serve", help="Serve ADLC tools over newline-delimited MCP JSON-RPC stdio.")
     mcp_serve.set_defaults(func=command_mcp_serve)
+
+    skill = subparsers.add_parser("skill", help="Compile or manage transactional Claude Code and Codex skill bundles.")
+    skill.add_argument("skill_args", nargs=argparse.REMAINDER, help="Arguments passed to the adlc-skill lifecycle CLI.")
+    skill.set_defaults(func=command_skill_distribution)
 
     return parser
 

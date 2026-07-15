@@ -70,6 +70,7 @@ SCHEMA_ALIASES = {
     "workflow-state": "docs/schemas/workflow-state.schema.json",
     "public-operation": "docs/schemas/public-operation.schema.json",
     "public-operation-result": "docs/schemas/public-operation-result.schema.json",
+    "install-manifest": "docs/schemas/install-manifest.schema.json",
 }
 
 DEFAULT_STATE_PATH = ".adlc/workflow_state.json"

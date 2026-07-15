@@ -40,9 +40,28 @@ The framework stays composable. Skills are injectable knowledge, agents are thin
 
 ## Install
 
-Install ADLC from this checkout into the target repo you want a harness to work
-on. Use an absolute path or a shell variable so the same commands survive shell,
-IDE, and OS upgrades:
+Build or install the Python package, then use its transactional lifecycle for
+the supported generated bundle targets:
+
+```bash
+python3 -m pip install .
+TARGET=/path/to/target-repo
+adlc-skill install --provider claude --target "$TARGET"
+adlc-skill doctor --provider claude --target "$TARGET"
+adlc-skill update --provider claude --target "$TARGET"
+adlc-skill rollback --provider claude --target "$TARGET"
+adlc-skill uninstall --provider claude --target "$TARGET"
+```
+
+Use `--provider codex` for the Codex layout. Installs are manifest-owned,
+digest-verified, collision-safe, and reversible. `link` is available for local
+development. Passing install and doctor proves bundle integrity only; it does
+not prove that Claude Code or Codex invoked or followed the skill. Generated
+targets are currently limited to those two provider layouts.
+
+`setup.sh` remains a dated compatibility wrapper during the 0.x beta window.
+It preserves the previous multi-provider managed layout and emits migration
+guidance. Use an absolute path or a shell variable:
 
 ```bash
 TARGET=/path/to/target-repo

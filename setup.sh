@@ -2,6 +2,9 @@
 set -euo pipefail
 
 # ADLC Setup — Install skills and agents into your AI coding tool
+# MIGRATION NOTICE (2026-07-14): this compatibility wrapper remains supported
+# during the 0.x beta window. New Claude Code and Codex installs should prefer
+# the transactional `adlc-skill install` lifecycle shipped in the Python package.
 # Usage: ./setup.sh <platform> [target-repo-path]
 #
 # Platforms: claude | codex | cursor | antigravity | factory | all | verify-claude
@@ -64,6 +67,7 @@ usage() {
 }
 
 [ -z "$PLATFORM" ] && usage
+echo "MIGRATION NOTICE (2026-07-14): setup.sh remains a 0.x compatibility wrapper; prefer adlc-skill for transactional Claude Code and Codex installs." >&2
 
 install_runtime() {
   local bin_dir="$TARGET/.adlc/bin"
