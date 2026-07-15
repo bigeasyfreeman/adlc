@@ -57,6 +57,12 @@
       {"status": 200, "url": "https://bigeasyfreeman.github.io/adlc/start/installation/"},
       {"status": 200, "url": "https://bigeasyfreeman.github.io/adlc/release/v0.9.2/"}
     ],
+    "post_release_truth_recovery": {
+      "job_id": 87461144301,
+      "stale_claims_absent": true,
+      "status": "pass",
+      "workflow_run_id": 29447386521
+    },
     "version_marker": "0.9.2"
   },
   "publication": {
