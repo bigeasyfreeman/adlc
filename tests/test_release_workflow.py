@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import tarfile
+import zipfile
 from argparse import Namespace
 from pathlib import Path
 
@@ -94,9 +95,34 @@ def test_architecture_runs_dependency_and_packet_secret_audits():
     assert "assert_publication_safe(packet" in source
 
 
+def test_distribution_identity_avoids_rejected_pypi_name_without_renaming_product():
+    release = load_release()
+    assert release.project_name() == "adlc-engineering"
+    assert release.project_name() != "adlc"
+    assert release.project_version() == "0.9.2"
+    assert "adlc-skill = \"adlc_runtime.install:main\"" in (ROOT / "pyproject.toml").read_text()
+    identity = release.release_identity_policy("pypi", "0.9.2")
+    assert identity["package_name"] == "adlc-engineering"
+    assert identity["registry_project"] == "https://pypi.org/project/adlc-engineering/"
+
+
+def test_wheel_metadata_uses_declared_distribution_name(tmp_path):
+    release = load_release()
+    wheel = tmp_path / "adlc_engineering-0.9.2-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr(
+            "adlc_engineering-0.9.2.dist-info/METADATA",
+            "Metadata-Version: 2.1\nName: adlc-engineering\nVersion: 0.9.2\n",
+        )
+        archive.writestr("adlc_runtime/__init__.py", "")
+        archive.writestr("share/adlc/skill/SKILL.md", "")
+        archive.writestr("share/adlc/schemas/example.json", "{}\n")
+    assert release.wheel_metadata(wheel, "0.9.2")["checks"]["name"] is True
+
+
 def test_release_notes_are_versioned_and_publication_ready():
-    notes = (ROOT / "docs/release/v0.9.1.md").read_text(encoding="utf-8")
-    assert notes.startswith("# ADLC 0.9.1")
+    notes = (ROOT / "docs/release/v0.9.2.md").read_text(encoding="utf-8")
+    assert notes.startswith("# ADLC 0.9.2")
     assert "Unreleased" not in notes
     assert "No release has been tagged" not in notes
     assert "Publication boundary" in notes

@@ -2,7 +2,7 @@
   "contract_version": "1.0.0",
   "status": "awaiting_human_approval",
   "release": {
-    "version": "0.9.1",
+    "version": "0.9.2",
     "stage": "public_beta_candidate",
     "audience": "senior engineers and hands-on engineering leads using coding agents"
   },
@@ -11,7 +11,7 @@
     {"kind": "demo_and_recording_plan", "ref": "docs/launch/demo-script.md", "status": "final_form"},
     {"kind": "beta_operations", "ref": "docs/launch/beta-operations.md", "status": "final_form"},
     {"kind": "metric_contract", "ref": "docs/launch/metrics.md", "status": "final_form"},
-    {"kind": "release_notes", "ref": "docs/release/v0.9.1.md", "status": "final_form"}
+    {"kind": "release_notes", "ref": "docs/release/v0.9.2.md", "status": "final_form"}
   ],
   "claims": [
     {
@@ -40,9 +40,9 @@
     }
   ],
   "communications": {
-    "release_announcement": "ADLC 0.9.1 beta packages repeatable Build, Fix, and Review loops around an existing coding agent, with a public Fix benchmark and explicit evidence and approval boundaries.",
+    "release_announcement": "ADLC 0.9.2 beta packages repeatable Build, Fix, and Review loops around an existing coding agent, with a public Fix benchmark and explicit evidence and approval boundaries.",
     "github_release_draft": "Try the five-minute Fix path, inspect the six-run benchmark bundle, and file sanitized beta feedback. This is an evidence-scoped beta, not GA.",
-    "social_draft": "A coding agent can produce a diff. ADLC 0.9.1 beta focuses on the harder question: what was actually proved? See the reproducible Fix demo and its limitations.",
+    "social_draft": "A coding agent can produce a diff. ADLC 0.9.2 beta focuses on the harder question: what was actually proved? See the reproducible Fix demo and its limitations.",
     "community_draft": "We are opening an approval-gated ADLC beta for engineers who want resumable, evidence-bound coding-agent loops. Feedback is welcome through the beta issue template.",
     "publication_status": "pending_human_approval"
   },

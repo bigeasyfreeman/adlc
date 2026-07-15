@@ -94,6 +94,13 @@ def project_version() -> str:
     return match.group(1)
 
 
+def project_name() -> str:
+    match = re.search(r'^name\s*=\s*"([^"]+)"', (ROOT / "pyproject.toml").read_text(), re.MULTILINE)
+    if not match:
+        raise ReleaseBlocked("pyproject project.name is missing")
+    return match.group(1)
+
+
 def docs_version() -> str:
     match = re.search(r"^\s*adlc_version:\s*([^\s]+)", (ROOT / "mkdocs.yml").read_text(), re.MULTILINE)
     if not match:
@@ -277,16 +284,21 @@ def compare_builds(first: Path, second: Path, artifact_dir: Path, epoch: int) ->
 
 def release_identity_policy(repository: str, version: str) -> Dict[str, Any]:
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    name = re.search(r'^name\s*=\s*"([^"]+)"', text, re.MULTILINE)
+    distribution = project_name()
     homepage = re.search(r'^Homepage\s*=\s*"([^"]+)"', text, re.MULTILINE)
-    if not name or name.group(1) != "adlc" or not homepage or homepage.group(1) != "https://github.com/bigeasyfreeman/adlc":
+    if not homepage or homepage.group(1) != "https://github.com/bigeasyfreeman/adlc":
         raise ReleaseBlocked("package or source repository identity drifted")
+    registry_project = (
+        f"https://pypi.org/project/{distribution}/"
+        if repository == "pypi"
+        else f"local-test-index/{distribution}"
+    )
     return {
         "status": "pass",
-        "package_name": name.group(1),
+        "package_name": distribution,
         "package_version": version,
         "requested_registry": repository,
-        "registry_project": "https://pypi.org/project/adlc/" if repository == "pypi" else "local-test-index/adlc",
+        "registry_project": registry_project,
         "source_repository": homepage.group(1),
     }
 
@@ -336,12 +348,13 @@ def dependency_policy() -> Dict[str, Any]:
 
 
 def wheel_metadata(wheel: Path, version: str) -> Dict[str, Any]:
+    distribution = project_name()
     with zipfile.ZipFile(wheel) as archive:
         metadata_name = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
         metadata = archive.read(metadata_name).decode("utf-8")
         names = set(archive.namelist())
     checks = {
-        "name": "Name: adlc" in metadata,
+        "name": f"Name: {distribution}" in metadata,
         "version": f"Version: {version}" in metadata,
         "runtime": any(name.startswith("adlc_runtime/") for name in names),
         "skill": any("share/adlc/skill/" in name for name in names),
@@ -437,7 +450,8 @@ def assert_publication_safe(value: Any, label: str) -> None:
 def install_and_rehearse_rollback(
     wheel: Path, version: str, output: Path, evidence_dir: Path
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    local_index = output / "test-index/adlc"
+    distribution = project_name()
+    local_index = output / "test-index" / distribution
     local_index.mkdir(parents=True)
     index_wheel = local_index / wheel.name
     shutil.copy2(wheel, index_wheel)
@@ -448,12 +462,12 @@ def install_and_rehearse_rollback(
         python = environment / "bin/python"
         run_logged(
             "test-index-install",
-            [str(python), "-m", "pip", "install", "--disable-pip-version-check", "--find-links", str(local_index), "adlc==" + version],
+            [str(python), "-m", "pip", "install", "--disable-pip-version-check", "--find-links", str(local_index), distribution + "==" + version],
             evidence_dir,
         )
         run_logged(
             "installed-package-smoke",
-            [str(python), "-c", "import importlib.metadata as m; assert m.version('adlc') == '" + version + "'"],
+            [str(python), "-c", f"import importlib.metadata as m; assert m.version({distribution!r}) == {version!r}"],
             evidence_dir,
         )
         audit_requirements = output / "audit-requirements.txt"
@@ -468,15 +482,15 @@ def install_and_rehearse_rollback(
             [str(python), "-m", "pip_audit", "-r", str(audit_requirements), "--progress-spinner", "off", "--format", "json"],
             evidence_dir,
         )
-        run_logged("rollback-uninstall", [str(python), "-m", "pip", "uninstall", "-y", "adlc"], evidence_dir)
+        run_logged("rollback-uninstall", [str(python), "-m", "pip", "uninstall", "-y", distribution], evidence_dir)
         run_logged(
             "rollback-reinstall",
-            [str(python), "-m", "pip", "install", "--disable-pip-version-check", "--find-links", str(local_index), "adlc==" + version],
+            [str(python), "-m", "pip", "install", "--disable-pip-version-check", "--find-links", str(local_index), distribution + "==" + version],
             evidence_dir,
         )
         run_logged(
             "rollback-version-check",
-            [str(python), "-c", "import importlib.metadata as m; assert m.version('adlc') == '" + version + "'"],
+            [str(python), "-c", f"import importlib.metadata as m; assert m.version({distribution!r}) == {version!r}"],
             evidence_dir,
         )
         run_logged("installed-dependency-check", [str(python), "-m", "pip", "check"], evidence_dir)
@@ -714,6 +728,7 @@ def python_interpreters() -> List[Tuple[str, str]]:
 
 
 def clean_install_matrix(wheel: Path, package_version: str, evidence_dir: Path) -> List[Dict[str, Any]]:
+    distribution = project_name()
     results = []
     with tempfile.TemporaryDirectory(prefix="adlc-go-live-install-") as temporary_name:
         temporary = Path(temporary_name)
@@ -735,7 +750,7 @@ def clean_install_matrix(wheel: Path, package_version: str, evidence_dir: Path) 
                 [
                     str(python),
                     "-c",
-                    f"import importlib.metadata as m; assert m.version('adlc') == {package_version!r}",
+                    f"import importlib.metadata as m; assert m.version({distribution!r}) == {package_version!r}",
                 ],
                 evidence_dir,
             )

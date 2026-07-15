@@ -14,4 +14,4 @@ Read `graphify-out/GRAPH_REPORT.md` before source exploration when the graph is 
 
 Python changes should pass `ruff check scripts tests` and the supported Python 3.9/3.13 hosted matrix. Documentation changes should pass public hygiene, link, docs-contract, and applicable acceptance gates.
 
-See [CONTRIBUTING.md](https://github.com/bigeasyfreeman/adlc/blob/v0.9.1/CONTRIBUTING.md) for the complete repository contract at this documentation version.
+See [CONTRIBUTING.md](https://github.com/bigeasyfreeman/adlc/blob/v0.9.2/CONTRIBUTING.md) for the complete repository contract at this documentation version.

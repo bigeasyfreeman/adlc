@@ -1,0 +1,38 @@
+{
+  "contract_version": "1.0.0",
+  "defect_id": "ADLC-MIG-013-PYPI-NAME-COLLISION",
+  "owner": "ADLC-MIG-013",
+  "status": "repair_in_progress",
+  "promotion_status": "stopped",
+  "observed_release": {
+    "tag": "v0.9.1",
+    "workflow_run_id": 29435824950,
+    "failed_retry_job_id": 87429698460,
+    "registry_error": "invalid-publisher",
+    "pending_publisher_error": "This project name is too similar to an existing project",
+    "requested_distribution": "adlc"
+  },
+  "collision_evidence": {
+    "existing_distribution": "adic",
+    "normalized_collision_key": "ad1c",
+    "registry_url": "https://pypi.org/project/adic/"
+  },
+  "repair": {
+    "candidate_tag": "v0.9.2",
+    "distribution": "adlc-engineering",
+    "unchanged_public_identity": [
+      "ADLC product name",
+      "adlc_runtime Python package",
+      "adlc installed skill",
+      "adlc-skill console command"
+    ],
+    "required_regression": "release checks derive the distribution identity from pyproject project.name",
+    "requires_new_packet_and_human_approval": true
+  },
+  "doc_honesty_section": "The v0.9.1 publication did not create a PyPI project or establish public package availability.",
+  "no_overclaim": "Selecting a collision-free candidate name does not prove registry acceptance or publication.",
+  "limitations": [
+    "PyPI controls final project-name acceptance.",
+    "The new candidate must pass the complete release and post-publication validation gates."
+  ]
+}
