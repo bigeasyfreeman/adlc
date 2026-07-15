@@ -1,0 +1,109 @@
+site_name: ADLC Documentation
+site_description: Evidence-bound Build, Fix, and Review loops for coding agents.
+site_author: ADLC maintainers
+site_url: https://bigeasyfreeman.github.io/adlc/
+repo_url: https://github.com/bigeasyfreeman/adlc
+repo_name: bigeasyfreeman/adlc
+edit_uri: edit/v0.1.0/docs/
+docs_dir: docs
+site_dir: site
+strict: true
+use_directory_urls: true
+
+theme:
+  name: material
+  language: en
+  custom_dir: docs/overrides
+  features:
+    - announce.dismiss
+    - content.action.edit
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.share
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+
+plugins:
+  - search:
+      lang: en
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - tables
+  - toc:
+      permalink: true
+
+extra:
+  adlc_version: 0.1.0
+  analytics: null
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/bigeasyfreeman/adlc
+      name: ADLC on GitHub
+
+copyright: Copyright &copy; 2026 ADLC contributors · MIT licensed
+
+nav:
+  - Start here:
+      - What ADLC is: index.md
+      - Installation: start/installation.md
+      - First Fix loop: start/first-fix.md
+  - Concepts:
+      - Skills, loops, kernel, evidence, and approvals: concepts/skills-loops-kernel.md
+  - Guides:
+      - Build: guides/build.md
+      - Fix: guides/fix.md
+      - Review: guides/review.md
+      - Resume: guides/resume.md
+      - Provider setup: guides/provider-setup.md
+  - Reference:
+      - Public commands: reference/public-commands.md
+      - Advanced kernel and contributor CLI: reference/advanced-kernel.md
+      - Configuration: reference/configuration.md
+      - Artifacts and schemas: reference/artifacts-and-schemas.md
+      - Stop reasons: reference/stop-reasons.md
+  - Trust:
+      - Provider support matrix: trust/support-matrix.md
+      - Security and privacy: trust/security-privacy.md
+      - Benchmark method: trust/benchmark.md
+      - Compatibility and deprecation: trust/compatibility-deprecation.md
+  - Contribute:
+      - Development: contribute/development.md
+      - Skill and reference authoring: contribute/authoring.md
+      - Behavioral scenarios: contribute/behavioral-scenarios.md
+      - Release process: contribute/release-process.md
+  - Docs deployment and rollback: release/docs-deployment.md
+
+exclude_docs: |
+  /archive/**
+  /build-briefs/**
+  /decisions/**
+  /design/**
+  /evidence/**
+  /loop-library/**
+  /migration/**
+  /research/**
+  /schemas/**
+  /security/**
+  /solutions/**
+  /specs/**
+  /tests/**
+  /STYLE.md

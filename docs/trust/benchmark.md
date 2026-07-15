@@ -4,7 +4,7 @@ A public ADLC benchmark must use a versioned fixture, at least three runs per cl
 
 The benchmark must separately score installation, discovery, invocation, loop behavior, interruption/resume, verifier strength, independent audit, and end-to-end outcome. A deterministic fixture cannot upgrade a live-provider invocation cell.
 
-Current evidence is the [provider support matrix](support-matrix.md) and the [deterministic Fix replay](../../tests/acceptance/run_public_fix_loop.sh). MIG012 owns the versioned public demo and replayable benchmark; no comparative or superiority result is claimed before that gate passes.
+Current evidence is the [provider support matrix](support-matrix.md) and the [deterministic Fix replay](https://github.com/bigeasyfreeman/adlc/blob/v0.1.0/tests/acceptance/run_public_fix_loop.sh). MIG012 owns the versioned public demo and replayable benchmark; no comparative or superiority result is claimed before that gate passes.
 
 `doc_honesty_section`: This page defines the benchmark contract and points to current scoped evidence.
 

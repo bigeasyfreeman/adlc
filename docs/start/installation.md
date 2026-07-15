@@ -34,7 +34,7 @@ Claude Code and Codex installs are manifest-owned, digest-verified, collision-sa
 
 ## Existing files and migration
 
-ADLC does not overwrite unknown provider instructions. Known legacy ADLC files are pruned only when ownership or exact bytes prove they are unchanged. Drift blocks migration and leaves the file intact. See the [dated migration guide](../migration/legacy-surface-migration.md).
+ADLC does not overwrite unknown provider instructions. Known legacy ADLC files are pruned only when ownership or exact bytes prove they are unchanged. Drift blocks migration and leaves the file intact. See the [dated migration guide](https://github.com/bigeasyfreeman/adlc/blob/v0.1.0/docs/migration/legacy-surface-migration.md).
 
 ## Troubleshooting
 
