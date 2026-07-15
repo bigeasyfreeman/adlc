@@ -146,7 +146,7 @@ def test_checked_in_publication_bundle_verifies_jointly():
     assert result["status"] == "pass"
     assert result["reports"] == 2
     assert result["attempts"] == 6
-    assert result["evidence_files"] == 56
+    assert result["evidence_files"] == 57
 
 
 def test_standalone_publication_bundle_cli_needs_no_dummy_fixture(capsys):
@@ -202,7 +202,7 @@ def test_bundle_verification_rejects_one_report_aliased_as_independent_replay(tm
     attestation_path = bundle / "publication-attestation.json"
     attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
     attestation["independent_replay"] = dict(attestation["primary_report"])
-    attestation["redaction_review"]["files_reviewed"] = 28
+    attestation["redaction_review"]["files_reviewed"] = 29
     attestation_path.write_text(json.dumps(attestation, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     try:
         runner.verify_published_bundle(attestation_path)
@@ -257,3 +257,16 @@ def test_bundle_verification_compares_terminal_class_not_only_status(tmp_path, m
         assert "diverge on terminal classes" in str(exc)
     else:
         raise AssertionError("bundle verification accepted divergent terminal classes")
+
+
+def test_bundle_verification_rejects_raw_evidence_drift(tmp_path, monkeypatch):
+    runner = load_runner()
+    bundle = copy_published_bundle(tmp_path, monkeypatch, runner)
+    raw_artifact = bundle / "runs/run-001/interrupted.json"
+    raw_artifact.write_text(raw_artifact.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    try:
+        runner.verify_published_bundle(bundle / "publication-attestation.json")
+    except runner.BenchmarkError as exc:
+        assert "raw benchmark evidence hash mismatch" in str(exc)
+    else:
+        raise AssertionError("bundle verification accepted drifted raw evidence")

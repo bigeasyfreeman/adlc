@@ -40,7 +40,7 @@ Blocked, failed, and timed-out attempts remain in the denominator. A run cannot 
 
 ## Evidence and privacy
 
-Each attempt retains install health, red/green verifier output, interrupted and resumed Codex traces, final diff, independent review, completion audit, and a schema-valid run report. Before persistence, the runner replaces workspace and ADLC-root paths, scans serialized artifacts for common credential and private-path patterns, and fails closed on a match. Candidate publication additionally requires a second clean three-run replay plus a separate-session reconciliation and redaction attestation tied to explicit human approval.
+Each attempt retains install health, red/green verifier output, interrupted and resumed Codex traces, final diff, independent review, completion audit, and a schema-valid run report. Before persistence, the runner replaces workspace and ADLC-root paths, scans serialized artifacts for common credential and private-path patterns, and fails closed on a match. Candidate publication additionally requires a second clean three-run replay, a SHA-256 manifest binding every referenced raw artifact, and a separate-session reconciliation and redaction attestation tied to explicit human approval.
 
 ## Honesty and limitations
 

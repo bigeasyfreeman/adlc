@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "docs/schemas/benchmark-report.schema.json"
 RUN_REPORT_SCHEMA = ROOT / "docs/schemas/run-report.schema.json"
 PUBLICATION_ATTESTATION_SCHEMA = ROOT / "docs/schemas/benchmark-publication-attestation.schema.json"
+EVIDENCE_MANIFEST_SCHEMA = ROOT / "docs/schemas/benchmark-evidence-manifest.schema.json"
 SECRET_PATTERN = re.compile(
     r"(?:sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._~+/=-]{8,}|password\s*[=:]\s*[^\s\"']+|"
     r"(?:api|access|secret)[_-]?key\s*[=:]\s*[^\s\"']+)",
@@ -930,6 +931,11 @@ def resolve_published_path(value: str) -> Path:
     return path
 
 
+def evidence_manifest_aggregate(files: Sequence[Mapping[str, str]]) -> str:
+    lines = [f"{item['path']}\0{item['sha256']}\n" for item in sorted(files, key=lambda item: item["path"])]
+    return sha256_bytes("".join(lines).encode("utf-8"))
+
+
 def verify_published_bundle(attestation_path: Path) -> Dict[str, Any]:
     attestation_path = attestation_path.resolve()
     attestation = read_json(attestation_path)
@@ -985,6 +991,29 @@ def verify_published_bundle(attestation_path: Path) -> Dict[str, Any]:
         attempt["invariant_sha256"] for attempt in replay["attempts"]
     ]:
         raise BenchmarkError("published benchmark reports diverge on calculated invariants")
+
+    manifest_ref = attestation["evidence_manifest"]
+    manifest_path = resolve_published_path(manifest_ref["path"])
+    if not manifest_path.is_file():
+        raise BenchmarkError("published benchmark evidence manifest is missing")
+    if sha256_bytes(manifest_path.read_bytes()) != manifest_ref["sha256"]:
+        raise BenchmarkError("published benchmark evidence manifest hash mismatch")
+    manifest = read_json(manifest_path)
+    validate_json(manifest, EVIDENCE_MANIFEST_SCHEMA, "benchmark evidence manifest")
+    ensure_redacted(manifest_path.read_text(encoding="utf-8", errors="replace"))
+    if len(manifest["files"]) != manifest_ref["files"]:
+        raise BenchmarkError("attested evidence manifest file count mismatch")
+    expected_raw_paths = evidence_paths - set(report_paths.values())
+    manifest_paths = {resolve_published_path(item["path"]) for item in manifest["files"]}
+    if manifest_paths != expected_raw_paths:
+        raise BenchmarkError("evidence manifest paths do not exactly match report evidence refs")
+    for item in manifest["files"]:
+        path = resolve_published_path(item["path"])
+        if sha256_bytes(path.read_bytes()) != item["sha256"]:
+            raise BenchmarkError(f"raw benchmark evidence hash mismatch: {item['path']}")
+    if evidence_manifest_aggregate(manifest["files"]) != manifest["aggregate_sha256"]:
+        raise BenchmarkError("benchmark evidence manifest aggregate hash mismatch")
+    evidence_paths.add(manifest_path)
     if len(evidence_paths) != attestation["redaction_review"]["files_reviewed"]:
         raise BenchmarkError("publication attestation file count does not match the evidence bundle")
 

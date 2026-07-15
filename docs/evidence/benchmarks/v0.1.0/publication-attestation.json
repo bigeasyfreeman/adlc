@@ -6,6 +6,12 @@
     "scope": "benchmark_evidence_only"
   },
   "contract_version": "1.0.0",
+  "evidence_manifest": {
+    "files": 54,
+    "path": "docs/evidence/benchmarks/v0.1.0/evidence-manifest.json",
+    "sha256": "e90dc0ce422262a9163007ce64d495737d1a8610aaaaa527c194e24e70e2e843",
+    "status": "pass"
+  },
   "independent_replay": {
     "attempts": 3,
     "path": "docs/evidence/benchmarks/v0.1.0/independent-replay/benchmark-report.json",
@@ -31,7 +37,7 @@
   },
   "redaction_review": {
     "absolute_path_matches": 0,
-    "files_reviewed": 56,
+    "files_reviewed": 57,
     "scanner": "independent regex scan for credential-like strings and private absolute paths across 56 candidate evidence files",
     "secret_matches": 0,
     "status": "pass"

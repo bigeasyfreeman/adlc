@@ -11,6 +11,7 @@
     "reviewer",
     "primary_report",
     "independent_replay",
+    "evidence_manifest",
     "reconciliation",
     "redaction_review",
     "approval",
@@ -33,6 +34,7 @@
     },
     "primary_report": {"$ref": "#/definitions/report_ref"},
     "independent_replay": {"$ref": "#/definitions/report_ref"},
+    "evidence_manifest": {"$ref": "#/definitions/manifest_ref"},
     "reconciliation": {
       "type": "object",
       "additionalProperties": false,
@@ -72,6 +74,17 @@
     "no_overclaim": {"type": "string", "minLength": 1}
   },
   "definitions": {
+    "manifest_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "status", "files"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "status": {"const": "pass"},
+        "files": {"type": "integer", "minimum": 1}
+      }
+    },
     "report_ref": {
       "type": "object",
       "additionalProperties": false,
