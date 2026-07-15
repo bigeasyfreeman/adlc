@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replay the public ADLC Fix demo and emit complete, redacted evidence."""
+"""Run the resumable live-Codex public Fix benchmark and validate its evidence."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import jsonschema
 
@@ -30,6 +30,8 @@ SECRET_PATTERN = re.compile(
     r"(?:api|access|secret)[_-]?key\s*[=:]\s*[^\s\"']+)",
     re.IGNORECASE,
 )
+ABSOLUTE_PRIVATE_PATH = re.compile(r"/(?:Users/[^/]+|private/var/folders|var/folders)/")
+TEST_INVOCATION = re.compile(r"python3?\s+-m\s+unittest\s+discover\s+-s\s+tests\s+-v")
 FIXED_GIT_ENV = {
     "GIT_AUTHOR_NAME": "ADLC Fix Demo",
     "GIT_AUTHOR_EMAIL": "adlc-fix@example.invalid",
@@ -46,6 +48,9 @@ CALCULATED_METRICS = [
     "scope_control",
 ]
 HUMAN_RUBRIC_FIELDS = ["human_decisions"]
+DEFAULT_MODEL = "gpt-5.4"
+DEFAULT_TOKEN_LIMIT = 750_000
+APPROVAL_REF = "human:approved-complete-migration-process"
 
 
 class BenchmarkError(RuntimeError):
@@ -115,7 +120,6 @@ def load_fixture(path: Path) -> Dict[str, Any]:
         "fixture_version",
         "starting_commit",
         "starting_directory",
-        "solution_path",
         "product_path",
         "verifier",
         "prompt",
@@ -126,12 +130,18 @@ def load_fixture(path: Path) -> Dict[str, Any]:
         raise BenchmarkError(f"fixture fields missing: {', '.join(missing)}")
     fixture["path"] = path
     fixture["starting_path"] = path / fixture["starting_directory"]
-    fixture["solution_file"] = path / fixture["solution_path"]
     fixture["prompt_file"] = path / fixture["prompt"]
-    for key in ("starting_path", "solution_file", "prompt_file"):
+    for key in ("starting_path", "prompt_file"):
         if not fixture[key].exists():
             raise BenchmarkError(f"fixture path missing: {fixture[key]}")
     return fixture
+
+
+def codex_version() -> str:
+    result = subprocess.run(["codex", "--version"], capture_output=True, text=True, check=False)
+    if result.returncode:
+        raise BenchmarkError("codex CLI is unavailable")
+    return result.stdout.strip().replace("codex-cli ", "")
 
 
 def test_metadata() -> Dict[str, Any]:
@@ -147,9 +157,9 @@ def test_metadata() -> Dict[str, Any]:
         },
         "configuration": {
             "provider": "codex",
-            "provider_version": "installed-bundle:test",
-            "model": "not-invoked",
-            "harness": "public-fix-deterministic",
+            "provider_version": "test",
+            "model": DEFAULT_MODEL,
+            "harness": "codex-cli-resumable-fix",
             "python": "3.9.0",
             "platform": "test",
         },
@@ -157,20 +167,21 @@ def test_metadata() -> Dict[str, Any]:
 
 
 def test_plan(runs: int) -> Dict[str, Any]:
-    return build_plan(runs, 120)
+    return build_plan(runs, 300)
 
 
 def build_plan(runs: int, timeout_seconds: int) -> Dict[str, Any]:
     if not 3 <= runs <= 10:
         raise BenchmarkError("--runs must be between 3 and 10 for a public configuration")
     if not 1 <= timeout_seconds <= 600:
-        raise BenchmarkError("--timeout must be between 1 and 600 seconds per run")
+        raise BenchmarkError("--timeout must be between 1 and 600 seconds per provider turn")
     return {
         "runs": runs,
         "timeout_seconds_per_run": timeout_seconds,
-        "token_limit_per_run": 0,
+        "token_limit_per_run": DEFAULT_TOKEN_LIMIT,
+        "maximum_provider_calls": runs * 3,
         "projected_provider_cost": {"currency": "USD", "min": 0, "max": 0},
-        "external_calls": False,
+        "external_calls": True,
     }
 
 
@@ -190,21 +201,23 @@ def attempt_record(
     evidence_refs: Sequence[str],
     *,
     duration_ms: int = 0,
+    tokens: int = 0,
     failure: Optional[str] = None,
 ) -> Dict[str, Any]:
     terminal = {"pass": "completed", "fail": "failed", "blocked": "blocked", "timeout": "timeout"}[status]
     invariant = {
         "terminal_class": terminal,
         "metrics": metrics,
-        "product_diff": "src/invoice.py",
-        "provider_invoked": False,
+        "changed_paths": ["src/invoice.py"],
+        "provider_invoked": True,
+        "resumed_same_session": metrics.get("resume_integrity"),
     }
     return {
         "attempt": attempt,
         "status": status,
         "terminal_class": terminal,
         "duration_ms": duration_ms,
-        "cost": {"currency": "USD", "tokens": 0, "min": 0, "max": 0},
+        "cost": {"currency": "USD", "tokens": tokens, "min": 0, "max": 0},
         "metrics": metrics,
         "score": score_attempt(status, metrics, evidence_refs),
         "evidence_refs": list(evidence_refs),
@@ -215,9 +228,7 @@ def attempt_record(
 
 
 def spread(values: Iterable[float]) -> Dict[str, float]:
-    sequence = list(values)
-    if not sequence:
-        sequence = [0]
+    sequence = list(values) or [0]
     low = min(sequence)
     high = max(sequence)
     return {"median": statistics.median(sequence), "min": low, "max": high, "spread": high - low}
@@ -236,7 +247,7 @@ def build_report(metadata: Dict[str, Any], plan: Dict[str, Any], attempts: Seque
     )
     report_status = "pass" if replay_verified else ("blocked" if statuses and all(value == "blocked" for value in statuses) else "fail")
     passed = statuses.count("pass")
-    report = {
+    return {
         "contract_version": "1.0.0",
         "report_id": f"public-fix-{metadata['product_version']}-{metadata['source_commit'][:12]}",
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -256,6 +267,7 @@ def build_report(metadata: Dict[str, Any], plan: Dict[str, Any], attempts: Seque
             "completion_rate": passed / len(attempts) if attempts else 0,
             "duration_ms": spread(item["duration_ms"] for item in attempts),
             "human_decisions": spread(item["metrics"]["human_decisions"] for item in attempts),
+            "tokens": spread(item["cost"]["tokens"] for item in attempts),
             "provider_cost": spread(item["cost"]["max"] for item in attempts),
         },
         "replay": {
@@ -265,22 +277,22 @@ def build_report(metadata: Dict[str, Any], plan: Dict[str, Any], attempts: Seque
             "matching_invariants": len(invariants) == 1,
         },
         "redaction": {
-            "status": "reviewed",
-            "scanner": "benchmark built-in credential-pattern scan v1",
+            "status": "scanned",
+            "scanner": "benchmark built-in credential and private-path scan v2",
             "secret_matches": 0,
             "absolute_paths_replaced": True,
         },
         "claims": [
-            "The named deterministic Fix control replay preserved all attempts and reached the same terminal class.",
-            "Red-before-green, resume idempotency, bounded scope, and completion-audit controls passed for the named fixture.",
+            "The named live Codex Fix configuration preserved all attempts and reached the same terminal class.",
+            "Each attempt used one persisted Codex session across the approval interruption and repair turn.",
+            "Red-before-green, bounded scope, separate-session review, and completion-audit controls passed for the named fixture.",
         ],
         "limitations": [
-            "Results apply only to the named fixture, source commit, product version, environment, harness, and execution date.",
-            "The Codex bundle was installed, but no provider or model was invoked; provider behavior remains unmeasured.",
+            "Results apply only to the named fixture, source commit, product/provider/model versions, environment, harness, and execution date.",
+            "Bundled-account execution exposes token usage but no marginal USD charge, so the observed provider-cost range is zero.",
         ],
         "no_overclaim": "This benchmark does not establish universal superiority, future model behavior, adoption, compliance, GA readiness, or autonomous code quality.",
     }
-    return report
 
 
 def redact(value: Any, replacements: Sequence[Tuple[str, str]]) -> Any:
@@ -297,9 +309,12 @@ def redact(value: Any, replacements: Sequence[Tuple[str, str]]) -> Any:
 
 def ensure_redacted(value: Any) -> None:
     serialized = json.dumps(value, sort_keys=True)
-    match = SECRET_PATTERN.search(serialized)
-    if match:
-        raise BenchmarkError(f"secret-like content blocked by redaction scan: {match.group(0)[:20]}...")
+    secret = SECRET_PATTERN.search(serialized)
+    if secret:
+        raise BenchmarkError(f"secret-like content blocked by redaction scan: {secret.group(0)[:20]}...")
+    private_path = ABSOLUTE_PRIVATE_PATH.search(serialized)
+    if private_path:
+        raise BenchmarkError(f"private absolute path blocked by redaction scan: {private_path.group(0)}")
 
 
 def write_json(path: Path, value: Any, replacements: Sequence[Tuple[str, str]]) -> None:
@@ -339,11 +354,79 @@ def parse_json_output(result: subprocess.CompletedProcess[str], label: str) -> D
         raise BenchmarkError(f"{label} did not emit JSON: {result.stdout[-1000:]}") from exc
 
 
+def json_events(stdout: str) -> List[Dict[str, Any]]:
+    events = []
+    for line in stdout.splitlines():
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            events.append(value)
+    return events
+
+
+def event_thread_id(events: Sequence[Mapping[str, Any]]) -> str:
+    for event in events:
+        if event.get("type") == "thread.started" and isinstance(event.get("thread_id"), str):
+            return str(event["thread_id"])
+    raise BenchmarkError("Codex event stream did not expose a thread id")
+
+
+def final_message(events: Sequence[Mapping[str, Any]]) -> str:
+    messages = [
+        str(event.get("item", {}).get("text", ""))
+        for event in events
+        if event.get("type") == "item.completed"
+        and isinstance(event.get("item"), dict)
+        and event["item"].get("type") == "agent_message"
+    ]
+    return messages[-1] if messages else ""
+
+
+def token_usage(events: Sequence[Mapping[str, Any]]) -> int:
+    return sum(
+        int(event.get("usage", {}).get("input_tokens", 0)) + int(event.get("usage", {}).get("output_tokens", 0))
+        for event in events
+        if event.get("type") == "turn.completed" and isinstance(event.get("usage"), dict)
+    )
+
+
+def command_results(events: Sequence[Mapping[str, Any]]) -> List[Tuple[str, int]]:
+    return [
+        (str(event["item"].get("command", "")), int(event["item"]["exit_code"]))
+        for event in events
+        if event.get("type") == "item.completed"
+        and isinstance(event.get("item"), dict)
+        and event["item"].get("type") == "command_execution"
+        and isinstance(event["item"].get("exit_code"), int)
+    ]
+
+
+def bounded_trace(events: Sequence[Mapping[str, Any]], replacements: Sequence[Tuple[str, str]]) -> List[Dict[str, Any]]:
+    trace = []
+    for event in events[-100:]:
+        record: Dict[str, Any] = {"event": str(event.get("type", "unknown"))}
+        item = event.get("item") if isinstance(event.get("item"), dict) else {}
+        if item:
+            record["item_type"] = str(item.get("type", "unknown"))
+            if item.get("type") == "command_execution":
+                record["command"] = str(item.get("command", ""))[:1000]
+                record["exit_code"] = item.get("exit_code")
+            elif item.get("type") == "agent_message":
+                record["message"] = str(item.get("text", ""))[:1500]
+        if event.get("type") == "thread.started":
+            record["thread_id"] = event.get("thread_id")
+        if event.get("type") == "turn.completed" and isinstance(event.get("usage"), dict):
+            record["usage"] = dict(event["usage"])
+        trace.append(redact(record, replacements))
+    return trace
+
+
 def artifact_refs(attempt: int) -> List[str]:
     prefix = f"runs/run-{attempt:03d}"
     names = [
         "install.json",
-        "facade.json",
         "red.json",
         "interrupted.json",
         "resumed.json",
@@ -364,7 +447,7 @@ def validate_json(value: Any, schema_path: Path, label: str) -> None:
         raise BenchmarkError(f"{label} failed schema validation: {details}")
 
 
-def runtime_metadata(fixture: Dict[str, Any]) -> Dict[str, Any]:
+def runtime_metadata(fixture: Dict[str, Any], model: str) -> Dict[str, Any]:
     source_commit = git_output(["rev-parse", "HEAD"], ROOT)
     try:
         fixture_path = fixture["path"].relative_to(ROOT).as_posix()
@@ -382,9 +465,9 @@ def runtime_metadata(fixture: Dict[str, Any]) -> Dict[str, Any]:
         },
         "configuration": {
             "provider": "codex",
-            "provider_version": f"installed-bundle:{product_version()}",
-            "model": "not-invoked",
-            "harness": "public-fix-deterministic",
+            "provider_version": codex_version(),
+            "model": model,
+            "harness": "codex-cli-resumable-fix",
             "python": platform.python_version(),
             "platform": f"{platform.system()}-{platform.machine()}",
         },
@@ -396,6 +479,7 @@ def execute_attempt(
     attempt: int,
     output_root: Path,
     timeout: int,
+    model: str,
 ) -> Dict[str, Any]:
     started = time.monotonic()
     run_dir = output_root / "runs" / f"run-{attempt:03d}"
@@ -411,6 +495,7 @@ def execute_attempt(
             (str(ROOT.resolve()), "<ADLC_ROOT>"),
             (str(ROOT), "<ADLC_ROOT>"),
         ]
+        tokens = 0
         try:
             starting_commit = initialize_fixture_repo(fixture, target)
             if starting_commit != fixture["starting_commit"]:
@@ -427,213 +512,208 @@ def execute_attempt(
                 raise BenchmarkError("installed ADLC health-check did not pass")
             git_output(["add", ".agents", "AGENTS.md"], target)
             git_output(["commit", "-qm", "Install ADLC Codex bundle"], target)
-            installed_commit = git_output(["rev-parse", "HEAD"], target)
             install_evidence = {
                 "status": "pass",
                 "fixture_starting_commit": starting_commit,
-                "installed_commit": installed_commit,
+                "installed_commit": git_output(["rev-parse", "HEAD"], target),
                 "doctor": health,
-                "provider_invoked": False,
+                "provider": "codex",
+                "provider_version": codex_version(),
+                "model": model,
             }
             write_json(run_dir / "install.json", install_evidence, replacements)
 
-            registry = target / ".adlc/public-fix-tool-registry.json"
-            registry.write_text(
-                json.dumps(
-                    {
-                        "version": "1.0.0",
-                        "default_policy": "deny",
-                        "tools": [
-                            {
-                                "name": "Write",
-                                "description": "Bounded invoice repair",
-                                "inputSchema": {},
-                                "side_effect_profile": "mutating",
-                                "permission_tier": "requires_approval",
-                                "available_phases": ["triage"],
-                            }
-                        ],
-                    }
-                ),
-                encoding="utf-8",
-            )
-            request = {
-                "contract_version": "1.0.0",
-                "operation": "fix",
-                "experimental": True,
-                "request_id": f"public-benchmark-{attempt:03d}",
-                "workspace": str(target),
-                "allow_mutation": True,
-                "human_approved": True,
-                "approval_ref": "human:public-benchmark-fixture",
-                "arguments": {
-                    "tool_registry": ".adlc/public-fix-tool-registry.json",
-                    "tool": "Write",
-                    "action": "edit_file",
-                    "phase": "triage",
-                    "brief_id": "PUBLIC-FIX-BENCHMARK",
-                    "session_id": f"PUBLIC-FIX-{attempt:03d}",
-                    "dry_run": True,
-                },
+            verifier = fixture["verifier"].split()
+            red_process = run_process(verifier, cwd=target, timeout=timeout, expected=(1,))
+            red = {
+                "status": "fail",
+                "exit_code": red_process.returncode,
+                "command": fixture["verifier"],
+                "stdout": red_process.stdout,
+                "stderr": red_process.stderr,
+                "intended_failure": "Decimal('0.09') != Decimal('0.10')" in red_process.stderr,
             }
-            request_path = temporary_path / "request.json"
-            request_path.write_text(json.dumps(request), encoding="utf-8")
-            facade = parse_json_output(
-                run_process(
-                    [str(adlc), "public-operation", "--input", str(request_path), "--json"],
-                    cwd=target,
-                    timeout=timeout,
-                ),
-                "public-operation",
-            )
-            if facade.get("status") != "planned" or facade.get("result", {}).get("admission", {}).get("status") != "admitted":
-                raise BenchmarkError("public Fix facade was not admitted and planned")
-            write_json(run_dir / "facade.json", facade, replacements)
+            if not red["intended_failure"]:
+                raise BenchmarkError("pre-change verifier did not fail for the intended reconciliation defect")
+            write_json(run_dir / "red.json", red, replacements)
 
-            red_result = run_process(
+            exact_prompt = fixture["prompt_file"].read_text(encoding="utf-8")
+            interrupt_prompt = (
+                "Use the installed $adlc skill for this bounded Fix task. This is the first turn of a resumable "
+                f"benchmark. Run exactly `{fixture['verifier']}` to establish red; do not substitute another test "
+                "command. Load the bounded Fix context, inspect only the "
+                "relevant product code and tests, and diagnose the defect. Do not edit any file and do not commit. "
+                "Stop at the mutation approval boundary and end your final message with the exact marker "
+                "AWAITING_HUMAN_APPROVAL.\n\nExact user prompt:\n" + exact_prompt
+            )
+            interrupted_process = run_process(
                 [
-                    str(adlc),
-                    "run-phase",
-                    "qa",
-                    "--brief-id",
-                    "PUBLIC-FIX-BENCHMARK",
-                    "--workspace",
+                    "codex",
+                    "exec",
+                    "-C",
                     str(target),
-                    "--state",
-                    ".adlc/fix_state.json",
-                    "--verifier",
-                    fixture["verifier"],
+                    "--sandbox",
+                    "workspace-write",
+                    "--ignore-user-config",
+                    "--model",
+                    model,
                     "--json",
+                    interrupt_prompt,
                 ],
                 cwd=target,
                 timeout=timeout,
-                expected=(1,),
+                expected=None,
             )
-            red = parse_json_output(red_result, "red verifier")
-            red_serialized = json.dumps(red, sort_keys=True)
-            red_valid = (
-                red.get("tool_result", {}).get("status") == "fail"
-                and red.get("tool_result", {}).get("stop_reason") == "verifier_failed"
-                and "test_allocations_reconcile_rounding_remainder" in red_serialized
-                and "Decimal('0.09') != Decimal('0.10')" in red_serialized
-            )
-            if not red_valid:
-                raise BenchmarkError("pre-change verifier did not fail for the intended reason")
-            write_json(run_dir / "red.json", red, replacements)
-
-            interrupted = parse_json_output(
-                run_process(
-                    [
-                        str(adlc),
-                        "run-phase",
-                        "intent_validation",
-                        "--brief-id",
-                        "PUBLIC-FIX-BENCHMARK-RESUME",
-                        "--workspace",
-                        str(target),
-                        "--state",
-                        ".adlc/resume_state.json",
-                        "--dry-run",
-                        "--json",
-                    ],
-                    cwd=target,
-                    timeout=timeout,
-                ),
-                "interrupt",
-            )
-            if interrupted.get("state", {}).get("status") != "awaiting_approval":
-                raise BenchmarkError("Fix replay did not stop at the human approval gate")
+            interrupted_events = json_events(interrupted_process.stdout)
+            executor_session = event_thread_id(interrupted_events)
+            tokens += token_usage(interrupted_events)
+            interrupted_diff = git_output(["status", "--porcelain", "--untracked-files=all"], target)
+            interrupted = {
+                "status": "awaiting_human",
+                "session_id": executor_session,
+                "prompt_sha256": sha256_bytes(interrupt_prompt.encode("utf-8")),
+                "provider_exit_code": interrupted_process.returncode,
+                "workspace_clean": not interrupted_diff,
+                "approval_marker": "AWAITING_HUMAN_APPROVAL" in final_message(interrupted_events),
+                "trace": bounded_trace(interrupted_events, replacements),
+                "stderr": interrupted_process.stderr[-2000:],
+            }
             write_json(run_dir / "interrupted.json", interrupted, replacements)
+            if (
+                interrupted["provider_exit_code"] != 0
+                or not interrupted["workspace_clean"]
+                or not interrupted["approval_marker"]
+            ):
+                raise BenchmarkError("the first Codex turn did not stop cleanly at the mutation approval boundary")
 
-            state_path = target / ".adlc/resume_state.json"
-            state = read_json(state_path)
-            state["side_effects"] = [
-                {
-                    "idempotency_key": "public-fix:invoice-repair-completed-once",
-                    "tool_name": "fixture-repair",
-                    "operation": "repair_invoice_allocation",
-                    "status": "completed",
-                    "timestamp": "2020-01-01T00:00:00Z",
-                }
-            ]
-            state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
-            resumed = parse_json_output(
-                run_process(
-                    [
-                        str(adlc),
-                        "resume",
-                        "--workspace",
-                        str(target),
-                        "--state",
-                        ".adlc/resume_state.json",
-                        "--approve",
-                        "intent_validation",
-                        "--reason",
-                        "Resume the bounded public invoice Fix proof.",
-                        "--json",
-                    ],
-                    cwd=target,
-                    timeout=timeout,
-                ),
-                "resume",
+            resume_prompt = (
+                f"Human approval is granted under {APPROVAL_REF}. Resume the same Fix task now. Apply the smallest "
+                f"repair only in src/invoice.py, run exactly `{fixture['verifier']}` to green without substituting "
+                "another test command, inspect the final diff, do not edit "
+                "tests or ADLC files, and do not commit. End with the exact marker FIX_READY_FOR_REVIEW."
             )
-            side_effects = resumed.get("state", {}).get("side_effects", [])
-            keys = [item.get("idempotency_key") for item in side_effects]
-            resume_valid = resumed.get("state", {}).get("resume_count") == 1 and keys == ["public-fix:invoice-repair-completed-once"]
-            if not resume_valid:
-                raise BenchmarkError("resume replayed or lost the completed side effect")
+            resumed_process = run_process(
+                [
+                    "codex",
+                    "exec",
+                    "resume",
+                    "-c",
+                    'sandbox_mode="workspace-write"',
+                    "--ignore-user-config",
+                    "--model",
+                    model,
+                    "--json",
+                    executor_session,
+                    resume_prompt,
+                ],
+                cwd=target,
+                timeout=timeout,
+                expected=None,
+            )
+            resumed_events = json_events(resumed_process.stdout)
+            resumed_session = event_thread_id(resumed_events)
+            tokens += token_usage(resumed_events)
+            resumed = {
+                "status": "completed",
+                "session_id": resumed_session,
+                "resumed_from_session_id": executor_session,
+                "same_session": resumed_session == executor_session,
+                "approval": {"decision": "approved", "approval_ref": APPROVAL_REF, "decided_by": "human"},
+                "prompt_sha256": sha256_bytes(resume_prompt.encode("utf-8")),
+                "provider_exit_code": resumed_process.returncode,
+                "completion_marker": "FIX_READY_FOR_REVIEW" in final_message(resumed_events),
+                "trace": bounded_trace(resumed_events, replacements),
+                "stderr": resumed_process.stderr[-2000:],
+            }
             write_json(run_dir / "resumed.json", resumed, replacements)
+            if (
+                resumed["provider_exit_code"] != 0
+                or not resumed["same_session"]
+                or not resumed["completion_marker"]
+            ):
+                raise BenchmarkError("Codex did not resume the same session through a completed Fix turn")
 
-            product_path = target / fixture["product_path"]
-            product_path.write_bytes(fixture["solution_file"].read_bytes())
             changed = [line[3:] for line in git_output(["status", "--short"], target).splitlines() if line]
             scope_valid = sorted(changed) == sorted(fixture["allowed_product_changes"])
             if not scope_valid:
                 raise BenchmarkError(f"out-of-scope product changes: {changed}")
             final_diff = git_output(["diff", "--unified=0", "--", *fixture["allowed_product_changes"]], target) + "\n"
             if not final_diff.strip():
-                raise BenchmarkError("bounded repair produced no product diff")
+                raise BenchmarkError("live Codex Fix produced no product diff")
             (run_dir / "final.diff").write_text(redact(final_diff, replacements), encoding="utf-8")
             ensure_redacted((run_dir / "final.diff").read_text(encoding="utf-8"))
 
-            green = parse_json_output(
-                run_process(
-                    [
-                        str(adlc),
-                        "run-phase",
-                        "qa",
-                        "--brief-id",
-                        "PUBLIC-FIX-BENCHMARK",
-                        "--workspace",
-                        str(target),
-                        "--state",
-                        ".adlc/fix_state.json",
-                        "--verifier",
-                        fixture["verifier"],
-                        "--json",
-                    ],
-                    cwd=target,
-                    timeout=timeout,
-                ),
-                "green verifier",
-            )
-            green_valid = green.get("tool_result", {}).get("status") == "pass" and green.get("state", {}).get("phase") == "pr_prep"
-            if not green_valid:
-                raise BenchmarkError("post-change verifier did not pass into PR preparation")
-            write_json(run_dir / "green.json", green, replacements)
-
-            review_check = run_process(fixture["verifier"].split(), cwd=target, timeout=timeout)
-            review = {
+            green_process = run_process(verifier, cwd=target, timeout=timeout)
+            green = {
                 "status": "pass",
-                "reviewer": "public-fix-scope-reviewer",
-                "findings": [],
+                "exit_code": green_process.returncode,
+                "command": fixture["verifier"],
+                "stdout": green_process.stdout,
+                "stderr": green_process.stderr,
+            }
+            write_json(run_dir / "green.json", green, replacements)
+            provider_tests = command_results(interrupted_events) + command_results(resumed_events)
+            provider_test_codes = [code for command, code in provider_tests if TEST_INVOCATION.search(command)]
+            verifier_valid = provider_test_codes and provider_test_codes[0] != 0 and provider_test_codes[-1] == 0
+            if not verifier_valid:
+                raise BenchmarkError("live Codex trace does not contain the exact red-before-green verifier sequence")
+
+            review_prompt = (
+                "Independently review the current uncommitted Fix. Read only the product diff and affected tests, run "
+                f"the exact verifier `{fixture['verifier']}`, and verify that only src/invoice.py changed and the "
+                "allocation invariant is actually repaired. Do not edit or commit. End with "
+                "INDEPENDENT_REVIEW_PASS only if every check passes; otherwise end with INDEPENDENT_REVIEW_FAIL."
+            )
+            review_process = run_process(
+                [
+                    "codex",
+                    "exec",
+                    "-C",
+                    str(target),
+                    "--sandbox",
+                    "read-only",
+                    "--ephemeral",
+                    "--ignore-user-config",
+                    "--model",
+                    model,
+                    "--json",
+                    review_prompt,
+                ],
+                cwd=target,
+                timeout=timeout,
+                expected=None,
+            )
+            review_events = json_events(review_process.stdout)
+            auditor_session = event_thread_id(review_events)
+            tokens += token_usage(review_events)
+            review_codes = [code for command, code in command_results(review_events) if TEST_INVOCATION.search(command)]
+            review_valid = (
+                review_process.returncode == 0
+                and auditor_session != executor_session
+                and review_codes
+                and review_codes[-1] == 0
+                and "INDEPENDENT_REVIEW_PASS" in final_message(review_events)
+                and sorted([line[3:] for line in git_output(["status", "--short"], target).splitlines() if line])
+                == sorted(fixture["allowed_product_changes"])
+            )
+            review = {
+                "status": "pass" if review_valid else "fail",
+                "reviewer": "independent-codex-reviewer",
+                "session_id": auditor_session,
+                "executor_session_id": executor_session,
+                "provider_exit_code": review_process.returncode,
+                "verifier_exit_codes": review_codes,
                 "changed_paths": changed,
-                "allowed_paths": fixture["allowed_product_changes"],
-                "verifier_exit_code": review_check.returncode,
                 "product_diff_sha256": sha256_bytes(final_diff.encode("utf-8")),
+                "trace": bounded_trace(review_events, replacements),
+                "stderr": review_process.stderr[-2000:],
             }
             write_json(run_dir / "review.json", review, replacements)
+            if not review_valid:
+                raise BenchmarkError("separate-session independent Codex review did not pass")
 
+            if tokens > DEFAULT_TOKEN_LIMIT:
+                raise BenchmarkError(f"run token limit exceeded: {tokens} > {DEFAULT_TOKEN_LIMIT}")
             git_output(["add", *fixture["allowed_product_changes"]], target)
             git_output(["commit", "-qm", "Fix invoice discount reconciliation"], target)
             if git_output(["status", "--porcelain", "--untracked-files=all"], target):
@@ -643,7 +723,7 @@ def execute_attempt(
                 "claims": [
                     {
                         "id": "FIX-GREEN",
-                        "claim": "The invoice verifier passes after the fix.",
+                        "claim": "The invoice verifier passes after the live Codex fix.",
                         "verifier": {"type": "command", "command": fixture["verifier"], "expect_exit": 0},
                     },
                     {
@@ -662,9 +742,9 @@ def execute_attempt(
             independence = {
                 "contract_version": "1.0.0",
                 "basis": "separate_session",
-                "executor": {"identity": "public-fix-benchmark-executor", "session_id": f"executor-{attempt:03d}"},
-                "auditor": {"identity": "public-fix-benchmark-auditor", "session_id": f"auditor-{attempt:03d}"},
-                "evidence_refs": ["benchmarks/run.py", "examples/fix-demo/fixture.json"],
+                "executor": {"identity": "live-codex-fix-executor", "session_id": executor_session},
+                "auditor": {"identity": "live-codex-fix-auditor", "session_id": auditor_session},
+                "evidence_refs": [f"runs/run-{attempt:03d}/interrupted.json", f"runs/run-{attempt:03d}/review.json"],
             }
             independence_path = temporary_path / "independence.json"
             independence_path.write_text(json.dumps(independence), encoding="utf-8")
@@ -678,9 +758,9 @@ def execute_attempt(
                         "--workspace",
                         str(target),
                         "--executor",
-                        "public-fix-benchmark-executor",
+                        "live-codex-fix-executor",
                         "--auditor",
-                        "public-fix-benchmark-auditor",
+                        "live-codex-fix-auditor",
                         "--independence-evidence",
                         str(independence_path),
                         "--json",
@@ -690,28 +770,32 @@ def execute_attempt(
                 ),
                 "completion audit",
             )
-            audit_valid = audit.get("status") == "pass" and audit.get("independence", {}).get("executor_session_id") != audit.get("independence", {}).get("auditor_session_id")
+            audit_valid = (
+                audit.get("status") == "pass"
+                and audit.get("independence", {}).get("executor_session_id") == executor_session
+                and audit.get("independence", {}).get("auditor_session_id") == auditor_session
+            )
             if not audit_valid:
-                raise BenchmarkError("independent completion audit did not pass")
+                raise BenchmarkError("completion audit did not preserve the real executor/auditor session boundary")
             write_json(run_dir / "audit.json", audit, replacements)
 
             metrics = {
                 "task_completion": True,
-                "verifier_validity": red_valid and green_valid,
-                "resume_integrity": resume_valid,
-                "claim_accuracy": audit_valid,
+                "verifier_validity": verifier_valid and green_process.returncode == 0,
+                "resume_integrity": resumed["same_session"] and interrupted["workspace_clean"],
+                "claim_accuracy": audit_valid and review_valid,
                 "scope_control": scope_valid,
                 "human_decisions": 1,
             }
             run_report = {
                 "contract_version": "1.0.0",
                 "status": "pass",
-                "run_id": f"public-fix-benchmark-{attempt:03d}",
-                "harness": {"provider": "codex", "model": "not-invoked", "runtime": "public-fix-deterministic"},
+                "run_id": f"public-fix-live-{attempt:03d}",
+                "harness": {"provider": "codex", "model": model, "runtime": "codex-cli-resumable-fix"},
                 "honesty_surface": {
-                    "knowns": ["Deterministic controls passed for the pinned fixture."],
+                    "knowns": ["The live resumable Codex Fix controls passed for the pinned fixture."],
                     "ratified_assumptions": [],
-                    "remaining_unknowns": ["Live Codex provider behavior was not measured."],
+                    "remaining_unknowns": ["Future model/provider versions may behave differently."],
                     "accepted_risks": [],
                 },
                 "brief_generator_defect_count": 0,
@@ -723,7 +807,7 @@ def execute_attempt(
                 "harness_runs": [
                     {
                         "provider": "codex",
-                        "model": "not-invoked",
+                        "model": model,
                         "status": "pass",
                         "evidence_ref": f"runs/run-{attempt:03d}",
                         "exit_code": 0,
@@ -731,20 +815,20 @@ def execute_attempt(
                 ],
                 "evidence_refs": artifact_refs(attempt)[:-1],
                 "audit_surface": {
-                    "reverified": ["red-before-green", "resume idempotency", "scope", "completion claims"],
+                    "reverified": ["red-before-green", "same-session resume", "scope", "completion claims"],
                     "taken_on_trust": [],
                 },
                 "process_artifacts_only": False,
             }
             validate_json(run_report, RUN_REPORT_SCHEMA, "run report")
             write_json(run_dir / "run-report.json", run_report, replacements)
-            duration_ms = int((time.monotonic() - started) * 1000)
             return attempt_record(
                 attempt,
                 "pass",
                 metrics,
                 artifact_refs(attempt),
-                duration_ms=duration_ms,
+                duration_ms=int((time.monotonic() - started) * 1000),
+                tokens=tokens,
             )
         except subprocess.TimeoutExpired as exc:
             metrics = {name: False for name in CALCULATED_METRICS}
@@ -757,6 +841,7 @@ def execute_attempt(
                 metrics,
                 [f"runs/run-{attempt:03d}/failure.json"],
                 duration_ms=int((time.monotonic() - started) * 1000),
+                tokens=tokens,
                 failure=failure,
             )
         except Exception as exc:
@@ -770,6 +855,7 @@ def execute_attempt(
                 metrics,
                 [f"runs/run-{attempt:03d}/failure.json"],
                 duration_ms=int((time.monotonic() - started) * 1000),
+                tokens=tokens,
                 failure=failure,
             )
 
@@ -782,10 +868,40 @@ def plan_payload(metadata: Dict[str, Any], plan: Dict[str, Any]) -> Dict[str, An
         "configuration": metadata["configuration"],
         "plan": plan,
         "attempts": [
-            {"attempt": index, "timeout_seconds": plan["timeout_seconds_per_run"], "token_limit": 0, "projected_cost_max": 0}
+            {
+                "attempt": index,
+                "timeout_seconds_per_provider_turn": plan["timeout_seconds_per_run"],
+                "provider_calls_max": 3,
+                "token_limit": plan["token_limit_per_run"],
+                "projected_cost_max": 0,
+            }
             for index in range(1, plan["runs"] + 1)
         ],
-        "warning": "No provider/model calls are made by this deterministic configuration.",
+        "warning": "This plan makes live Codex calls using the current CLI account; bundled-account marginal USD cost is unavailable.",
+    }
+
+
+def verify_published(report_path: Path) -> Dict[str, Any]:
+    report_path = report_path.resolve()
+    report = read_json(report_path)
+    validate_json(report, SCHEMA, "published benchmark report")
+    root = report_path.parent
+    refs = [root / ref for attempt in report["attempts"] for ref in attempt["evidence_refs"]]
+    missing = [str(path) for path in refs if not path.is_file()]
+    if missing:
+        raise BenchmarkError(f"published benchmark evidence refs are missing: {missing}")
+    for path in [report_path, *refs]:
+        ensure_redacted(path.read_text(encoding="utf-8", errors="replace"))
+    if report["status"] != "pass" or not report["replay"]["verified"]:
+        raise BenchmarkError("published benchmark report is not a verified pass")
+    return {
+        "contract_version": "1.0.0",
+        "status": "pass",
+        "report": str(report_path),
+        "attempts": len(report["attempts"]),
+        "evidence_refs": len(refs),
+        "secret_matches": 0,
+        "absolute_path_matches": 0,
     }
 
 
@@ -793,49 +909,56 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture", type=Path, required=True)
     parser.add_argument("--runs", type=int, default=3)
-    parser.add_argument("--timeout", type=int, default=120, help="seconds per run")
+    parser.add_argument("--timeout", type=int, default=300, help="seconds per provider turn")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--verify-replay", action="store_true")
+    parser.add_argument("--verify-published", type=Path)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
     try:
-        fixture = load_fixture(args.fixture)
-        actual_start = compute_starting_commit(fixture)
-        if actual_start != fixture["starting_commit"]:
-            raise BenchmarkError(
-                f"fixture starting commit is not pinned: expected {fixture['starting_commit']}, computed {actual_start}"
-            )
-        plan = build_plan(args.runs, args.timeout)
-        metadata = runtime_metadata(fixture)
-        if args.plan:
-            payload = plan_payload(metadata, plan)
+        if args.verify_published:
+            payload = verify_published(args.verify_published)
+            exit_code = 0
         else:
-            temporary_output = None
-            if args.output_dir:
-                output_root = args.output_dir.resolve()
-                if output_root.exists() and any(output_root.iterdir()):
-                    raise BenchmarkError(f"output directory must be absent or empty: {output_root}")
-                output_root.mkdir(parents=True, exist_ok=True)
+            fixture = load_fixture(args.fixture)
+            actual_start = compute_starting_commit(fixture)
+            if actual_start != fixture["starting_commit"]:
+                raise BenchmarkError(
+                    f"fixture starting commit is not pinned: expected {fixture['starting_commit']}, computed {actual_start}"
+                )
+            plan = build_plan(args.runs, args.timeout)
+            metadata = runtime_metadata(fixture, args.model)
+            if args.plan:
+                payload = plan_payload(metadata, plan)
+                exit_code = 0
             else:
-                temporary_output = tempfile.TemporaryDirectory(prefix="adlc-public-benchmark-evidence-")
-                output_root = Path(temporary_output.name)
-            attempts = [execute_attempt(fixture, index, output_root, args.timeout) for index in range(1, args.runs + 1)]
-            payload = build_report(metadata, plan, attempts)
-            validate_json(payload, SCHEMA, "benchmark report")
-            write_json(output_root / "benchmark-report.json", payload, [])
-            if args.verify_replay and not payload["replay"]["verified"]:
-                raise BenchmarkError("replay verification failed; inspect the complete attempts in the report")
-            if payload["status"] != "pass":
-                raise BenchmarkError("benchmark did not pass; inspect the complete attempts in the report")
-            if temporary_output is not None:
-                temporary_output.cleanup()
+                temporary_output = None
+                if args.output_dir:
+                    output_root = args.output_dir.resolve()
+                    if output_root.exists() and any(output_root.iterdir()):
+                        raise BenchmarkError(f"output directory must be absent or empty: {output_root}")
+                    output_root.mkdir(parents=True, exist_ok=True)
+                else:
+                    temporary_output = tempfile.TemporaryDirectory(prefix="adlc-public-benchmark-evidence-")
+                    output_root = Path(temporary_output.name)
+                attempts = [
+                    execute_attempt(fixture, index, output_root, args.timeout, args.model)
+                    for index in range(1, args.runs + 1)
+                ]
+                payload = build_report(metadata, plan, attempts)
+                validate_json(payload, SCHEMA, "benchmark report")
+                write_json(output_root / "benchmark-report.json", payload, [])
+                exit_code = 0 if payload["status"] == "pass" and (not args.verify_replay or payload["replay"]["verified"]) else 1
+                if temporary_output is not None:
+                    temporary_output.cleanup()
         if args.json:
             print(json.dumps(payload, indent=2, sort_keys=True))
         else:
             print(f"benchmark {payload['status']}")
-        return 0
+        return exit_code
     except BenchmarkError as exc:
         error = {"status": "fail", "error": str(exc)}
         if args.json:

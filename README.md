@@ -96,7 +96,7 @@ Read the [security and privacy boundary](docs/trust/security-privacy.md), [secur
 - [Legacy-surface migration ledger](docs/migration/legacy-surface-migration.md)
 - [Canonical local verification](docs/contribute/development.md)
 
-The public benchmark preserves three complete deterministic runs with red-before-green, interrupt/resume, one-file scope, and independent completion-audit evidence. It installs Codex but invokes no provider or model, so its token and provider-cost range is exactly zero and it does not change the live-provider support matrix. These proofs are scoped evidence, not proof of future behavior, market traction, compliance certification, GA readiness, or universal provider support.
+The public benchmark preserves three live Codex runs plus an independent three-run replay, with exact red-before-green verification, same-session interrupt/resume, one-file scope, distinct read-only review, and completion-audit evidence. Its versioned report discloses provider/model versions, tokens, duration, marginal account cost, failures, and limitations. These proofs are scoped evidence, not proof of future behavior, market traction, compliance certification, GA readiness, or universal provider support.
 
 ## Documentation and community
 
@@ -112,7 +112,7 @@ The public benchmark preserves three complete deterministic runs with red-before
 
 ## Status and limitations
 
-ADLC is an unreleased beta candidate. The source checkout, deterministic tests, exact Codex Fix configuration shown above, documentation-site build, and deterministic public benchmark have evidence; package publication, production docs deployment, secure release automation, and public launch remain gated work. Only released and tested configurations may graduate support labels.
+ADLC is an unreleased beta candidate. The source checkout, deterministic tests, exact Codex Fix configuration shown above, documentation-site build, and scoped live public benchmark have evidence; package publication, production docs deployment, secure release automation, and public launch remain gated work. Only released and tested configurations may graduate support labels.
 
 `doc_honesty_section`: This page describes the current source product and links to its evidence; it is not a release artifact or adoption proof.
 

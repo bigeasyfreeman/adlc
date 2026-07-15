@@ -47,8 +47,8 @@
       "properties": {
         "provider": {"const": "codex"},
         "provider_version": {"type": "string", "minLength": 1},
-        "model": {"const": "not-invoked"},
-        "harness": {"const": "public-fix-deterministic"},
+        "model": {"type": "string", "minLength": 1},
+        "harness": {"const": "codex-cli-resumable-fix"},
         "python": {"type": "string", "minLength": 1},
         "platform": {"type": "string", "minLength": 1}
       }
@@ -56,11 +56,12 @@
     "plan": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runs", "timeout_seconds_per_run", "token_limit_per_run", "projected_provider_cost", "external_calls"],
+      "required": ["runs", "timeout_seconds_per_run", "token_limit_per_run", "maximum_provider_calls", "projected_provider_cost", "external_calls"],
       "properties": {
         "runs": {"type": "integer", "minimum": 3, "maximum": 10},
         "timeout_seconds_per_run": {"type": "integer", "minimum": 1, "maximum": 600},
-        "token_limit_per_run": {"const": 0},
+        "token_limit_per_run": {"type": "integer", "minimum": 1},
+        "maximum_provider_calls": {"type": "integer", "minimum": 6, "maximum": 30},
         "projected_provider_cost": {
           "type": "object",
           "additionalProperties": false,
@@ -71,7 +72,7 @@
             "max": {"const": 0}
           }
         },
-        "external_calls": {"const": false}
+        "external_calls": {"const": true}
       }
     },
     "status": {"type": "string", "enum": ["pass", "fail", "blocked"]},
@@ -93,7 +94,7 @@
             "required": ["currency", "tokens", "min", "max"],
             "properties": {
               "currency": {"const": "USD"},
-              "tokens": {"const": 0},
+              "tokens": {"type": "integer", "minimum": 0},
               "min": {"const": 0},
               "max": {"const": 0}
             }
@@ -131,7 +132,7 @@
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["attempted", "passed", "failed", "blocked", "timed_out", "completion_rate", "duration_ms", "human_decisions", "provider_cost"],
+      "required": ["attempted", "passed", "failed", "blocked", "timed_out", "completion_rate", "duration_ms", "human_decisions", "tokens", "provider_cost"],
       "properties": {
         "attempted": {"type": "integer", "minimum": 3},
         "passed": {"type": "integer", "minimum": 0},
@@ -141,6 +142,7 @@
         "completion_rate": {"type": "number", "minimum": 0, "maximum": 1},
         "duration_ms": {"$ref": "#/definitions/spread"},
         "human_decisions": {"$ref": "#/definitions/spread"},
+        "tokens": {"$ref": "#/definitions/spread"},
         "provider_cost": {"$ref": "#/definitions/spread"}
       }
     },
@@ -160,7 +162,7 @@
       "additionalProperties": false,
       "required": ["status", "scanner", "secret_matches", "absolute_paths_replaced"],
       "properties": {
-        "status": {"const": "reviewed"},
+        "status": {"const": "scanned"},
         "scanner": {"type": "string", "minLength": 1},
         "secret_matches": {"const": 0},
         "absolute_paths_replaced": {"type": "boolean"}

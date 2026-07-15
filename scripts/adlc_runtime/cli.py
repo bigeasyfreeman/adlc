@@ -4050,15 +4050,14 @@ CI_SUITES = {
         "command": ["bash", "tests/test_public_hygiene.sh"],
     },
     "public-benchmark": {
-        "description": "Three-run replay of the pinned public Fix benchmark",
+        "description": "Validate the published live Fix benchmark and every raw evidence reference",
         "command": [
             "python3",
             "benchmarks/run.py",
             "--fixture",
             "examples/fix-demo",
-            "--runs",
-            "3",
-            "--verify-replay",
+            "--verify-published",
+            "docs/evidence/benchmarks/v0.1.0/benchmark-report.json",
             "--json",
         ],
     },

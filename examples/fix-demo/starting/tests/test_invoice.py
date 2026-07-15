@@ -21,6 +21,20 @@ class AllocateDiscountTests(unittest.TestCase):
             [Decimal("3.00"), Decimal("7.00")],
         )
 
+    def test_reconciles_uneven_lines_with_stable_largest_remainder(self):
+        allocations = allocate_discount(
+            [Decimal("9.99"), Decimal("4.01"), Decimal("1.00")],
+            Decimal("1.01"),
+        )
+        self.assertEqual(sum(allocations), Decimal("1.01"))
+        self.assertEqual(allocations, [Decimal("0.67"), Decimal("0.27"), Decimal("0.07")])
+
+    def test_zero_total_returns_cent_precision_zeroes(self):
+        self.assertEqual(
+            allocate_discount([Decimal("0"), Decimal("0")], Decimal("0")),
+            [Decimal("0.00"), Decimal("0.00")],
+        )
+
     def test_rejects_negative_money(self):
         with self.assertRaises(ValueError):
             allocate_discount([Decimal("10.00")], Decimal("-1.00"))

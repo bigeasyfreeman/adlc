@@ -80,3 +80,22 @@ def test_public_fixture_starting_commit_is_reproducible():
     runner = load_runner()
     fixture = runner.load_fixture(ROOT / "examples/fix-demo")
     assert runner.compute_starting_commit(fixture) == fixture["starting_commit"]
+
+
+def test_runner_uses_live_resumable_codex_without_a_canned_repair():
+    source = RUNNER.read_text(encoding="utf-8")
+    assert '"codex",\n                    "exec",\n                    "resume"' in source
+    assert 'resumed_session == executor_session' in source
+    assert '"--sandbox",\n                    "read-only",\n                    "--ephemeral"' in source
+    assert "solution_file" not in source
+    assert "product_path.write" not in source
+
+
+def test_publication_attestation_requires_independent_review_and_human_approval():
+    schema = json.loads(
+        (ROOT / "docs/schemas/benchmark-publication-attestation.schema.json").read_text(encoding="utf-8")
+    )
+    approval_required = schema["properties"]["approval"]["required"]
+    assert "human_approval_ref" in approval_required
+    assert schema["properties"]["reviewer"]["properties"]["basis"]["const"] == "separate_codex_session"
+    assert schema["properties"]["redaction_review"]["properties"]["status"]["const"] == "pass"
