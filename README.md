@@ -100,13 +100,13 @@ The public benchmark preserves three live Codex runs plus an independent three-r
 
 ## Public beta candidate
 
-The 0.9.0 beta launch packet is prepared but not published. It includes the
+The 0.9.1 beta launch packet accompanies the immutable release candidate. It includes the
 [technical narrative](docs/launch/technical-article.md), [five-minute demo and
 recording plan](docs/launch/demo-script.md), [local-first metric
 definitions](docs/launch/metrics.md), and [beta operating
 model](docs/launch/beta-operations.md). Every launch claim resolves to repository
 evidence, telemetry remains off, and package, GitHub Release, Pages, and launch
-communication actions remain pending human approval.
+communication actions remain human-approval-bound and must be verified at their public endpoints.
 
 Use the beta feedback issue template for sanitized product outcomes and
 friction. Do not put vulnerabilities, credentials, prompts, source code, private

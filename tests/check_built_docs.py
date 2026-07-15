@@ -44,7 +44,7 @@ REQUIRED_LOCATIONS = {
     "launch/beta-operations/index.html",
     "release/docs-deployment/index.html",
     "release/RELEASING/index.html",
-    "release/v0.9.0/index.html",
+    "release/v0.9.1/index.html",
 }
 
 

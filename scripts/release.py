@@ -633,6 +633,7 @@ def prepare_release(args: argparse.Namespace) -> Dict[str, Any]:
 def validate_human_approval(packet_path: Path, approval_path: Path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     packet = read_json(packet_path)
     jsonschema.validate(packet, read_json(PACKET_SCHEMA))
+    validate_packet_artifacts(packet_path, packet)
     approval = read_json(approval_path)
     jsonschema.validate(approval, read_json(APPROVAL_SCHEMA))
     if approval["decision"] != "approved" or approval["decided_by"] != "human":
@@ -644,6 +645,21 @@ def validate_human_approval(packet_path: Path, approval_path: Path) -> Tuple[Dic
     if approval.get("packet_sha256") != sha256_path(packet_path):
         raise ReleaseBlocked("approval record packet digest does not match this release packet")
     return packet, approval
+
+
+def validate_packet_artifacts(packet_path: Path, packet: Mapping[str, Any]) -> None:
+    artifact_dir = packet_path.parent / "artifacts"
+    expected = {str(item["name"]): item for item in packet["artifacts"]}
+    actual = {path.name: path for path in artifact_dir.iterdir() if path.is_file()} if artifact_dir.is_dir() else {}
+    if set(actual) != set(expected):
+        raise ReleaseBlocked(
+            f"release artifact set does not match approved packet: "
+            f"expected={sorted(expected)}, actual={sorted(actual)}"
+        )
+    for name, reference in expected.items():
+        path = actual[name]
+        if path.stat().st_size != reference["size"] or sha256_path(path) != reference["sha256"]:
+            raise ReleaseBlocked(f"release artifact digest does not match approved packet: {name}")
 
 
 def publish_release(args: argparse.Namespace) -> Dict[str, Any]:

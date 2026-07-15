@@ -56,6 +56,11 @@ def test_architecture_publish_requires_validated_human_approval():
     assert "environment: github-release" in workflow
     assert "id-token: write" in workflow
     assert "approval_record_json" in workflow
+    assert "approval_packet_run_id" in workflow
+    assert "run-id: ${{ inputs.approval_packet_run_id }}" in workflow
+    assert "Reuse the exact packet-approved candidate" in workflow
+    assert workflow.index("Reuse the exact packet-approved candidate") < workflow.index("Export packet digest")
+    assert workflow.count("Install approval validator dependency") == 3
     assert workflow.count("scripts/release.py publish") == 3
     assert "--target pypi_upload" in workflow
     assert "--target github_release" in workflow
@@ -67,6 +72,21 @@ def test_architecture_publish_requires_validated_human_approval():
     assert "actions/deploy-pages" not in docs_workflow
 
 
+def test_publication_reuses_approved_packet_instead_of_regenerating_it():
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    prepare_step = workflow.split("- name: Prepare reproducible approval packet", 1)[1].split(
+        "- name: Require an exact previously prepared candidate", 1
+    )[0]
+    reuse_step = workflow.split("- name: Reuse the exact packet-approved candidate", 1)[1].split(
+        "- name: Verify reused candidate identity", 1
+    )[0]
+    assert "if: ${{ !inputs.confirm_publication }}" in prepare_step
+    assert "if: ${{ inputs.confirm_publication }}" in reuse_step
+    assert "actions/download-artifact@v4" in reuse_step
+    assert "run-id: ${{ inputs.approval_packet_run_id }}" in reuse_step
+    assert "scripts/release.py prepare" not in reuse_step
+
+
 def test_architecture_runs_dependency_and_packet_secret_audits():
     source = RELEASE.read_text(encoding="utf-8")
     assert '"dependency-vulnerability-audit"' in source
@@ -75,8 +95,8 @@ def test_architecture_runs_dependency_and_packet_secret_audits():
 
 
 def test_release_notes_are_versioned_and_publication_ready():
-    notes = (ROOT / "docs/release/v0.9.0.md").read_text(encoding="utf-8")
-    assert notes.startswith("# ADLC 0.9.0")
+    notes = (ROOT / "docs/release/v0.9.1.md").read_text(encoding="utf-8")
+    assert notes.startswith("# ADLC 0.9.1")
     assert "Unreleased" not in notes
     assert "No release has been tagged" not in notes
     assert "Publication boundary" in notes
@@ -319,7 +339,15 @@ def test_live_support_scope_is_derived_from_three_tag_bound_reports(tmp_path):
 def test_release_approval_is_bound_to_packet_digest_and_publish_is_non_mutating(tmp_path):
     release = load_release()
     packet_path = tmp_path / "release-approval-packet.json"
-    packet_path.write_text(json.dumps(release.test_packet()) + "\n", encoding="utf-8")
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    wheel = artifact_dir / "adlc-0.9.0-py3-none-any.whl"
+    sdist = artifact_dir / "adlc-0.9.0.tar.gz"
+    wheel.write_bytes(b"approved wheel")
+    sdist.write_bytes(b"approved sdist")
+    packet = release.test_packet()
+    packet["artifacts"] = [release.digest_ref(wheel), release.digest_ref(sdist)]
+    packet_path.write_text(json.dumps(packet) + "\n", encoding="utf-8")
     approval_path = tmp_path / "approval.json"
     approval = {
         "contract_version": "1.0.0",
@@ -345,9 +373,32 @@ def test_release_approval_is_bound_to_packet_digest_and_publish_is_non_mutating(
         )
     )
     assert result["external_action_performed"] is False
-    packet_path.write_text(json.dumps({**release.test_packet(), "status": "awaiting_human_approval"}, indent=2) + "\n")
+    packet_path.write_text(json.dumps({**packet, "status": "awaiting_human_approval"}, indent=2) + "\n")
     with pytest.raises(release.ReleaseBlocked, match="digest does not match"):
         release.validate_human_approval(packet_path, approval_path)
+
+
+def test_publish_rejects_artifacts_that_do_not_match_approved_packet(tmp_path):
+    release = load_release()
+    packet_path = tmp_path / "release-approval-packet.json"
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    wheel = artifact_dir / "adlc-0.9.0-py3-none-any.whl"
+    sdist = artifact_dir / "adlc-0.9.0.tar.gz"
+    wheel.write_bytes(b"approved wheel")
+    sdist.write_bytes(b"approved sdist")
+    packet = release.test_packet()
+    packet["artifacts"] = [release.digest_ref(wheel), release.digest_ref(sdist)]
+    packet_path.write_text(json.dumps(packet) + "\n", encoding="utf-8")
+
+    wheel.write_bytes(b"tampered wheel")
+    with pytest.raises(release.ReleaseBlocked, match="artifact digest does not match"):
+        release.validate_packet_artifacts(packet_path, packet)
+
+    wheel.write_bytes(b"approved wheel")
+    (artifact_dir / "unapproved.txt").write_text("extra\n", encoding="utf-8")
+    with pytest.raises(release.ReleaseBlocked, match="artifact set does not match"):
+        release.validate_packet_artifacts(packet_path, packet)
 
 
 def test_python_support_claim_is_tied_to_hosted_boundary_matrix():

@@ -3854,7 +3854,7 @@
             "given": "a clean tagged release-candidate commit and test package index",
             "when": "release preparation and rollback rehearsal run",
             "then": "all artifacts, docs, support claims, provenance, scans, clean installs, and rollback evidence agree on one version while external publication remains approval-blocked",
-            "verification_predicate": "python3 scripts/release.py prepare --tag fixture-v0.9.0 --repository test --verify-reproducible --rehearse-rollback --json exits 0 and emits a schema-valid approval packet with publish actions pending",
+            "verification_predicate": "python3 scripts/release.py prepare --tag fixture-v0.9.1 --repository test --verify-reproducible --rehearse-rollback --json exits 0 and emits a schema-valid approval packet with publish actions pending",
             "substance_floor": "Built source and wheel artifacts, two-build comparison, test-index install, scans, generated release notes/support matrix, docs build, rollback rehearsal, and blocked external-action packet are required.",
             "allowed_payload_classes": [
               "product-change",
@@ -3888,7 +3888,7 @@
         "verification_spec": {
           "primary_verifier": {
             "type": "command",
-            "target": "python3 scripts/release.py prepare --tag fixture-v0.9.0 --repository test --verify-reproducible --rehearse-rollback --json",
+            "target": "python3 scripts/release.py prepare --tag fixture-v0.9.1 --repository test --verify-reproducible --rehearse-rollback --json",
             "expected_pre_change": "fail",
             "expected_post_change": "pass",
             "rationale": "Release preparation must be reproducible, evidence-derived, secure, and reversible before publication.",

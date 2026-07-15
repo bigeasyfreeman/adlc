@@ -3,7 +3,12 @@
 Notable user-facing changes are documented here. This project follows semantic
 versioning once a release is tagged.
 
-## Unreleased
+## 0.9.1 - 2026-07-15
+
+- Reuse the exact packet-approved GitHub Actions artifact during publication so
+  verifier-log variance cannot invalidate or silently replace human review.
+- Install the packet validator dependency explicitly in every protected
+  publication job.
 
 - Present one canonical public `adlc` skill with Build, Fix, and read-only Review loops.
 - Add an outcome-first README, executable first-Fix quick start, evidence-generated provider matrix, and version-ready documentation information architecture.
@@ -16,12 +21,12 @@ versioning once a release is tagged.
   security, contribution, and changelog surfaces.
 - Record a scoped Codex Fix beta row from three passing provider runs; other
   providers and dimensions remain unclaimed unless their own evidence passes.
-- Prepare reproducible 0.9.0 release-candidate artifacts, evidence-derived
+- Prepare reproducible 0.9.1 release-candidate artifacts, evidence-derived
   support claims, protected publication workflows, and rollback evidence while
   keeping every external release action human-approval-bound.
 - Add a final-form public beta launch packet, technical article, demo script,
   local-only metrics contract, feedback intake, and evidence-driven operations
   loop while keeping telemetry disabled and publication approval-bound.
 
-No package, GitHub Release, Pages deployment, or launch communication has been
-published yet.
+Public availability is established only by post-publication endpoint smoke
+checks, not by this changelog entry.

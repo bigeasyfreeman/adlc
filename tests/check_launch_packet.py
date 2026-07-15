@@ -36,8 +36,8 @@ def main() -> int:
     if packet.get("contract_version") != "1.0.0" or packet.get("status") != "awaiting_human_approval":
         fail("packet contract/status must remain awaiting_human_approval", failures)
     release = packet.get("release", {})
-    if release.get("version") != "0.9.0" or release.get("stage") != "public_beta_candidate":
-        fail("release must identify the 0.9.0 public beta candidate", failures)
+    if release.get("version") != "0.9.1" or release.get("stage") != "public_beta_candidate":
+        fail("release must identify the 0.9.1 public beta candidate", failures)
 
     assets = packet.get("assets", [])
     if {item.get("kind") for item in assets} != REQUIRED_ASSETS:

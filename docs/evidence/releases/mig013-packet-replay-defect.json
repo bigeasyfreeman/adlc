@@ -1,0 +1,36 @@
+{
+  "actual_behavior": {
+    "first_packet_sha256": "4c513d87b4bcdca3170987036dfba9d758472b9086fa772f68ca8a314e55142e",
+    "first_workflow_run": 29416189814,
+    "second_packet_sha256": "70e02bcc47830baabe12ef5471c7848820a2ab584a43e095ff5218c3d05526c3",
+    "second_workflow_run": 29416585788,
+    "stable_artifact_sha256": [
+      "2761c6d6d2bcffb7e955150aa74637e1138aa67c2f88bd93bb7cd4a1f9943dea",
+      "7244aacf01aa4075c748e42c12f43f6e4b58caf944ad921477645ba58b52795a"
+    ],
+    "varying_gate_evidence": [
+      "canonical-ci",
+      "docs-build",
+      "dependency-vulnerability-audit"
+    ]
+  },
+  "captured_at": "2026-07-15T12:52:00Z",
+  "contract_version": "1.0.0",
+  "defect_id": "ADLC-MIG-013-PACKET-REPLAY",
+  "expected_behavior": "A publication approval remains bound to the exact candidate packet reviewed by the human release owner.",
+  "failure_command": "dispatch release.yml twice with release_tag=v0.9.0 and confirm_publication=false; download and compare release-candidate-v0.9.0/release-approval-packet.json",
+  "impact": "A confirmed publication dispatch regenerated the packet after its approval record was supplied, so normal verifier-output variance could make every exact digest-bound approval fail closed.",
+  "owner_task": "ADLC-MIG-013",
+  "promotion_status": "stopped",
+  "regression": "tests/test_release_workflow.py::test_publication_reuses_approved_packet_instead_of_regenerating_it",
+  "release_tag": "v0.9.0",
+  "repair": "A confirmed dispatch must download the exact candidate artifact from the approved preparation-only workflow run, must not rerun release preparation, and must re-hash the complete artifact set against the approved packet before any protected write.",
+  "review": {
+    "first_review_session": "019f6614-fa17-7e72-936f-ec137caddaff",
+    "finding": "P1: verify downloaded artifact digests against the approved packet",
+    "rerun_review_session": "019f6617-a900-7f62-90cf-d5532c4b1a5b",
+    "rerun_result": "no_actionable_findings"
+  },
+  "source_commit": "5ae01782a2205a698cc7c4ef5b2095433c28fbb1",
+  "status": "repaired_local_validation_pass"
+}
