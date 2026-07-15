@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/public-operation.schema.json",
+  "title": "ADLC Public Operation Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "operation", "experimental", "allow_mutation", "human_approved", "arguments"],
+  "properties": {
+    "contract_version": {"const": "1.0.0"},
+    "operation": {
+      "type": "string",
+      "enum": ["init", "shape", "build", "fix", "review", "harden", "ship", "status", "resume", "doctor", "learn"]
+    },
+    "experimental": {"const": true},
+    "request_id": {"type": "string", "minLength": 1, "maxLength": 200},
+    "workspace": {"type": "string", "minLength": 1},
+    "state": {"type": "string", "minLength": 1},
+    "allow_mutation": {"type": "boolean"},
+    "human_approved": {"type": "boolean"},
+    "approval_ref": {"type": "string", "minLength": 1},
+    "arguments": {
+      "type": "object",
+      "additionalProperties": true,
+      "propertyNames": {
+        "not": {
+          "enum": ["contract_version", "operation", "experimental", "workspace", "state", "allow_mutation", "human_approved", "approval_ref"]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"human_approved": {"const": true}}},
+      "then": {"required": ["approval_ref"]}
+    }
+  ]
+}
