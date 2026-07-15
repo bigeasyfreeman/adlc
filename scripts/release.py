@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import zipfile
 from datetime import datetime, timezone
@@ -169,12 +171,27 @@ def builder_environment(path: Path, evidence_dir: Path, index: int) -> Path:
 def build_once(index: int, temporary: Path, epoch: int, evidence_dir: Path) -> Path:
     environment = temporary / f"builder-{index}"
     output = temporary / f"build-{index}"
+    source = temporary / f"source-{index}"
     output.mkdir()
+    source.mkdir()
+    archive = subprocess.run(
+        ["git", "archive", "--format=tar", "HEAD"],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if archive.returncode:
+        raise ReleaseBlocked(f"git archive failed for build {index}: {archive.stderr.decode().strip()}")
+    with tarfile.open(fileobj=io.BytesIO(archive.stdout), mode="r:") as source_archive:
+        source_archive.extractall(source)
+    for path in source.rglob("*"):
+        os.utime(path, (epoch, epoch), follow_symlinks=False)
     python = builder_environment(environment, evidence_dir, index)
     run_logged(
         f"build-{index}",
         [str(python), "-m", "build", "--no-isolation", "--sdist", "--wheel", "--outdir", str(output), "."],
         evidence_dir,
+        cwd=source,
         env={"SOURCE_DATE_EPOCH": str(epoch), "PYTHONHASHSEED": "0", "TZ": "UTC"},
     )
     artifacts = sorted(path for path in output.iterdir() if path.suffix in {".whl", ".gz"})
