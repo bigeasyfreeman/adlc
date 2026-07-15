@@ -92,6 +92,7 @@ nav:
       - Release process: contribute/release-process.md
   - Release:
       - Release and rollback runbook: release/RELEASING.md
+      - ADLC 0.9.0 release notes: release/v0.9.0.md
       - Docs deployment and rollback: release/docs-deployment.md
 
 exclude_docs: |

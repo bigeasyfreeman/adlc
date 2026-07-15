@@ -292,6 +292,23 @@ def python_support_policy() -> Dict[str, Any]:
     }
 
 
+def release_notes(version: str) -> Dict[str, Any]:
+    path = ROOT / f"docs/release/v{version}.md"
+    if not path.is_file():
+        raise ReleaseBlocked(f"versioned release notes are missing: {path.relative_to(ROOT)}")
+    text = path.read_text(encoding="utf-8")
+    forbidden = [phrase for phrase in ("## Unreleased", "No release has been tagged") if phrase in text]
+    if not text.startswith(f"# ADLC {version}") or "## Publication boundary" not in text or forbidden:
+        raise ReleaseBlocked(f"release notes are not publication-ready for {version}: {forbidden}")
+    return {
+        "status": "pass",
+        "source": path.relative_to(ROOT).as_posix(),
+        "sha256": sha256_path(path),
+        "version": version,
+        "publication_state": "candidate-only",
+    }
+
+
 def dependency_policy() -> Dict[str, Any]:
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     block = text.split("dependencies = [", 1)[1].split("]", 1)[0]
@@ -546,19 +563,7 @@ def prepare_release(args: argparse.Namespace) -> Dict[str, Any]:
     gates.append(record_gate("release-identity", release_identity_policy(args.repository, version), evidence_dir))
     gates.append(record_gate("python-support", python_support_policy(), evidence_dir))
     gates.append(record_gate("dependency-policy", dependency_policy(), evidence_dir))
-    gates.append(
-        record_gate(
-            "release-notes",
-            {
-                "status": "pass",
-                "source": "CHANGELOG.md",
-                "sha256": sha256_path(ROOT / "CHANGELOG.md"),
-                "version": version,
-                "publication_state": "candidate-only",
-            },
-            evidence_dir,
-        )
-    )
+    gates.append(record_gate("release-notes", release_notes(version), evidence_dir))
     gates.append(run_logged("canonical-ci", [str(ROOT / "bin/adlc"), "ci", "--json"], evidence_dir))
     gates.append(run_logged("release-contract", [sys.executable, "-m", "pytest", "tests/test_release_workflow.py", "-q"], evidence_dir))
     gates.append(run_logged("public-hygiene", ["bash", "tests/test_public_hygiene.sh"], evidence_dir))

@@ -39,6 +39,8 @@ REQUIRED_LOCATIONS = {
     "contribute/behavioral-scenarios/index.html",
     "contribute/release-process/index.html",
     "release/docs-deployment/index.html",
+    "release/RELEASING/index.html",
+    "release/v0.9.0/index.html",
 }
 
 
@@ -192,20 +194,30 @@ def main() -> int:
             if linked_tag != release_tag:
                 failures.append(f"{source.relative_to(ROOT)}: source link uses {linked_tag}, expected {release_tag}")
 
-    workflow = (ROOT / ".github/workflows/docs.yml").read_text(encoding="utf-8")
+    docs_workflow = (ROOT / ".github/workflows/docs.yml").read_text(encoding="utf-8")
+    for token in (
+        "tags: [\"v*\"]",
+        "check_docs_release.py",
+        "check_docs_viewports.py",
+    ):
+        if token not in docs_workflow:
+            failures.append(f"docs validation workflow missing {token}")
+    for forbidden in ("workflow_dispatch:", "actions/deploy-pages@v4"):
+        if forbidden in docs_workflow:
+            failures.append(f"docs validation workflow exposes publication token {forbidden}")
+    release_workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
     for token in (
         "workflow_dispatch:",
-        "tags: [\"v*\"]",
         "confirm_publication:",
-        "releases/tags/$RELEASE_TAG",
-        "github.event_name == 'workflow_dispatch' && inputs.confirm_publication",
-        "github-pages",
+        "approval_record_json:",
+        "--target pages_deploy",
+        "environment: github-pages",
         "actions/deploy-pages@v4",
         "check_docs_release.py",
         "check_docs_viewports.py",
     ):
-        if token not in workflow:
-            failures.append(f"deployment workflow missing {token}")
+        if token not in release_workflow:
+            failures.append(f"packet-approved Pages workflow missing {token}")
     if re.search(r"google-analytics|googletagmanager|plausible", "\n".join(path.read_text(encoding="utf-8") for path in site.rglob("*.html")), re.I):
         failures.append("analytics present without privacy approval")
 

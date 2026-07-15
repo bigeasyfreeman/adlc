@@ -123,7 +123,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
-        run: gh release create "$RELEASE_TAG" release-out/$RELEASE_TAG/artifacts/* --verify-tag --title "ADLC $RELEASE_TAG" --notes-file CHANGELOG.md
+        run: |
+          NOTES_FILE="docs/release/${RELEASE_TAG#v}.md"
+          test -f "$NOTES_FILE"
+          gh release create "$RELEASE_TAG" release-out/$RELEASE_TAG/artifacts/* --verify-tag --title "ADLC $RELEASE_TAG" --notes-file "$NOTES_FILE"
 
   pages:
     if: inputs.confirm_publication
@@ -131,7 +134,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: github-pages
     permissions:
-      actions: write
+      pages: write
+      id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v4
@@ -149,8 +153,21 @@ jobs:
           test -n "$APPROVAL_RECORD_JSON"
           printf '%s' "$APPROVAL_RECORD_JSON" > "$RUNNER_TEMP/release-approval.json"
           python scripts/release.py publish --packet "release-out/$RELEASE_TAG/release-approval-packet.json" --approval-record "$RUNNER_TEMP/release-approval.json" --target pages_deploy --confirm-external-publication --json
-      - name: Request protected docs deployment
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: gh workflow run docs.yml --repo "${{ github.repository }}" -f release_tag="$RELEASE_TAG" -f confirm_publication=true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build the approved tagged documentation
+        run: |
+          python -m pip install '.[docs]'
+          python scripts/check_docs_release.py --tag "${{ inputs.release_tag }}" --json
+          mkdocs build --strict
+          python tests/check_built_docs.py site
+          python -m playwright install --with-deps chromium
+          python tests/check_docs_viewports.py site docs-preview
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy packet-approved Pages artifact
+        id: deployment
+        uses: actions/deploy-pages@v4

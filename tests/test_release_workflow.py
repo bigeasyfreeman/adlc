@@ -13,6 +13,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE = ROOT / "scripts/release.py"
 WORKFLOW = ROOT / ".github/workflows/release.yml"
+DOCS_WORKFLOW = ROOT / ".github/workflows/docs.yml"
 PACKET_SCHEMA = ROOT / "docs/schemas/release-approval-packet.schema.json"
 
 
@@ -47,6 +48,10 @@ def test_architecture_publish_requires_validated_human_approval():
     assert "--target pypi_upload" in workflow
     assert "--target github_release" in workflow
     assert "--target pages_deploy" in workflow
+    assert "actions/deploy-pages@v4" in workflow
+    docs_workflow = DOCS_WORKFLOW.read_text(encoding="utf-8")
+    assert "workflow_dispatch" not in docs_workflow
+    assert "actions/deploy-pages" not in docs_workflow
 
 
 def test_architecture_runs_dependency_and_packet_secret_audits():
@@ -54,6 +59,14 @@ def test_architecture_runs_dependency_and_packet_secret_audits():
     assert '"dependency-vulnerability-audit"' in source
     assert '"pip_audit"' in source
     assert "assert_publication_safe(packet" in source
+
+
+def test_release_notes_are_versioned_and_publication_ready():
+    notes = (ROOT / "docs/release/v0.9.0.md").read_text(encoding="utf-8")
+    assert notes.startswith("# ADLC 0.9.0")
+    assert "Unreleased" not in notes
+    assert "No release has been tagged" not in notes
+    assert "Publication boundary" in notes
 
 
 def test_architecture_release_claims_come_from_conformance_evidence():
