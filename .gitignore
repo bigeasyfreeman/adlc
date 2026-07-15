@@ -45,6 +45,10 @@ ADLC_*_GOAL_PROMPT.md
 !tests/smoke/fixtures/feature_bugfix/.adlc/applicability_manifest.json
 tests/smoke/artifacts/*
 !tests/smoke/artifacts/.gitkeep
+tests/acceptance/artifacts/*
+!tests/acceptance/artifacts/.gitkeep
+tests/provider_conformance/artifacts/*
+!tests/provider_conformance/artifacts/.gitkeep
 
 # Secrets
 *.pem

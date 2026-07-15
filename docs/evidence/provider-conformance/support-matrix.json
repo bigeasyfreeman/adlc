@@ -1,0 +1,17 @@
+{
+  "configurations": [],
+  "contract_version": "1.0.0",
+  "dimensions": [
+    "installation",
+    "invocation",
+    "behavior",
+    "end_to_end"
+  ],
+  "excluded": [],
+  "limitations": [
+    "Experimental requires one passing run; beta requires at least three passing runs with no hidden failures.",
+    "A report does not guarantee future provider or model behavior."
+  ],
+  "no_overclaim": "Labels apply only to the named provider, harness, model, version, evidence, and dimensions.",
+  "source_report_count": 0
+}
