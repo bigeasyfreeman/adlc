@@ -126,6 +126,28 @@ def test_live_analysis_grades_trace_diff_and_verifier_not_self_report(tmp_path):
     assert result["provider_test_exit_codes"] == [1, 0]
 
 
+def test_live_analysis_ignores_search_terms_and_requires_same_verifier(tmp_path):
+    target = tmp_path / "target"
+    (target / "app").mkdir(parents=True)
+    (target / "app/calculator.py").write_text("return sum(values)\n")
+    subprocess.run(["git", "init", "-q"], cwd=target, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=target, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=target, check=True)
+    subprocess.run(["git", "add", "."], cwd=target, check=True)
+    subprocess.run(["git", "commit", "-qm", "red"], cwd=target, check=True)
+    (target / "app/calculator.py").write_text("return sum(values) / len(values)\n")
+    events = [
+        {"type": "item.completed", "item": {"type": "command_execution", "command": "rg -n 'pytest|unittest' .", "exit_code": 0}},
+        {"type": "item.completed", "item": {"type": "command_execution", "command": "/bin/zsh -lc 'pytest -q'", "exit_code": 2}},
+        {"type": "item.completed", "item": {"type": "command_execution", "command": "/bin/zsh -lc 'PYTHONPATH=. pytest -q tests/test_calculator.py'", "exit_code": 0}},
+        {"type": "turn.completed", "usage": {}},
+    ]
+    result = run_live.analyze_run(returncode=0, events=events, target=target, red_returncode=1, green_returncode=0)
+    assert result["status"] == "fail"
+    assert result["provider_test_exit_codes"] == [2, 0]
+    assert result["assertions"]["provider_test_trace"] is False
+
+
 def test_live_plan_requires_explicit_execute():
     parser = run_live.build_parser()
     args = parser.parse_args(["--plan", "--repetitions", "3"])

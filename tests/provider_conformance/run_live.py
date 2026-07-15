@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -24,6 +25,12 @@ sys.path.insert(0, str(ROOT / "tests/skill_behavior"))
 from run import redact_payload  # noqa: E402
 
 TIMEOUT_SECONDS = 300
+TEST_INVOCATION = re.compile(
+    r"^"
+    r"(?:[A-Za-z_][A-Za-z0-9_]*=[^ ]+\s+)*"
+    r"(?:python(?:3(?:\.\d+)?)?\s+-m\s+(?:unittest|pytest)\b|pytest\b)"
+)
+SHELL_COMMAND = re.compile(r"\s-lc\s+(['\"])(.*)\1$")
 PROMPT = """Use the installed $adlc skill for this bounded Fix task. The repository contains a failing arithmetic-mean test. First run the verifier to establish red, inspect only the relevant product code and test, make the smallest repair in app/calculator.py, then rerun the verifier to green. Do not edit tests, ADLC config, or any other file. Do not commit. Finish with a concise evidence summary."""
 
 
@@ -126,6 +133,12 @@ def _usage(events: Iterable[Mapping[str, Any]]) -> Dict[str, int]:
     return {key: 0 for key in ("input_tokens", "cached_input_tokens", "output_tokens", "reasoning_output_tokens")}
 
 
+def _is_test_invocation(command: str) -> bool:
+    shell_match = SHELL_COMMAND.search(command.strip())
+    candidate = shell_match.group(2) if shell_match else command.strip()
+    return TEST_INVOCATION.search(candidate) is not None
+
+
 def analyze_run(
     *,
     returncode: int,
@@ -137,15 +150,26 @@ def analyze_run(
     command_items = [
         event.get("item", {})
         for event in events
-        if isinstance(event.get("item"), dict) and event["item"].get("type") == "command_execution"
+        if event.get("type") == "item.completed"
+        and isinstance(event.get("item"), dict)
+        and event["item"].get("type") == "command_execution"
     ]
     test_commands = [
         item
         for item in command_items
-        if "unittest" in str(item.get("command", "")) or "pytest" in str(item.get("command", ""))
+        if _is_test_invocation(str(item.get("command", "")))
     ]
-    test_exit_codes = [item.get("exit_code") for item in test_commands if isinstance(item.get("exit_code"), int)]
-    provider_red_green = len(test_exit_codes) >= 2 and test_exit_codes[0] != 0 and test_exit_codes[-1] == 0
+    test_results = [
+        (str(item.get("command", "")), item["exit_code"])
+        for item in test_commands
+        if isinstance(item.get("exit_code"), int)
+    ]
+    test_exit_codes = [exit_code for _, exit_code in test_results]
+    provider_red_green = any(
+        exit_code != 0
+        and any(later_command == command and later_exit == 0 for later_command, later_exit in test_results[index + 1 :])
+        for index, (command, exit_code) in enumerate(test_results)
+    )
     changed = subprocess.run(
         ["git", "diff", "--name-only"], cwd=target, capture_output=True, text=True, check=True
     ).stdout.splitlines()
