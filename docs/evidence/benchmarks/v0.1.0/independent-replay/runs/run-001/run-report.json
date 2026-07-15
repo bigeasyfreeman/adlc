@@ -1,0 +1,78 @@
+{
+  "audit_surface": {
+    "reverified": [
+      "red-before-green",
+      "same-session resume",
+      "scope",
+      "completion claims"
+    ],
+    "taken_on_trust": []
+  },
+  "blocked_slices": [],
+  "brief_generator_defect_count": 0,
+  "contract_version": "1.0.0",
+  "evidence_refs": [
+    "runs/run-001/install.json",
+    "runs/run-001/red.json",
+    "runs/run-001/interrupted.json",
+    "runs/run-001/resumed.json",
+    "runs/run-001/final.diff",
+    "runs/run-001/review.json",
+    "runs/run-001/green.json",
+    "runs/run-001/audit.json"
+  ],
+  "gate_results": [
+    {
+      "evidence_ref": "benchmark:task_completion",
+      "name": "task_completion",
+      "status": "pass"
+    },
+    {
+      "evidence_ref": "benchmark:verifier_validity",
+      "name": "verifier_validity",
+      "status": "pass"
+    },
+    {
+      "evidence_ref": "benchmark:resume_integrity",
+      "name": "resume_integrity",
+      "status": "pass"
+    },
+    {
+      "evidence_ref": "benchmark:claim_accuracy",
+      "name": "claim_accuracy",
+      "status": "pass"
+    },
+    {
+      "evidence_ref": "benchmark:scope_control",
+      "name": "scope_control",
+      "status": "pass"
+    }
+  ],
+  "harness": {
+    "model": "gpt-5.4",
+    "provider": "codex",
+    "runtime": "codex-cli-resumable-fix"
+  },
+  "harness_runs": [
+    {
+      "evidence_ref": "runs/run-001",
+      "exit_code": 0,
+      "model": "gpt-5.4",
+      "provider": "codex",
+      "status": "pass"
+    }
+  ],
+  "honesty_surface": {
+    "accepted_risks": [],
+    "knowns": [
+      "The live resumable Codex Fix controls passed for the pinned fixture."
+    ],
+    "ratified_assumptions": [],
+    "remaining_unknowns": [
+      "Future model/provider versions may behave differently."
+    ]
+  },
+  "process_artifacts_only": false,
+  "run_id": "public-fix-live-001",
+  "status": "pass"
+}

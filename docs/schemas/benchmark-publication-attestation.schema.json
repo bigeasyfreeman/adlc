@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/benchmark-publication-attestation.schema.json",
+  "title": "ADLC Benchmark Publication Attestation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "status",
+    "reviewed_at",
+    "reviewer",
+    "primary_report",
+    "independent_replay",
+    "evidence_manifest",
+    "reconciliation",
+    "redaction_review",
+    "approval",
+    "limitations",
+    "no_overclaim"
+  ],
+  "properties": {
+    "contract_version": {"const": "1.0.0"},
+    "status": {"const": "approved"},
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "session_id", "basis"],
+      "properties": {
+        "identity": {"type": "string", "minLength": 1},
+        "session_id": {"type": "string", "pattern": "^[a-f0-9-]{36}$"},
+        "basis": {"const": "separate_codex_session"}
+      }
+    },
+    "primary_report": {"$ref": "#/definitions/report_ref"},
+    "independent_replay": {"$ref": "#/definitions/report_ref"},
+    "evidence_manifest": {"$ref": "#/definitions/manifest_ref"},
+    "reconciliation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["same_fixture", "same_configuration", "same_terminal_class", "all_attempts_preserved", "both_schema_valid"],
+      "properties": {
+        "same_fixture": {"const": true},
+        "same_configuration": {"const": true},
+        "same_terminal_class": {"const": true},
+        "all_attempts_preserved": {"const": true},
+        "both_schema_valid": {"const": true}
+      }
+    },
+    "redaction_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "files_reviewed", "secret_matches", "absolute_path_matches", "scanner"],
+      "properties": {
+        "status": {"const": "pass"},
+        "files_reviewed": {"type": "integer", "minimum": 1},
+        "secret_matches": {"const": 0},
+        "absolute_path_matches": {"const": 0},
+        "scanner": {"type": "string", "minLength": 1}
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "scope", "human_approval_ref", "external_publication_invoked"],
+      "properties": {
+        "decision": {"const": "approved_for_candidate_evidence"},
+        "scope": {"const": "benchmark_evidence_only"},
+        "human_approval_ref": {"const": "human:approved-complete-migration-process"},
+        "external_publication_invoked": {"const": false}
+      }
+    },
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "no_overclaim": {"type": "string", "minLength": 1}
+  },
+  "definitions": {
+    "manifest_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "status", "files"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "status": {"const": "pass"},
+        "files": {"type": "integer", "minimum": 1}
+      }
+    },
+    "report_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "status", "attempts"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "status": {"const": "pass"},
+        "attempts": {"type": "integer", "minimum": 3}
+      }
+    }
+  }
+}

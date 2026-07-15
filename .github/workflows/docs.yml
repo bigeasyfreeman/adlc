@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "docs/**"
+      - "benchmarks/**"
+      - "examples/fix-demo/**"
       - "mkdocs.yml"
       - "pyproject.toml"
       - "scripts/check_docs_release.py"

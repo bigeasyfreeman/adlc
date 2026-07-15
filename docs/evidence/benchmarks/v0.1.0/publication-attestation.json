@@ -1,0 +1,52 @@
+{
+  "approval": {
+    "decision": "approved_for_candidate_evidence",
+    "external_publication_invoked": false,
+    "human_approval_ref": "human:approved-complete-migration-process",
+    "scope": "benchmark_evidence_only"
+  },
+  "contract_version": "1.0.0",
+  "evidence_manifest": {
+    "files": 54,
+    "path": "docs/evidence/benchmarks/v0.1.0/evidence-manifest.json",
+    "sha256": "e90dc0ce422262a9163007ce64d495737d1a8610aaaaa527c194e24e70e2e843",
+    "status": "pass"
+  },
+  "independent_replay": {
+    "attempts": 3,
+    "path": "docs/evidence/benchmarks/v0.1.0/independent-replay/benchmark-report.json",
+    "sha256": "a3b7b2f0026b09ff50bb2ac6245b282ecf75c9c5b17c9d57d19ca4f0e69ec3bc",
+    "status": "pass"
+  },
+  "limitations": [
+    "This attestation is limited to the reviewed local publication bundle at the attested paths and hashes; it does not independently rerun the live provider benchmark outside the bundled evidence, fixture, configuration, and review time."
+  ],
+  "no_overclaim": "This approval attests only that the reviewed benchmark evidence bundle is internally consistent, schema-valid, hash-bound, redaction-scanned, and approved for candidate benchmark evidence publication at these exact paths and hashes.",
+  "primary_report": {
+    "attempts": 3,
+    "path": "docs/evidence/benchmarks/v0.1.0/benchmark-report.json",
+    "sha256": "990fe1b2ee293689585c2ce734f17618bcdb3a3605bc8f6bf4d56c11dc57db9e",
+    "status": "pass"
+  },
+  "reconciliation": {
+    "all_attempts_preserved": true,
+    "both_schema_valid": true,
+    "same_configuration": true,
+    "same_fixture": true,
+    "same_terminal_class": true
+  },
+  "redaction_review": {
+    "absolute_path_matches": 0,
+    "files_reviewed": 57,
+    "scanner": "independent regex scan for credential-like strings and private absolute paths across 57 bundle files",
+    "secret_matches": 0,
+    "status": "pass"
+  },
+  "reviewed_at": "2026-07-15T08:18:13Z",
+  "reviewer": {
+    "basis": "separate_codex_session",
+    "identity": "independent-codex-publication-auditor",
+    "session_id": "019f64d7-4053-75b0-9081-d69c8fc5fc1d"
+  },
+  "status": "approved"
+}

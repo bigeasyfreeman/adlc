@@ -1,0 +1,188 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/benchmark-report.schema.json",
+  "title": "ADLC Public Benchmark Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "report_id",
+    "generated_at",
+    "product_version",
+    "source_commit",
+    "fixture",
+    "configuration",
+    "plan",
+    "status",
+    "attempts",
+    "summary",
+    "replay",
+    "redaction",
+    "claims",
+    "limitations",
+    "no_overclaim"
+  ],
+  "properties": {
+    "contract_version": {"const": "1.0.0"},
+    "report_id": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "product_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "source_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "starting_commit", "prompt_sha256", "path"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "starting_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "prompt_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "path": {"type": "string", "pattern": "^examples/"}
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "provider_version", "model", "harness", "python", "platform"],
+      "properties": {
+        "provider": {"const": "codex"},
+        "provider_version": {"type": "string", "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "harness": {"const": "codex-cli-resumable-fix"},
+        "python": {"type": "string", "minLength": 1},
+        "platform": {"type": "string", "minLength": 1}
+      }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runs", "timeout_seconds_per_run", "token_limit_per_run", "maximum_provider_calls", "projected_provider_cost", "external_calls"],
+      "properties": {
+        "runs": {"type": "integer", "minimum": 3, "maximum": 10},
+        "timeout_seconds_per_run": {"type": "integer", "minimum": 1, "maximum": 600},
+        "token_limit_per_run": {"type": "integer", "minimum": 1},
+        "maximum_provider_calls": {"type": "integer", "minimum": 6, "maximum": 30},
+        "projected_provider_cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["currency", "min", "max"],
+          "properties": {
+            "currency": {"const": "USD"},
+            "min": {"const": 0},
+            "max": {"const": 0}
+          }
+        },
+        "external_calls": {"const": true}
+      }
+    },
+    "status": {"type": "string", "enum": ["pass", "fail", "blocked"]},
+    "attempts": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["attempt", "status", "terminal_class", "duration_ms", "cost", "metrics", "score", "evidence_refs", "redaction_status", "invariant_sha256"],
+        "properties": {
+          "attempt": {"type": "integer", "minimum": 1},
+          "status": {"type": "string", "enum": ["pass", "fail", "blocked", "timeout"]},
+          "terminal_class": {"type": "string", "enum": ["completed", "failed", "blocked", "timeout"]},
+          "duration_ms": {"type": "integer", "minimum": 0},
+          "cost": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["currency", "tokens", "min", "max"],
+            "properties": {
+              "currency": {"const": "USD"},
+              "tokens": {"type": "integer", "minimum": 0},
+              "min": {"const": 0},
+              "max": {"const": 0}
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["task_completion", "verifier_validity", "resume_integrity", "claim_accuracy", "scope_control", "human_decisions"],
+            "properties": {
+              "task_completion": {"type": "boolean"},
+              "verifier_validity": {"type": "boolean"},
+              "resume_integrity": {"type": "boolean"},
+              "claim_accuracy": {"type": "boolean"},
+              "scope_control": {"type": "boolean"},
+              "human_decisions": {"type": "integer", "minimum": 0}
+            }
+          },
+          "score": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["passed", "calculated_metrics", "human_rubric_fields"],
+            "properties": {
+              "passed": {"type": "boolean"},
+              "calculated_metrics": {"type": "array", "items": {"type": "string"}},
+              "human_rubric_fields": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "evidence_refs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "redaction_status": {"const": "reviewed"},
+          "invariant_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "failure": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempted", "passed", "failed", "blocked", "timed_out", "completion_rate", "duration_ms", "human_decisions", "tokens", "provider_cost"],
+      "properties": {
+        "attempted": {"type": "integer", "minimum": 3},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "blocked": {"type": "integer", "minimum": 0},
+        "timed_out": {"type": "integer", "minimum": 0},
+        "completion_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "duration_ms": {"$ref": "#/definitions/spread"},
+        "human_decisions": {"$ref": "#/definitions/spread"},
+        "tokens": {"$ref": "#/definitions/spread"},
+        "provider_cost": {"$ref": "#/definitions/spread"}
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "verified", "matching_terminal_class", "matching_invariants"],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "verified": {"type": "boolean"},
+        "matching_terminal_class": {"type": "boolean"},
+        "matching_invariants": {"type": "boolean"}
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "scanner", "secret_matches", "absolute_paths_replaced"],
+      "properties": {
+        "status": {"const": "scanned"},
+        "scanner": {"type": "string", "minLength": 1},
+        "secret_matches": {"const": 0},
+        "absolute_paths_replaced": {"type": "boolean"}
+      }
+    },
+    "claims": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "no_overclaim": {"type": "string", "minLength": 1}
+  },
+  "definitions": {
+    "spread": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["median", "min", "max", "spread"],
+      "properties": {
+        "median": {"type": "number", "minimum": 0},
+        "min": {"type": "number", "minimum": 0},
+        "max": {"type": "number", "minimum": 0},
+        "spread": {"type": "number", "minimum": 0}
+      }
+    }
+  }
+}

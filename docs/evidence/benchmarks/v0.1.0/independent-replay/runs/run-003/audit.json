@@ -1,0 +1,44 @@
+{
+  "auditor": "live-codex-fix-auditor",
+  "contract_version": "1.0.0",
+  "executor": "live-codex-fix-executor",
+  "feedback_findings": [],
+  "findings": [],
+  "independence": {
+    "auditor_session_id": "019f64a8-085a-7843-be28-5ad8c915e214",
+    "basis": "separate_session",
+    "evidence_path": "<TEMP>/independence.json",
+    "evidence_refs": [
+      "runs/run-003/interrupted.json",
+      "runs/run-003/review.json"
+    ],
+    "evidence_sha256": "139305e099740b940bc8bf891bc7c729964329dca0b3bef6fdb31197e7951a01",
+    "executor_session_id": "019f64a5-fc44-70d2-ad9d-704232ee35e5"
+  },
+  "status": "pass",
+  "taken_on_trust": [],
+  "verified": [
+    {
+      "claim": "The invoice verifier passes after the live Codex fix.",
+      "id": "FIX-GREEN",
+      "observed": {
+        "actual_exit": 0,
+        "command": "python3 -m unittest discover -s tests -v",
+        "expected_exit": 0,
+        "stderr": "test_allocations_reconcile_rounding_remainder (test_invoice.AllocateDiscountTests) ... ok\ntest_empty_invoice_rejects_nonzero_discount (test_invoice.AllocateDiscountTests) ... ok\ntest_preserves_proportional_allocation_without_remainder (test_invoice.AllocateDiscountTests) ... ok\ntest_reconciles_uneven_lines_with_stable_largest_remainder (test_invoice.AllocateDiscountTests) ... ok\ntest_rejects_negative_money (test_invoice.AllocateDiscountTests) ... ok\ntest_zero_total_returns_cent_precision_zeroes (test_invoice.AllocateDiscountTests) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n",
+        "stdout": ""
+      }
+    },
+    {
+      "claim": "The target worktree is clean and PR-ready.",
+      "id": "FIX-PR-READY",
+      "observed": {
+        "actual_exit": 0,
+        "command": "test -z \"$(git status --porcelain --untracked-files=all)\"",
+        "expected_exit": 0,
+        "stderr": "",
+        "stdout": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+diff --git a/src/invoice.py b/src/invoice.py
+index ac83153..ef93e19 100644
+--- a/src/invoice.py
++++ b/src/invoice.py
+@@ -3 +3 @@ from __future__ import annotations
+-from decimal import Decimal, ROUND_HALF_UP
++from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
+@@ -11,2 +10,0 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
+-    if not line_totals:
+-        return []
+@@ -14,0 +13,5 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
++    if not line_totals:
++        if discount == 0:
++            return []
++        raise ValueError("empty invoice requires zero discount")
++
+@@ -16,0 +20,2 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
++        if discount != 0:
++            raise ValueError("zero-total invoice requires zero discount")
+@@ -18 +23,22 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
+-    return [(discount * line / total).quantize(CENT, rounding=ROUND_HALF_UP) for line in line_totals]
++
++    discount_cents = (discount / CENT).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
++    shares: list[tuple[int, Decimal]] = []
++    allocated_cents = 0
++
++    for line in line_totals:
++        raw_cents = discount_cents * line / total
++        base_cents = int(raw_cents.to_integral_value(rounding=ROUND_DOWN))
++        shares.append((base_cents, raw_cents - Decimal(base_cents)))
++        allocated_cents += base_cents
++
++    remainder_cents = int(discount_cents) - allocated_cents
++    allocations = [Decimal(base_cents) * CENT for base_cents, _ in shares]
++
++    for index, _ in sorted(
++        enumerate(shares),
++        key=lambda item: item[1][1],
++        reverse=True,
++    )[:remainder_cents]:
++        allocations[index] += CENT
++
++    return allocations

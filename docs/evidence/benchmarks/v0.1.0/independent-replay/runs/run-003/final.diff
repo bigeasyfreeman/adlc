@@ -1,0 +1,35 @@
+diff --git a/src/invoice.py b/src/invoice.py
+index ac83153..c7a7256 100644
+--- a/src/invoice.py
++++ b/src/invoice.py
+@@ -3 +3 @@ from __future__ import annotations
+-from decimal import Decimal, ROUND_HALF_UP
++from decimal import Decimal, ROUND_DOWN
+@@ -11,2 +10,0 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
+-    if not line_totals:
+-        return []
+@@ -14,0 +13,5 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
++    if not line_totals:
++        if discount == 0:
++            return []
++        raise ValueError("empty invoice requires zero discount")
++
+@@ -16,0 +20,2 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
++        if discount != 0:
++            raise ValueError("zero-total invoice requires zero discount")
+@@ -18 +23,14 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
+-    return [(discount * line / total).quantize(CENT, rounding=ROUND_HALF_UP) for line in line_totals]
++
++    raw_allocations = [discount * line / total for line in line_totals]
++    allocations = [raw.quantize(CENT, rounding=ROUND_DOWN) for raw in raw_allocations]
++    remainder_cents = int(((discount - sum(allocations, Decimal("0"))) / CENT).to_integral_value())
++
++    ranked_remainders = sorted(
++        enumerate(raw_allocations),
++        key=lambda item: (item[1] - allocations[item[0]], -item[0]),
++        reverse=True,
++    )
++    for index, _ in ranked_remainders[:remainder_cents]:
++        allocations[index] += CENT
++
++    return allocations
