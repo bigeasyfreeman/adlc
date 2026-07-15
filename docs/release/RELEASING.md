@@ -7,12 +7,37 @@
 3. Run `python3 scripts/release.py prepare --tag fixture-v0.9.0 --repository test --verify-reproducible --rehearse-rollback --json` for the non-publishing rehearsal.
 4. Review `release-out/<tag>/release-approval-packet.json`, both artifact digests, every gate record, the evidence-derived support rows, unsigned local provenance, and `rollback-manifest.json`.
 5. Independently validate the packet with `bin/adlc validate-artifact --schema release-approval-packet --input <packet> --json`.
+6. After the release-contract repair and its hosted checks are merged, create the
+   immutable `vX.Y.Z` candidate tag. A tag push runs the read-only docs build; it
+   does not dispatch the protected release workflow.
+7. From a clean checkout of that exact tag, set specific, distinct executor and
+   auditor identity/session values in `ADLC_EXECUTOR_ID`,
+   `ADLC_EXECUTOR_SESSION_ID`, `ADLC_AUDITOR_ID`, and
+   `ADLC_AUDITOR_SESSION_ID`, then run `python3 scripts/release.py
+   validate-go-live --tag "$ADLC_RELEASE_TAG" --clean-checkout
+   --independent-auditor --json`. The command rebuilds the ignored candidate,
+   installs its exact wheel in clean Python 3.9 and 3.13 environments, exercises
+   Codex and Claude installation fixtures, runs three credentialed Codex Fix
+   conformance attempts, replays release-critical evidence, and leaves the
+   tagged checkout clean. It emits promotable copies of
+   `docs/evidence/releases/go-live-validation.json` and
+   `docs/evidence/releases/completion-audit.json` below
+   `release-out/<tag>/evidence-export/`; promote only the independently reviewed
+   pair into the repository.
 
 Preparation is idempotent for the same source commit: it recreates the ignored output directory, fixes build timestamps to the commit epoch, and fails if the two artifact sets differ.
 
 ## Approve and publish
 
-Create an immutable `vX.Y.Z` tag only after MIG-VAL returns a passing or explicitly scoped-beta recommendation. Dispatch `.github/workflows/release.yml` with `confirm_publication=false` first. The release owner reviews the resulting packet and records its exact SHA-256 in a schema-valid `release_publication` approval record. A second dispatch supplies that record through `approval_record_json` and enables confirmation. Every publishing job calls `scripts/release.py publish` to validate the record's packet path and digest before it can reach the protected `pypi`, `github-release`, or `github-pages` environment action.
+After MIG-VAL returns a passing or explicitly scoped-beta recommendation for the
+existing immutable tag, dispatch `.github/workflows/release.yml` with
+`confirm_publication=false` first. The release owner reviews the resulting
+packet and records its exact SHA-256 in a schema-valid `release_publication`
+approval record. A second dispatch supplies that record through
+`approval_record_json` and enables confirmation. Every publishing job calls
+`scripts/release.py publish` to validate the record's packet path and digest
+before it can reach the protected `pypi`, `github-release`, or `github-pages`
+environment action.
 
 The PyPI job uses OIDC trusted publishing and GitHub artifact attestation. The GitHub Release job uploads only the prepared bytes. The Pages job delegates to the existing tagged documentation workflow. Launch communications are outside this workflow and remain separately approval-bound.
 

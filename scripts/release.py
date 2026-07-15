@@ -26,6 +26,8 @@ import jsonschema
 ROOT = Path(__file__).resolve().parents[1]
 PACKET_SCHEMA = ROOT / "docs/schemas/release-approval-packet.schema.json"
 APPROVAL_SCHEMA = ROOT / "docs/schemas/approval-record.schema.json"
+GO_LIVE_SCHEMA = ROOT / "docs/schemas/go-live-validation.schema.json"
+COMPLETION_AUDIT_SCHEMA = ROOT / "docs/schemas/completion-audit-report.schema.json"
 SUPPORT_MATRIX = ROOT / "docs/evidence/provider-conformance/support-matrix.json"
 RELEASE_ROOT = ROOT / "release-out"
 TAG_PATTERN = re.compile(r"^(fixture-)?v(\d+\.\d+\.\d+)$")
@@ -59,7 +61,8 @@ def write_json(path: Path, value: Any) -> None:
 
 def redact(text: str) -> str:
     text = text.replace(str(ROOT), "<REPOSITORY>")
-    return PRIVATE_PATH.sub("<PRIVATE_PATH>", text)
+    text = PRIVATE_PATH.sub("<PRIVATE_PATH>", text)
+    return SECRET_LIKE.sub("<REDACTED_SECRET>", text)
 
 
 def git(*args: str) -> str:
@@ -69,6 +72,19 @@ def git(*args: str) -> str:
     if result.returncode:
         raise ReleaseBlocked(f"git {' '.join(args)} failed: {result.stderr.strip()}")
     return result.stdout.strip()
+
+
+def detached_head() -> bool:
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--quiet", "HEAD"],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode not in {0, 1}:
+        raise ReleaseBlocked(f"git symbolic-ref failed: {result.stderr.strip()}")
+    return result.returncode == 1
 
 
 def project_version() -> str:
@@ -648,6 +664,299 @@ def publish_release(args: argparse.Namespace) -> Dict[str, Any]:
     }
 
 
+def required_auditor_identity() -> Dict[str, Any]:
+    values = {
+        "executor_id": os.environ.get("ADLC_EXECUTOR_ID", "").strip(),
+        "executor_session_id": os.environ.get("ADLC_EXECUTOR_SESSION_ID", "").strip(),
+        "auditor_id": os.environ.get("ADLC_AUDITOR_ID", "").strip(),
+        "auditor_session_id": os.environ.get("ADLC_AUDITOR_SESSION_ID", "").strip(),
+    }
+    if not all(values.values()):
+        raise ReleaseBlocked(
+            "independent validation requires ADLC_EXECUTOR_ID, ADLC_EXECUTOR_SESSION_ID, "
+            "ADLC_AUDITOR_ID, and ADLC_AUDITOR_SESSION_ID"
+        )
+    if values["executor_id"] == values["auditor_id"]:
+        raise ReleaseBlocked("go-live auditor identity must differ from the release executor")
+    if values["executor_session_id"] == values["auditor_session_id"]:
+        raise ReleaseBlocked("go-live auditor session must differ from the release executor session")
+    if values["auditor_id"].lower() in {"independent", "auditor", "independent-auditor"}:
+        raise ReleaseBlocked("go-live auditor must use a specific identity")
+    digest = hashlib.sha256(json.dumps(values, sort_keys=True).encode("utf-8")).hexdigest()
+    return {**values, "basis": "separate_session", "identity_evidence_sha256": digest}
+
+
+def python_interpreters() -> List[Tuple[str, str]]:
+    candidates = {"3.9": shutil.which("python3.9"), "3.13": shutil.which("python3.13")}
+    current = f"{sys.version_info.major}.{sys.version_info.minor}"
+    if current in candidates and not candidates[current]:
+        candidates[current] = sys.executable
+    missing = [version for version, executable in candidates.items() if not executable]
+    if missing:
+        raise ReleaseBlocked(f"clean install interpreters are missing: {missing}")
+    return [(version, str(candidates[version])) for version in ("3.9", "3.13")]
+
+
+def clean_install_matrix(wheel: Path, package_version: str, evidence_dir: Path) -> List[Dict[str, Any]]:
+    results = []
+    with tempfile.TemporaryDirectory(prefix="adlc-go-live-install-") as temporary_name:
+        temporary = Path(temporary_name)
+        for python_version, interpreter in python_interpreters():
+            environment = temporary / f"python-{python_version}"
+            run_logged(
+                f"go-live-python-{python_version}-venv",
+                [interpreter, "-m", "venv", str(environment)],
+                evidence_dir,
+            )
+            python = environment / "bin/python"
+            run_logged(
+                f"go-live-python-{python_version}-install",
+                [str(python), "-m", "pip", "install", "--disable-pip-version-check", str(wheel)],
+                evidence_dir,
+            )
+            run_logged(
+                f"go-live-python-{python_version}-metadata",
+                [
+                    str(python),
+                    "-c",
+                    f"import importlib.metadata as m; assert m.version('adlc') == {package_version!r}",
+                ],
+                evidence_dir,
+            )
+            executable = environment / "bin/adlc-skill"
+            providers = []
+            for provider in ("codex", "claude"):
+                target = temporary / f"python-{python_version}-{provider}"
+                run_logged(
+                    f"go-live-python-{python_version}-{provider}-install",
+                    [str(executable), "install", "--provider", provider, "--target", str(target)],
+                    evidence_dir,
+                )
+                run_logged(
+                    f"go-live-python-{python_version}-{provider}-doctor",
+                    [str(executable), "doctor", "--provider", provider, "--target", str(target)],
+                    evidence_dir,
+                )
+                providers.append(provider)
+            results.append({"python": python_version, "status": "pass", "providers": providers})
+    return results
+
+
+def live_support_scope(output: Path, commit: str) -> Dict[str, Any]:
+    paths = sorted(output.glob("*.report.json"))
+    if len(paths) != 3:
+        raise ReleaseBlocked("live Codex validation did not emit exactly three reports")
+    reports = [read_json(path) for path in paths]
+    common_fields = ("provider", "provider_version", "harness", "model", "loop", "fixture_sha256")
+    required_dimensions = {"installation": "pass", "invocation": "pass", "behavior": "pass", "end_to_end": "pass"}
+    for field in common_fields:
+        if len({str(report.get(field)) for report in reports}) != 1:
+            raise ReleaseBlocked(f"live Codex validation reports disagree on {field}")
+    if any(
+        report.get("status") != "pass"
+        or report.get("source_commit") != commit
+        or report.get("source_tree_clean") is not True
+        or report.get("dimensions") != required_dimensions
+        for report in reports
+    ):
+        raise ReleaseBlocked("live Codex validation reports are failed, dirty, or not bound to the audited commit")
+    return {
+        "provider": reports[0]["provider"],
+        "provider_version": reports[0]["provider_version"],
+        "harness": reports[0]["harness"],
+        "model": reports[0]["model"],
+        "loop": reports[0]["loop"],
+        "label": "beta",
+        "source_commit": commit,
+        "fixture_sha256": reports[0]["fixture_sha256"],
+        "dimensions": reports[0]["dimensions"],
+        "run_count": 3,
+        "failed_runs": 0,
+        "validation_kind": "tag_live_rerun",
+        "evidence_refs": [
+            f"docs/evidence/releases/go-live-validation.json#/support_scope/0/validation_runs/{index}"
+            for index in range(3)
+        ],
+        "validation_runs": reports,
+    }
+
+
+def write_go_live_artifacts(payload: Dict[str, Any], output: Path) -> Dict[str, str]:
+    export = output / "evidence-export/docs/evidence/releases"
+    go_live_path = export / "go-live-validation.json"
+    completion_path = export / "completion-audit.json"
+    jsonschema.validate(payload, read_json(GO_LIVE_SCHEMA))
+    assert_publication_safe(payload, "go-live validation report")
+    write_json(go_live_path, payload)
+    identity = payload["auditor"]
+    completion = {
+        "contract_version": "1.0.0",
+        "status": "pass" if payload["recommendation"] in {"go", "scoped_beta"} else "blocked",
+        "executor": identity["executor_id"],
+        "auditor": identity["auditor_id"],
+        "independence": {
+            "basis": "separate_session",
+            "executor_session_id": identity["executor_session_id"],
+            "auditor_session_id": identity["auditor_session_id"],
+            "evidence_path": "docs/evidence/releases/go-live-validation.json",
+            "evidence_sha256": sha256_path(go_live_path),
+            "evidence_refs": [f"audit-session:{identity['auditor_session_id']}"],
+        },
+        "verified": payload["verified_claims"],
+        "taken_on_trust": payload["unverified_claims"],
+        "findings": payload["contradicted_claims"],
+        "feedback_findings": [],
+    }
+    jsonschema.validate(completion, read_json(COMPLETION_AUDIT_SCHEMA))
+    assert_publication_safe(completion, "go-live completion audit")
+    write_json(completion_path, completion)
+    return {
+        "go_live_validation": go_live_path.relative_to(output / "evidence-export").as_posix(),
+        "completion_audit": completion_path.relative_to(output / "evidence-export").as_posix(),
+    }
+
+
+def validate_go_live(args: argparse.Namespace) -> Dict[str, Any]:
+    if not args.clean_checkout or not args.independent_auditor:
+        raise ReleaseBlocked("go-live validation requires --clean-checkout and --independent-auditor")
+    version, fixture = release_identity(args.tag)
+    if fixture:
+        raise ReleaseBlocked("go-live validation requires an immutable non-fixture release tag")
+    if not detached_head():
+        raise ReleaseBlocked("go-live validation requires a detached immutable tag checkout")
+    if git("status", "--porcelain", "--untracked-files=all"):
+        raise ReleaseBlocked("go-live validation requires a clean checkout")
+    commit = git("rev-parse", "HEAD")
+    if git("rev-parse", f"refs/tags/{args.tag}^{{commit}}") != commit:
+        raise ReleaseBlocked("go-live tag does not resolve to the checked-out commit")
+    identity = required_auditor_identity()
+    output = RELEASE_ROOT / args.tag
+    verified_claims: List[Dict[str, Any]] = []
+    artifact_digests: List[Dict[str, Any]] = []
+    install_matrix: List[Dict[str, Any]] = []
+    support_scope: List[Dict[str, Any]] = []
+    rollback: Dict[str, Any] = {"status": "not_run", "reinstall_verified": False}
+    actions = external_actions()
+    contradiction: Optional[str] = None
+
+    if output.exists():
+        shutil.rmtree(output)
+    try:
+        prepared = prepare_release(argparse.Namespace(tag=args.tag, repository="test"))
+        packet_path = ROOT / prepared["packet"]
+        packet = read_json(packet_path)
+        evidence_dir = packet_path.parent / "evidence"
+        wheel = next((packet_path.parent / "artifacts").glob("*.whl"))
+        artifact_digests = [
+            {"name": item["name"], "sha256": item["sha256"], "size": item["size"]}
+            for item in packet["artifacts"]
+        ]
+        verified_claims.append({"claim": "release_candidate_reproducible", "evidence": prepared["packet"]})
+        install_matrix = clean_install_matrix(wheel, version, evidence_dir)
+        verified_claims.append(
+            {"claim": "python_3_9_and_3_13_clean_install", "evidence": "release clean-install matrix"}
+        )
+        live_output = packet_path.parent / "live-provider"
+        live_gate = run_logged(
+            "go-live-codex-fix-live",
+            [
+                sys.executable,
+                "tests/provider_conformance/run_live.py",
+                "--execute",
+                "--model",
+                "gpt-5.4",
+                "--repetitions",
+                "3",
+                "--output-dir",
+                str(live_output),
+                "--json",
+            ],
+            evidence_dir,
+        )
+        verified_claims.append({"claim": "codex_fix_live_rerun", "evidence": live_gate["evidence_ref"]})
+        support_scope = [live_support_scope(live_output, commit)]
+        launch_gate = run_logged(
+            "go-live-launch-packet",
+            [sys.executable, "tests/check_launch_packet.py", "docs/launch/launch-packet.json"],
+            evidence_dir,
+        )
+        verified_claims.append(
+            {"claim": "launch_packet_approval_blocked", "evidence": launch_gate["evidence_ref"]}
+        )
+        benchmark_gate = run_logged(
+            "go-live-benchmark-replay",
+            [
+                sys.executable,
+                "benchmarks/run.py",
+                "--verify-published-bundle",
+                "docs/evidence/benchmarks/v0.1.0/publication-attestation.json",
+                "--json",
+            ],
+            evidence_dir,
+        )
+        verified_claims.append(
+            {"claim": "benchmark_bundle_six_runs", "evidence": benchmark_gate["evidence_ref"]}
+        )
+        actions = packet["external_actions"]
+        expected_actions = {"pypi_upload", "github_release", "pages_deploy", "launch_communication"}
+        if {action.get("action") for action in actions} != expected_actions or any(
+            action.get("status") != "pending_human_approval" for action in actions
+        ):
+            raise ReleaseBlocked("release packet external actions are not approval-blocked")
+        rollback = packet["rollback"]
+        verified_claims.append({"claim": "rollback_rehearsed", "evidence": rollback["manifest_ref"]})
+    except (ReleaseBlocked, jsonschema.ValidationError) as exc:
+        contradiction = redact(str(exc))
+
+    recommendation = "no_go" if contradiction else "scoped_beta"
+    payload = {
+        "contract_version": "1.0.0",
+        "status": "blocked" if contradiction else "pass",
+        "release_tag": args.tag,
+        "source_commit": commit,
+        "audited_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "auditor": identity,
+        "artifact_digests": artifact_digests,
+        "verified_claims": verified_claims,
+        "unverified_claims": [
+            {"claim": "claude_live_fix", "reason": "credentialed Claude invocation remains scoped out"},
+            {"claim": "build_or_review_live_provider_support", "reason": "no immutable live-provider support row exists"},
+        ],
+        "contradicted_claims": (
+            [{"claim": "go_live_gate", "reason": contradiction}] if contradiction else []
+        ),
+        "accepted_risks": [
+            {
+                "risk": "local provenance is unsigned",
+                "owner": "human-release-owner",
+                "deadline": "before publication",
+                "support_boundary_effect": "protected workflow must attach GitHub attestation",
+                "rollback_safety": "no external action has occurred",
+            }
+        ],
+        "support_scope": support_scope,
+        "clean_install_matrix": install_matrix,
+        "rollback_result": rollback,
+        "external_actions": actions,
+        "recommendation": recommendation,
+        "report_artifacts": {
+            "go_live_validation": "docs/evidence/releases/go-live-validation.json",
+            "completion_audit": "docs/evidence/releases/completion-audit.json",
+        },
+        "doc_honesty_section": "This report validates one immutable candidate locally and does not perform publication.",
+        "no_overclaim": "The recommendation applies only to the recorded support scope and is not GA, adoption, or future-provider proof.",
+        "limitations": [
+            "Live provider support remains limited to the exact Codex Fix configuration and rerun named in this report.",
+            "Protected publication provenance and external availability do not exist until separately approved workflows complete.",
+        ],
+    }
+    write_go_live_artifacts(payload, output)
+    scan_release_output(output, output / "evidence")
+    if git("status", "--porcelain", "--untracked-files=all"):
+        raise ReleaseBlocked("go-live validation dirtied the tagged checkout")
+    return payload
+
+
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(description=__doc__)
     subparsers = value.add_subparsers(dest="command", required=True)
@@ -663,15 +972,25 @@ def parser() -> argparse.ArgumentParser:
     publish.add_argument("--target", choices=("pypi_upload", "github_release", "pages_deploy", "launch_communication"), required=True)
     publish.add_argument("--confirm-external-publication", action="store_true")
     publish.add_argument("--json", action="store_true")
+    validate = subparsers.add_parser("validate-go-live", help="Independently validate an immutable release candidate.")
+    validate.add_argument("--tag", required=True)
+    validate.add_argument("--clean-checkout", action="store_true", required=True)
+    validate.add_argument("--independent-auditor", action="store_true", required=True)
+    validate.add_argument("--json", action="store_true")
     return value
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser().parse_args(argv)
     try:
-        payload = prepare_release(args) if args.command == "prepare" else publish_release(args)
+        if args.command == "prepare":
+            payload = prepare_release(args)
+        elif args.command == "publish":
+            payload = publish_release(args)
+        else:
+            payload = validate_go_live(args)
         print(json.dumps(payload, indent=2, sort_keys=True) if args.json else payload["status"])
-        return 0
+        return 1 if args.command == "validate-go-live" and payload.get("recommendation") == "no_go" else 0
     except (ReleaseBlocked, jsonschema.ValidationError) as exc:
         payload = {"status": "blocked", "error": str(exc)}
         print(json.dumps(payload, indent=2, sort_keys=True) if args.json else str(exc), file=sys.stdout if args.json else sys.stderr)

@@ -23,4 +23,5 @@ versioning once a release is tagged.
   local-only metrics contract, feedback intake, and evidence-driven operations
   loop while keeping telemetry disabled and publication approval-bound.
 
-No release has been tagged yet.
+No package, GitHub Release, Pages deployment, or launch communication has been
+published yet.
