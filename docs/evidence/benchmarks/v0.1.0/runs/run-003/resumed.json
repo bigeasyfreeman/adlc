@@ -1,0 +1,140 @@
+{
+  "next_action": {
+    "budget_status": null,
+    "control_events": [],
+    "escalation_context": null,
+    "loop_progress": null,
+    "no_progress_count": 0,
+    "node": {
+      "agent": null,
+      "id": "scaffold",
+      "label": "Scaffold / Architecture Contracts",
+      "type": "tool"
+    },
+    "phase": "scaffold",
+    "phase_artifacts": [],
+    "queue_claims": [],
+    "run_identity": {
+      "attempt": 2,
+      "brief_id": "PUBLIC-FIX-BENCHMARK-RESUME",
+      "resume_count": 1,
+      "run_id": "adlc-run-9af692521422",
+      "session_id": "adlc-e4baebde1a92"
+    },
+    "runnable": true,
+    "safe_checkpoint": null,
+    "status": "planned",
+    "stop_reason": null,
+    "task_resume_status": {
+      "counts": {},
+      "incomplete": [],
+      "total": 0
+    },
+    "work_item_links": [],
+    "worktree_refs": []
+  },
+  "run_identity": {
+    "attempt": 2,
+    "brief_id": "PUBLIC-FIX-BENCHMARK-RESUME",
+    "resume_count": 1,
+    "run_id": "adlc-run-9af692521422",
+    "session_id": "adlc-e4baebde1a92"
+  },
+  "state": {
+    "approval_records": [
+      {
+        "approval_id": "approval-f8702fb84e0d",
+        "artifact_ref": ".adlc/approvals/approval-f8702fb84e0d.json",
+        "brief_id": "PUBLIC-FIX-BENCHMARK-RESUME",
+        "contract_version": "1.0.0",
+        "decided_by": "human",
+        "decision": "approved",
+        "gate_id": "intent_validation",
+        "reason": "Resume the bounded public invoice Fix proof.",
+        "run_id": "adlc-run-9af692521422",
+        "session_id": "adlc-e4baebde1a92",
+        "timestamp": "2026-07-15T06:33:09Z"
+      }
+    ],
+    "attempt": 2,
+    "brief_id": "PUBLIC-FIX-BENCHMARK-RESUME",
+    "checkpoint": {
+      "history": [
+        {
+          "dry_run": true,
+          "phase": "intent_validation",
+          "status": "awaiting_approval",
+          "timestamp": "2026-07-15T06:33:09Z"
+        },
+        {
+          "dry_run": false,
+          "invocation": {
+            "approval_record": ".adlc/approvals/approval-f8702fb84e0d.json",
+            "node_type": "human_gate",
+            "phase": "intent_validation"
+          },
+          "label": "approved",
+          "next_phase": "scaffold",
+          "phase": "intent_validation",
+          "returncode": 0,
+          "status": "completed",
+          "timestamp": "2026-07-15T06:33:09Z"
+        }
+      ],
+      "next_action": {
+        "budget_status": null,
+        "control_events": [],
+        "escalation_context": null,
+        "loop_progress": null,
+        "no_progress_count": 0,
+        "node": {
+          "agent": null,
+          "id": "scaffold",
+          "label": "Scaffold / Architecture Contracts",
+          "type": "tool"
+        },
+        "phase": "scaffold",
+        "phase_artifacts": [],
+        "queue_claims": [],
+        "run_identity": {
+          "attempt": 2,
+          "brief_id": "PUBLIC-FIX-BENCHMARK-RESUME",
+          "resume_count": 1,
+          "run_id": "adlc-run-9af692521422",
+          "session_id": "adlc-e4baebde1a92"
+        },
+        "runnable": true,
+        "safe_checkpoint": null,
+        "status": "planned",
+        "stop_reason": null,
+        "task_resume_status": {
+          "counts": {},
+          "incomplete": [],
+          "total": 0
+        },
+        "work_item_links": [],
+        "worktree_refs": []
+      },
+      "workspace": "<WORKSPACE>"
+    },
+    "last_resumed_at": "2026-07-15T06:33:09Z",
+    "phase": "scaffold",
+    "resume_count": 1,
+    "run_id": "adlc-run-9af692521422",
+    "session_id": "adlc-e4baebde1a92",
+    "side_effects": [
+      {
+        "idempotency_key": "public-fix:invoice-repair-completed-once",
+        "operation": "repair_invoice_allocation",
+        "status": "completed",
+        "timestamp": "2020-01-01T00:00:00Z",
+        "tool_name": "fixture-repair"
+      }
+    ],
+    "started_at": "2026-07-15T06:33:09Z",
+    "status": "planned",
+    "step": "ready",
+    "updated_at": "2026-07-15T06:33:09Z"
+  },
+  "state_path": "<WORKSPACE>/.adlc/resume_state.json"
+}

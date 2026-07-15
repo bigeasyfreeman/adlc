@@ -1,0 +1,227 @@
+{
+  "attempts": [
+    {
+      "attempt": 1,
+      "cost": {
+        "currency": "USD",
+        "max": 0,
+        "min": 0,
+        "tokens": 0
+      },
+      "duration_ms": 1151,
+      "evidence_refs": [
+        "runs/run-001/install.json",
+        "runs/run-001/facade.json",
+        "runs/run-001/red.json",
+        "runs/run-001/interrupted.json",
+        "runs/run-001/resumed.json",
+        "runs/run-001/final.diff",
+        "runs/run-001/review.json",
+        "runs/run-001/green.json",
+        "runs/run-001/audit.json",
+        "runs/run-001/run-report.json"
+      ],
+      "failure": null,
+      "invariant_sha256": "9192f1aa6af894352b1f5afba41de1773f333fd98576386264987d0071d4bf40",
+      "metrics": {
+        "claim_accuracy": true,
+        "human_decisions": 1,
+        "resume_integrity": true,
+        "scope_control": true,
+        "task_completion": true,
+        "verifier_validity": true
+      },
+      "redaction_status": "reviewed",
+      "score": {
+        "calculated_metrics": [
+          "task_completion",
+          "verifier_validity",
+          "resume_integrity",
+          "claim_accuracy",
+          "scope_control"
+        ],
+        "human_rubric_fields": [
+          "human_decisions"
+        ],
+        "passed": true
+      },
+      "status": "pass",
+      "terminal_class": "completed"
+    },
+    {
+      "attempt": 2,
+      "cost": {
+        "currency": "USD",
+        "max": 0,
+        "min": 0,
+        "tokens": 0
+      },
+      "duration_ms": 1094,
+      "evidence_refs": [
+        "runs/run-002/install.json",
+        "runs/run-002/facade.json",
+        "runs/run-002/red.json",
+        "runs/run-002/interrupted.json",
+        "runs/run-002/resumed.json",
+        "runs/run-002/final.diff",
+        "runs/run-002/review.json",
+        "runs/run-002/green.json",
+        "runs/run-002/audit.json",
+        "runs/run-002/run-report.json"
+      ],
+      "failure": null,
+      "invariant_sha256": "9192f1aa6af894352b1f5afba41de1773f333fd98576386264987d0071d4bf40",
+      "metrics": {
+        "claim_accuracy": true,
+        "human_decisions": 1,
+        "resume_integrity": true,
+        "scope_control": true,
+        "task_completion": true,
+        "verifier_validity": true
+      },
+      "redaction_status": "reviewed",
+      "score": {
+        "calculated_metrics": [
+          "task_completion",
+          "verifier_validity",
+          "resume_integrity",
+          "claim_accuracy",
+          "scope_control"
+        ],
+        "human_rubric_fields": [
+          "human_decisions"
+        ],
+        "passed": true
+      },
+      "status": "pass",
+      "terminal_class": "completed"
+    },
+    {
+      "attempt": 3,
+      "cost": {
+        "currency": "USD",
+        "max": 0,
+        "min": 0,
+        "tokens": 0
+      },
+      "duration_ms": 1109,
+      "evidence_refs": [
+        "runs/run-003/install.json",
+        "runs/run-003/facade.json",
+        "runs/run-003/red.json",
+        "runs/run-003/interrupted.json",
+        "runs/run-003/resumed.json",
+        "runs/run-003/final.diff",
+        "runs/run-003/review.json",
+        "runs/run-003/green.json",
+        "runs/run-003/audit.json",
+        "runs/run-003/run-report.json"
+      ],
+      "failure": null,
+      "invariant_sha256": "9192f1aa6af894352b1f5afba41de1773f333fd98576386264987d0071d4bf40",
+      "metrics": {
+        "claim_accuracy": true,
+        "human_decisions": 1,
+        "resume_integrity": true,
+        "scope_control": true,
+        "task_completion": true,
+        "verifier_validity": true
+      },
+      "redaction_status": "reviewed",
+      "score": {
+        "calculated_metrics": [
+          "task_completion",
+          "verifier_validity",
+          "resume_integrity",
+          "claim_accuracy",
+          "scope_control"
+        ],
+        "human_rubric_fields": [
+          "human_decisions"
+        ],
+        "passed": true
+      },
+      "status": "pass",
+      "terminal_class": "completed"
+    }
+  ],
+  "claims": [
+    "The named deterministic Fix control replay preserved all attempts and reached the same terminal class.",
+    "Red-before-green, resume idempotency, bounded scope, and completion-audit controls passed for the named fixture."
+  ],
+  "configuration": {
+    "harness": "public-fix-deterministic",
+    "model": "not-invoked",
+    "platform": "Darwin-arm64",
+    "provider": "codex",
+    "provider_version": "installed-bundle:0.1.0",
+    "python": "3.9.6"
+  },
+  "contract_version": "1.0.0",
+  "fixture": {
+    "id": "adlc-fix-demo-invoice-allocation",
+    "path": "examples/fix-demo",
+    "prompt_sha256": "a1854b0cab0c9f313971278c85a7ab7687aab1dfe6cdc10ddca0022257534b6a",
+    "starting_commit": "5c569ed83c98db9c552992e13595a125dc985fd8",
+    "version": "1.0.0"
+  },
+  "generated_at": "2026-07-15T06:33:09.582816Z",
+  "limitations": [
+    "Results apply only to the named fixture, source commit, product version, environment, harness, and execution date.",
+    "The Codex bundle was installed, but no provider or model was invoked; provider behavior remains unmeasured."
+  ],
+  "no_overclaim": "This benchmark does not establish universal superiority, future model behavior, adoption, compliance, GA readiness, or autonomous code quality.",
+  "plan": {
+    "external_calls": false,
+    "projected_provider_cost": {
+      "currency": "USD",
+      "max": 0,
+      "min": 0
+    },
+    "runs": 3,
+    "timeout_seconds_per_run": 120,
+    "token_limit_per_run": 0
+  },
+  "product_version": "0.1.0",
+  "redaction": {
+    "absolute_paths_replaced": true,
+    "scanner": "benchmark built-in credential-pattern scan v1",
+    "secret_matches": 0,
+    "status": "reviewed"
+  },
+  "replay": {
+    "command": "python3 benchmarks/run.py --fixture examples/fix-demo --runs 3 --verify-replay --json",
+    "matching_invariants": true,
+    "matching_terminal_class": true,
+    "verified": true
+  },
+  "report_id": "public-fix-0.1.0-c596b4bfb8e1",
+  "source_commit": "c596b4bfb8e19998647a9e421cd92451628226b3",
+  "status": "pass",
+  "summary": {
+    "attempted": 3,
+    "blocked": 0,
+    "completion_rate": 1.0,
+    "duration_ms": {
+      "max": 1151,
+      "median": 1109,
+      "min": 1094,
+      "spread": 57
+    },
+    "failed": 0,
+    "human_decisions": {
+      "max": 1,
+      "median": 1,
+      "min": 1,
+      "spread": 0
+    },
+    "passed": 3,
+    "provider_cost": {
+      "max": 0,
+      "median": 0,
+      "min": 0,
+      "spread": 0
+    },
+    "timed_out": 0
+  }
+}

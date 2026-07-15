@@ -1,0 +1,44 @@
+{
+  "auditor": "public-fix-benchmark-auditor",
+  "contract_version": "1.0.0",
+  "executor": "public-fix-benchmark-executor",
+  "feedback_findings": [],
+  "findings": [],
+  "independence": {
+    "auditor_session_id": "auditor-003",
+    "basis": "separate_session",
+    "evidence_path": "<TEMP>/independence.json",
+    "evidence_refs": [
+      "benchmarks/run.py",
+      "examples/fix-demo/fixture.json"
+    ],
+    "evidence_sha256": "52f91a901cbe18abd3b5758d02511295c9c4de25b69d04e8a7f8df267bb3cfde",
+    "executor_session_id": "executor-003"
+  },
+  "status": "pass",
+  "taken_on_trust": [],
+  "verified": [
+    {
+      "claim": "The invoice verifier passes after the fix.",
+      "id": "FIX-GREEN",
+      "observed": {
+        "actual_exit": 0,
+        "command": "python3 -m unittest discover -s tests -v",
+        "expected_exit": 0,
+        "stderr": "test_allocations_reconcile_rounding_remainder (test_invoice.AllocateDiscountTests) ... ok\ntest_preserves_proportional_allocation_without_remainder (test_invoice.AllocateDiscountTests) ... ok\ntest_rejects_negative_money (test_invoice.AllocateDiscountTests) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK\n",
+        "stdout": ""
+      }
+    },
+    {
+      "claim": "The target worktree is clean and PR-ready.",
+      "id": "FIX-PR-READY",
+      "observed": {
+        "actual_exit": 0,
+        "command": "test -z \"$(git status --porcelain --untracked-files=all)\"",
+        "expected_exit": 0,
+        "stderr": "",
+        "stdout": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "approval_requirements": [],
+  "compatibility": {
+    "low_level_commands": [
+      {
+        "deprecated": false,
+        "name": "action-admit",
+        "replacement": "public-operation",
+        "retained_through": "0.x"
+      },
+      {
+        "deprecated": false,
+        "name": "queue-status",
+        "replacement": "public-operation",
+        "retained_through": "0.x"
+      },
+      {
+        "deprecated": false,
+        "name": "run-phase",
+        "replacement": "public-operation",
+        "retained_through": "0.x"
+      }
+    ],
+    "public_command": "public-operation",
+    "support": "experimental"
+  },
+  "compatibility_warnings": [
+    "Experimental fix facade; retained low-level commands are not deprecated: action-admit, queue-status, run-phase"
+  ],
+  "contract_version": "1.0.0",
+  "evidence_refs": [
+    "<WORKSPACE>/.adlc/workflow_state.json"
+  ],
+  "kernel": [
+    "action_admit_payload",
+    "queue_status_payload",
+    "run_phase_payload"
+  ],
+  "limitations": [
+    "Provider adapters and generated skill bundles are validated by downstream migration tasks.",
+    "External changes are never published directly by this facade."
+  ],
+  "no_overclaim": "This result proves deterministic facade delegation only; it does not prove provider execution, installation, publication, or production fitness.",
+  "operation": "fix",
+  "request_id": "public-benchmark-001",
+  "result": {
+    "admission": {
+      "action": "edit_file",
+      "allow_mutation": true,
+      "audit_trail": {
+        "brief_id": "PUBLIC-FIX-BENCHMARK",
+        "denial_summary": {
+          "count": 0,
+          "patterns": []
+        },
+        "entries": [
+          {
+            "action": "edit_file",
+            "brief_id": "PUBLIC-FIX-BENCHMARK",
+            "decided_by": "human",
+            "decision": "approved",
+            "decision_id": "decision:fa33bde7f2cb",
+            "human_approval_ref": "human:public-benchmark-fixture",
+            "phase": "triage",
+            "policy_ref": "<WORKSPACE>/.adlc/public-fix-tool-registry.json",
+            "reason": "tool action admitted by ADLC policy",
+            "session_id": "PUBLIC-FIX-001",
+            "side_effect_profile": "mutating",
+            "tier": "requires_approval",
+            "timestamp": "2026-07-15T06:33:06Z",
+            "tool_name": "Write"
+          }
+        ],
+        "session_id": "PUBLIC-FIX-001"
+      },
+      "budget_check": null,
+      "budget_status": null,
+      "contract_version": "1.0.0",
+      "human_approved": true,
+      "issues": [],
+      "permission_tier": "requires_approval",
+      "phase": "triage",
+      "phase_candidates": [
+        "triage",
+        "phase_1_brief_prefill"
+      ],
+      "run_identity": {
+        "brief_id": "PUBLIC-FIX-BENCHMARK",
+        "session_id": "PUBLIC-FIX-001"
+      },
+      "side_effect_profile": "mutating",
+      "status": "admitted",
+      "stop_reason": null,
+      "tool": {
+        "available_phases": [
+          "triage"
+        ],
+        "name": "Write",
+        "permission_tier": "requires_approval",
+        "side_effect_profile": "mutating"
+      },
+      "tool_name": "Write"
+    },
+    "delegated": {
+      "dry_run": true,
+      "plan": {
+        "adapter_path": "scripts/adlc_runtime/adapters/claude.sh",
+        "agent": "triage",
+        "agent_path": "agents/triage.md",
+        "input": null,
+        "node_type": "agent",
+        "output": "<WORKSPACE>/.adlc/outputs/triage.json",
+        "phase": "triage",
+        "runtime": "claude",
+        "schema": null,
+        "schema_alias": null,
+        "tools": ""
+      },
+      "run_identity": {
+        "attempt": 1,
+        "brief_id": "PUBLIC-FIX-BENCHMARK",
+        "resume_count": 0,
+        "run_id": "adlc-run-b5e1fa0b6d73",
+        "session_id": "adlc-a41c8f467ece"
+      },
+      "state": {
+        "attempt": 1,
+        "brief_id": "PUBLIC-FIX-BENCHMARK",
+        "checkpoint": {
+          "history": [
+            {
+              "dry_run": true,
+              "invocation": {
+                "adapter_path": "scripts/adlc_runtime/adapters/claude.sh",
+                "agent": "triage",
+                "agent_path": "agents/triage.md",
+                "input": null,
+                "node_type": "agent",
+                "output": "<WORKSPACE>/.adlc/outputs/triage.json",
+                "phase": "triage",
+                "runtime": "claude",
+                "schema": null,
+                "schema_alias": null,
+                "tools": ""
+              },
+              "label": null,
+              "next_phase": "compound_preflight",
+              "phase": "triage",
+              "returncode": 0,
+              "status": "completed",
+              "timestamp": "2026-07-15T06:33:06Z"
+            }
+          ],
+          "workspace": "<WORKSPACE>"
+        },
+        "phase": "compound_preflight",
+        "resume_count": 0,
+        "run_id": "adlc-run-b5e1fa0b6d73",
+        "session_id": "adlc-a41c8f467ece",
+        "side_effects": [],
+        "started_at": "2026-07-15T06:33:06Z",
+        "status": "planned",
+        "step": "ready",
+        "updated_at": "2026-07-15T06:33:06Z"
+      },
+      "state_path": "<WORKSPACE>/.adlc/workflow_state.json"
+    },
+    "queue": null
+  },
+  "status": "planned",
+  "stop_reason": "workflow_checkpoint"
+}

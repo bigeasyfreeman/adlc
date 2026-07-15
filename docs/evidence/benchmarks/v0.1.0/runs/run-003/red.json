@@ -1,0 +1,134 @@
+{
+  "artifact_ref": "<WORKSPACE>/.adlc/outputs/qa.json",
+  "dry_run": false,
+  "plan": {
+    "adapter_path": "scripts/adlc_runtime/adapters/claude.sh",
+    "agent": null,
+    "agent_path": null,
+    "input": null,
+    "node_type": "tool",
+    "output": "<WORKSPACE>/.adlc/outputs/qa.json",
+    "phase": "qa",
+    "runtime": "claude",
+    "schema": null,
+    "schema_alias": null,
+    "tools": "Read,Bash,Glob,Grep"
+  },
+  "run_identity": {
+    "attempt": 1,
+    "brief_id": "PUBLIC-FIX-BENCHMARK",
+    "resume_count": 0,
+    "run_id": "adlc-run-d48af2d25133",
+    "session_id": "adlc-e4e9b692f57f"
+  },
+  "state": {
+    "attempt": 1,
+    "brief_id": "PUBLIC-FIX-BENCHMARK",
+    "checkpoint": {
+      "history": [
+        {
+          "artifact_ref": "<WORKSPACE>/.adlc/outputs/qa.json",
+          "dry_run": false,
+          "invocation": {
+            "adapter_path": "scripts/adlc_runtime/adapters/claude.sh",
+            "agent": null,
+            "agent_path": null,
+            "input": null,
+            "node_type": "tool",
+            "output": "<WORKSPACE>/.adlc/outputs/qa.json",
+            "phase": "qa",
+            "runtime": "claude",
+            "schema": null,
+            "schema_alias": null,
+            "tools": "Read,Bash,Glob,Grep"
+          },
+          "phase": "qa",
+          "status": "fail",
+          "timestamp": "2026-07-15T06:33:09Z"
+        }
+      ],
+      "workspace": "<WORKSPACE>"
+    },
+    "phase": "qa",
+    "phase_artifacts": [
+      {
+        "artifact_ref": "<WORKSPACE>/.adlc/outputs/qa.json",
+        "evidence_refs": [
+          "<WORKSPACE>/.adlc/outputs/qa.1.stdout.log",
+          "<WORKSPACE>/.adlc/outputs/qa.1.stderr.log"
+        ],
+        "label": "fail",
+        "phase": "qa",
+        "status": "fail",
+        "stop_reason": "verifier_failed",
+        "updated_at": "2026-07-15T06:33:09Z"
+      }
+    ],
+    "resume_count": 0,
+    "run_id": "adlc-run-d48af2d25133",
+    "session_id": "adlc-e4e9b692f57f",
+    "side_effects": [],
+    "started_at": "2026-07-15T06:33:08Z",
+    "status": "failed",
+    "step": "failed",
+    "stop_reason": "verifier_failed",
+    "updated_at": "2026-07-15T06:33:09Z"
+  },
+  "state_path": "<WORKSPACE>/.adlc/fix_state.json",
+  "tool_result": {
+    "contract_version": "1.0.0",
+    "dry_run": false,
+    "evidence_refs": [
+      "<WORKSPACE>/.adlc/outputs/qa.1.stdout.log",
+      "<WORKSPACE>/.adlc/outputs/qa.1.stderr.log"
+    ],
+    "execution": {
+      "command_count": 1,
+      "failed": 1
+    },
+    "inputs": {
+      "commands": [
+        "python3 -m unittest discover -s tests -v"
+      ],
+      "workspace": "<WORKSPACE>"
+    },
+    "issues": [
+      {
+        "command": "python3 -m unittest discover -s tests -v",
+        "exit_code": 1,
+        "rule": "verifier_failed"
+      }
+    ],
+    "label": "fail",
+    "outputs": {
+      "artifact_ref": "<WORKSPACE>/.adlc/outputs/qa.json",
+      "commands": [
+        "python3 -m unittest discover -s tests -v"
+      ],
+      "results": [
+        {
+          "command": "python3 -m unittest discover -s tests -v",
+          "ended_at": "2026-07-15T06:33:09Z",
+          "exit_code": 1,
+          "started_at": "2026-07-15T06:33:08Z",
+          "status": "fail",
+          "stderr_ref": "<WORKSPACE>/.adlc/outputs/qa.1.stderr.log",
+          "stderr_tail": "test_allocations_reconcile_rounding_remainder (test_invoice.AllocateDiscountTests) ... FAIL\ntest_preserves_proportional_allocation_without_remainder (test_invoice.AllocateDiscountTests) ... ok\ntest_rejects_negative_money (test_invoice.AllocateDiscountTests) ... ok\n\n======================================================================\nFAIL: test_allocations_reconcile_rounding_remainder (test_invoice.AllocateDiscountTests)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"<WORKSPACE>/tests/test_invoice.py\", line 15, in test_allocations_reconcile_rounding_remainder\n    self.assertEqual(sum(allocations), Decimal(\"0.10\"))\nAssertionError: Decimal('0.09') != Decimal('0.10')\n\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nFAILED (failures=1)\n",
+          "stdout_ref": "<WORKSPACE>/.adlc/outputs/qa.1.stdout.log",
+          "stdout_tail": ""
+        }
+      ]
+    },
+    "phase": "qa",
+    "run_identity": {
+      "attempt": 1,
+      "brief_id": "PUBLIC-FIX-BENCHMARK",
+      "resume_count": 0,
+      "run_id": "adlc-run-d48af2d25133",
+      "session_id": "adlc-e4e9b692f57f"
+    },
+    "status": "fail",
+    "stop_reason": "verifier_failed",
+    "warnings": []
+  }
+}

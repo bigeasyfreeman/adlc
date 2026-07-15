@@ -10,7 +10,7 @@ python3 benchmarks/run.py --fixture examples/fix-demo --runs 3 --verify-replay -
 
 The runner refuses an unpinned fixture, records every attempted run, validates each run report and the summary against schemas, scans redacted artifacts for secret-like values, and reports median plus spread. It scores task completion, red-before-green verifier validity, interrupt/resume integrity, completion-claim accuracy, scope control, human decisions, time, tokens, and cost. Missing evidence, a blocked/failed/timeout terminal class, or any false calculated control cannot pass.
 
-The initial published configuration installs the Codex bundle but invokes no provider or model. Tokens and provider cost are exactly zero, and it cannot upgrade the live Codex support row. Versioned raw evidence lives under [`docs/evidence/benchmarks/`](https://github.com/bigeasyfreeman/adlc/tree/v0.1.0/docs/evidence/benchmarks); the [provider support matrix](support-matrix.md) remains the separate source for live-provider claims.
+The initial published configuration installs the Codex bundle but invokes no provider or model. Tokens and provider cost are exactly zero, and it cannot upgrade the live Codex support row. The [`v0.1.0` candidate report](https://github.com/bigeasyfreeman/adlc/blob/v0.1.0/docs/evidence/benchmarks/v0.1.0/benchmark-report.json) preserves all three attempts and their redacted raw artifacts; the [provider support matrix](support-matrix.md) remains the separate source for live-provider claims.
 
 `doc_honesty_section`: This page describes a scoped, rerunnable control benchmark and links its raw evidence and method.
 
