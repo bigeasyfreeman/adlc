@@ -1,0 +1,7 @@
+{
+  "command": "python3 -m unittest discover -s tests -v",
+  "exit_code": 0,
+  "status": "pass",
+  "stderr": "test_allocations_reconcile_rounding_remainder (test_invoice.AllocateDiscountTests) ... ok\ntest_empty_invoice_rejects_nonzero_discount (test_invoice.AllocateDiscountTests) ... ok\ntest_preserves_proportional_allocation_without_remainder (test_invoice.AllocateDiscountTests) ... ok\ntest_reconciles_uneven_lines_with_stable_largest_remainder (test_invoice.AllocateDiscountTests) ... ok\ntest_rejects_negative_money (test_invoice.AllocateDiscountTests) ... ok\ntest_zero_total_returns_cent_precision_zeroes (test_invoice.AllocateDiscountTests) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n",
+  "stdout": ""
+}

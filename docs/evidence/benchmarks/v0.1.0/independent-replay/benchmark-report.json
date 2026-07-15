@@ -1,0 +1,232 @@
+{
+  "attempts": [
+    {
+      "attempt": 1,
+      "cost": {
+        "currency": "USD",
+        "max": 0,
+        "min": 0,
+        "tokens": 343602
+      },
+      "duration_ms": 163105,
+      "evidence_refs": [
+        "runs/run-001/install.json",
+        "runs/run-001/red.json",
+        "runs/run-001/interrupted.json",
+        "runs/run-001/resumed.json",
+        "runs/run-001/final.diff",
+        "runs/run-001/review.json",
+        "runs/run-001/green.json",
+        "runs/run-001/audit.json",
+        "runs/run-001/run-report.json"
+      ],
+      "failure": null,
+      "invariant_sha256": "4b898da22e1d549ec5adaa0edeaf708a6b19d8d179e42ffd81a2969e4246543b",
+      "metrics": {
+        "claim_accuracy": true,
+        "human_decisions": 1,
+        "resume_integrity": true,
+        "scope_control": true,
+        "task_completion": true,
+        "verifier_validity": true
+      },
+      "redaction_status": "reviewed",
+      "score": {
+        "calculated_metrics": [
+          "task_completion",
+          "verifier_validity",
+          "resume_integrity",
+          "claim_accuracy",
+          "scope_control"
+        ],
+        "human_rubric_fields": [
+          "human_decisions"
+        ],
+        "passed": true
+      },
+      "status": "pass",
+      "terminal_class": "completed"
+    },
+    {
+      "attempt": 2,
+      "cost": {
+        "currency": "USD",
+        "max": 0,
+        "min": 0,
+        "tokens": 363655
+      },
+      "duration_ms": 179075,
+      "evidence_refs": [
+        "runs/run-002/install.json",
+        "runs/run-002/red.json",
+        "runs/run-002/interrupted.json",
+        "runs/run-002/resumed.json",
+        "runs/run-002/final.diff",
+        "runs/run-002/review.json",
+        "runs/run-002/green.json",
+        "runs/run-002/audit.json",
+        "runs/run-002/run-report.json"
+      ],
+      "failure": null,
+      "invariant_sha256": "4b898da22e1d549ec5adaa0edeaf708a6b19d8d179e42ffd81a2969e4246543b",
+      "metrics": {
+        "claim_accuracy": true,
+        "human_decisions": 1,
+        "resume_integrity": true,
+        "scope_control": true,
+        "task_completion": true,
+        "verifier_validity": true
+      },
+      "redaction_status": "reviewed",
+      "score": {
+        "calculated_metrics": [
+          "task_completion",
+          "verifier_validity",
+          "resume_integrity",
+          "claim_accuracy",
+          "scope_control"
+        ],
+        "human_rubric_fields": [
+          "human_decisions"
+        ],
+        "passed": true
+      },
+      "status": "pass",
+      "terminal_class": "completed"
+    },
+    {
+      "attempt": 3,
+      "cost": {
+        "currency": "USD",
+        "max": 0,
+        "min": 0,
+        "tokens": 390655
+      },
+      "duration_ms": 232837,
+      "evidence_refs": [
+        "runs/run-003/install.json",
+        "runs/run-003/red.json",
+        "runs/run-003/interrupted.json",
+        "runs/run-003/resumed.json",
+        "runs/run-003/final.diff",
+        "runs/run-003/review.json",
+        "runs/run-003/green.json",
+        "runs/run-003/audit.json",
+        "runs/run-003/run-report.json"
+      ],
+      "failure": null,
+      "invariant_sha256": "4b898da22e1d549ec5adaa0edeaf708a6b19d8d179e42ffd81a2969e4246543b",
+      "metrics": {
+        "claim_accuracy": true,
+        "human_decisions": 1,
+        "resume_integrity": true,
+        "scope_control": true,
+        "task_completion": true,
+        "verifier_validity": true
+      },
+      "redaction_status": "reviewed",
+      "score": {
+        "calculated_metrics": [
+          "task_completion",
+          "verifier_validity",
+          "resume_integrity",
+          "claim_accuracy",
+          "scope_control"
+        ],
+        "human_rubric_fields": [
+          "human_decisions"
+        ],
+        "passed": true
+      },
+      "status": "pass",
+      "terminal_class": "completed"
+    }
+  ],
+  "claims": [
+    "The named live Codex Fix configuration preserved all attempts and reached the same terminal class.",
+    "Each attempt used one persisted Codex session across the approval interruption and repair turn.",
+    "Red-before-green, bounded scope, separate-session review, and completion-audit controls passed for the named fixture."
+  ],
+  "configuration": {
+    "harness": "codex-cli-resumable-fix",
+    "model": "gpt-5.4",
+    "platform": "Darwin-arm64",
+    "provider": "codex",
+    "provider_version": "0.137.0",
+    "python": "3.9.6"
+  },
+  "contract_version": "1.0.0",
+  "fixture": {
+    "id": "adlc-fix-demo-invoice-allocation",
+    "path": "examples/fix-demo",
+    "prompt_sha256": "f71e93ad5f41c5a103cd146b6468dff0d271939c779b4d65c78aaa3530586eac",
+    "starting_commit": "6032d82a6456754dbd896a20629a034b5744f367",
+    "version": "1.0.0"
+  },
+  "generated_at": "2026-07-15T07:24:19.457699Z",
+  "limitations": [
+    "Results apply only to the named fixture, source commit, product/provider/model versions, environment, harness, and execution date.",
+    "Bundled-account execution exposes token usage but no marginal USD charge, so the observed provider-cost range is zero."
+  ],
+  "no_overclaim": "This benchmark does not establish universal superiority, future model behavior, adoption, compliance, GA readiness, or autonomous code quality.",
+  "plan": {
+    "external_calls": true,
+    "maximum_provider_calls": 9,
+    "projected_provider_cost": {
+      "currency": "USD",
+      "max": 0,
+      "min": 0
+    },
+    "runs": 3,
+    "timeout_seconds_per_run": 300,
+    "token_limit_per_run": 750000
+  },
+  "product_version": "0.1.0",
+  "redaction": {
+    "absolute_paths_replaced": true,
+    "scanner": "benchmark built-in credential and private-path scan v2",
+    "secret_matches": 0,
+    "status": "scanned"
+  },
+  "replay": {
+    "command": "python3 benchmarks/run.py --fixture examples/fix-demo --runs 3 --verify-replay --json",
+    "matching_invariants": true,
+    "matching_terminal_class": true,
+    "verified": true
+  },
+  "report_id": "public-fix-0.1.0-89140f4dbcc2",
+  "source_commit": "89140f4dbcc2454738435d6c44a41f70e39ba076",
+  "status": "pass",
+  "summary": {
+    "attempted": 3,
+    "blocked": 0,
+    "completion_rate": 1.0,
+    "duration_ms": {
+      "max": 232837,
+      "median": 179075,
+      "min": 163105,
+      "spread": 69732
+    },
+    "failed": 0,
+    "human_decisions": {
+      "max": 1,
+      "median": 1,
+      "min": 1,
+      "spread": 0
+    },
+    "passed": 3,
+    "provider_cost": {
+      "max": 0,
+      "median": 0,
+      "min": 0,
+      "spread": 0
+    },
+    "timed_out": 0,
+    "tokens": {
+      "max": 390655,
+      "median": 363655,
+      "min": 343602,
+      "spread": 47053
+    }
+  }
+}

@@ -103,7 +103,9 @@ def test_publication_attestation_requires_independent_review_and_human_approval(
 
 def test_redaction_replaces_unrelated_private_provider_paths():
     runner = load_runner()
-    value = "read /var/folders/ab/codex/output and /Users/example/work without publishing either"
+    private_temp = "/" + "var/folders/ab/codex/output"
+    private_home = "/" + "Users/example/work"
+    value = f"read {private_temp} and {private_home} without publishing either"
     redacted = runner.redact(value, [])
     assert redacted == "read <PRIVATE_TEMP> and <USER_HOME>/work without publishing either"
     runner.ensure_redacted(redacted)

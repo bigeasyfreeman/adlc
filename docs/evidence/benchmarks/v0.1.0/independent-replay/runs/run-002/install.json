@@ -1,0 +1,50 @@
+{
+  "doctor": {
+    "checks": [
+      {
+        "detail": "3.9.6 at /Library/Developer/CommandLineTools/usr/bin/python3",
+        "name": "python",
+        "required": true,
+        "status": "pass"
+      },
+      {
+        "detail": "Python jsonschema module importable",
+        "name": "jsonschema",
+        "required": true,
+        "status": "pass"
+      },
+      {
+        "detail": "bin/adlc",
+        "name": "bin/adlc",
+        "required": true,
+        "status": "pass"
+      },
+      {
+        "detail": "all schema aliases resolve",
+        "name": "schemas",
+        "required": true,
+        "status": "pass"
+      },
+      {
+        "detail": "all WORKFLOW.dot nodes are valid workflow-state phases",
+        "name": "workflow-state-phase-parity",
+        "required": true,
+        "status": "pass"
+      }
+    ],
+    "contract_version": "1.0.0",
+    "root": "<ADLC_ROOT>",
+    "status": "pass",
+    "summary": {
+      "failed_required": 0,
+      "total": 5,
+      "warnings": 0
+    }
+  },
+  "fixture_starting_commit": "6032d82a6456754dbd896a20629a034b5744f367",
+  "installed_commit": "0cc51e67761d1a432f9f70b2a4f3ed89ac5d8f11",
+  "model": "gpt-5.4",
+  "provider": "codex",
+  "provider_version": "0.137.0",
+  "status": "pass"
+}

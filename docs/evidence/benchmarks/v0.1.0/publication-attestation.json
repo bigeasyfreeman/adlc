@@ -1,0 +1,48 @@
+{
+  "approval": {
+    "decision": "approved_for_candidate_evidence",
+    "external_publication_invoked": false,
+    "human_approval_ref": "human:approved-complete-migration-process",
+    "scope": "benchmark_evidence_only"
+  },
+  "contract_version": "1.0.0",
+  "independent_replay": {
+    "attempts": 3,
+    "path": "docs/evidence/benchmarks/v0.1.0/independent-replay/benchmark-report.json",
+    "sha256": "a3b7b2f0026b09ff50bb2ac6245b282ecf75c9c5b17c9d57d19ca4f0e69ec3bc",
+    "status": "pass"
+  },
+  "limitations": [
+    "This attestation covers only the two published benchmark reports and their 54 referenced local evidence files at the reviewed paths and hashes.",
+    "The audit verified published artifacts, schemas, offline verifier results, report hashes, and redaction state; it did not rerun live provider calls or establish behavior outside this fixture, commit, configuration, and review time.",
+    "The project verifier currently requires a fixture argument even in --verify-published mode, so the offline verification was executed with the published fixture path as a CLI compatibility workaround."
+  ],
+  "no_overclaim": "This approval attests only that the reviewed benchmark evidence set is internally consistent, schema-valid, redacted by the applied scans, and approved for candidate benchmark evidence publication at these exact paths and hashes.",
+  "primary_report": {
+    "attempts": 3,
+    "path": "docs/evidence/benchmarks/v0.1.0/benchmark-report.json",
+    "sha256": "990fe1b2ee293689585c2ce734f17618bcdb3a3605bc8f6bf4d56c11dc57db9e",
+    "status": "pass"
+  },
+  "reconciliation": {
+    "all_attempts_preserved": true,
+    "both_schema_valid": true,
+    "same_configuration": true,
+    "same_fixture": true,
+    "same_terminal_class": true
+  },
+  "redaction_review": {
+    "absolute_path_matches": 0,
+    "files_reviewed": 56,
+    "scanner": "independent regex scan for credential-like strings and private absolute paths across 56 candidate evidence files",
+    "secret_matches": 0,
+    "status": "pass"
+  },
+  "reviewed_at": "2026-07-15T07:29:53Z",
+  "reviewer": {
+    "basis": "separate_codex_session",
+    "identity": "independent-codex-publication-auditor",
+    "session_id": "019f64aa-a71f-78b1-a88c-3198d745c20e"
+  },
+  "status": "approved"
+}

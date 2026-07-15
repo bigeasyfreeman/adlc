@@ -1,0 +1,34 @@
+diff --git a/src/invoice.py b/src/invoice.py
+index ac83153..729e77f 100644
+--- a/src/invoice.py
++++ b/src/invoice.py
+@@ -3 +3 @@ from __future__ import annotations
+-from decimal import Decimal, ROUND_HALF_UP
++from decimal import Decimal, ROUND_DOWN
+@@ -11,2 +10,0 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
+-    if not line_totals:
+-        return []
+@@ -14,0 +13,4 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
++    if not line_totals:
++        if discount == 0:
++            return []
++        raise ValueError("cannot allocate a nonzero discount across an empty invoice")
+@@ -16,0 +19,2 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
++        if discount != 0:
++            raise ValueError("cannot allocate a nonzero discount across zero-value lines")
+@@ -18 +22,14 @@ def allocate_discount(line_totals: list[Decimal], discount: Decimal) -> list[Dec
+-    return [(discount * line / total).quantize(CENT, rounding=ROUND_HALF_UP) for line in line_totals]
++
++    raw_allocations = [discount * line / total for line in line_totals]
++    allocations = [value.quantize(CENT, rounding=ROUND_DOWN) for value in raw_allocations]
++    remainder_cents = int(((discount - sum(allocations, Decimal("0"))) / CENT).to_integral_value())
++
++    ranked_indices = sorted(
++        range(len(line_totals)),
++        key=lambda index: (raw_allocations[index] - allocations[index], -index),
++        reverse=True,
++    )
++    for index in ranked_indices[:remainder_cents]:
++        allocations[index] += CENT
++
++    return allocations
