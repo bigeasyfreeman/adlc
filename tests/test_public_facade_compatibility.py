@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from adlc_runtime import cli
-from adlc_runtime.metadata import LOW_LEVEL_COMPATIBILITY, PUBLIC_OPERATION_METADATA, SCHEMA_ALIASES
+from adlc_runtime.metadata import COMMAND_METADATA, LOW_LEVEL_COMPATIBILITY, PUBLIC_OPERATION_METADATA, SCHEMA_ALIASES
 
 
 def run_cli(*args):
@@ -54,7 +54,29 @@ def test_public_operation_cli_is_additive_and_schema_valid(tmp_path):
     payload = json.loads(result.stdout)
     assert payload["operation"] == "doctor"
     assert payload["status"] == "completed"
+    assert payload["compatibility"]["support"] == "experimental"
+    assert payload["compatibility"]["low_level_commands"] == [{
+        "name": "health-check",
+        "deprecated": False,
+        "replacement": "public-operation",
+        "retained_through": "0.x",
+    }]
     assert not cli.validate_artifact_payload(cli.resolve_schema("public-operation-result"), payload)
+
+
+def test_public_operation_is_exposed_through_mcp_with_the_request_schema():
+    tool = next(item for item in cli.mcp_tools() if item["name"] == COMMAND_METADATA["public-operation"]["mcp_name"])
+    assert tool["inputSchema"]["properties"]["operation"]["enum"] == list(PUBLIC_OPERATION_METADATA)
+    response = cli.call_tool("adlc_public_operation", {
+        "contract_version": "1.0.0",
+        "operation": "doctor",
+        "experimental": True,
+        "allow_mutation": False,
+        "human_approved": False,
+        "arguments": {},
+    })
+    assert response["isError"] is False
+    assert response["structuredContent"]["operation"] == "doctor"
 
 
 def test_wrapper_preserves_external_pythonpath_and_existing_help():

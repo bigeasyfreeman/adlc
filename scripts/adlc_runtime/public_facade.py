@@ -8,6 +8,7 @@ from time import monotonic
 from typing import Any, Dict, Iterable
 
 from adlc_runtime import cli as kernel
+from adlc_runtime.metadata import LOW_LEVEL_COMPATIBILITY, PUBLIC_OPERATION_METADATA
 
 
 CONTRACT_VERSION = "1.0.0"
@@ -59,6 +60,10 @@ def _result(
     approvals: Iterable[str] = (),
 ) -> Dict[str, Any]:
     operation = request["operation"]
+    low_level_commands = [
+        {"name": name, **LOW_LEVEL_COMPATIBILITY[name]}
+        for name in PUBLIC_OPERATION_METADATA[operation]["kernel"]
+    ]
     result: Dict[str, Any] = {
         "contract_version": CONTRACT_VERSION,
         "operation": operation,
@@ -67,8 +72,14 @@ def _result(
         "evidence_refs": _refs(payload),
         "approval_requirements": list(dict.fromkeys(approvals)),
         "compatibility_warnings": [
-            "Experimental public facade; low-level kernel commands remain available with unchanged semantics through the 0.x compatibility window."
+            f"Experimental {operation} facade; retained low-level commands are not deprecated: "
+            + ", ".join(item["name"] for item in low_level_commands)
         ],
+        "compatibility": {
+            "support": PUBLIC_OPERATION_METADATA[operation]["support"],
+            "public_command": "public-operation",
+            "low_level_commands": low_level_commands,
+        },
         "kernel": list(KERNEL_ROUTES[operation]),
         "result": payload,
         "no_overclaim": "This result proves deterministic facade delegation only; it does not prove provider execution, installation, publication, or production fitness.",
@@ -92,8 +103,11 @@ def _blocked(request: Dict[str, Any], reason: str, details: Dict[str, Any] | Non
 def _namespace(request: Dict[str, Any], **defaults: Any) -> argparse.Namespace:
     values = dict(defaults)
     values.update(request.get("arguments", {}))
-    values.setdefault("workspace", request.get("workspace"))
-    values.setdefault("state", request.get("state"))
+    values["workspace"] = request.get("workspace")
+    values["state"] = request.get("state")
+    values["allow_mutation"] = request["allow_mutation"]
+    values["human_approved"] = request["human_approved"]
+    values["approval_ref"] = request.get("approval_ref")
     values.setdefault("json", True)
     return argparse.Namespace(**values)
 

@@ -18,7 +18,15 @@
     "allow_mutation": {"type": "boolean"},
     "human_approved": {"type": "boolean"},
     "approval_ref": {"type": "string", "minLength": 1},
-    "arguments": {"type": "object", "additionalProperties": true}
+    "arguments": {
+      "type": "object",
+      "additionalProperties": true,
+      "propertyNames": {
+        "not": {
+          "enum": ["contract_version", "operation", "experimental", "workspace", "state", "allow_mutation", "human_approved", "approval_ref"]
+        }
+      }
+    }
   },
   "allOf": [
     {

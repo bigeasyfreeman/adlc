@@ -178,3 +178,11 @@ def test_invalid_request_fails_before_delegation():
     with pytest.raises(ValueError, match="request failed schema validation"):
         public_facade.dispatch_public_operation(payload, bindings=fake)
     assert fake.calls == []
+
+
+@pytest.mark.parametrize("reserved", ["workspace", "state", "allow_mutation", "human_approved", "approval_ref"])
+def test_reserved_safety_fields_cannot_be_smuggled_through_arguments(reserved, tmp_path):
+    payload = request("doctor", workspace=tmp_path)
+    payload["arguments"][reserved] = "/smuggled" if reserved in {"workspace", "state", "approval_ref"} else True
+    with pytest.raises(ValueError, match="request failed schema validation"):
+        public_facade.dispatch_public_operation(payload)

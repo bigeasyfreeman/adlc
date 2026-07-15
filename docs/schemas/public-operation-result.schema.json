@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": [
     "contract_version", "operation", "status", "stop_reason", "evidence_refs",
-    "approval_requirements", "compatibility_warnings", "kernel", "result",
+    "approval_requirements", "compatibility_warnings", "compatibility", "kernel", "result",
     "no_overclaim", "limitations"
   ],
   "properties": {
@@ -21,6 +21,30 @@
     "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
     "approval_requirements": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
     "compatibility_warnings": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["support", "public_command", "low_level_commands"],
+      "properties": {
+        "support": {"const": "experimental"},
+        "public_command": {"const": "public-operation"},
+        "low_level_commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "deprecated", "replacement", "retained_through"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "deprecated": {"const": false},
+              "replacement": {"const": "public-operation"},
+              "retained_through": {"const": "0.x"}
+            }
+          }
+        }
+      }
+    },
     "kernel": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
     "result": {"type": "object", "additionalProperties": true},
     "no_overclaim": {"type": "string", "minLength": 1},

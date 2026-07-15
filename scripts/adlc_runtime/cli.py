@@ -13591,6 +13591,11 @@ def mcp_tools() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": command_mcp_name("public-operation"),
+            "description": command_description("public-operation"),
+            "inputSchema": read_json(resolve_schema("public-operation")),
+        },
+        {
             "name": command_mcp_name("health-check"),
             "description": command_description("health-check"),
             "inputSchema": {
@@ -14602,6 +14607,11 @@ def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             "errors": errors,
         }
         return tool_result(payload, is_error=not payload["valid"])
+    if name == "adlc_public_operation":
+        from adlc_runtime.public_facade import dispatch_public_operation
+
+        payload = dispatch_public_operation(arguments)
+        return tool_result(payload, is_error=payload["status"] not in {"completed", "planned"})
     if name == "adlc_health_check":
         payload = health_check_payload(include_optional=bool(arguments.get("include_optional", False)))
         return tool_result(payload, is_error=payload["summary"]["failed_required"] != 0)
