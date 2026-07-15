@@ -1,0 +1,117 @@
+name: ADLC Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing immutable vX.Y.Z tag to prepare or publish
+        required: true
+        type: string
+      confirm_publication:
+        description: Request protected external publication jobs
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adlc-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      packet_sha256: ${{ steps.packet.outputs.packet_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+      - name: Verify immutable tag checkout
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install preparation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install '.[docs]' 'pytest>=7,<9' 'ruff>=0.5,<1'
+          sudo apt-get update
+          sudo apt-get install -y jq ripgrep
+      - name: Prepare reproducible approval packet
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python scripts/release.py prepare --tag "$RELEASE_TAG" --repository pypi --verify-reproducible --rehearse-rollback --json
+      - name: Export packet digest
+        id: packet
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: echo "packet_sha256=$(sha256sum "release-out/$RELEASE_TAG/release-approval-packet.json" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-${{ inputs.release_tag }}
+          path: release-out/${{ inputs.release_tag }}
+
+  publish-pypi:
+    if: inputs.confirm_publication
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-candidate-${{ inputs.release_tag }}
+          path: release-out/${{ inputs.release_tag }}
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release-out/${{ inputs.release_tag }}/artifacts/*
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: release-out/${{ inputs.release_tag }}/artifacts/
+
+  github-release:
+    if: inputs.confirm_publication
+    needs: [prepare, publish-pypi]
+    runs-on: ubuntu-latest
+    environment: github-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-candidate-${{ inputs.release_tag }}
+          path: release-out/${{ inputs.release_tag }}
+      - name: Create immutable GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: gh release create "$RELEASE_TAG" release-out/$RELEASE_TAG/artifacts/* --verify-tag --title "ADLC $RELEASE_TAG" --notes-file CHANGELOG.md
+
+  pages:
+    if: inputs.confirm_publication
+    needs: github-release
+    runs-on: ubuntu-latest
+    environment: github-pages
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Request protected docs deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: gh workflow run docs.yml --repo "${{ github.repository }}" -f release_tag="$RELEASE_TAG" -f confirm_publication=true

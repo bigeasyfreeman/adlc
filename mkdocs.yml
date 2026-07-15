@@ -4,7 +4,7 @@ site_author: ADLC maintainers
 site_url: https://bigeasyfreeman.github.io/adlc/
 repo_url: https://github.com/bigeasyfreeman/adlc
 repo_name: bigeasyfreeman/adlc
-edit_uri: edit/v0.1.0/docs/
+edit_uri: edit/v0.9.0/docs/
 docs_dir: docs
 site_dir: site
 strict: true
@@ -52,7 +52,7 @@ markdown_extensions:
       permalink: true
 
 extra:
-  adlc_version: 0.1.0
+  adlc_version: 0.9.0
   analytics: null
   social:
     - icon: fontawesome/brands/github
@@ -90,7 +90,9 @@ nav:
       - Skill and reference authoring: contribute/authoring.md
       - Behavioral scenarios: contribute/behavioral-scenarios.md
       - Release process: contribute/release-process.md
-  - Docs deployment and rollback: release/docs-deployment.md
+  - Release:
+      - Release and rollback runbook: release/RELEASING.md
+      - Docs deployment and rollback: release/docs-deployment.md
 
 exclude_docs: |
   /archive/**
