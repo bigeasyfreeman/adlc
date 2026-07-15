@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -68,6 +69,10 @@ def _read_manifest(target: Path, provider: str) -> Dict[str, Any]:
     required = {"source_version", "provider", "target_paths", "digests", "ownership", "rollback_ref"}
     if not required.issubset(payload) or payload.get("provider") != provider or payload.get("ownership") != "adlc-managed":
         raise InstallBlocked(f"invalid managed install manifest: {path}")
+    payload.setdefault("hooks_enabled", False)
+    payload.setdefault("hook_paths", [])
+    payload.setdefault("hook_digests", {})
+    payload.setdefault("hook_consent_ref", None)
     return payload
 
 
@@ -88,8 +93,17 @@ def _write_manifest_atomic(path: Path, payload: Dict[str, Any]) -> None:
     os.replace(temporary, path)
 
 
-def _manifest(bundle: CompiledBundle, target: Path, source_version: str, rollback_ref: Optional[str], *, linked: bool) -> Dict[str, Any]:
+def _manifest(
+    bundle: CompiledBundle,
+    target: Path,
+    source_version: str,
+    rollback_ref: Optional[str],
+    *,
+    linked: bool,
+    previous: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     bundle_path = _bundle_path(target, bundle.provider)
+    previous = previous or {}
     return {
         "contract_version": "1.0.0",
         "source_version": source_version,
@@ -100,6 +114,10 @@ def _manifest(bundle: CompiledBundle, target: Path, source_version: str, rollbac
         "ownership": "adlc-managed",
         "rollback_ref": rollback_ref,
         "linked": linked,
+        "hooks_enabled": bool(previous.get("hooks_enabled", False)),
+        "hook_paths": list(previous.get("hook_paths", [])),
+        "hook_digests": dict(previous.get("hook_digests", {})),
+        "hook_consent_ref": previous.get("hook_consent_ref"),
         "no_overclaim": "Installation proves bundle integrity, not live provider invocation.",
         "limitations": ["Generated targets are limited to Claude Code and Codex layouts."],
     }
@@ -144,14 +162,138 @@ def doctor(target: Path, provider: str) -> Dict[str, Any]:
         issues.append("<missing-managed-link>")
     if not issues:
         issues = _diff_path(bundle_path, manifest["digests"])
+    hook_issues = _hook_issues(target, manifest) if manifest["hooks_enabled"] else []
+    issues.extend(hook_issues)
     return {
         "status": "pass" if not issues else "fail",
         "provider": provider,
         "issues": issues,
+        "hooks_enabled": manifest["hooks_enabled"],
+        "hook_support": get_target(provider).hook_support,
         "manifest": str(_manifest_path(target, provider)),
         "no_overclaim": manifest["no_overclaim"],
         "limitations": manifest["limitations"],
     }
+
+
+def _hook_artifacts(target: Path, provider: str) -> Dict[str, bytes]:
+    from adlc_runtime.hooks import render_hook_artifacts
+
+    return render_hook_artifacts(provider, target, sys.executable)
+
+
+def _digest_bytes(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
+
+
+def _hook_issues(target: Path, manifest: Dict[str, Any]) -> list[str]:
+    issues = []
+    expected = manifest.get("hook_digests", {})
+    for relative in manifest.get("hook_paths", []):
+        path = target / relative
+        try:
+            _assert_no_symlinks(target, path, include_final=True)
+        except InstallBlocked:
+            issues.append(relative)
+            continue
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected.get(relative):
+            issues.append(relative)
+    return sorted(issues)
+
+
+def plan_hooks(target: Path, provider: str) -> Dict[str, Any]:
+    target = target.resolve()
+    manifest = _assert_managed_clean(target, provider)
+    if manifest["hooks_enabled"]:
+        return {
+            "status": "unchanged",
+            "provider": provider,
+            "consent_ref": manifest["hook_consent_ref"],
+            "diff": [],
+        }
+    artifacts = _hook_artifacts(target, provider)
+    diff = [
+        {"operation": "add", "path": path, "digest": _digest_bytes(content)}
+        for path, content in sorted(artifacts.items())
+    ]
+    consent_payload = json.dumps(diff, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return {
+        "status": "consent_required",
+        "provider": provider,
+        "consent_ref": "sha256:" + hashlib.sha256(consent_payload).hexdigest(),
+        "diff": diff,
+        "warning": "Provider hooks run local commands with user permissions. Review this exact diff before consent.",
+    }
+
+
+def enable_hooks(target: Path, provider: str, *, consent_ref: str) -> Dict[str, Any]:
+    target = target.resolve()
+    manifest = _assert_managed_clean(target, provider)
+    plan = plan_hooks(target, provider)
+    if plan["status"] == "unchanged":
+        return {"status": "unchanged", "provider": provider}
+    if consent_ref != plan["consent_ref"]:
+        raise InstallBlocked("explicit hook consent does not match the displayed install diff")
+    artifacts = _hook_artifacts(target, provider)
+    paths = []
+    for relative in artifacts:
+        path = target / relative
+        _assert_no_symlinks(target, path, include_final=True)
+        if path.exists() or path.is_symlink():
+            raise InstallBlocked("unmanaged hook collision; target left untouched", diff=[relative])
+        paths.append(path)
+    created = []
+    try:
+        for path, content in ((target / relative, content) for relative, content in artifacts.items()):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+            temporary.write_bytes(content)
+            os.replace(temporary, path)
+            created.append(path)
+        enabled = dict(manifest)
+        enabled.update(
+            {
+                "hooks_enabled": True,
+                "hook_paths": sorted(artifacts),
+                "hook_digests": {path: _digest_bytes(content) for path, content in artifacts.items()},
+                "hook_consent_ref": consent_ref,
+            }
+        )
+        _write_manifest_atomic(_manifest_path(target, provider), enabled)
+    except Exception:
+        for path in created:
+            path.unlink(missing_ok=True)
+        _write_manifest_atomic(_manifest_path(target, provider), manifest)
+        raise
+    return {"status": "hooks_enabled", "provider": provider, "consent_ref": consent_ref, "paths": sorted(artifacts)}
+
+
+def disable_hooks(target: Path, provider: str) -> Dict[str, Any]:
+    target = target.resolve()
+    manifest = _read_manifest(target, provider)
+    if not manifest["hooks_enabled"]:
+        return {"status": "unchanged", "provider": provider}
+    issues = _hook_issues(target, manifest)
+    if issues:
+        raise InstallBlocked("hook files drifted; refusing destructive lifecycle operation", diff=issues)
+    tombstones = []
+    try:
+        for relative in manifest["hook_paths"]:
+            path = target / relative
+            tombstone = path.with_name(f".{path.name}.{uuid.uuid4().hex}.disabled")
+            path.rename(tombstone)
+            tombstones.append((path, tombstone))
+        disabled = dict(manifest)
+        disabled.update({"hooks_enabled": False, "hook_paths": [], "hook_digests": {}, "hook_consent_ref": None})
+        _write_manifest_atomic(_manifest_path(target, provider), disabled)
+    except Exception:
+        for path, tombstone in reversed(tombstones):
+            if tombstone.exists():
+                tombstone.rename(path)
+        raise
+    for _path, tombstone in tombstones:
+        tombstone.unlink()
+    return {"status": "hooks_disabled", "provider": provider}
 
 
 def _assert_managed_clean(target: Path, provider: str) -> Dict[str, Any]:
@@ -259,7 +401,7 @@ def update_bundle(bundle: CompiledBundle, target: Path, *, source_version: str) 
             _bundle_path(target, bundle.provider),
             staged,
             _manifest_path(target, bundle.provider),
-            _manifest(bundle, target, source_version, rollback_ref, linked=False),
+            _manifest(bundle, target, source_version, rollback_ref, linked=False, previous=previous),
         )
     except Exception:
         shutil.rmtree(target / rollback_ref, ignore_errors=True)
@@ -316,6 +458,16 @@ def rollback(target: Path, provider: str) -> Dict[str, Any]:
 
 def uninstall(target: Path, provider: str) -> Dict[str, Any]:
     target = target.resolve()
+    _assert_safe_layout(target, provider)
+    manifest = _read_manifest(target, provider)
+    hook_issues = _hook_issues(target, manifest) if manifest["hooks_enabled"] else []
+    if hook_issues:
+        raise InstallBlocked("hook files drifted; refusing destructive lifecycle operation", diff=hook_issues)
+    report = doctor(target, provider)
+    if report["status"] != "pass":
+        raise InstallBlocked("managed files drifted; refusing destructive lifecycle operation", diff=report["issues"])
+    if manifest["hooks_enabled"]:
+        disable_hooks(target, provider)
     _assert_managed_clean(target, provider)
     destination = _bundle_path(target, provider)
     manifest_path = _manifest_path(target, provider)
@@ -346,10 +498,14 @@ def build_parser() -> argparse.ArgumentParser:
         lifecycle.add_argument("--target", required=True)
         lifecycle.add_argument("--source")
         lifecycle.add_argument("--source-version", default=_version())
-    for command in ("rollback", "uninstall", "doctor"):
+    for command in ("rollback", "uninstall", "doctor", "hooks-plan", "hooks-disable"):
         lifecycle = subparsers.add_parser(command)
         lifecycle.add_argument("--provider", required=True, choices=sorted(SUPPORTED_TARGETS))
         lifecycle.add_argument("--target", required=True)
+    hooks_enable = subparsers.add_parser("hooks-enable")
+    hooks_enable.add_argument("--provider", required=True, choices=sorted(SUPPORTED_TARGETS))
+    hooks_enable.add_argument("--target", required=True)
+    hooks_enable.add_argument("--consent-ref", required=True)
     return parser
 
 
@@ -367,6 +523,12 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             result = rollback(Path(args.target), args.provider)
         elif args.command == "uninstall":
             result = uninstall(Path(args.target), args.provider)
+        elif args.command == "hooks-plan":
+            result = plan_hooks(Path(args.target), args.provider)
+        elif args.command == "hooks-enable":
+            result = enable_hooks(Path(args.target), args.provider, consent_ref=args.consent_ref)
+        elif args.command == "hooks-disable":
+            result = disable_hooks(Path(args.target), args.provider)
         else:
             result = doctor(Path(args.target), args.provider)
     except (InstallBlocked, ValueError, FileNotFoundError) as error:
