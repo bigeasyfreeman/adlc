@@ -11,6 +11,17 @@ CONTRACTS = {
     name: ROOT / "docs" / "loop-library" / f"public-{name}.json"
     for name in ("build", "fix", "review")
 }
+REVIEW_ALLOWED_ACTIONS = {
+    "inspect_diff",
+    "inspect_history",
+    "inspect_status",
+    "observe_claims",
+    "observe_verifiers",
+    "report_contradictions",
+    "copy_inputs",
+    "run_negative_control",
+    "discard_fixture",
+}
 
 
 def load_contract(name):
@@ -73,7 +84,11 @@ def test_build_uses_approved_intent_and_reaches_only_honest_terminal_states():
 
 def test_fix_requires_reproduction_and_failing_verifier_before_mutation():
     contract = load_contract("fix")
-    assert phases(contract)[0] == "reproduce"
+    ledger = json.loads((ROOT / "docs" / "migration" / "legacy-surface-ledger.json").read_text())
+    mapping = next(item for item in ledger["command_mappings"] if item["command"] == "fix")
+    assert phases(contract) == mapping["workflow_phases"]
+    assert contract["feedback_channels"][0]["after_action"] == "phase:triage"
+    assert "reproduction_evidence" in contract["feedback_channels"][0]["observes"]
     allowed = [action for tool in contract["allowed_tools"] for action in tool["actions"]]
     assert "mutate_after_reproduction" in allowed
     assert "reproduction_evidence" in contract["job_win_condition"]["deterministic_checks"]
@@ -90,23 +105,31 @@ def test_review_contract_is_read_only():
 
 
 def test_negative_controls_reject_review_mutation_and_fix_without_reproduction():
-    review = load_contract("review")
-    review["allowed_tools"][0]["actions"].append("mutate_files")
-    with pytest.raises(AssertionError):
-        assert_public_review_read_only(review)
+    for adversarial_action in (
+        "mutate_files",
+        "write_patch",
+        "push_branch",
+        "commit_changes",
+        "edit_files",
+        "resolve_threads",
+        "comment_on_pr",
+    ):
+        review = load_contract("review")
+        review["allowed_tools"][0]["actions"].append(adversarial_action)
+        with pytest.raises(AssertionError):
+            assert_public_review_read_only(review)
 
     fix = load_contract("fix")
-    fix["feedback_channels"] = [
-        item for item in fix["feedback_channels"] if item["after_action"] != "phase:reproduce"
-    ]
+    fix["feedback_channels"][0]["observes"].remove("reproduction_evidence")
     with pytest.raises(AssertionError):
         assert_public_fix_reproduction_first(fix)
 
 
 def assert_public_review_read_only(contract):
     actions = [action for tool in contract["allowed_tools"] for action in tool["actions"]]
-    assert not any("mutate" in action or "write" in action for action in actions)
+    assert set(actions) <= REVIEW_ALLOWED_ACTIONS
 
 
 def assert_public_fix_reproduction_first(contract):
-    assert phases(contract)[0] == "reproduce"
+    assert contract["feedback_channels"][0]["after_action"] == "phase:triage"
+    assert "reproduction_evidence" in contract["feedback_channels"][0]["observes"]
