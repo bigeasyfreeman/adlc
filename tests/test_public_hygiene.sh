@@ -5,7 +5,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 for path in \
-  README.md LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md CHANGELOG.md pyproject.toml \
+  README.md LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md GOVERNANCE.md CHANGELOG.md pyproject.toml \
+  .github/CODEOWNERS \
   .github/workflows/ci.yml .github/PULL_REQUEST_TEMPLATE.md .github/dependabot.yml \
   .github/ISSUE_TEMPLATE/bug_report.yml .github/ISSUE_TEMPLATE/feature_request.yml \
   .github/ISSUE_TEMPLATE/config.yml; do
@@ -40,6 +41,7 @@ for path in "${repo_files[@]}"; do
 done
 
 python3 tests/check_markdown_links.py
+python3 scripts/render_support_matrix.py --check
 
 test ! -e docs/adlc-v2-specification.md
 test ! -e docs/adlc-v2-tickets.md

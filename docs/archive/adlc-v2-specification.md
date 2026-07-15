@@ -1,5 +1,7 @@
 # ADLC v2 Specification (Superseded)
 
+> **Superseded:** Historical specification retained for provenance. This is not current operator guidance.
+
 **Version:** 2.0
 **Date:** 2026-04-05
 **Status:** Superseded; retained for historical reference

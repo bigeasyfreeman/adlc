@@ -1,5 +1,7 @@
 # Archived Backwards & Forwards Compatibility Analysis — ADLC System
 
+> **Archived:** Historical analysis retained for provenance. This is not current operator guidance.
+
 > Historical snapshot from 2026-04-06. Many gaps described here were closed by
 > later schema, runtime, and permission work; use current specs for live behavior.
 

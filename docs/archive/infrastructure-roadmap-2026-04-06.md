@@ -1,5 +1,7 @@
 # Archived ADLC Infrastructure Roadmap
 
+> **Archived:** Historical roadmap retained for provenance. This is not current operator guidance.
+
 > Historical plan from 2026-04-06. Checkbox state is not current; retained for
 > provenance rather than active planning.
 
