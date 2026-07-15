@@ -39,7 +39,7 @@
     "invocation": "pass"
   },
   "duration_ms": 45615,
-  "evidence_status": "current_conformance",
+  "evidence_status": "superseded_conformance",
   "failures": [],
   "finished_at": "2026-07-15T03:30:33.858558+00:00",
   "fixture_sha256": "4d9f3f1a94b0fa86476b4344c62ec961365d32b0e86b6e7a07ed4dbd706fcfd2",
