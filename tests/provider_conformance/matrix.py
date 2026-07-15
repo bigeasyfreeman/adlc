@@ -107,16 +107,19 @@ def derive_support_matrix(reports: Iterable[Mapping[str, Any]]) -> Dict[str, Any
         run_reports = sorted(grouped[key], key=lambda item: item["run_id"])
         aggregate = _aggregate(run_reports)
         credentials_missing = any(report["credential_status"] == "missing" for report in run_reports)
+        superseded = any(report.get("evidence_status") == "superseded_conformance" for report in run_reports)
         all_pass = aggregate["failed_runs"] == 0 and all(
             value == "pass" for value in aggregate["dimensions"].values()
         )
-        if all_pass and not credentials_missing:
+        if all_pass and not credentials_missing and not superseded:
             aggregate["label"] = "beta" if aggregate["run_count"] >= 3 else "experimental"
             configurations.append(aggregate)
         else:
             aggregate["reason"] = (
                 "credentials_missing"
                 if credentials_missing
+                else "superseded_evidence"
+                if superseded
                 else "behavioral_failure"
                 if aggregate["failed_runs"]
                 else "incomplete_evidence"

@@ -34,6 +34,7 @@ def report(provider, model, dimensions, *, status="pass", credential_status="ava
         "failures": [] if status == "pass" else ["behavior_failed"],
         "no_overclaim": "Named configuration only.",
         "limitations": ["Fixture report."],
+        "evidence_status": "current_conformance",
         "source_commit": "a" * 40,
         "fixture_sha256": "b" * 64,
     }
@@ -125,6 +126,23 @@ def test_historical_failure_does_not_poison_fixed_source_cohort():
     assert support["configurations"][0]["label"] == "beta"
     assert support["configurations"][0]["source_commit"] == "c" * 40
     assert support["excluded"][0]["failed_runs"] == 1
+
+
+def test_superseded_passing_cohort_is_visible_but_not_active_support():
+    reports = [
+        report(
+            "codex",
+            "gpt-5.4",
+            {dimension: "pass" for dimension in matrix.CONFORMANCE_DIMENSIONS},
+            run_id=f"old-{index}",
+        )
+        for index in range(3)
+    ]
+    for item in reports:
+        item["evidence_status"] = "superseded_conformance"
+    support = matrix.derive_support_matrix(reports)
+    assert support["configurations"] == []
+    assert support["excluded"][0]["reason"] == "superseded_evidence"
 
 
 def test_invalid_dimension_value_fails_closed():

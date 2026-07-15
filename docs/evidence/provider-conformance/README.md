@@ -16,6 +16,13 @@ smoke harness produces a schema-valid
   timestamps recorded; and
 - the canonical `bin/adlc ci --json` gate passing at the same commit.
 
+`source_commit` is the clean executable source tree that was installed and
+tested. Evidence JSON and the generated matrix are necessarily published in a
+later descendant commit; requiring a report to contain the hash of the commit
+that first adds that report would be circular. A newer tested source cohort
+marks an older passing cohort `superseded_conformance` without rewriting its
+raw trace or result.
+
 Smoke output under `tests/smoke/artifacts/` is ephemeral. After reviewing a
 successful clean-tree report for secrets and local data, copy it here using a
 name such as `YYYY-MM-DD-claude.json`, validate it again, and commit it with the
@@ -74,6 +81,13 @@ The live Codex lane is explicit and bounded. Planning makes no provider call:
 python3 tests/provider_conformance/run_live.py --plan --model gpt-5.4 --repetitions 3 --json
 ```
 
-Execution requires the authenticated Codex CLI session and the literal `--execute` flag. Each repetition creates a disposable repo, installs the canonical skill, invokes the named provider/model for a Fix, and independently grades the JSONL tool trace, changed paths, product code, and red/green verifier. Raw evidence is path- and secret-redacted before it reaches a publication directory.
+Execution requires the authenticated Codex CLI session and the literal
+`--execute` flag. Each repetition creates a disposable repo, installs the
+canonical skill, invokes the named provider/model for a Fix, and independently
+grades the JSONL tool trace, changed paths, product code, and red/green
+verifier. Raw evidence replaces literal and resolved disposable-workspace
+paths with `<WORKSPACE>` and redacts credential patterns before publication.
+Portable executable paths such as `/bin/zsh` remain intact because they are
+part of the command provenance, not machine-local user data.
 
 Claude Code's isolated smoke lane still requires `ANTHROPIC_API_KEY` or `ADLC_SMOKE_SETTINGS`. Missing credentials are a blocked lane, not an unsupported test pass.

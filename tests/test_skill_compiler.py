@@ -53,6 +53,8 @@ def test_compiler_emits_provider_bundle_with_canonical_skill(provider):
     assert b"relative to the directory containing this `SKILL.md`" in bundle.files["SKILL.md"]
     assert b"skill/reference/" not in bundle.files["scripts/context.py"]
     assert b"loops/public-fix.json" in bundle.files["reference/command-fix.md"]
+    assert b"<skill-root>/loops/public-fix.json" in bundle.files["loops/public-fix.json"]
+    assert b"docs/loop-library/" not in bundle.files["loops/public-fix.json"]
     assert all(len(digest) == 64 for digest in bundle.digests.values())
 
 
@@ -61,6 +63,11 @@ def test_bundled_public_loop_contract_matches_repository_contract(loop):
     bundled = ROOT / "skill" / "loops" / f"public-{loop}.json"
     public = ROOT / "docs" / "loop-library" / f"public-{loop}.json"
     assert bundled.read_bytes() == public.read_bytes()
+
+
+def test_packaging_includes_bundled_loop_contracts():
+    packaging = (ROOT / "pyproject.toml").read_text()
+    assert '"share/adlc/skill/loops" = ["skill/loops/*.json"]' in packaging
 
 
 def test_compiler_rejects_unknown_provider():

@@ -26,6 +26,7 @@
       "enum": [
         "current_conformance",
         "candidate_conformance",
+        "superseded_conformance",
         "failed_conformance"
       ]
     },
@@ -120,7 +121,7 @@
       "then": {
         "properties": {
           "evidence_status": {
-            "enum": ["current_conformance", "candidate_conformance"]
+            "enum": ["current_conformance", "candidate_conformance", "superseded_conformance"]
           },
           "stages": {
             "items": {"properties": {"ok": {"const": true}}}
@@ -137,7 +138,7 @@
       },
       "then": {
         "properties": {
-          "evidence_status": {"const": "current_conformance"}
+          "evidence_status": {"enum": ["current_conformance", "superseded_conformance"]}
         }
       }
     },

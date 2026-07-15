@@ -43,6 +43,12 @@ def _installed_content(relative: str, content: bytes) -> bytes:
         "reference/command-review.md",
     }:
         content = content.replace(b"docs/loop-library/", b"loops/")
+    if relative in {
+        "loops/public-build.json",
+        "loops/public-fix.json",
+        "loops/public-review.json",
+    }:
+        content = content.replace(b"docs/loop-library/", b"<skill-root>/loops/")
     return content
 
 
