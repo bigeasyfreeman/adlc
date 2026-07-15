@@ -53,13 +53,27 @@
     "reproducibility": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "builds", "matching_names", "matching_sha256", "source_date_epoch"],
+      "required": ["status", "builds", "matching_names", "matching_sha256", "source_date_epoch", "build_digests"],
       "properties": {
         "status": {"const": "pass"},
         "builds": {"const": 2},
         "matching_names": {"const": true},
         "matching_sha256": {"const": true},
-        "source_date_epoch": {"type": "integer", "minimum": 1}
+        "source_date_epoch": {"type": "integer", "minimum": 1},
+        "build_digests": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["build", "artifacts"],
+            "properties": {
+              "build": {"type": "integer", "minimum": 1, "maximum": 2},
+              "artifacts": {"type": "array", "minItems": 2, "items": {"$ref": "#/definitions/digest_ref"}}
+            }
+          }
+        }
       }
     },
     "gates": {

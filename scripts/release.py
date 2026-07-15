@@ -236,6 +236,10 @@ def compare_builds(first: Path, second: Path, artifact_dir: Path, epoch: int) ->
     second_files = {path.name: path for path in second.iterdir() if path.is_file()}
     if set(first_files) != set(second_files):
         raise ReleaseBlocked("reproducible builds emitted different artifact names")
+    build_digests = [
+        {"build": index, "artifacts": [digest_ref(files[name]) for name in sorted(files)]}
+        for index, files in ((1, first_files), (2, second_files))
+    ]
     differences = [name for name in sorted(first_files) if sha256_path(first_files[name]) != sha256_path(second_files[name])]
     if differences:
         raise ReleaseBlocked(f"reproducible build digest mismatch: {differences}")
@@ -251,6 +255,40 @@ def compare_builds(first: Path, second: Path, artifact_dir: Path, epoch: int) ->
         "matching_names": True,
         "matching_sha256": True,
         "source_date_epoch": epoch,
+        "build_digests": build_digests,
+    }
+
+
+def release_identity_policy(repository: str, version: str) -> Dict[str, Any]:
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    name = re.search(r'^name\s*=\s*"([^"]+)"', text, re.MULTILINE)
+    homepage = re.search(r'^Homepage\s*=\s*"([^"]+)"', text, re.MULTILINE)
+    if not name or name.group(1) != "adlc" or not homepage or homepage.group(1) != "https://github.com/bigeasyfreeman/adlc":
+        raise ReleaseBlocked("package or source repository identity drifted")
+    return {
+        "status": "pass",
+        "package_name": name.group(1),
+        "package_version": version,
+        "requested_registry": repository,
+        "registry_project": "https://pypi.org/project/adlc/" if repository == "pypi" else "local-test-index/adlc",
+        "source_repository": homepage.group(1),
+    }
+
+
+def python_support_policy() -> Dict[str, Any]:
+    package = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    requirement = re.search(r'^requires-python\s*=\s*"([^"]+)"', package, re.MULTILINE)
+    discovered = set(re.findall(r'"(3\.(?:9|13))"', workflow))
+    versions = ["3.9", "3.13"]
+    if not requirement or requirement.group(1) != ">=3.9" or discovered != set(versions):
+        raise ReleaseBlocked("Python support claim is not covered by the hosted CI boundary matrix")
+    return {
+        "status": "pass",
+        "requires_python": requirement.group(1),
+        "hosted_ci_versions": versions,
+        "evidence": ".github/workflows/ci.yml",
+        "claim": "minimum and newest supported Python boundaries run canonical CI before merge",
     }
 
 
@@ -290,6 +328,51 @@ def record_gate(name: str, value: Any, evidence_dir: Path) -> Dict[str, Any]:
         "evidence_ref": path.relative_to(ROOT).as_posix(),
         "evidence_sha256": sha256_path(path),
     }
+
+
+def reference_gate(name: str, evidence_dir: Path) -> Dict[str, Any]:
+    path = evidence_dir / f"{name}.json"
+    if not path.is_file():
+        raise ReleaseBlocked(f"release gate evidence is missing: {name}")
+    value = read_json(path)
+    if value.get("status") != "pass" or value.get("returncode") != 0:
+        raise ReleaseBlocked(f"release gate evidence did not pass: {name}")
+    return {
+        "name": name,
+        "status": "pass",
+        "evidence_ref": path.relative_to(ROOT).as_posix(),
+        "evidence_sha256": sha256_path(path),
+    }
+
+
+def completion_audit(gates: Sequence[Mapping[str, Any]], evidence_dir: Path) -> Dict[str, Any]:
+    required = {
+        "reproducibility",
+        "package-metadata",
+        "release-identity",
+        "python-support",
+        "dependency-policy",
+        "dependency-vulnerability-audit",
+        "canonical-ci",
+        "release-contract",
+        "public-hygiene",
+        "benchmark-bundle",
+        "support-matrix-render",
+        "docs-build",
+        "docs-contract",
+        "clean-test-index-install",
+        "rollback",
+        "release-notes",
+    }
+    passed = {str(gate.get("name")) for gate in gates if gate.get("status") == "pass"}
+    missing = sorted(required - passed)
+    if missing:
+        raise ReleaseBlocked(f"completion audit is missing release gates: {missing}")
+    return record_gate(
+        "completion-audit",
+        {"status": "pass", "required_gates": sorted(required), "missing": [], "external_actions_performed": 0},
+        evidence_dir,
+    )
 
 
 def scan_release_output(output: Path, evidence_dir: Path) -> Dict[str, Any]:
@@ -417,7 +500,7 @@ def test_packet() -> Dict[str, Any]:
         "release": {"tag": "fixture-v0.9.0", "version": "0.9.0", "repository": "test", "fixture": True, "generated_at": "2026-07-15T00:00:00Z"},
         "source": {"commit": "c" * 40, "tree_clean": True, "tag_ref_verified": False, "changelog_sha256": "d" * 64},
         "artifacts": [digest, {**digest, "name": "adlc-0.9.0.tar.gz"}],
-        "reproducibility": {"status": "pass", "builds": 2, "matching_names": True, "matching_sha256": True, "source_date_epoch": 1},
+        "reproducibility": {"status": "pass", "builds": 2, "matching_names": True, "matching_sha256": True, "source_date_epoch": 1, "build_digests": [{"build": 1, "artifacts": [digest, {**digest, "name": "adlc-0.9.0.tar.gz"}]}, {"build": 2, "artifacts": [digest, {**digest, "name": "adlc-0.9.0.tar.gz"}]}]},
         "gates": gates,
         "support_claims": {"source": "docs/evidence/provider-conformance/support-matrix.json", "source_sha256": "e" * 64, "configurations": [{}], "limitations": ["fixture"], "no_overclaim": "fixture only"},
         "provenance": {"predicate_type": "https://slsa.dev/provenance/v1", "builder": "test", "source_commit": "c" * 40, "artifact_digests": [digest, {**digest, "name": "adlc-0.9.0.tar.gz"}], "signed": False},
@@ -460,7 +543,22 @@ def prepare_release(args: argparse.Namespace) -> Dict[str, Any]:
     gates: List[Dict[str, Any]] = []
     gates.append(record_gate("reproducibility", reproducibility, evidence_dir))
     gates.append(record_gate("package-metadata", wheel_metadata(wheel, version), evidence_dir))
+    gates.append(record_gate("release-identity", release_identity_policy(args.repository, version), evidence_dir))
+    gates.append(record_gate("python-support", python_support_policy(), evidence_dir))
     gates.append(record_gate("dependency-policy", dependency_policy(), evidence_dir))
+    gates.append(
+        record_gate(
+            "release-notes",
+            {
+                "status": "pass",
+                "source": "CHANGELOG.md",
+                "sha256": sha256_path(ROOT / "CHANGELOG.md"),
+                "version": version,
+                "publication_state": "candidate-only",
+            },
+            evidence_dir,
+        )
+    )
     gates.append(run_logged("canonical-ci", [str(ROOT / "bin/adlc"), "ci", "--json"], evidence_dir))
     gates.append(run_logged("release-contract", [sys.executable, "-m", "pytest", "tests/test_release_workflow.py", "-q"], evidence_dir))
     gates.append(run_logged("public-hygiene", ["bash", "tests/test_public_hygiene.sh"], evidence_dir))
@@ -470,7 +568,9 @@ def prepare_release(args: argparse.Namespace) -> Dict[str, Any]:
     gates.append(run_logged("docs-contract", [sys.executable, "tests/check_built_docs.py", "site"], evidence_dir))
     install_gate, rollback = install_and_rehearse_rollback(wheel, version, output, evidence_dir)
     gates.append(install_gate)
+    gates.append(reference_gate("dependency-vulnerability-audit", evidence_dir))
     gates.append(record_gate("rollback", rollback, evidence_dir))
+    gates.append(completion_audit(gates, evidence_dir))
     gates.append(scan_release_output(output, evidence_dir))
 
     claims = support_claims()
@@ -518,6 +618,10 @@ def validate_human_approval(packet_path: Path, approval_path: Path) -> Tuple[Dic
         raise ReleaseBlocked("publish requires an approved human approval record")
     if Path(approval["artifact_ref"]).resolve() != packet_path.resolve():
         raise ReleaseBlocked("approval record is not bound to this release packet")
+    if approval.get("gate_id") != "release_publication":
+        raise ReleaseBlocked("publish requires a release_publication approval record")
+    if approval.get("packet_sha256") != sha256_path(packet_path):
+        raise ReleaseBlocked("approval record packet digest does not match this release packet")
     return packet, approval
 
 

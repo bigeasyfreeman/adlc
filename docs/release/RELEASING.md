@@ -12,7 +12,7 @@ Preparation is idempotent for the same source commit: it recreates the ignored o
 
 ## Approve and publish
 
-Create an immutable `vX.Y.Z` tag only after MIG-VAL returns a passing or explicitly scoped-beta recommendation. Dispatch `.github/workflows/release.yml` with `confirm_publication=false` first. The release owner must bind a human approval record to the exact packet and digests. A second dispatch with confirmation enabled still stops at the protected `pypi`, `github-release`, and `github-pages` environments until their reviewers approve.
+Create an immutable `vX.Y.Z` tag only after MIG-VAL returns a passing or explicitly scoped-beta recommendation. Dispatch `.github/workflows/release.yml` with `confirm_publication=false` first. The release owner reviews the resulting packet and records its exact SHA-256 in a schema-valid `release_publication` approval record. A second dispatch supplies that record through `approval_record_json` and enables confirmation. Every publishing job calls `scripts/release.py publish` to validate the record's packet path and digest before it can reach the protected `pypi`, `github-release`, or `github-pages` environment action.
 
 The PyPI job uses OIDC trusted publishing and GitHub artifact attestation. The GitHub Release job uploads only the prepared bytes. The Pages job delegates to the existing tagged documentation workflow. Launch communications are outside this workflow and remain separately approval-bound.
 

@@ -3,9 +3,11 @@ from __future__ import annotations
 import importlib.util
 import json
 import tarfile
+from argparse import Namespace
 from pathlib import Path
 
 import jsonschema
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +42,11 @@ def test_architecture_publish_requires_validated_human_approval():
     assert "environment: pypi" in workflow
     assert "environment: github-release" in workflow
     assert "id-token: write" in workflow
+    assert "approval_record_json" in workflow
+    assert workflow.count("scripts/release.py publish") == 3
+    assert "--target pypi_upload" in workflow
+    assert "--target github_release" in workflow
+    assert "--target pages_deploy" in workflow
 
 
 def test_architecture_runs_dependency_and_packet_secret_audits():
@@ -92,3 +99,77 @@ def test_sdist_normalization_removes_archive_timestamp_drift(tmp_path):
         release.canonicalize_sdist(archive_path, 123456789)
         archives.append(archive_path)
     assert release.sha256_path(archives[0]) == release.sha256_path(archives[1])
+
+
+def test_compare_builds_records_both_exact_digest_sets(tmp_path):
+    release = load_release()
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    artifacts = tmp_path / "artifacts"
+    first.mkdir()
+    second.mkdir()
+    for directory in (first, second):
+        (directory / "adlc-0.9.0-py3-none-any.whl").write_bytes(b"wheel")
+        (directory / "adlc-0.9.0.tar.gz").write_bytes(b"sdist")
+    published, reproducibility = release.compare_builds(first, second, artifacts, 123)
+    assert len(published) == 2
+    assert [item["build"] for item in reproducibility["build_digests"]] == [1, 2]
+    assert reproducibility["build_digests"][0]["artifacts"] == reproducibility["build_digests"][1]["artifacts"]
+
+
+def test_prepare_rejects_dirty_tree_before_creating_output(monkeypatch):
+    release = load_release()
+    monkeypatch.setattr(release, "project_version", lambda: "0.9.0")
+    monkeypatch.setattr(release, "docs_version", lambda: "0.9.0")
+    monkeypatch.setattr(release, "git", lambda *args: "M README.md")
+    with pytest.raises(release.ReleaseBlocked, match="clean source checkout"):
+        release.prepare_release(Namespace(tag="fixture-v0.9.0", repository="test"))
+
+
+def test_prepare_rejects_tag_package_version_drift(monkeypatch):
+    release = load_release()
+    monkeypatch.setattr(release, "project_version", lambda: "0.9.1")
+    monkeypatch.setattr(release, "docs_version", lambda: "0.9.0")
+    with pytest.raises(release.ReleaseBlocked, match="version drift"):
+        release.prepare_release(Namespace(tag="fixture-v0.9.0", repository="test"))
+
+
+def test_release_approval_is_bound_to_packet_digest_and_publish_is_non_mutating(tmp_path):
+    release = load_release()
+    packet_path = tmp_path / "release-approval-packet.json"
+    packet_path.write_text(json.dumps(release.test_packet()) + "\n", encoding="utf-8")
+    approval_path = tmp_path / "approval.json"
+    approval = {
+        "contract_version": "1.0.0",
+        "approval_id": "approval-abcdef123456",
+        "gate_id": "release_publication",
+        "decision": "approved",
+        "reason": "Exact candidate packet and artifact digests reviewed.",
+        "decided_by": "human",
+        "timestamp": "2026-07-15T00:00:00Z",
+        "brief_id": "ADLC-MIG-013",
+        "run_id": "release-v0.9.0",
+        "session_id": "human-release-owner",
+        "artifact_ref": str(packet_path),
+        "packet_sha256": release.sha256_path(packet_path),
+    }
+    approval_path.write_text(json.dumps(approval) + "\n", encoding="utf-8")
+    result = release.publish_release(
+        Namespace(
+            packet=packet_path,
+            approval_record=approval_path,
+            target="pypi_upload",
+            confirm_external_publication=True,
+        )
+    )
+    assert result["external_action_performed"] is False
+    packet_path.write_text(json.dumps({**release.test_packet(), "status": "awaiting_human_approval"}, indent=2) + "\n")
+    with pytest.raises(release.ReleaseBlocked, match="digest does not match"):
+        release.validate_human_approval(packet_path, approval_path)
+
+
+def test_python_support_claim_is_tied_to_hosted_boundary_matrix():
+    release = load_release()
+    claim = release.python_support_policy()
+    assert claim["requires_python"] == ">=3.9"
+    assert claim["hosted_ci_versions"] == ["3.9", "3.13"]

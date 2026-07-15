@@ -12,6 +12,11 @@ on:
         required: true
         default: false
         type: boolean
+      approval_record_json:
+        description: Human release_publication approval record bound to the dry-run packet SHA-256
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -69,10 +74,21 @@ jobs:
       attestations: write
       contents: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
       - uses: actions/download-artifact@v4
         with:
           name: release-candidate-${{ inputs.release_tag }}
           path: release-out/${{ inputs.release_tag }}
+      - name: Validate packet-bound human approval
+        env:
+          APPROVAL_RECORD_JSON: ${{ inputs.approval_record_json }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          test -n "$APPROVAL_RECORD_JSON"
+          printf '%s' "$APPROVAL_RECORD_JSON" > "$RUNNER_TEMP/release-approval.json"
+          python scripts/release.py publish --packet "release-out/$RELEASE_TAG/release-approval-packet.json" --approval-record "$RUNNER_TEMP/release-approval.json" --target pypi_upload --confirm-external-publication --json
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: release-out/${{ inputs.release_tag }}/artifacts/*
@@ -95,6 +111,14 @@ jobs:
         with:
           name: release-candidate-${{ inputs.release_tag }}
           path: release-out/${{ inputs.release_tag }}
+      - name: Validate packet-bound human approval
+        env:
+          APPROVAL_RECORD_JSON: ${{ inputs.approval_record_json }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          test -n "$APPROVAL_RECORD_JSON"
+          printf '%s' "$APPROVAL_RECORD_JSON" > "$RUNNER_TEMP/release-approval.json"
+          python scripts/release.py publish --packet "release-out/$RELEASE_TAG/release-approval-packet.json" --approval-record "$RUNNER_TEMP/release-approval.json" --target github_release --confirm-external-publication --json
       - name: Create immutable GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -110,6 +134,21 @@ jobs:
       actions: write
       contents: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-candidate-${{ inputs.release_tag }}
+          path: release-out/${{ inputs.release_tag }}
+      - name: Validate packet-bound human approval
+        env:
+          APPROVAL_RECORD_JSON: ${{ inputs.approval_record_json }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          test -n "$APPROVAL_RECORD_JSON"
+          printf '%s' "$APPROVAL_RECORD_JSON" > "$RUNNER_TEMP/release-approval.json"
+          python scripts/release.py publish --packet "release-out/$RELEASE_TAG/release-approval-packet.json" --approval-record "$RUNNER_TEMP/release-approval.json" --target pages_deploy --confirm-external-publication --json
       - name: Request protected docs deployment
         env:
           GH_TOKEN: ${{ github.token }}

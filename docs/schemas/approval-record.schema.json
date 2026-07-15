@@ -20,7 +20,7 @@
   "properties": {
     "contract_version": {"type": "string", "const": "1.0.0"},
     "approval_id": {"type": "string", "pattern": "^approval-[a-f0-9]{12}$"},
-    "gate_id": {"type": "string", "enum": ["intent_validation", "engineer_review"]},
+    "gate_id": {"type": "string", "enum": ["intent_validation", "engineer_review", "release_publication"]},
     "decision": {"type": "string", "enum": ["approved", "revise", "rejected"]},
     "reason": {"type": "string", "minLength": 1},
     "decided_by": {"type": "string", "const": "human"},
@@ -28,7 +28,8 @@
     "brief_id": {"type": "string", "minLength": 1},
     "run_id": {"type": "string", "minLength": 1},
     "session_id": {"type": "string", "minLength": 1},
-    "artifact_ref": {"type": "string", "minLength": 1}
+    "artifact_ref": {"type": "string", "minLength": 1},
+    "packet_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
   },
   "allOf": [
     {
@@ -38,6 +39,18 @@
       "then": {
         "properties": {
           "decision": {"enum": ["approved", "revise"]}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"gate_id": {"const": "release_publication"}},
+        "required": ["gate_id"]
+      },
+      "then": {
+        "required": ["packet_sha256"],
+        "properties": {
+          "decision": {"enum": ["approved", "rejected"]}
         }
       }
     }
