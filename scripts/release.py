@@ -310,6 +310,14 @@ def scan_release_output(output: Path, evidence_dir: Path) -> Dict[str, Any]:
     )
 
 
+def assert_publication_safe(value: Any, label: str) -> None:
+    serialized = json.dumps(value, sort_keys=True)
+    if SECRET_LIKE.search(serialized):
+        raise ReleaseBlocked(f"secret-like value found in {label}")
+    if PRIVATE_PATH.search(serialized):
+        raise ReleaseBlocked(f"private path found in {label}")
+
+
 def install_and_rehearse_rollback(
     wheel: Path, version: str, output: Path, evidence_dir: Path
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
@@ -332,6 +340,18 @@ def install_and_rehearse_rollback(
             [str(python), "-c", "import importlib.metadata as m; assert m.version('adlc') == '" + version + "'"],
             evidence_dir,
         )
+        audit_requirements = output / "audit-requirements.txt"
+        audit_requirements.write_text("\n".join(dependency_policy()["dependencies"]) + "\n", encoding="utf-8")
+        run_logged(
+            "dependency-auditor-install",
+            [str(python), "-m", "pip", "install", "--disable-pip-version-check", "pip-audit==2.9.0"],
+            evidence_dir,
+        )
+        run_logged(
+            "dependency-vulnerability-audit",
+            [str(python), "-m", "pip_audit", "-r", str(audit_requirements), "--progress-spinner", "off", "--format", "json"],
+            evidence_dir,
+        )
         run_logged("rollback-uninstall", [str(python), "-m", "pip", "uninstall", "-y", "adlc"], evidence_dir)
         run_logged(
             "rollback-reinstall",
@@ -352,6 +372,7 @@ def install_and_rehearse_rollback(
             "source": index_wheel.relative_to(ROOT).as_posix(),
             "package_smoke": "pass",
             "dependency_check": "pass",
+            "vulnerability_audit": "pass",
         },
         evidence_dir,
     )
@@ -474,6 +495,7 @@ def prepare_release(args: argparse.Namespace) -> Dict[str, Any]:
         },
     }
     jsonschema.validate(packet, read_json(PACKET_SCHEMA))
+    assert_publication_safe(packet, "release approval packet")
     packet_path = output / "release-approval-packet.json"
     write_json(packet_path, packet)
     return {

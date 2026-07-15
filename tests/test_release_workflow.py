@@ -42,6 +42,13 @@ def test_architecture_publish_requires_validated_human_approval():
     assert "id-token: write" in workflow
 
 
+def test_architecture_runs_dependency_and_packet_secret_audits():
+    source = RELEASE.read_text(encoding="utf-8")
+    assert '"dependency-vulnerability-audit"' in source
+    assert '"pip_audit"' in source
+    assert "assert_publication_safe(packet" in source
+
+
 def test_architecture_release_claims_come_from_conformance_evidence():
     release = load_release()
     claims = release.support_claims(ROOT / "docs/evidence/provider-conformance/support-matrix.json")
