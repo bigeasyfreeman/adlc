@@ -31,7 +31,8 @@ SECRET_PATTERN = re.compile(
     re.IGNORECASE,
 )
 ABSOLUTE_PRIVATE_PATH = re.compile(r"/(?:Users/[^/]+|private/var/folders|var/folders)/")
-TEST_INVOCATION = re.compile(r"python3?\s+-m\s+unittest\s+discover\s+-s\s+tests\s+-v")
+PRIVATE_USER_HOME = re.compile(r"/Users/[^/\s\"'<>]+")
+PRIVATE_TEMP_PATH = re.compile(r"/(?:private/)?var/folders/[^\s\"'<>]+")
 FIXED_GIT_ENV = {
     "GIT_AUTHOR_NAME": "ADLC Fix Demo",
     "GIT_AUTHOR_EMAIL": "adlc-fix@example.invalid",
@@ -303,6 +304,8 @@ def redact(value: Any, replacements: Sequence[Tuple[str, str]]) -> Any:
     if isinstance(value, str):
         for source, replacement in replacements:
             value = value.replace(source, replacement)
+        value = PRIVATE_TEMP_PATH.sub("<PRIVATE_TEMP>", value)
+        value = PRIVATE_USER_HOME.sub("<USER_HOME>", value)
         return value
     return value
 
@@ -400,6 +403,15 @@ def command_results(events: Sequence[Mapping[str, Any]]) -> List[Tuple[str, int]
         and isinstance(event.get("item"), dict)
         and event["item"].get("type") == "command_execution"
         and isinstance(event["item"].get("exit_code"), int)
+    ]
+
+
+def verifier_exit_codes(events: Sequence[Mapping[str, Any]], verifier: str) -> List[int]:
+    """Exclude commands that only embed the verifier as completion-audit data."""
+    return [
+        code
+        for command, code in command_results(events)
+        if verifier in command and "completion-audit" not in command
     ]
 
 
@@ -653,7 +665,11 @@ def execute_attempt(
             }
             write_json(run_dir / "green.json", green, replacements)
             provider_tests = command_results(interrupted_events) + command_results(resumed_events)
-            provider_test_codes = [code for command, code in provider_tests if TEST_INVOCATION.search(command)]
+            provider_test_codes = [
+                code
+                for command, code in provider_tests
+                if fixture["verifier"] in command and "completion-audit" not in command
+            ]
             verifier_valid = provider_test_codes and provider_test_codes[0] != 0 and provider_test_codes[-1] == 0
             if not verifier_valid:
                 raise BenchmarkError("live Codex trace does not contain the exact red-before-green verifier sequence")
@@ -661,7 +677,8 @@ def execute_attempt(
             review_prompt = (
                 "Independently review the current uncommitted Fix. Read only the product diff and affected tests, run "
                 f"the exact verifier `{fixture['verifier']}`, and verify that only src/invoice.py changed and the "
-                "allocation invariant is actually repaired. Do not edit or commit. End with "
+                "allocation invariant is actually repaired. The harness, not this reviewer, runs completion-audit; "
+                "do not invoke completion-audit, edit, or commit. End with "
                 "INDEPENDENT_REVIEW_PASS only if every check passes; otherwise end with INDEPENDENT_REVIEW_FAIL."
             )
             review_process = run_process(
@@ -686,7 +703,7 @@ def execute_attempt(
             review_events = json_events(review_process.stdout)
             auditor_session = event_thread_id(review_events)
             tokens += token_usage(review_events)
-            review_codes = [code for command, code in command_results(review_events) if TEST_INVOCATION.search(command)]
+            review_codes = verifier_exit_codes(review_events, fixture["verifier"])
             review_valid = (
                 review_process.returncode == 0
                 and auditor_session != executor_session

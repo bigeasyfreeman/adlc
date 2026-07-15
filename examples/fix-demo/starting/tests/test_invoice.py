@@ -30,10 +30,13 @@ class AllocateDiscountTests(unittest.TestCase):
         self.assertEqual(allocations, [Decimal("0.67"), Decimal("0.27"), Decimal("0.07")])
 
     def test_zero_total_returns_cent_precision_zeroes(self):
-        self.assertEqual(
-            allocate_discount([Decimal("0"), Decimal("0")], Decimal("0")),
-            [Decimal("0.00"), Decimal("0.00")],
-        )
+        allocations = allocate_discount([Decimal("0"), Decimal("0")], Decimal("0"))
+        self.assertEqual(allocations, [Decimal("0.00"), Decimal("0.00")])
+        self.assertTrue(all(value.as_tuple().exponent == -2 for value in allocations))
+
+    def test_empty_invoice_rejects_nonzero_discount(self):
+        with self.assertRaises(ValueError):
+            allocate_discount([], Decimal("0.01"))
 
     def test_rejects_negative_money(self):
         with self.assertRaises(ValueError):

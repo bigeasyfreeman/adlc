@@ -99,3 +99,28 @@ def test_publication_attestation_requires_independent_review_and_human_approval(
     assert "human_approval_ref" in approval_required
     assert schema["properties"]["reviewer"]["properties"]["basis"]["const"] == "separate_codex_session"
     assert schema["properties"]["redaction_review"]["properties"]["status"]["const"] == "pass"
+
+
+def test_redaction_replaces_unrelated_private_provider_paths():
+    runner = load_runner()
+    value = "read /var/folders/ab/codex/output and /Users/example/work without publishing either"
+    redacted = runner.redact(value, [])
+    assert redacted == "read <PRIVATE_TEMP> and <USER_HOME>/work without publishing either"
+    runner.ensure_redacted(redacted)
+
+
+def test_verifier_scoring_ignores_commands_that_only_embed_the_verifier():
+    runner = load_runner()
+    verifier = "python3 -m unittest discover -s tests -v"
+    events = [
+        {"type": "item.completed", "item": {"type": "command_execution", "command": verifier, "exit_code": 0}},
+        {
+            "type": "item.completed",
+            "item": {
+                "type": "command_execution",
+                "command": f"adlc completion-audit --claim '{verifier}'",
+                "exit_code": 2,
+            },
+        },
+    ]
+    assert runner.verifier_exit_codes(events, verifier) == [0]
