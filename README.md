@@ -92,11 +92,11 @@ Read the [security and privacy boundary](docs/trust/security-privacy.md), [secur
 
 - [Provider conformance evidence](docs/evidence/provider-conformance/README.md)
 - [Deterministic public Fix replay](tests/acceptance/run_public_fix_loop.sh)
-- [Benchmark method and current evidence status](docs/trust/benchmark.md)
+- [Replayable invoice Fix demo and public benchmark](docs/trust/benchmark.md)
 - [Legacy-surface migration ledger](docs/migration/legacy-surface-migration.md)
 - [Canonical local verification](docs/contribute/development.md)
 
-The replay and current provider matrix are scoped evidence, not proof of future behavior, market traction, compliance certification, or universal provider support. A versioned demo and public benchmark are delivered by later release gates and are not claimed here.
+The public benchmark preserves three complete deterministic runs with red-before-green, interrupt/resume, one-file scope, and independent completion-audit evidence. It installs Codex but invokes no provider or model, so its token and provider-cost range is exactly zero and it does not change the live-provider support matrix. These proofs are scoped evidence, not proof of future behavior, market traction, compliance certification, GA readiness, or universal provider support.
 
 ## Documentation and community
 
@@ -112,7 +112,7 @@ The replay and current provider matrix are scoped evidence, not proof of future 
 
 ## Status and limitations
 
-ADLC is an unreleased beta candidate. The source checkout, deterministic tests, and the exact Codex Fix configuration shown above have evidence; a published package, versioned site, replayable benchmark release, secure release workflow, and public launch remain gated work. Only released and tested configurations may graduate support labels.
+ADLC is an unreleased beta candidate. The source checkout, deterministic tests, exact Codex Fix configuration shown above, documentation-site build, and deterministic public benchmark have evidence; package publication, production docs deployment, secure release automation, and public launch remain gated work. Only released and tested configurations may graduate support labels.
 
 `doc_honesty_section`: This page describes the current source product and links to its evidence; it is not a release artifact or adoption proof.
 

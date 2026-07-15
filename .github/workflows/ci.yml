@@ -34,4 +34,4 @@ jobs:
       - name: Run ADLC CI
         run: bin/adlc ci --json
       - name: Run Python lint
-        run: ruff check scripts tests
+        run: ruff check scripts tests benchmarks examples/fix-demo

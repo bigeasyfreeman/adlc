@@ -9,6 +9,7 @@ SCHEMA_ALIASES = {
     "approval-record": "docs/schemas/approval-record.schema.json",
     "applicability-manifest": "docs/schemas/applicability-manifest.schema.json",
     "architecture-memory-report": "docs/schemas/architecture-memory-report.schema.json",
+    "benchmark-report": "docs/schemas/benchmark-report.schema.json",
     "build-brief": "docs/schemas/build-brief.schema.json",
     "blindspot-report": "docs/schemas/blindspot-report.schema.json",
     "beads-status-report": "docs/schemas/beads-status-report.schema.json",

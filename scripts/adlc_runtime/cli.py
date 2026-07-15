@@ -4049,13 +4049,38 @@ CI_SUITES = {
         "description": "Public repository metadata, path, credential, JSON, and link checks",
         "command": ["bash", "tests/test_public_hygiene.sh"],
     },
+    "public-benchmark": {
+        "description": "Three-run replay of the pinned public Fix benchmark",
+        "command": [
+            "python3",
+            "benchmarks/run.py",
+            "--fixture",
+            "examples/fix-demo",
+            "--runs",
+            "3",
+            "--verify-replay",
+            "--json",
+        ],
+    },
     "py-compile": {
         "description": "Python syntax compilation over scripts/",
         "command": [],
     },
 }
 
-DEFAULT_CI_SUITE_ORDER = ("health-check", "cli", "contracts", "setup", "drift", "acceptance", "os12-acceptance", "backtest", "public-hygiene", "py-compile")
+DEFAULT_CI_SUITE_ORDER = (
+    "health-check",
+    "cli",
+    "contracts",
+    "setup",
+    "drift",
+    "acceptance",
+    "os12-acceptance",
+    "backtest",
+    "public-hygiene",
+    "public-benchmark",
+    "py-compile",
+)
 
 
 def ci_command_for_suite(suite_name: str) -> List[str]:
