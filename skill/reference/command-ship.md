@@ -14,6 +14,7 @@ The scoped commit, required verifier evidence, target, and release authority are
 2. Run completion and PR hygiene checks.
 3. Draft the external package with limitations and rollback notes.
 4. Stop before push, PR creation, merge, release, deploy, or communication unless approved.
+5. Load `register-release.md` for delivery or operational readiness and `register-integrations.md` only for an explicitly requested external handoff. Never load the legacy `ship-content` skill.
 
 ## Outputs
 A publish-ready package, exact pending action, and current evidence summary.

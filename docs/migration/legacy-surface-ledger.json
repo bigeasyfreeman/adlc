@@ -1,8 +1,56 @@
 {
   "contract_version": "1.0.0",
   "ledger_id": "ADLC-LEGACY-SURFACE-1",
-  "source_commit": "07a5e955d82d965c8f0a05f01e604748edf8a7c0",
-  "generated_at": "2026-07-14T17:54:42Z",
+  "source_commit": "a2c10997ac656ff28ca56c9aa98ced47a1b34551",
+  "generated_at": "2026-07-14T21:00:00Z",
+  "migration_status": {
+    "ticket": "ADLC-MIG-009",
+    "status": "implemented_pending_release",
+    "effective_date": "2026-07-14",
+    "default_public_skills": ["adlc"],
+    "default_public_agents": [],
+    "compatibility_entrypoint": "setup.sh",
+    "preferred_entrypoint": "adlc-skill",
+    "migration_guide": "docs/migration/legacy-surface-migration.md",
+    "compatibility_ownership": "Cursor, Antigravity, and Factory canonical outputs use .adlc/compat-manifests; drift and unmanaged collisions fail closed, while transactional rollback remains limited to Claude Code and Codex.",
+    "deletion_policy": "No legacy source surface is deleted without consumer, replacement, dated-notice, rollback, and maintainer-approval evidence.",
+    "external_consumer_limitation": "Unknown external forks and private consumers cannot be proven by repository-local evidence."
+  },
+  "internal_pack_registers": [
+    {
+      "reference": "skill/reference/register-security.md",
+      "members": ["agentic-security", "api-security", "appsec-threat-model", "infra-security", "llm-security", "security-review"]
+    },
+    {
+      "reference": "skill/reference/register-release.md",
+      "members": ["ci-cd-pipeline", "helm-argocd-deployment", "grafana-observability", "incident-runbook", "observability-contract", "drift-maintenance"]
+    },
+    {
+      "reference": "skill/reference/register-integrations.md",
+      "members": ["confluence-decomposition", "figma-integration", "github-issue-creation", "gong-customer-evidence", "jira-ticket-creation", "linear-ticket-creation", "notion-decomposition", "slack-orchestration", "ux-flow-builder"]
+    },
+    {
+      "reference": "skill/reference/register-engineering.md",
+      "members": ["architecture-pattern", "codebase-research", "graph-research", "codegen-context", "context-layers", "dark-code-audit", "eval-council", "mutant-materiality-judge", "qa-test-data", "spec-to-tests", "tdd-enforcement", "test-strength", "section-policy-judge", "ldd-enforcement", "reuse-analysis", "paved-road-registry", "specificity-judge", "verifier-semantic-judge"]
+    }
+  ],
+  "internal_loop_roles": {
+    "reference": "skills/manifest.json#agents",
+    "members": ["code-reviewer", "coder", "fixer", "plan-reviewer", "planner", "pr-preparer", "researcher", "security-reviewer", "test-author", "test-strength-auditor", "triage"],
+    "exposure": "runtime-selected internal DAG roles; never default-installed peer agents"
+  },
+  "excluded_legacy_surfaces": [
+    {
+      "name": "execute-trade",
+      "reason": "Unrelated domain workflow outside the default ADLC product.",
+      "retention": "Source retained during 0.x because external consumers are unknown; never selected or installed."
+    },
+    {
+      "name": "ship-content",
+      "reason": "The public Ship command is bounded by skill/reference/command-ship.md; the domain-specific peer skill is never installed.",
+      "retention": "Source retained during 0.x for compatibility evidence."
+    }
+  ],
   "public_commands": [
     "init",
     "shape",
@@ -1574,8 +1622,8 @@
       "name": "execute-trade",
       "path": "skills/execute-trade/SKILL.md",
       "manifest_member": true,
-      "disposition": "internal_capability_pack",
-      "replacement": "internal capability pack selected by the canonical adlc skill for applicable engineering work",
+      "disposition": "deprecation",
+      "replacement": "docs/migration/legacy-surface-migration.md",
       "compatibility_window": "Supported through the 0.x beta compatibility window; removal requires ADLC-MIG-008 behavioral proof, ADLC-MIG-009 consumer evidence, a dated migration notice, and maintainer approval.",
       "consumer_refs": [
         "skills/manifest.json#skills[name=execute-trade]"
@@ -1586,7 +1634,7 @@
         "ADLC-MIG-008",
         "ADLC-MIG-009"
       ],
-      "reason": "Retain specialized knowledge behind the canonical public skill; do not expose it as a peer onboarding concept.",
+      "reason": "Trading is an unrelated domain workflow. Retain source during 0.x because external consumers are unknown, but never select or install it through ADLC.",
       "removal_authorized": false,
       "removal_prerequisites": [
         "Complete ADLC-MIG-008 behavioral proof.",

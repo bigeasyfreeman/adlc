@@ -28,7 +28,7 @@ Gated local code and test writes; external publication remains separate.
 Require intent approval before mutation and human approval before publish, merge, release, or deploy.
 
 ## Compatibility map
-Loop: `docs/loop-library/public-build.json`; wraps `skills/build-feature/SKILL.md`; kernel: `bin/adlc run`, `bin/adlc ci`.
+Loop: `docs/loop-library/public-build.json`; wraps `skills/build-feature/SKILL.md`; kernel: `bin/adlc run`, `bin/adlc ci`. Load `register-engineering.md` for the matching implementation row, plus `register-security.md` or `register-release.md` only when the approved applicability manifest activates those surfaces.
 
 ## Troubleshooting
 On verifier failure, preserve the failure and route diagnosis through `/adlc fix`.

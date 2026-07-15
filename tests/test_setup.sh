@@ -1,326 +1,179 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ADLC Setup Script Tests
-# Usage: ./tests/test_setup.sh
-
-ADLC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+TMP_ROOT="$(mktemp -d)"
 PASS=0
 FAIL=0
-TOTAL=0
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-NC='\033[0m'
+trap 'rm -rf "$TMP_ROOT"' EXIT
 
 assert() {
-  local desc="$1"
-  local condition="$2"
-  TOTAL=$((TOTAL + 1))
-  if eval "$condition"; then
-    printf '  %bPASS%b %s\n' "$GREEN" "$NC" "$desc"
+  local description="$1"
+  shift
+  if "$@"; then
+    echo "  PASS $description"
     PASS=$((PASS + 1))
   else
-    printf '  %bFAIL%b %s\n' "$RED" "$NC" "$desc"
+    echo "  FAIL $description"
     FAIL=$((FAIL + 1))
   fi
 }
 
-assert_file_exists() {
-  assert "$1" "[ -f '$2' ]"
+count_files() {
+  find "$1" -type f -name "$2" 2>/dev/null | wc -l | tr -d ' '
 }
 
-assert_dir_exists() {
-  assert "$1" "[ -d '$2' ]"
+is_equal() {
+  [ "$1" = "$2" ]
 }
 
-assert_file_contains() {
-  assert "$1" "grep -q '$3' '$2' 2>/dev/null"
-}
+echo "ADLC canonical setup compatibility tests"
 
-assert_file_count() {
-  local desc="$1"
-  local dir="$2"
-  local pattern="$3"
-  local expected="$4"
-  local actual
-  actual=$(find "$dir" -name "$pattern" 2>/dev/null | wc -l | tr -d ' ')
-  assert "$desc (expected $expected, got $actual)" "[ '$actual' -eq '$expected' ]"
-}
+python3 "$ROOT/tests/check_legacy_surface_migration.py" \
+  --ledger "$ROOT/docs/migration/legacy-surface-ledger.json"
 
-file_mtime() {
-  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1"
-}
+assert "setup is executable" test -x "$ROOT/setup.sh"
+assert "canonical source exists" test -f "$ROOT/skill/SKILL.src.md"
+assert "dated migration guide exists" grep -Fq '2026-07-14' "$ROOT/docs/migration/legacy-surface-migration.md"
 
-cleanup() {
-  rm -rf "$TMPDIR"
-}
-
-# ═══════════════════════════════════════════════════
-# Setup
-# ═══════════════════════════════════════════════════
-
-TMPDIR="$(mktemp -d)"
-trap cleanup EXIT
-
-echo "ADLC Setup Script Tests"
-echo "Source: $ADLC_DIR"
-echo "Temp:   $TMPDIR"
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 0: Preconditions
-# ═══════════════════════════════════════════════════
-
-echo "--- Preconditions ---"
-assert_file_exists "setup.sh exists" "$ADLC_DIR/setup.sh"
-assert "setup.sh is executable" "[ -x '$ADLC_DIR/setup.sh' ]"
-assert_dir_exists "skills/ exists" "$ADLC_DIR/skills"
-assert_dir_exists "agents/ exists" "$ADLC_DIR/agents"
-assert_dir_exists "platform/ exists" "$ADLC_DIR/platform"
-
-# Count source skills (directories with SKILL.md)
-SKILL_COUNT=$(find "$ADLC_DIR/skills" -mindepth 2 -maxdepth 2 -type f -name "SKILL.md" | wc -l | tr -d ' ')
-assert "$SKILL_COUNT skill SKILL.md files in source" "[ '$SKILL_COUNT' -gt '0' ]"
-
-# Count source agents (excluding non-installable reference docs)
-AGENT_COUNT=$(find "$ADLC_DIR/agents" -maxdepth 1 -type f -name "*.md" ! -name "ADLC-BUILD-BRIEF-AGENT.md" ! -name "PM-PRD-AGENT.md" | wc -l | tr -d ' ')
-assert "$AGENT_COUNT installable agent configs in source" "[ '$AGENT_COUNT' -gt '0' ]"
-
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 1: Claude Code Installation
-# ═══════════════════════════════════════════════════
-
-echo "--- Claude Code ---"
-TARGET="$TMPDIR/claude-test"
-mkdir -p "$TARGET"
-"$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
-
-assert_dir_exists ".claude/skills/ created" "$TARGET/.claude/skills"
-assert_dir_exists ".claude/agents/ created" "$TARGET/.claude/agents"
-assert_file_exists ".adlc/bin/adlc runtime wrapper created" "$TARGET/.adlc/bin/adlc"
-assert ".adlc/bin/adlc runtime wrapper is executable" "[ -x '$TARGET/.adlc/bin/adlc' ]"
-assert ".adlc/bin/adlc can run health-check" "'$TARGET/.adlc/bin/adlc' health-check --json | jq -e '.summary.failed_required == 0' >/dev/null"
-assert_file_count "$SKILL_COUNT skills installed" "$TARGET/.claude/skills" "SKILL.md" "$SKILL_COUNT"
-assert_file_count "$AGENT_COUNT installable agents installed" "$TARGET/.claude/agents" "*.md" "$AGENT_COUNT"
-assert_file_exists "CLAUDE.md created" "$TARGET/CLAUDE.md"
-assert "verify-claude passes after Claude install" "'$ADLC_DIR/setup.sh' verify-claude '$TARGET' > /dev/null 2>&1"
-
-# Verify specific skills
-assert_file_exists "codebase-research skill" "$TARGET/.claude/skills/codebase-research/SKILL.md"
-assert_file_exists "eval-council skill" "$TARGET/.claude/skills/eval-council/SKILL.md"
-assert_file_exists "figma-integration skill" "$TARGET/.claude/skills/figma-integration/SKILL.md"
-
-# Verify specific agents
-assert_file_exists "triage agent" "$TARGET/.claude/agents/triage.md"
-assert_file_exists "researcher agent" "$TARGET/.claude/agents/researcher.md"
-assert_file_exists "coder agent" "$TARGET/.claude/agents/coder.md"
-assert_file_exists "security-reviewer agent" "$TARGET/.claude/agents/security-reviewer.md"
-assert_file_exists "fixer agent" "$TARGET/.claude/agents/fixer.md"
-assert_file_contains "fixer preserves systematic root-cause contract" "$TARGET/.claude/agents/fixer.md" "root cause"
-
-# Verify non-installable reference docs did not leak into installed agents
-assert "No reference docs in agents" "[ ! -f '$TARGET/.claude/agents/ADLC-BUILD-BRIEF-AGENT.md' ] && [ ! -f '$TARGET/.claude/agents/PM-PRD-AGENT.md' ]"
-
-# Verify agent frontmatter
-assert_file_contains "triage has model: sonnet" "$TARGET/.claude/agents/triage.md" "model: sonnet"
-assert_file_contains "researcher has skills:" "$TARGET/.claude/agents/researcher.md" "codebase-research"
-assert_file_contains "security-reviewer has 5 security skills" "$TARGET/.claude/agents/security-reviewer.md" "appsec-threat-model"
-
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 2: Codex Installation
-# ═══════════════════════════════════════════════════
-
-echo "--- Codex ---"
-TARGET="$TMPDIR/codex-test"
-mkdir -p "$TARGET"
-"$ADLC_DIR/setup.sh" codex "$TARGET" > /dev/null 2>&1
-
-assert_dir_exists ".agents/skills/ created" "$TARGET/.agents/skills"
-assert_file_exists ".adlc/bin/adlc runtime wrapper created" "$TARGET/.adlc/bin/adlc"
-assert_file_count "$SKILL_COUNT skills installed" "$TARGET/.agents/skills" "SKILL.md" "$SKILL_COUNT"
-assert_file_exists "AGENTS.md created" "$TARGET/AGENTS.md"
-
-# Verify AGENTS.md content
-assert_file_contains "AGENTS.md has pipeline info" "$TARGET/AGENTS.md" "ADLC"
-assert_file_contains "AGENTS.md has working agreements" "$TARGET/AGENTS.md" "Given/When/Then"
-
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 3: Cursor Installation
-# ═══════════════════════════════════════════════════
-
-echo "--- Cursor ---"
-TARGET="$TMPDIR/cursor-test"
-mkdir -p "$TARGET"
-"$ADLC_DIR/setup.sh" cursor "$TARGET" > /dev/null 2>&1
-
-assert_dir_exists ".cursor/rules/ created" "$TARGET/.cursor/rules"
-assert_file_exists ".adlc/bin/adlc runtime wrapper created" "$TARGET/.adlc/bin/adlc"
-SKILL_RULES=$(find "$TARGET/.cursor/rules" -name "adlc-*.mdc" ! -name "adlc-agent-*.mdc" | wc -l | tr -d ' ')
-assert "$SKILL_COUNT skill rules installed (got $SKILL_RULES)" "[ '$SKILL_RULES' -eq '$SKILL_COUNT' ]"
-
-# Verify specific rule files
-assert_file_exists "codebase-research rule" "$TARGET/.cursor/rules/adlc-codebase-research.mdc"
-assert_file_exists "eval-council rule" "$TARGET/.cursor/rules/adlc-eval-council.mdc"
-
-# Verify agent rules
-AGENT_RULES=$(find "$TARGET/.cursor/rules" -name "adlc-agent-*.mdc" | wc -l | tr -d ' ')
-assert "$AGENT_COUNT installable agent rules installed (got $AGENT_RULES)" "[ '$AGENT_RULES' -eq '$AGENT_COUNT' ]"
-assert_file_exists "triage agent rule" "$TARGET/.cursor/rules/adlc-agent-triage.mdc"
-
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 4: Antigravity Installation
-# ═══════════════════════════════════════════════════
-
-echo "--- Antigravity ---"
-TARGET="$TMPDIR/antigravity-test"
-mkdir -p "$TARGET"
-"$ADLC_DIR/setup.sh" antigravity "$TARGET" > /dev/null 2>&1
-
-assert_dir_exists ".agent/skills/ created" "$TARGET/.agent/skills"
-assert_file_exists ".adlc/bin/adlc runtime wrapper created" "$TARGET/.adlc/bin/adlc"
-assert_file_count "$SKILL_COUNT skills installed" "$TARGET/.agent/skills" "SKILL.md" "$SKILL_COUNT"
-assert_file_exists "agents.md created" "$TARGET/agents.md"
-
-# Verify agents.md has persona format
-assert_file_contains "agents.md has Goal/Traits/Constraint" "$TARGET/agents.md" "Goal"
-assert_file_contains "agents.md has installable agent content" "$TARGET/agents.md" "PR Preparer"
-
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 5: Factory Installation
-# ═══════════════════════════════════════════════════
-
-echo "--- Factory ---"
-TARGET="$TMPDIR/factory-test"
-mkdir -p "$TARGET"
-"$ADLC_DIR/setup.sh" factory "$TARGET" > /dev/null 2>&1
-
-assert_dir_exists ".factory/droids/ created" "$TARGET/.factory/droids"
-assert_dir_exists ".factory/docs/ created" "$TARGET/.factory/docs"
-assert_file_exists ".adlc/bin/adlc runtime wrapper created" "$TARGET/.adlc/bin/adlc"
-assert_file_count "$AGENT_COUNT installable droids installed" "$TARGET/.factory/droids" "adlc-*.md" "$AGENT_COUNT"
-assert_file_count "$SKILL_COUNT skill docs installed" "$TARGET/.factory/docs" "adlc-*.md" "$SKILL_COUNT"
-assert_file_exists "AGENTS.md created" "$TARGET/AGENTS.md"
-
-# Verify specific droids
-assert_file_exists "triage droid" "$TARGET/.factory/droids/adlc-triage.md"
-assert_file_exists "researcher droid" "$TARGET/.factory/droids/adlc-researcher.md"
-
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 6: 'all' Installation
-# ═══════════════════════════════════════════════════
-
-echo "--- All Platforms ---"
-TARGET="$TMPDIR/all-test"
-mkdir -p "$TARGET"
-"$ADLC_DIR/setup.sh" all "$TARGET" > /dev/null 2>&1
-
-assert_dir_exists "Claude: .claude/skills/" "$TARGET/.claude/skills"
-assert_dir_exists "Claude: .claude/agents/" "$TARGET/.claude/agents"
-assert_dir_exists "Codex: .agents/skills/" "$TARGET/.agents/skills"
-assert_dir_exists "Cursor: .cursor/rules/" "$TARGET/.cursor/rules"
-assert_dir_exists "Antigravity: .agent/skills/" "$TARGET/.agent/skills"
-assert_dir_exists "Factory: .factory/droids/" "$TARGET/.factory/droids"
-assert_dir_exists "Factory: .factory/docs/" "$TARGET/.factory/docs"
-assert_file_exists "Runtime: .adlc/bin/adlc" "$TARGET/.adlc/bin/adlc"
-
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 7: Idempotency (run twice, same result)
-# ═══════════════════════════════════════════════════
-
-echo "--- Idempotency ---"
-TARGET="$TMPDIR/idempotent-test"
-mkdir -p "$TARGET"
-"$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
-"$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
-
-assert_file_count "Still $SKILL_COUNT skills after double install" "$TARGET/.claude/skills" "SKILL.md" "$SKILL_COUNT"
-assert_file_count "Still $AGENT_COUNT installable agents after double install" "$TARGET/.claude/agents" "*.md" "$AGENT_COUNT"
-assert_file_exists "Still has runtime wrapper after double install" "$TARGET/.adlc/bin/adlc"
-
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 8: Managed skill sync
-# ═══════════════════════════════════════════════════
-
-echo "--- Managed Skill Sync ---"
-TARGET="$TMPDIR/managed-sync-test"
-mkdir -p "$TARGET"
-"$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
-
-MANAGED_SKILL="$TARGET/.claude/skills/build-feature/SKILL.md"
-touch -t 200001010000 "$MANAGED_SKILL"
-BEFORE_MTIME="$(file_mtime "$MANAGED_SKILL")"
-mkdir -p "$TARGET/.claude/skills/local-only" "$TARGET/.claude/skills/removed-managed"
-printf '# Local skill\n' > "$TARGET/.claude/skills/local-only/SKILL.md"
-printf '# Removed managed skill\n' > "$TARGET/.claude/skills/removed-managed/SKILL.md"
-printf '0000  removed-managed\n' >> "$TARGET/.claude/skills/.adlc-skill-manifest"
-"$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
-AFTER_MTIME="$(file_mtime "$MANAGED_SKILL")"
-
-assert "Unchanged ADLC skill was not recopied" "[ '$BEFORE_MTIME' = '$AFTER_MTIME' ]"
-assert_file_exists "Unmanaged local skill preserved" "$TARGET/.claude/skills/local-only/SKILL.md"
-assert "Previously managed removed skill pruned" "[ ! -d '$TARGET/.claude/skills/removed-managed' ]"
-assert "Managed skill manifest records every source skill" "[ \"$(awk 'END { print NR }' "$TARGET/.claude/skills/.adlc-skill-manifest")\" -eq '$SKILL_COUNT' ]"
-assert "verify-claude passes with unmanaged local skill" "'$ADLC_DIR/setup.sh' verify-claude '$TARGET' > /dev/null 2>&1"
-printf '# Corrupted managed skill\n' > "$MANAGED_SKILL"
-assert "verify-claude detects modified managed skill" "! '$ADLC_DIR/setup.sh' verify-claude '$TARGET' > /dev/null 2>&1"
-"$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
-assert "verify-claude passes after repair" "'$ADLC_DIR/setup.sh' verify-claude '$TARGET' > /dev/null 2>&1"
-
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 9: Invalid platform
-# ═══════════════════════════════════════════════════
-
-echo "--- Error Handling ---"
-assert "Invalid platform shows usage" "! '$ADLC_DIR/setup.sh' banana '$TMPDIR' > /dev/null 2>&1"
-assert "No args shows usage" "! '$ADLC_DIR/setup.sh' > /dev/null 2>&1"
-
-echo ""
-
-# ═══════════════════════════════════════════════════
-# Test 10: Skill Content Integrity
-# ═══════════════════════════════════════════════════
-
-echo "--- Content Integrity ---"
-TARGET="$TMPDIR/integrity-test"
-mkdir -p "$TARGET"
-"$ADLC_DIR/setup.sh" claude "$TARGET" > /dev/null 2>&1
-
-# Verify skills are not empty
-for skill_dir in "$TARGET/.claude/skills"/*/; do
-  skill_name="$(basename "$skill_dir")"
-  size=$(wc -c < "$skill_dir/SKILL.md" | tr -d ' ')
-  assert "$skill_name SKILL.md is non-empty ($size bytes)" "[ '$size' -gt '100' ]"
+for platform in claude codex cursor antigravity factory; do
+  target="$TMP_ROOT/$platform"
+  mkdir -p "$target"
+  "$ROOT/setup.sh" "$platform" "$target" >/dev/null 2>&1
+  assert "$platform runtime wrapper" test -x "$target/.adlc/bin/adlc"
+  assert "$platform health check" bash -c "'$target/.adlc/bin/adlc' health-check --json | jq -e '.summary.failed_required == 0' >/dev/null"
 done
 
-echo ""
+assert "Claude exposes one skill" is_equal "$(count_files "$TMP_ROOT/claude/.claude/skills" SKILL.md)" 1
+assert "Claude public skill is adlc" test -f "$TMP_ROOT/claude/.claude/skills/adlc/SKILL.md"
+assert "Claude exposes no peer agents" is_equal "$(count_files "$TMP_ROOT/claude/.claude/agents" '*.md')" 0
+assert "Claude compatibility verification passes" "$ROOT/setup.sh" verify-claude "$TMP_ROOT/claude"
 
-# ═══════════════════════════════════════════════════
-# Results
-# ═══════════════════════════════════════════════════
+assert "Codex exposes one skill" is_equal "$(count_files "$TMP_ROOT/codex/.agents/skills" SKILL.md)" 1
+assert "Codex public skill is adlc" test -f "$TMP_ROOT/codex/.agents/skills/adlc/SKILL.md"
+assert "Codex instructions installed" test -f "$TMP_ROOT/codex/AGENTS.md"
 
-echo "═══════════════════════════════════════"
-printf 'Results: %b%s passed%b, %b%s failed%b, %s total\n' "$GREEN" "$PASS" "$NC" "$RED" "$FAIL" "$NC" "$TOTAL"
-echo "═══════════════════════════════════════"
+assert "Cursor exposes one ADLC rule" is_equal "$(count_files "$TMP_ROOT/cursor/.cursor/rules" 'adlc*.mdc')" 1
+assert "Cursor public rule is adlc" test -f "$TMP_ROOT/cursor/.cursor/rules/adlc.mdc"
+assert "Cursor reference bundle is available" test -f "$TMP_ROOT/cursor/.adlc/provider-bundles/cursor/adlc/reference/command-build.md"
+assert "Cursor compatibility ownership manifest exists" test -f "$TMP_ROOT/cursor/.adlc/compat-manifests/cursor.manifest"
 
-[ "$FAIL" -eq 0 ] && exit 0 || exit 1
+assert "Antigravity exposes one skill" is_equal "$(count_files "$TMP_ROOT/antigravity/.agent/skills" SKILL.md)" 1
+assert "Antigravity public skill is adlc" test -f "$TMP_ROOT/antigravity/.agent/skills/adlc/SKILL.md"
+assert "Antigravity compatibility ownership manifest exists" test -f "$TMP_ROOT/antigravity/.adlc/compat-manifests/antigravity.manifest"
+
+assert "Factory exposes one ADLC doc" is_equal "$(count_files "$TMP_ROOT/factory/.factory/docs/skills" 'adlc*.md')" 1
+assert "Factory public doc is adlc" test -f "$TMP_ROOT/factory/.factory/docs/skills/adlc.md"
+assert "Factory exposes no legacy droid markdown" is_equal "$(count_files "$TMP_ROOT/factory/.factory/droids" 'adlc-*.md')" 0
+assert "Factory compatibility ownership manifest exists" test -f "$TMP_ROOT/factory/.adlc/compat-manifests/factory.manifest"
+
+all_target="$TMP_ROOT/all"
+mkdir -p "$all_target"
+"$ROOT/setup.sh" all "$all_target" >/dev/null 2>&1
+assert "all installs Claude canonical skill" test -f "$all_target/.claude/skills/adlc/SKILL.md"
+assert "all installs Codex canonical skill" test -f "$all_target/.agents/skills/adlc/SKILL.md"
+assert "all installs Cursor canonical rule" test -f "$all_target/.cursor/rules/adlc.mdc"
+assert "all installs Antigravity canonical skill" test -f "$all_target/.agent/skills/adlc/SKILL.md"
+assert "all installs Factory canonical doc" test -f "$all_target/.factory/docs/skills/adlc.md"
+assert "all ends with canonical Factory instructions" grep -Fq '# ADLC — Factory' "$all_target/AGENTS.md"
+
+"$ROOT/setup.sh" all "$all_target" >/dev/null 2>&1
+assert "all is idempotent for Claude" is_equal "$(count_files "$all_target/.claude/skills" SKILL.md)" 1
+assert "all is idempotent for Codex" is_equal "$(count_files "$all_target/.agents/skills" SKILL.md)" 1
+
+migration_target="$TMP_ROOT/migration"
+mkdir -p "$migration_target/.claude/skills/build-feature" "$migration_target/.claude/agents"
+cp "$ROOT/skills/build-feature/SKILL.md" "$migration_target/.claude/skills/build-feature/SKILL.md"
+cp "$ROOT/agents/planner.md" "$migration_target/.claude/agents/planner.md"
+skill_hash="$(shasum -a 256 "$ROOT/skills/build-feature/SKILL.md" | awk '{print $1}')"
+agent_hash="$(shasum -a 256 "$ROOT/agents/planner.md" | awk '{print $1}')"
+printf '%s  build-feature\n' "$skill_hash" > "$migration_target/.claude/skills/.adlc-skill-manifest"
+printf '%s  planner.md\n' "$agent_hash" > "$migration_target/.claude/agents/.adlc-agent-manifest"
+"$ROOT/setup.sh" claude "$migration_target" >/dev/null 2>&1
+assert "owned legacy peer skill is pruned" test ! -f "$migration_target/.claude/skills/build-feature/SKILL.md"
+assert "owned legacy peer agent is pruned" test ! -f "$migration_target/.claude/agents/planner.md"
+assert "migration installs canonical skill" test -f "$migration_target/.claude/skills/adlc/SKILL.md"
+
+drift_target="$TMP_ROOT/drift"
+mkdir -p "$drift_target/.claude/skills/build-feature"
+cp "$ROOT/skills/build-feature/SKILL.md" "$drift_target/.claude/skills/build-feature/SKILL.md"
+printf '%s  build-feature\n' "$skill_hash" > "$drift_target/.claude/skills/.adlc-skill-manifest"
+printf '\nlocal user edit\n' >> "$drift_target/.claude/skills/build-feature/SKILL.md"
+assert "changed legacy peer blocks destructive migration" bash -c "! '$ROOT/setup.sh' claude '$drift_target' >/dev/null 2>&1"
+assert "changed legacy peer is preserved" grep -Fq 'local user edit' "$drift_target/.claude/skills/build-feature/SKILL.md"
+assert "blocked preflight does not partially install canonical skill" test ! -e "$drift_target/.claude/skills/adlc"
+
+cursor_migration="$TMP_ROOT/cursor-migration"
+mkdir -p "$cursor_migration/.cursor/rules"
+cp "$ROOT/skills/build-feature/SKILL.md" "$cursor_migration/.cursor/rules/adlc-build-feature.mdc"
+cp "$ROOT/agents/planner.md" "$cursor_migration/.cursor/rules/adlc-agent-planner.mdc"
+"$ROOT/setup.sh" cursor "$cursor_migration" >/dev/null 2>&1
+assert "known Cursor peer skill is pruned" test ! -e "$cursor_migration/.cursor/rules/adlc-build-feature.mdc"
+assert "known Cursor peer agent is pruned" test ! -e "$cursor_migration/.cursor/rules/adlc-agent-planner.mdc"
+
+cursor_collision="$TMP_ROOT/cursor-collision"
+mkdir -p "$cursor_collision/.cursor/rules"
+printf 'unmanaged canonical rule\n' > "$cursor_collision/.cursor/rules/adlc.mdc"
+assert "unmanaged Cursor canonical rule blocks install" bash -c "! '$ROOT/setup.sh' cursor '$cursor_collision' >/dev/null 2>&1"
+assert "unmanaged Cursor canonical rule is preserved" grep -Fq 'unmanaged canonical rule' "$cursor_collision/.cursor/rules/adlc.mdc"
+
+printf '\nlocal Cursor canonical edit\n' >> "$cursor_migration/.cursor/rules/adlc.mdc"
+assert "drifted managed Cursor canonical rule blocks update" bash -c "! '$ROOT/setup.sh' cursor '$cursor_migration' >/dev/null 2>&1"
+assert "drifted managed Cursor canonical rule is preserved" grep -Fq 'local Cursor canonical edit' "$cursor_migration/.cursor/rules/adlc.mdc"
+
+antigravity_migration="$TMP_ROOT/antigravity-migration"
+mkdir -p "$antigravity_migration"
+cp "$ROOT/tests/fixtures/migration/antigravity-agents-pre-mig009.md" "$antigravity_migration/agents.md"
+"$ROOT/setup.sh" antigravity "$antigravity_migration" >/dev/null 2>&1
+assert "known legacy Antigravity agents.md is retired" test ! -e "$antigravity_migration/agents.md"
+
+antigravity_drift="$TMP_ROOT/antigravity-drift"
+mkdir -p "$antigravity_drift"
+cp "$ROOT/tests/fixtures/migration/antigravity-agents-pre-mig009.md" "$antigravity_drift/agents.md"
+printf '\nlocal Antigravity edit\n' >> "$antigravity_drift/agents.md"
+assert "changed legacy Antigravity agents.md blocks migration" bash -c "! '$ROOT/setup.sh' antigravity '$antigravity_drift' >/dev/null 2>&1"
+assert "changed legacy Antigravity agents.md is preserved" grep -Fq 'local Antigravity edit' "$antigravity_drift/agents.md"
+
+antigravity_unknown="$TMP_ROOT/antigravity-unknown"
+mkdir -p "$antigravity_unknown"
+cp "$ROOT/platform/AGENTS.md" "$antigravity_unknown/agents.md"
+assert "Codex-shaped agents.md without Codex ownership blocks Antigravity" bash -c "! '$ROOT/setup.sh' antigravity '$antigravity_unknown' >/dev/null 2>&1"
+assert "unknown agents.md is preserved" test -f "$antigravity_unknown/agents.md"
+
+antigravity_codex="$TMP_ROOT/antigravity-codex-coexistence"
+mkdir -p "$antigravity_codex"
+"$ROOT/setup.sh" codex "$antigravity_codex" >/dev/null 2>&1
+"$ROOT/setup.sh" antigravity "$antigravity_codex" >/dev/null 2>&1
+assert "manifest-proven Codex AGENTS instruction coexists with Antigravity" grep -Fq '# ADLC — Codex' "$antigravity_codex/AGENTS.md"
+
+printf '\nlocal Antigravity canonical edit\n' >> "$antigravity_migration/.agent/skills/adlc/SKILL.md"
+assert "drifted managed Antigravity canonical skill blocks update" bash -c "! '$ROOT/setup.sh' antigravity '$antigravity_migration' >/dev/null 2>&1"
+assert "drifted managed Antigravity canonical skill is preserved" grep -Fq 'local Antigravity canonical edit' "$antigravity_migration/.agent/skills/adlc/SKILL.md"
+
+factory_migration="$TMP_ROOT/factory-migration"
+mkdir -p "$factory_migration/.factory/docs/skills" "$factory_migration/.factory/droids"
+cp "$ROOT/skills/build-feature/SKILL.md" "$factory_migration/.factory/docs/skills/adlc-build-feature.md"
+cp "$ROOT/agents/planner.md" "$factory_migration/.factory/droids/adlc-planner.md"
+cp "$ROOT/platform/factory/droids/planner.yaml" "$factory_migration/.factory/droids/planner.yaml"
+"$ROOT/setup.sh" factory "$factory_migration" >/dev/null 2>&1
+assert "known Factory peer skill is pruned" test ! -e "$factory_migration/.factory/docs/skills/adlc-build-feature.md"
+assert "known Factory peer agent is pruned" test ! -e "$factory_migration/.factory/droids/adlc-planner.md"
+assert "known Factory native droid is pruned" test ! -e "$factory_migration/.factory/droids/planner.yaml"
+
+printf '\nlocal Factory canonical edit\n' >> "$factory_migration/.factory/docs/skills/adlc.md"
+assert "drifted managed Factory canonical doc blocks update" bash -c "! '$ROOT/setup.sh' factory '$factory_migration' >/dev/null 2>&1"
+assert "drifted managed Factory canonical doc is preserved" grep -Fq 'local Factory canonical edit' "$factory_migration/.factory/docs/skills/adlc.md"
+
+factory_collision="$TMP_ROOT/factory-collision"
+mkdir -p "$factory_collision/.factory/docs/skills"
+printf 'unmanaged Factory canonical doc\n' > "$factory_collision/.factory/docs/skills/adlc.md"
+assert "unmanaged Factory canonical doc blocks install" bash -c "! '$ROOT/setup.sh' factory '$factory_collision' >/dev/null 2>&1"
+assert "unmanaged Factory canonical doc is preserved" grep -Fq 'unmanaged Factory canonical doc' "$factory_collision/.factory/docs/skills/adlc.md"
+
+assert "excluded execute-trade is not installed" bash -c "! rg -l 'name: execute-trade' '$all_target/.claude' '$all_target/.agents' '$all_target/.cursor' '$all_target/.agent' '$all_target/.factory' >/dev/null"
+assert "excluded ship-content is not installed" bash -c "! rg -l 'name: ship-content' '$all_target/.claude' '$all_target/.agents' '$all_target/.cursor' '$all_target/.agent' '$all_target/.factory' >/dev/null"
+assert "invalid platform fails" bash -c "! '$ROOT/setup.sh' banana '$TMP_ROOT' >/dev/null 2>&1"
+assert "missing platform fails" bash -c "! '$ROOT/setup.sh' >/dev/null 2>&1"
+
+echo "Results: $PASS passed, $FAIL failed"
+[ "$FAIL" -eq 0 ]

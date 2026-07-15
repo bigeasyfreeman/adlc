@@ -60,8 +60,11 @@ not prove that Claude Code or Codex invoked or followed the skill. Generated
 targets are currently limited to those two provider layouts.
 
 `setup.sh` remains a dated compatibility wrapper during the 0.x beta window.
-It preserves the previous multi-provider managed layout and emits migration
-guidance. Use an absolute path or a shell variable:
+As of 2026-07-14 it migrates the previous multi-provider layout to one public
+`adlc` skill and no peer agents. It removes only byte-identical files from known
+legacy ADLC paths; local drift blocks pruning with an actionable path. Canonical
+compatibility outputs receive ownership manifests so later reruns refuse drift
+and unmanaged collisions. Use an absolute path or a shell variable:
 
 ```bash
 TARGET=/path/to/target-repo
@@ -74,10 +77,16 @@ TARGET=/path/to/target-repo
 
 The direct forms are `./setup.sh claude <target>`, `./setup.sh codex <target>`,
 `./setup.sh cursor <target>`, and `./setup.sh all <target>`. Claude installs
-ADLC-managed `SKILL.md` files under `<target>/.claude/skills/<skill>/SKILL.md`,
-agents under `<target>/.claude/agents/`, `CLAUDE.md`, and
-`<target>/.claude/WORKFLOW.dot`. Codex installs skills under
-`<target>/.agents/skills/` plus `AGENTS.md`; Cursor installs `.mdc` rules.
+`<target>/.claude/skills/adlc/`, `CLAUDE.md`, and `WORKFLOW.dot`; Codex installs
+`<target>/.agents/skills/adlc/` plus `AGENTS.md`; Cursor installs the one
+`adlc.mdc` public rule with its reference bundle under `.adlc/`. Antigravity and
+Factory likewise receive one canonical ADLC surface. See the
+[dated migration guide](docs/migration/legacy-surface-migration.md).
+
+Claude Code and Codex use the transactional Python lifecycle with rollback.
+Cursor, Antigravity, and Factory remain experimental compatibility targets:
+their manifests protect canonical bytes from silent overwrite, but `setup.sh`
+does not claim transactional rollback for those providers.
 
 Every install also writes `<target>/.adlc/bin/adlc`. That wrapper bakes
 `ADLC_ROOT` to this ADLC checkout and execs `bin/adlc`, so schemas,
@@ -85,9 +94,9 @@ Every install also writes `<target>/.adlc/bin/adlc`. That wrapper bakes
 code stay source-backed. Deployed skills do not need copied non-SKILL assets.
 
 Run `./setup.sh verify-claude "$TARGET"` after installation and after every merge
-that touches `skills/`. It verifies managed Claude skill digests against this
-checkout and ignores unmanaged local skills; redeploy with `./setup.sh claude
-"$TARGET"` when it reports drift.
+that touches `skill/`. It verifies the transactional manifest and requires the
+canonical skill to be the only ADLC-managed public skill. Reconcile drift, then
+use `adlc-skill update --provider claude --target "$TARGET"`.
 
 Runtime preflight:
 
@@ -518,7 +527,7 @@ Markdown file. YAML frontmatter. Model, tools, skills, labels. Done.
 
 ## Skills
 
-Skill definitions are injected into agents at startup. Runtime install counts are derived by `setup.sh` rather than hardcoded in docs.
+These are internal source capabilities selected by the canonical skill through bounded registers and runtime DAG roles. They are not installed as peer public skills or agents.
 
 **Core Engineering:**
 `graph-research` (Graphify/Beads-aware evidence) · `codebase-research` · `paved-road-registry` (repo-local approved build paths) · `dark-code-audit` · `context-layers` · `comprehension-gate` (agent comprehension plus operator blast-radius quiz handoff) · `eval-council` (3 core + 7 conditional overlays + Gate 0) · `codegen-context` (zero-read assembly) · `tdd-enforcement` · `ldd-enforcement` (lint gate before TDD) · `systematic-debugging` · `architecture-pattern` · `qa-test-data` · `reuse-analysis` · `learning-capture` · `learning-refresh` · `definition-of-done` (applicability-aware core + overlay DoD) · `spec-to-tests` (failing-test authoring from Brief, with Loop Contract coverage tags and execution evidence when active)
@@ -530,7 +539,7 @@ Skill definitions are injected into agents at startup. Runtime install counts ar
 `stop-slop` (generated-output contract + optional project eval loop) · `slop-judge` (rubric score + threshold) · `observability-contract` (structured logging mandate) · `feedback-loop` (case promotion + skill self-improvement)
 
 **Lifecycle:**
-`fix-loop` (autonomous error repair) · `fix-bug` (fix orchestration) · `build-feature` (build orchestration) · `ship-content` (content orchestration) · `execute-trade` (trade orchestration)
+`fix-loop` (error repair) · `fix-bug` (fix orchestration) · `build-feature` (build orchestration). `ship-content` and `execute-trade` are retained legacy source only and are never default-installed public capabilities.
 
 **Integrations (optional):**
 `jira-ticket-creation` · `github-issue-creation` · `linear-ticket-creation` · `confluence-decomposition` · `notion-decomposition` · `slack-orchestration` · `grafana-observability` · `ci-cd-pipeline` · `incident-runbook`

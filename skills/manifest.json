@@ -2,6 +2,21 @@
   "manifest_version": "2.0.0",
   "architecture": "dag",
   "workflow": "WORKFLOW.dot",
+  "public_surface": {
+    "skills": ["adlc"],
+    "agents": [],
+    "canonical_source": "skill/SKILL.src.md",
+    "installer": "adlc-skill",
+    "compatibility_installer": "setup.sh",
+    "migration_effective_date": "2026-07-14"
+  },
+  "legacy_surface_policy": {
+    "skills": "internal_or_compatibility_source_only",
+    "agents": "runtime_selected_internal_roles_only",
+    "default_installed": false,
+    "ledger": "docs/migration/legacy-surface-ledger.json",
+    "excluded_from_product": ["execute-trade", "ship-content"]
+  },
 
   "agents": [
     {
