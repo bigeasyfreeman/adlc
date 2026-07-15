@@ -179,3 +179,47 @@ def test_bundle_verification_fails_when_reports_diverge(tmp_path, monkeypatch):
         assert "diverge on fixture" in str(exc)
     else:
         raise AssertionError("bundle verification accepted divergent reports")
+
+
+def test_bundle_verification_rejects_one_report_aliased_as_independent_replay(tmp_path, monkeypatch):
+    runner = load_runner()
+    bundle = copy_published_bundle(tmp_path, monkeypatch, runner)
+    attestation_path = bundle / "publication-attestation.json"
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    attestation["independent_replay"] = dict(attestation["primary_report"])
+    attestation["redaction_review"]["files_reviewed"] = 28
+    attestation_path.write_text(json.dumps(attestation, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        runner.verify_published_bundle(attestation_path)
+    except runner.BenchmarkError as exc:
+        assert "must be distinct paths" in str(exc)
+    else:
+        raise AssertionError("bundle verification accepted one report in both publication roles")
+
+
+def test_bundle_verification_compares_ordered_attempt_invariants(tmp_path, monkeypatch):
+    runner = load_runner()
+    bundle = copy_published_bundle(tmp_path, monkeypatch, runner)
+    primary_path = bundle / "benchmark-report.json"
+    replay_path = bundle / "independent-replay/benchmark-report.json"
+    primary = json.loads(primary_path.read_text(encoding="utf-8"))
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    first = "a" * 64
+    second = "b" * 64
+    for attempt, value in zip(primary["attempts"], [first, second, first]):
+        attempt["invariant_sha256"] = value
+    for attempt, value in zip(replay["attempts"], [second, first, first]):
+        attempt["invariant_sha256"] = value
+    primary_path.write_text(json.dumps(primary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    replay_path.write_text(json.dumps(replay, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    attestation_path = bundle / "publication-attestation.json"
+    attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+    attestation["primary_report"]["sha256"] = hashlib.sha256(primary_path.read_bytes()).hexdigest()
+    attestation["independent_replay"]["sha256"] = hashlib.sha256(replay_path.read_bytes()).hexdigest()
+    attestation_path.write_text(json.dumps(attestation, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        runner.verify_published_bundle(attestation_path)
+    except runner.BenchmarkError as exc:
+        assert "diverge on calculated invariants" in str(exc)
+    else:
+        raise AssertionError("bundle verification accepted reordered attempt invariants")

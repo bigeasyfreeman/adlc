@@ -937,6 +937,8 @@ def verify_published_bundle(attestation_path: Path) -> Dict[str, Any]:
     ensure_redacted(attestation_path.read_text(encoding="utf-8", errors="replace"))
 
     reports: Dict[str, Dict[str, Any]] = {}
+    report_paths: Dict[str, Path] = {}
+    report_hashes: Dict[str, str] = {}
     evidence_paths = set()
     verification: Dict[str, Dict[str, Any]] = {}
     for key in ("primary_report", "independent_replay"):
@@ -951,6 +953,8 @@ def verify_published_bundle(attestation_path: Path) -> Dict[str, Any]:
         if len(report.get("attempts", [])) != expected["attempts"]:
             raise BenchmarkError(f"attested benchmark attempt count mismatch: {expected['path']}")
         reports[key] = report
+        report_paths[key] = report_path
+        report_hashes[key] = actual_hash
         verification[key] = verify_published(report_path)
         evidence_paths.add(report_path)
         evidence_paths.update(
@@ -958,6 +962,11 @@ def verify_published_bundle(attestation_path: Path) -> Dict[str, Any]:
             for attempt in report["attempts"]
             for ref in attempt["evidence_refs"]
         )
+
+    if report_paths["primary_report"] == report_paths["independent_replay"]:
+        raise BenchmarkError("primary report and independent replay must be distinct paths")
+    if report_hashes["primary_report"] == report_hashes["independent_replay"]:
+        raise BenchmarkError("primary report and independent replay must be distinct artifacts")
 
     primary = reports["primary_report"]
     replay = reports["independent_replay"]
@@ -968,9 +977,9 @@ def verify_published_bundle(attestation_path: Path) -> Dict[str, Any]:
         attempt["status"] for attempt in replay["attempts"]
     ]:
         raise BenchmarkError("published benchmark reports diverge on terminal classes")
-    if {attempt["invariant_sha256"] for attempt in primary["attempts"]} != {
+    if [attempt["invariant_sha256"] for attempt in primary["attempts"]] != [
         attempt["invariant_sha256"] for attempt in replay["attempts"]
-    }:
+    ]:
         raise BenchmarkError("published benchmark reports diverge on calculated invariants")
     if len(evidence_paths) != attestation["redaction_review"]["files_reviewed"]:
         raise BenchmarkError("publication attestation file count does not match the evidence bundle")
