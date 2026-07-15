@@ -124,7 +124,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          NOTES_FILE="docs/release/${RELEASE_TAG#v}.md"
+          NOTES_FILE="docs/release/$RELEASE_TAG.md"
           test -f "$NOTES_FILE"
           gh release create "$RELEASE_TAG" release-out/$RELEASE_TAG/artifacts/* --verify-tag --title "ADLC $RELEASE_TAG" --notes-file "$NOTES_FILE"
 

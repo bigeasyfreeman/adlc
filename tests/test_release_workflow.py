@@ -49,6 +49,7 @@ def test_architecture_publish_requires_validated_human_approval():
     assert "--target github_release" in workflow
     assert "--target pages_deploy" in workflow
     assert "actions/deploy-pages@v4" in workflow
+    assert 'NOTES_FILE="docs/release/$RELEASE_TAG.md"' in workflow
     docs_workflow = DOCS_WORKFLOW.read_text(encoding="utf-8")
     assert "workflow_dispatch" not in docs_workflow
     assert "actions/deploy-pages" not in docs_workflow
