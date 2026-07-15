@@ -53,6 +53,13 @@
     "pages_build_type": "workflow",
     "pages_url": "https://bigeasyfreeman.github.io/adlc/",
     "rerun_pages_job_id": 87454470686,
+    "truth_recovery_job_id": 87461144301,
+    "truth_recovery_workflow_run_id": 29447386521,
+    "truth_smoke": {
+      "banner": "ADLC docs 0.9.2 - published scoped beta",
+      "stale_claims_absent": true,
+      "status": "pass"
+    },
     "workflow_conclusion": "success"
   },
   "state_digest": {
