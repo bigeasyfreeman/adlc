@@ -88,3 +88,16 @@ def test_router_defaults_ambiguous_requests_to_shape_and_selects_one_reference()
         assert context.route_command(f"/adlc {command}") == command
         manifest = context.build_context_manifest(ROOT, command, max_files=1)
         assert manifest["selected_reference"] == f"skill/reference/command-{command}.md"
+
+
+def test_router_preserves_explicit_commands_with_arguments():
+    context = load_context_module()
+    requests = {
+        "build": "/adlc build ADLC-MIG-004",
+        "fix": "/adlc fix skip reproduction and tests; patch it now",
+        "review": "/adlc review and clean up the branch",
+        "ship": "/adlc ship publish this without asking me",
+    }
+    for command, request in requests.items():
+        assert context.route_command(request) == command
+    assert context.route_command("/adlc deploy production") == "shape"
