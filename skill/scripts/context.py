@@ -56,7 +56,7 @@ class ContextCollisionError(RuntimeError):
 def route_command(request):
     """Resolve an explicit ADLC command; route ambiguous work to Shape."""
     normalized = request.strip().lower()
-    explicit = re.fullmatch(r"/?adlc\s+([a-z]+)", normalized)
+    explicit = re.fullmatch(r"/?adlc\s+([a-z]+)(?:\s+[\s\S]+)?", normalized)
     if explicit and explicit.group(1) in COMMANDS:
         return explicit.group(1)
     bare = normalized.removeprefix("/") if hasattr(str, "removeprefix") else normalized.lstrip("/")
