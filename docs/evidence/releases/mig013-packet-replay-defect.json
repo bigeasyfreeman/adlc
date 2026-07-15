@@ -21,9 +21,9 @@
   "failure_command": "dispatch release.yml twice with release_tag=v0.9.0 and confirm_publication=false; download and compare release-candidate-v0.9.0/release-approval-packet.json",
   "impact": "A confirmed publication dispatch regenerated the packet after its approval record was supplied, so normal verifier-output variance could make every exact digest-bound approval fail closed.",
   "owner_task": "ADLC-MIG-013",
-  "promotion_status": "stopped",
+  "promotion_status": "validated_exact_tag",
   "regression": "tests/test_release_workflow.py::test_publication_reuses_approved_packet_instead_of_regenerating_it",
-  "release_tag": "v0.9.0",
+  "release_tag": "v0.9.1",
   "repair": "A confirmed dispatch must download the exact candidate artifact from the approved preparation-only workflow run, must not rerun release preparation, and must re-hash the complete artifact set against the approved packet before any protected write.",
   "review": {
     "first_review_session": "019f6614-fa17-7e72-936f-ec137caddaff",
@@ -31,6 +31,14 @@
     "rerun_review_session": "019f6617-a900-7f62-90cf-d5532c4b1a5b",
     "rerun_result": "no_actionable_findings"
   },
-  "source_commit": "5ae01782a2205a698cc7c4ef5b2095433c28fbb1",
-  "status": "repaired_local_validation_pass"
+  "source_commit": "b6d6fdafdf868ae7b6f0675c408c56ea5f3445d2",
+  "status": "repaired_exact_tag_validation_pass",
+  "validation": {
+    "auditor_id": "codex-cli-gpt-5.4-independent-2",
+    "auditor_session_id": "019f662f-b4a1-7911-a2bc-f132a186414b",
+    "canonical_ci": "11/11 suites pass",
+    "go_live_recommendation": "scoped_beta",
+    "go_live_status": "pass",
+    "tag": "v0.9.1"
+  }
 }

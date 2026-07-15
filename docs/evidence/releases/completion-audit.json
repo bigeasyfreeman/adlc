@@ -1,18 +1,18 @@
 {
-  "auditor": "codex-independent-go-live-auditor",
+  "auditor": "codex-cli-gpt-5.4-independent-2",
   "contract_version": "1.0.0",
-  "executor": "codex-primary-migration-executor",
+  "executor": "codex-root-mig013",
   "feedback_findings": [],
   "findings": [],
   "independence": {
-    "auditor_session_id": "codex-cli-audit-20260715-02",
+    "auditor_session_id": "019f662f-b4a1-7911-a2bc-f132a186414b",
     "basis": "separate_session",
     "evidence_path": "docs/evidence/releases/go-live-validation.json",
     "evidence_refs": [
-      "audit-session:codex-cli-audit-20260715-02"
+      "audit-session:019f662f-b4a1-7911-a2bc-f132a186414b"
     ],
-    "evidence_sha256": "7977b29f735b08ad01baa0a1fed044fe7e91c9acb2adfcc3ff1f6aaf8cb883c4",
-    "executor_session_id": "codex-root-20260715-mig-val"
+    "evidence_sha256": "7e41dfe44776c70bf6bbd9d5dc72525b4ac9b15acfcc6a59a45a33ea42fa3ad4",
+    "executor_session_id": "019f6614-fa17-7e72-936f-ec137caddaff"
   },
   "status": "pass",
   "taken_on_trust": [
@@ -28,7 +28,7 @@
   "verified": [
     {
       "claim": "release_candidate_reproducible",
-      "evidence": "release-out/v0.9.0/release-approval-packet.json"
+      "evidence": "release-out/v0.9.1/release-approval-packet.json"
     },
     {
       "claim": "python_3_9_and_3_13_clean_install",
@@ -36,19 +36,19 @@
     },
     {
       "claim": "codex_fix_live_rerun",
-      "evidence": "release-out/v0.9.0/evidence/go-live-codex-fix-live.json"
+      "evidence": "release-out/v0.9.1/evidence/go-live-codex-fix-live.json"
     },
     {
       "claim": "launch_packet_approval_blocked",
-      "evidence": "release-out/v0.9.0/evidence/go-live-launch-packet.json"
+      "evidence": "release-out/v0.9.1/evidence/go-live-launch-packet.json"
     },
     {
       "claim": "benchmark_bundle_six_runs",
-      "evidence": "release-out/v0.9.0/evidence/go-live-benchmark-replay.json"
+      "evidence": "release-out/v0.9.1/evidence/go-live-benchmark-replay.json"
     },
     {
       "claim": "rollback_rehearsed",
-      "evidence": "release-out/v0.9.0/rollback-manifest.json"
+      "evidence": "release-out/v0.9.1/rollback-manifest.json"
     }
   ]
 }
