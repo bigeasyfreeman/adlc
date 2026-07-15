@@ -7,21 +7,22 @@
 - `jsonschema>=4,<5`
 - a target Git repository
 
-## Source-beta install
+## Public-beta install
 
 ```bash
-git clone https://github.com/bigeasyfreeman/adlc.git
-cd adlc
-python3 -m pip install .
+python3 -m pip install "adlc-engineering==0.9.2"
 adlc-skill install --provider codex --target /path/to/your-repo
 adlc-skill doctor --provider codex --target /path/to/your-repo
 ```
 
 Replace `codex` with `claude` for Claude Code. Each target receives one public `adlc` skill and no public peer agents.
 
+`adlc-engineering` is the PyPI distribution name. The product, installed skill,
+Python runtime package, data paths, and `adlc-skill` command remain named ADLC.
+
 ## Transactional package lifecycle
 
-After the source install above or from an installed wheel:
+After the package install above or from an installed wheel:
 
 ```bash
 adlc-skill install --provider codex --target /path/to/your-repo
@@ -34,7 +35,7 @@ Claude Code and Codex installs are manifest-owned, digest-verified, collision-sa
 
 ## Existing files and migration
 
-ADLC does not overwrite unknown provider instructions. Known legacy ADLC files are pruned only when ownership or exact bytes prove they are unchanged. Drift blocks migration and leaves the file intact. See the [dated migration guide](https://github.com/bigeasyfreeman/adlc/blob/v0.9.1/docs/migration/legacy-surface-migration.md).
+ADLC does not overwrite unknown provider instructions. Known legacy ADLC files are pruned only when ownership or exact bytes prove they are unchanged. Drift blocks migration and leaves the file intact. See the [dated migration guide](https://github.com/bigeasyfreeman/adlc/blob/v0.9.2/docs/migration/legacy-surface-migration.md).
 
 ## Troubleshooting
 
@@ -47,4 +48,4 @@ ADLC does not overwrite unknown provider instructions. Known legacy ADLC files a
 
 `no_overclaim`: Only Claude Code and Codex have transactional lifecycle claims.
 
-`limitations`: The source-beta path depends on the retained checkout because the target wrapper resolves runtime assets there.
+`limitations`: Public availability and artifact identity must be verified at PyPI; a successful local install alone does not prove the GitHub Release or documentation deployment.

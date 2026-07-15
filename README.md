@@ -9,12 +9,10 @@ ADLC gives an existing coding agent one public skill and a deterministic control
 
 ## Install in 30 seconds
 
-ADLC is currently an unreleased source beta. Clone the repository, install its package, then use the transactional lifecycle to install and diagnose one canonical skill:
+Install the scoped public beta from the `adlc-engineering` distribution, then use the transactional lifecycle to install and diagnose one canonical skill:
 
 ```bash
-git clone https://github.com/bigeasyfreeman/adlc.git
-cd adlc
-python3 -m pip install .
+python3 -m pip install "adlc-engineering==0.9.2"
 adlc-skill install --provider codex --target /path/to/your-repo
 adlc-skill doctor --provider codex --target /path/to/your-repo
 ```
@@ -100,7 +98,7 @@ The public benchmark preserves three live Codex runs plus an independent three-r
 
 ## Public beta candidate
 
-The 0.9.1 beta launch packet accompanies the immutable release candidate. It includes the
+The 0.9.2 beta launch packet accompanies the immutable release candidate. It includes the
 [technical narrative](docs/launch/technical-article.md), [five-minute demo and
 recording plan](docs/launch/demo-script.md), [local-first metric
 definitions](docs/launch/metrics.md), and [beta operating
@@ -118,7 +116,7 @@ The beta learning funnel is intentionally local and ordered:
 <!-- BEGIN BETA FUNNEL -->
 1. **README visit.** Confirm that the evidence boundary and current provider row
    match the intended use.
-2. **Install.** Complete the transactional source install shown above.
+2. **Install.** Complete the pinned package install shown above.
 3. **Doctor.** Run `adlc-skill doctor` and proceed only when required checks pass.
 4. **First loop.** Run the five-minute Fix path, or an eligible Build, and retain
    its local evidence-backed terminal report.

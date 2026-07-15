@@ -1,6 +1,6 @@
 # Local-first beta metrics
 
-ADLC 0.9.1 collects no product telemetry. Operators may calculate these metrics
+ADLC 0.9.2 collects no product telemetry. Operators may calculate these metrics
 from sanitized local install manifests, doctor results, and run reports. Raw
 target-repository content, prompts, diffs, filenames, credentials, and user
 identity are never metric fields.
@@ -30,7 +30,7 @@ aggregate counts, rates, declared exclusions, and missing-data notes.
 
 ## Optional anonymous exporter proposal
 
-No exporter or network endpoint ships in 0.9.1. A future proposal must remain
+No exporter or network endpoint ships in 0.9.2. A future proposal must remain
 off by default, show the exact payload before consent, require explicit opt-in,
 support immediate revocation and local deletion, exclude source content and
 stable identity, document retention, and pass separate product-owner and

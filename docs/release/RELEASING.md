@@ -4,7 +4,7 @@
 
 1. Start from a clean commit whose package and documentation versions equal the intended tag.
 2. Run `bin/adlc ci --json` and the release architecture tests.
-3. Run `python3 scripts/release.py prepare --tag fixture-v0.9.1 --repository test --verify-reproducible --rehearse-rollback --json` for the non-publishing rehearsal.
+3. Run `python3 scripts/release.py prepare --tag fixture-v0.9.2 --repository test --verify-reproducible --rehearse-rollback --json` for the non-publishing rehearsal.
 4. Review `release-out/<tag>/release-approval-packet.json`, both artifact digests, every gate record, the evidence-derived support rows, unsigned local provenance, and `rollback-manifest.json`.
 5. Independently validate the packet with `bin/adlc validate-artifact --schema release-approval-packet --input <packet> --json`.
 6. After the release-contract repair and its hosted checks are merged, create the

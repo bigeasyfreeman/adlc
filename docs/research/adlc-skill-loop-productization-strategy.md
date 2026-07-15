@@ -267,9 +267,9 @@ ADLC should ship as a Python CLI because the runtime is already Python and the c
 Desired install path:
 
 ```bash
-pipx install adlc
+pipx install adlc-engineering
 # or
-uv tool install adlc
+uv tool install adlc-engineering
 
 adlc install --provider claude --scope project
 adlc doctor

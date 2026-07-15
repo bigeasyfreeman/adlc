@@ -3,6 +3,16 @@
 Notable user-facing changes are documented here. This project follows semantic
 versioning once a release is tagged.
 
+## 0.9.2 - 2026-07-15
+
+- Publish the ADLC package under the collision-free PyPI distribution name
+  `adlc-engineering` while preserving the ADLC product name, `adlc_runtime`
+  Python package, installed `adlc` skill, and `adlc-skill` command.
+- Derive release metadata, clean-install, rollback, and go-live distribution
+  checks from `project.name` instead of hard-coding the rejected `adlc` name.
+- Record the failed v0.9.1 registry attempt as defect evidence and require a
+  new immutable candidate and approval packet before publication.
+
 ## 0.9.1 - 2026-07-15
 
 - Reuse the exact packet-approved GitHub Actions artifact during publication so
