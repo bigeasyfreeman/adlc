@@ -49,4 +49,10 @@ include = ["adlc_runtime*"]
 "share/adlc/skill" = ["skill/SKILL.src.md"]
 "share/adlc/skill/reference" = ["skill/reference/*.md"]
 "share/adlc/skill/scripts" = ["skill/scripts/*.py"]
-"share/adlc/schemas" = ["docs/schemas/install-manifest.schema.json"]
+"share/adlc/skill/loops" = ["skill/loops/*.json"]
+"share/adlc/schemas" = [
+  "docs/schemas/install-manifest.schema.json",
+  "docs/schemas/provider-ci-attestation.schema.json",
+  "docs/schemas/provider-conformance-report.schema.json",
+  "docs/schemas/skill-behavior-report.schema.json",
+]

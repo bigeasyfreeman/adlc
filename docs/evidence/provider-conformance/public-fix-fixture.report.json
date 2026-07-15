@@ -1,0 +1,101 @@
+{
+  "contract_version": "1.0.0",
+  "evidence_status": "current_conformance",
+  "runtime": "codex",
+  "model": "not-invoked",
+  "source_commit": "4739d5dabcc20b225187ae88316c4107ab1b88ff",
+  "source_tree_clean": true,
+  "adapter": {
+    "path": "scripts/adlc_runtime/adapters/codex.sh",
+    "sha256": "56e554f46f8d464a3a4ae75d4a8f9f9ffb033048cce582edacb5f5ad0ddf12f9"
+  },
+  "fixture_sha256": "b5b211907d33aa6c107bfc9ab9dee48a2f1a8f294bd027f0458984bd14baba98",
+  "auth_path": "not-required:deterministic",
+  "started_at": "2026-07-15T03:15:56Z",
+  "finished_at": "2026-07-15T03:16:00Z",
+  "stages": [
+    {
+      "name": "red_verifier",
+      "ok": true,
+      "artifact": "red.json",
+      "duration_ms": 0
+    },
+    {
+      "name": "interrupt_resume",
+      "ok": true,
+      "artifact": "resumed.json",
+      "duration_ms": 0
+    },
+    {
+      "name": "product_fix",
+      "ok": true,
+      "artifact": "final.diff",
+      "duration_ms": 0
+    },
+    {
+      "name": "green_verifier",
+      "ok": true,
+      "artifact": "green.json",
+      "duration_ms": 0
+    },
+    {
+      "name": "independent_audit",
+      "ok": true,
+      "artifact": "audit.json",
+      "duration_ms": 0
+    }
+  ],
+  "overall": "pass",
+  "cost_estimate_tokens": 0,
+  "provider": "codex",
+  "harness": "public-fix-deterministic",
+  "provider_version": "not-invoked",
+  "loop": "fix",
+  "run_id": "public-fix-4739d5dabcc2",
+  "status": "pass",
+  "credential_status": "not_required",
+  "dimensions": {
+    "installation": "pass",
+    "invocation": "not_run",
+    "behavior": "pass",
+    "end_to_end": "pass"
+  },
+  "duration_ms": 3408,
+  "cost": {
+    "currency": "USD",
+    "min": 0,
+    "max": 0
+  },
+  "trace": [
+    {
+      "event": "red_verifier",
+      "status": "fail",
+      "stop_reason": "verifier_failed"
+    },
+    {
+      "event": "interrupt",
+      "status": "awaiting_approval",
+      "stop_reason": "human_gate"
+    },
+    {
+      "event": "resume",
+      "status": "planned",
+      "side_effect_idempotency_key": "public-fix:completed-once",
+      "side_effect_count": 1
+    },
+    {
+      "event": "green_verifier",
+      "status": "pass"
+    },
+    {
+      "event": "completion_audit",
+      "status": "pass",
+      "auditor": "public-fix-auditor"
+    }
+  ],
+  "failures": [],
+  "no_overclaim": "This proves the deterministic public Fix loop on a temporary product-code repository; the Codex provider was installed but not invoked.",
+  "limitations": [
+    "Provider invocation remains not_run and cannot support a live Codex behavior claim."
+  ]
+}

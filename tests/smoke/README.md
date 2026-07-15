@@ -70,6 +70,14 @@ outside the ephemeral artifacts directory.
 The release evidence policy and recording location are documented in
 [`docs/evidence/provider-conformance/README.md`](../../docs/evidence/provider-conformance/README.md).
 
+MIG008 adds two narrower proof layers alongside this historical six-stage smoke harness:
+
+- `tests/skill_behavior/` runs credential-free pressure scenarios and asserts facade calls, state transitions, stop reasons, and forbidden mutations.
+- `tests/provider_conformance/run_live.py` performs an explicit, bounded Codex installed-skill Fix run and records redacted tool traces. It does not reuse or weaken this smoke harness's API-key/settings isolation policy.
+- `tests/acceptance/run_public_fix_loop.sh` proves the deterministic real-work Fix lifecycle but honestly records provider invocation as `not_run`.
+
+Support labels are generated from versioned evidence and remain provider-, harness-, model-, version-, and loop-specific.
+
 All auth values in this README are placeholders. Do not commit real keys, local settings files, or copied auth state.
 
 ## Cost

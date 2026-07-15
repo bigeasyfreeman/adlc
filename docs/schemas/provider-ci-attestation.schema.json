@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://adlc.dev/schemas/provider-ci-attestation.schema.json",
+  "title": "ADLC Provider Canonical CI Attestation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "source_commit",
+    "source_tree_clean",
+    "command",
+    "started_at",
+    "finished_at",
+    "status",
+    "suite_count",
+    "suites",
+    "no_overclaim"
+  ],
+  "properties": {
+    "contract_version": {"const": "1.0.0"},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_tree_clean": {"const": true},
+    "command": {"const": ["bin/adlc", "ci", "--json"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "status": {"const": "pass"},
+    "suite_count": {"type": "integer", "minimum": 1},
+    "suites": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "returncode", "duration_ms", "command"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "status": {"const": "pass"},
+          "returncode": {"const": 0},
+          "duration_ms": {"type": "integer", "minimum": 0},
+          "command": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "no_overclaim": {"type": "string", "minLength": 1}
+  }
+}

@@ -26,6 +26,7 @@
       "enum": [
         "current_conformance",
         "candidate_conformance",
+        "superseded_conformance",
         "failed_conformance"
       ]
     },
@@ -67,7 +68,64 @@
       }
     },
     "overall": {"enum": ["pass", "fail"]},
-    "cost_estimate_tokens": {"type": "integer", "minimum": 0}
+    "cost_estimate_tokens": {"type": "integer", "minimum": 0},
+    "provider": {"type": "string", "minLength": 1},
+    "harness": {"type": "string", "minLength": 1},
+    "provider_version": {"type": "string", "minLength": 1},
+    "loop": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["pass", "fail", "blocked"]},
+    "credential_status": {"enum": ["available", "missing", "not_required"]},
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["installation", "invocation", "behavior", "end_to_end"],
+      "properties": {
+        "installation": {"enum": ["pass", "fail", "blocked", "not_run"]},
+        "invocation": {"enum": ["pass", "fail", "blocked", "not_run"]},
+        "behavior": {"enum": ["pass", "fail", "blocked", "not_run"]},
+        "end_to_end": {"enum": ["pass", "fail", "blocked", "not_run"]}
+      }
+    },
+    "duration_ms": {"type": "integer", "minimum": 0},
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["currency", "min", "max"],
+      "properties": {
+        "currency": {"const": "USD"},
+        "min": {"type": "number", "minimum": 0},
+        "max": {"type": "number", "minimum": 0}
+      }
+    },
+    "trace": {"type": "array", "items": {"type": "object"}},
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "input_tokens": {"type": "integer", "minimum": 0},
+        "cached_input_tokens": {"type": "integer", "minimum": 0},
+        "output_tokens": {"type": "integer", "minimum": 0},
+        "reasoning_output_tokens": {"type": "integer", "minimum": 0}
+      }
+    },
+    "failures": {"type": "array", "items": {"type": "string"}},
+    "canonical_ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "status", "source_commit", "source_tree_clean", "evidence_ref"],
+      "properties": {
+        "command": {"const": ["bin/adlc", "ci", "--json"]},
+        "status": {"const": "pass"},
+        "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "source_tree_clean": {"const": true},
+        "evidence_ref": {"type": "string", "minLength": 1}
+      }
+    },
+    "no_overclaim": {"type": "string", "minLength": 1},
+    "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "analysis": {"type": "object"},
+    "stderr": {"type": "string"}
   },
   "allOf": [
     {
@@ -75,7 +133,7 @@
       "then": {
         "properties": {
           "evidence_status": {
-            "enum": ["current_conformance", "candidate_conformance"]
+            "enum": ["current_conformance", "candidate_conformance", "superseded_conformance"]
           },
           "stages": {
             "items": {"properties": {"ok": {"const": true}}}
@@ -92,7 +150,7 @@
       },
       "then": {
         "properties": {
-          "evidence_status": {"const": "current_conformance"}
+          "evidence_status": {"enum": ["current_conformance", "superseded_conformance"]}
         }
       }
     },

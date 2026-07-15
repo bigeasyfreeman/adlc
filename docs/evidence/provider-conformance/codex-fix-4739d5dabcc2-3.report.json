@@ -1,0 +1,297 @@
+{
+  "adapter": {
+    "path": "scripts/adlc_runtime/adapters/codex.sh",
+    "sha256": "56e554f46f8d464a3a4ae75d4a8f9f9ffb033048cce582edacb5f5ad0ddf12f9"
+  },
+  "analysis": {
+    "assertions": {
+      "bounded_diff": true,
+      "green_after": true,
+      "product_fix": true,
+      "provider_exit": true,
+      "provider_test_trace": true,
+      "red_before": true,
+      "structured_trace": true
+    },
+    "changed_paths": [
+      "app/calculator.py"
+    ],
+    "provider_test_command_count": 4,
+    "provider_test_exit_codes": [
+      2,
+      0
+    ],
+    "status": "pass"
+  },
+  "auth_path": "codex-account-session",
+  "contract_version": "1.0.0",
+  "cost": {
+    "currency": "USD",
+    "max": 0.0,
+    "min": 0.0
+  },
+  "cost_estimate_tokens": 125449,
+  "credential_status": "available",
+  "dimensions": {
+    "behavior": "pass",
+    "end_to_end": "pass",
+    "installation": "pass",
+    "invocation": "pass"
+  },
+  "duration_ms": 60631,
+  "evidence_status": "current_conformance",
+  "failures": [],
+  "finished_at": "2026-07-15T03:19:42.339524+00:00",
+  "fixture_sha256": "c712eccb4af3415c9d1215f1a42513e94f0ec9b9829cc890e8c242c82ef2a954",
+  "harness": "codex-cli-installed-skill",
+  "limitations": [
+    "Bundled-account execution does not expose a marginal USD charge, so cost is reported as zero with token usage retained.",
+    "One disposable arithmetic Fix does not prove Build or Review loop conformance."
+  ],
+  "loop": "fix",
+  "model": "gpt-5.4",
+  "no_overclaim": "This run applies only to the named Codex CLI, model, installed skill, Fix fixture, commit, and date.",
+  "overall": "pass",
+  "provider": "codex",
+  "provider_version": "0.137.0",
+  "run_id": "codex-fix-4739d5dabcc2-3",
+  "runtime": "codex",
+  "source_commit": "4739d5dabcc20b225187ae88316c4107ab1b88ff",
+  "source_tree_clean": true,
+  "stages": [
+    {
+      "artifact": ".agents/skills/adlc",
+      "duration_ms": 0,
+      "name": "install",
+      "ok": true
+    },
+    {
+      "artifact": "trace",
+      "duration_ms": 60631,
+      "name": "provider_invocation",
+      "ok": true
+    },
+    {
+      "artifact": "app/calculator.py",
+      "duration_ms": 0,
+      "name": "red_green_fix",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-07-15T03:18:41.662485+00:00",
+  "status": "pass",
+  "stderr": "2026-07-15T03:18:41.903626Z ERROR codex_models_manager::cache: failed to load models cache: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n",
+  "trace": [
+    {
+      "event": "pre_provider_verifier",
+      "status": "fail"
+    },
+    {
+      "event": "thread.started"
+    },
+    {
+      "event": "turn.started"
+    },
+    {
+      "event": "item.completed",
+      "item_type": "agent_message",
+      "message": "Using the `adlc` skill for a bounded `/adlc fix` loop. I\u2019m establishing the failing baseline first, then I\u2019ll inspect only the implicated test and product code, patch `app/calculator.py`, and rerun the verifier."
+    },
+    {
+      "command": "/bin/zsh -lc 'rg --files'",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'rg --files'",
+      "event": "item.completed",
+      "exit_code": 0,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'python3 .agents/skills/adlc/skill/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'python3 .agents/skills/adlc/skill/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
+      "event": "item.completed",
+      "exit_code": 2,
+      "item_type": "command_execution"
+    },
+    {
+      "event": "item.completed",
+      "item_type": "agent_message",
+      "message": "The ADLC bootstrap path in the skill instructions doesn\u2019t match the repo layout, so I\u2019m locating the actual skill files before continuing. After that I\u2019ll run the fix verifier and keep scope to the single test and `app/calculator.py`."
+    },
+    {
+      "command": "/bin/zsh -lc 'find .agents/skills/adlc -maxdepth 3 -type f | sort'",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'find .agents/skills/adlc -maxdepth 3 -type f | sort'",
+      "event": "item.completed",
+      "exit_code": 0,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/SKILL.md\"",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/SKILL.md\"",
+      "event": "item.completed",
+      "exit_code": 0,
+      "item_type": "command_execution"
+    },
+    {
+      "event": "item.completed",
+      "item_type": "agent_message",
+      "message": "I\u2019ve got the actual ADLC script location. Next I\u2019m loading the bounded fix context and the `/adlc fix` contract, then I\u2019ll run the verifier to capture the failing arithmetic-mean case before editing."
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,240p' .agents/skills/adlc/reference/command-fix.md\"",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,240p' .agents/skills/adlc/reference/command-fix.md\"",
+      "event": "item.completed",
+      "exit_code": 0,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'python3 .agents/skills/adlc/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'python3 .agents/skills/adlc/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
+      "event": "item.completed",
+      "exit_code": 0,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,240p' docs/loop-library/public-fix.json\"",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,240p' docs/loop-library/public-fix.json\"",
+      "event": "item.completed",
+      "exit_code": 1,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'pytest -q'",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'pytest -q'",
+      "event": "item.completed",
+      "exit_code": 2,
+      "item_type": "command_execution"
+    },
+    {
+      "event": "item.completed",
+      "item_type": "agent_message",
+      "message": "The default `pytest` invocation is red, but it\u2019s failing at collection because the repo package path isn\u2019t on `sys.path`. I\u2019m now reading only the calculator test and implementation so I can switch to the smallest meaningful verifier for the arithmetic-mean defect."
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,220p' tests/test_calculator.py\"",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,220p' tests/test_calculator.py\"",
+      "event": "item.completed",
+      "exit_code": 0,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,220p' app/calculator.py\"",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc \"sed -n '1,220p' app/calculator.py\"",
+      "event": "item.completed",
+      "exit_code": 0,
+      "item_type": "command_execution"
+    },
+    {
+      "event": "item.completed",
+      "item_type": "agent_message",
+      "message": "The defect is narrow: `average()` returns the sum instead of the arithmetic mean. I\u2019m patching only `app/calculator.py`, then I\u2019ll rerun the same verifier with `PYTHONPATH=.` so the package imports cleanly and the red-to-green result is attributable to the fix."
+    },
+    {
+      "event": "item.started",
+      "item_type": "file_change"
+    },
+    {
+      "event": "item.completed",
+      "item_type": "file_change"
+    },
+    {
+      "command": "/bin/zsh -lc 'git diff -- app/calculator.py'",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'git diff -- app/calculator.py'",
+      "event": "item.completed",
+      "exit_code": 0,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=. pytest -q tests/test_calculator.py'",
+      "event": "item.started",
+      "exit_code": null,
+      "item_type": "command_execution"
+    },
+    {
+      "command": "/bin/zsh -lc 'PYTHONPATH=. pytest -q tests/test_calculator.py'",
+      "event": "item.completed",
+      "exit_code": 0,
+      "item_type": "command_execution"
+    },
+    {
+      "event": "item.completed",
+      "item_type": "agent_message",
+      "message": "Used the `adlc` `/adlc fix` loop and kept scope to [app/calculator.py](<WORKSPACE>/app/calculator.py:1) plus inspection of [tests/test_calculator.py](<WORKSPACE>/tests/test_calculator.py:1). The only code change was replacing `return sum(values)` with `return sum(values) / len(values)` so `average()` computes the arithmetic mean.\n\nEvidence:\n- Red baseline: `pytest -q` failed during collection with `ModuleNotFoundError: No module named 'app'`.\n- Diagnosis from relevant files: the test expects `average([2, 4, 6]) == 4`, while the implementation returned the sum.\n- Green verifier after the fix: `PYTHONPATH=. pytest -q tests/test_calculator.py` \u2192 `1 passed in 0.00s`.\n\nNo tests, ADLC config, or other files were edited. No commit was made."
+    },
+    {
+      "event": "turn.completed",
+      "usage": {
+        "cached_input_tokens": 92672,
+        "input_tokens": 123112,
+        "output_tokens": 2337,
+        "reasoning_output_tokens": 387
+      }
+    },
+    {
+      "event": "post_provider_verifier",
+      "status": "pass"
+    }
+  ],
+  "usage": {
+    "cached_input_tokens": 92672,
+    "input_tokens": 123112,
+    "output_tokens": 2337,
+    "reasoning_output_tokens": 387
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "contract_version": "1.0.0",
+  "contract_id": "adlc-public-build-1",
+  "autonomy_claim": "assisted_loop",
+  "job_win_condition": {
+    "job": "Build one approved software slice through existing ADLC workflow phases.",
+    "done_when": "terminal:pr_ready is reached with scoped commit evidence, passing declared gates, and independent review.",
+    "deterministic_checks": [
+      "intent_validation approved before scaffold or code",
+      "bin/adlc loop-test-selection",
+      "bin/adlc ci",
+      "bin/adlc completion-audit"
+    ],
+    "semantic_intent_check": "The final diff must satisfy the approved intent and impact without broadening scope."
+  },
+  "allowed_tools": [
+    {
+      "name": "bin/adlc run",
+      "actions": ["advance_workflow", "persist_checkpoint", "mutate_local_after_approval"]
+    },
+    {
+      "name": "bin/adlc ci",
+      "actions": ["run_tests", "observe_gate_results"]
+    },
+    {
+      "name": "human-escalation",
+      "actions": ["approve_intent", "steer", "abort", "approve_external_action"]
+    }
+  ],
+  "feedback_channels": [
+    {"after_action": "phase:triage", "observes": ["route", "scope", "missing_decisions"]},
+    {"after_action": "phase:plan", "observes": ["build_brief", "verifier_contract", "compatibility"]},
+    {"after_action": "phase:intent_validation", "observes": ["approval", "intent", "impact"]},
+    {"after_action": "phase:gen_tests", "observes": ["prechange_failure", "expected_reason"]},
+    {"after_action": "phase:code", "observes": ["changed_paths", "verifier_status"]},
+    {"after_action": "phase:code_review", "observes": ["independent_findings", "verdict"]},
+    {"after_action": "phase:qa", "observes": ["gate_results", "failed_commands"]},
+    {"after_action": "phase:pr_prep", "observes": ["scope", "claims", "evidence_refs"]}
+  ],
+  "stop_escalate_rules": {
+    "max_iterations": 6,
+    "no_progress_after": 2,
+    "escalate_when": [
+      "terminal:blocked_human_approval",
+      "terminal:blocked_credentials",
+      "terminal:failed_verification",
+      "terminal:escalated"
+    ]
+  },
+  "test_selection": {
+    "mandatory_floor": [
+      {
+        "id": "build:contract",
+        "command": "bin/adlc validate-artifact --schema loop-contract --input docs/loop-library/public-build.json --json",
+        "coverage_tags": ["schema", "public-build"]
+      }
+    ],
+    "required_from_task_signals": [
+      {
+        "id": "build:canonical-ci",
+        "signal": "product code or test files change",
+        "command": "bin/adlc ci",
+        "coverage_tags": ["task-verifier", "affected-suite", "canonical-ci"]
+      }
+    ],
+    "additive_agent_tests": true
+  },
+  "safe_bail_state": {
+    "state": "terminal:blocked_safe_checkpoint with current diff, workflow state, evidence refs, and next action persisted",
+    "rollback": "preserve user work and reverse only a declared reversible local change",
+    "idempotency": "completed phase and external-effect keys are checked before resume"
+  },
+  "progress_signal": {
+    "signals": ["expected_prechange_failure", "changed_verifier_status", "resolved_review_finding", "new_gate_evidence"],
+    "no_progress_rule": "Two attempts without a new observation, narrower cause, or changed verifier status escalate."
+  },
+  "control_channel": {
+    "supports": ["steer", "abort", "interrupt", "escalate"],
+    "safe_checkpoint_required": true
+  },
+  "independent_truth": {
+    "type": "external_command",
+    "evidence": ["declared task verifier", "bin/adlc ci", "independent code review"]
+  },
+  "redaction_posture": "Record bounded outputs and paths; exclude secrets, credentials, and unrelated source content."
+}

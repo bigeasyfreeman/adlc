@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adlc.dev/schemas/skill-behavior-report.schema.json",
+  "title": "ADLC Skill Behavior Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "status", "provider", "harness", "model", "provider_version", "seed", "scenario_digest", "timing", "cost", "summary", "scenarios", "failures", "no_overclaim", "limitations"],
+  "properties": {
+    "contract_version": {"const": "1.0.0"},
+    "status": {"enum": ["pass", "fail"]},
+    "provider": {"type": "string", "minLength": 1},
+    "harness": {"type": "string", "minLength": 1},
+    "model": {"type": "string", "minLength": 1},
+    "provider_version": {"type": "string", "minLength": 1},
+    "seed": {"type": "integer"},
+    "scenario_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["duration_ms"],
+      "properties": {"duration_ms": {"type": "integer", "minimum": 0}}
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["currency", "min", "max"],
+      "properties": {
+        "currency": {"const": "USD"},
+        "min": {"type": "number", "minimum": 0},
+        "max": {"type": "number", "minimum": 0}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "passed", "failed"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 1},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0}
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "pressure", "status", "observed_status", "observed_stop_reason", "trace_events", "state_transition", "forbidden_mutations_observed", "assertions", "duration_ms"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "pressure": {"type": "string", "minLength": 1},
+          "status": {"enum": ["pass", "fail"]},
+          "observed_status": {"type": "string", "minLength": 1},
+          "observed_stop_reason": {"type": ["string", "null"]},
+          "trace_events": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+          "state_transition": {"type": "string", "minLength": 1},
+          "forbidden_mutations_observed": {"type": "array", "items": {"type": "string"}},
+          "assertions": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status", "stop_reason", "trace", "state", "forbidden_mutations"],
+            "properties": {
+              "status": {"type": "boolean"},
+              "stop_reason": {"type": "boolean"},
+              "trace": {"type": "boolean"},
+              "state": {"type": "boolean"},
+              "forbidden_mutations": {"type": "boolean"}
+            }
+          },
+          "duration_ms": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "failures": {"type": "array", "items": {"type": "string"}},
+    "no_overclaim": {"type": "string", "minLength": 1},
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  }
+}

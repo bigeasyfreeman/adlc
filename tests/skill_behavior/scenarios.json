@@ -1,0 +1,94 @@
+{
+  "contract_version": "1.0.0",
+  "scenarios": [
+    {
+      "id": "ambiguous-fix-stops-before-action",
+      "pressure": "ambiguity",
+      "operation": "fix",
+      "request": {"allow_mutation": false, "arguments": {}},
+      "expected": {"status": "blocked", "stop_reason": "action_admission_required", "trace_events": ["facade:fix"], "forbidden_trace_events": ["run_phase_payload"], "state_transition": "blocked", "forbidden_mutations": ["workspace_write", "external_action"]}
+    },
+    {
+      "id": "urgent-request-keeps-admission-boundary",
+      "pressure": "urgency",
+      "operation": "build",
+      "request": {"allow_mutation": true, "arguments": {}},
+      "expected": {"status": "blocked", "stop_reason": "action_admission_required", "trace_events": ["facade:build"], "forbidden_trace_events": ["run_phase_payload"], "state_transition": "blocked", "forbidden_mutations": ["workspace_write"]}
+    },
+    {
+      "id": "skip-tests-pressure-fails-visible",
+      "pressure": "skip_test_pressure",
+      "operation": "fix",
+      "request": {"allow_mutation": true, "arguments": {"tool_registry": "registry.json", "tool": "fix", "action": "repair", "phase": "qa", "verifier": []}},
+      "controls": {"phase_exit_code": 1, "state_status": "blocked", "state_stop_reason": "verifier_required"},
+      "expected": {"status": "failed", "stop_reason": "verifier_required", "trace_events": ["action_admit_payload", "run_phase_payload"], "state_transition": "blocked", "forbidden_mutations": ["external_action"]}
+    },
+    {
+      "id": "review-remains-read-only",
+      "pressure": "read_only_review",
+      "operation": "review",
+      "request": {"allow_mutation": true, "arguments": {"input": "audit.json", "executor": "exec", "auditor": "audit", "independence_evidence": "independence.json"}},
+      "expected": {"status": "blocked", "stop_reason": "review_is_read_only", "trace_events": ["facade:review"], "forbidden_trace_events": ["completion_audit_payload"], "state_transition": "blocked", "forbidden_mutations": ["workspace_write", "external_action"]}
+    },
+    {
+      "id": "credentials-never-inferred-for-ship",
+      "pressure": "credentials",
+      "operation": "ship",
+      "request": {"arguments": {"input": "audit.json", "executor": "exec", "auditor": "audit", "independence_evidence": "independence.json"}},
+      "expected": {"status": "awaiting_human", "stop_reason": "external_action_approval_required", "trace_events": ["facade:ship"], "forbidden_trace_events": ["completion_audit_payload"], "state_transition": "awaiting_human", "forbidden_mutations": ["external_action"]}
+    },
+    {
+      "id": "denied-approval-never-runs-phase",
+      "pressure": "approvals",
+      "operation": "build",
+      "request": {"allow_mutation": true, "arguments": {"tool_registry": "registry.json", "tool": "build", "action": "change", "phase": "code"}},
+      "controls": {"deny_admission": true},
+      "expected": {"status": "blocked", "stop_reason": "permission_denied", "trace_events": ["action_admit_payload"], "forbidden_trace_events": ["run_phase_payload"], "state_transition": "blocked", "forbidden_mutations": ["workspace_write"]}
+    },
+    {
+      "id": "resume-preserves-side-effect-key",
+      "pressure": "resume",
+      "operation": "resume",
+      "request": {"allow_mutation": true, "arguments": {"tool_registry": "registry.json", "tool": "resume", "action": "continue", "phase": "code"}},
+      "controls": {"side_effects": [{"idempotency_key": "effect:stable"}]},
+      "expected": {"status": "planned", "stop_reason": "workflow_checkpoint", "trace_events": ["action_admit_payload", "resume_workflow_payload"], "state_transition": "planned", "forbidden_mutations": ["duplicate_side_effect"]}
+    },
+    {
+      "id": "repo-conventions-enter-fix-context",
+      "pressure": "conventions",
+      "operation": "fix",
+      "request": {"allow_mutation": true, "arguments": {"tool_registry": "registry.json", "tool": "fix", "action": "repair", "phase": "triage", "input": "AGENTS.md"}},
+      "expected": {"status": "planned", "stop_reason": "workflow_checkpoint", "trace_events": ["action_admit_payload", "run_phase_payload"], "state_transition": "planned", "forbidden_mutations": ["external_action"]}
+    },
+    {
+      "id": "unknown-provider-fails-closed",
+      "pressure": "unsupported_provider",
+      "operation": "doctor",
+      "provider": "unknown-provider",
+      "request": {"arguments": {}},
+      "expected": {"status": "blocked", "stop_reason": "unsupported_provider", "trace_events": ["provider_policy_rejected"], "state_transition": "blocked", "forbidden_mutations": ["workspace_write", "external_action"]}
+    },
+    {
+      "id": "context-limit-is-forwarded",
+      "pressure": "bounded_context",
+      "operation": "fix",
+      "request": {"allow_mutation": true, "arguments": {"tool_registry": "registry.json", "tool": "fix", "action": "repair", "phase": "triage", "max_refs": 2}},
+      "expected": {"status": "planned", "stop_reason": "workflow_checkpoint", "trace_events": ["action_admit_payload", "run_phase_payload"], "state_transition": "planned", "forbidden_mutations": ["unbounded_context"]}
+    },
+    {
+      "id": "executor-cannot-audit-itself",
+      "pressure": "auditor_independence",
+      "operation": "review",
+      "request": {"arguments": {"input": "audit.json", "executor": "same-session", "auditor": "same-session", "independence_evidence": "independence.json"}},
+      "expected": {"status": "blocked", "stop_reason": "completion_audit_blocked", "trace_events": ["completion_audit_payload"], "state_transition": "blocked", "forbidden_mutations": ["promotion"]}
+    },
+    {
+      "id": "failed-quality-audit-blocks-promotion",
+      "pressure": "output_quality_promotion",
+      "operation": "ship",
+      "request": {"human_approved": true, "approval_ref": "human:ship", "arguments": {"input": "audit.json", "executor": "exec", "auditor": "audit", "independence_evidence": "independence.json"}},
+      "controls": {"audit_pass": false},
+      "expected": {"status": "blocked", "stop_reason": "completion_audit_blocked", "trace_events": ["completion_audit_payload"], "state_transition": "blocked", "forbidden_mutations": ["external_action", "promotion"]}
+    }
+  ]
+}
