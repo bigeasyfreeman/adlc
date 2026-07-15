@@ -1,0 +1,80 @@
+{
+  "contract_version": "1.0.0",
+  "contract_id": "adlc-public-review-1",
+  "autonomy_claim": "assisted_loop",
+  "job_win_condition": {
+    "job": "Review one bounded change and return evidence-backed findings without target mutation.",
+    "done_when": "terminal:findings_ready or terminal:no_findings is reached with inspected scope, commands, and limitations recorded.",
+    "deterministic_checks": [
+      "git diff --check",
+      "declared verifier observation",
+      "bin/adlc completion-audit"
+    ],
+    "semantic_intent_check": "Findings must address correctness, safety, compatibility, and evidence within the requested scope."
+  },
+  "allowed_tools": [
+    {
+      "name": "git",
+      "actions": ["inspect_diff", "inspect_history", "inspect_status"]
+    },
+    {
+      "name": "bin/adlc completion-audit",
+      "actions": ["observe_claims", "observe_verifiers", "report_contradictions"]
+    },
+    {
+      "name": "temporary fixture",
+      "actions": ["copy_inputs", "run_negative_control", "discard_fixture"]
+    }
+  ],
+  "feedback_channels": [
+    {"after_action": "phase:triage", "observes": ["review_scope", "base", "head"]},
+    {"after_action": "phase:code_review", "observes": ["findings", "line_refs", "severity"]},
+    {"after_action": "phase:qa", "observes": ["observed_verifiers", "failures", "untested_surfaces"]},
+    {"after_action": "phase:engineer_review", "observes": ["verdict", "open_questions", "next_command"]}
+  ],
+  "stop_escalate_rules": {
+    "max_iterations": 3,
+    "no_progress_after": 2,
+    "escalate_when": [
+      "terminal:blocked_missing_context",
+      "terminal:blocked_credentials",
+      "terminal:escalated"
+    ]
+  },
+  "test_selection": {
+    "mandatory_floor": [
+      {
+        "id": "review:contract",
+        "command": "bin/adlc validate-artifact --schema loop-contract --input docs/loop-library/public-review.json --json",
+        "coverage_tags": ["schema", "public-review"]
+      }
+    ],
+    "required_from_task_signals": [
+      {
+        "id": "review:declared-verifier",
+        "signal": "the change claims a verifier or gate result",
+        "command": "observe or independently rerun the declared verifier without editing the target",
+        "coverage_tags": ["claim-evidence", "independence", "read-only"]
+      }
+    ],
+    "additive_agent_tests": true
+  },
+  "safe_bail_state": {
+    "state": "terminal:blocked_read-only with target bytes unchanged and missing context named",
+    "rollback": "discard temporary fixtures; the target requires no rollback because it was not changed",
+    "idempotency": "all target operations are read-only and rerunnable"
+  },
+  "progress_signal": {
+    "signals": ["new_file_path_inspected", "new_negative_control", "confirmed_or_rejected_claim", "finding_with_evidence"],
+    "no_progress_rule": "Two passes without new evidence stop with current limitations rather than invent findings."
+  },
+  "control_channel": {
+    "supports": ["steer", "abort", "interrupt", "escalate"],
+    "safe_checkpoint_required": true
+  },
+  "independent_truth": {
+    "type": "external_command",
+    "evidence": ["target diff", "declared verifier output", "temporary negative controls"]
+  },
+  "redaction_posture": "Quote only bounded evidence; exclude secrets, credentials, private data, and unrelated source content."
+}

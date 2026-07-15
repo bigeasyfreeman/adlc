@@ -54,7 +54,7 @@ def test_manifest_is_schema_valid_deterministic_and_bounded(project):
     assert first["contract_version"] == "1.0.0"
     assert first["command"] == "fix"
     assert first["selected_reference"] == "skill/reference/command-fix.md"
-    assert first["reference_status"] == "pending"
+    assert first["reference_status"] == "available"
     assert first["totals"]["manifest_bytes"] <= 10_000
     assert first["totals"]["source_count"] <= 20
 
