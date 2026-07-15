@@ -28,10 +28,12 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install 'jsonschema>=4,<5' 'ruff>=0.5,<1'
+          python -m pip install 'jsonschema>=4,<5' 'pytest>=7,<9' 'ruff>=0.5,<1'
           sudo apt-get update
           sudo apt-get install -y jq ripgrep
       - name: Run ADLC CI
         run: bin/adlc ci --json
+      - name: Run benchmark architecture contract
+        run: python -m pytest tests/test_benchmark_contract.py -q
       - name: Run Python lint
         run: ruff check scripts tests benchmarks examples/fix-demo
