@@ -10,24 +10,24 @@
   ],
   "artifact_digests": [
     {
-      "name": "adlc-0.9.0-py3-none-any.whl",
-      "sha256": "2761c6d6d2bcffb7e955150aa74637e1138aa67c2f88bd93bb7cd4a1f9943dea",
-      "size": 195110
+      "name": "adlc-0.9.1-py3-none-any.whl",
+      "sha256": "c1cde8a16493af9fc9cbb39f9c11f7afb066950caeaaf98eabdb1ec8ac4394aa",
+      "size": 195136
     },
     {
-      "name": "adlc-0.9.0.tar.gz",
-      "sha256": "7244aacf01aa4075c748e42c12f43f6e4b58caf944ad921477645ba58b52795a",
-      "size": 197987
+      "name": "adlc-0.9.1.tar.gz",
+      "sha256": "9c687953e037a585ce435773c2116c333852c559a019b68ba40d45effbd09324",
+      "size": 198555
     }
   ],
-  "audited_at": "2026-07-15T10:27:08.368861Z",
+  "audited_at": "2026-07-15T14:36:34.153545Z",
   "auditor": {
-    "auditor_id": "codex-independent-go-live-auditor",
-    "auditor_session_id": "codex-cli-audit-20260715-02",
+    "auditor_id": "codex-cli-gpt-5.4-independent-2",
+    "auditor_session_id": "019f662f-b4a1-7911-a2bc-f132a186414b",
     "basis": "separate_session",
-    "executor_id": "codex-primary-migration-executor",
-    "executor_session_id": "codex-root-20260715-mig-val",
-    "identity_evidence_sha256": "9550058c31be0a8c666bc857951c030506353daf212a81ca7151b40ed389352d"
+    "executor_id": "codex-root-mig013",
+    "executor_session_id": "019f6614-fa17-7e72-936f-ec137caddaff",
+    "identity_evidence_sha256": "cc1338164f83110d9b97406f76748123da4feb914469b904be36a6ead5337aff"
   },
   "clean_install_matrix": [
     {
@@ -82,19 +82,19 @@
   ],
   "no_overclaim": "The recommendation applies only to the recorded support scope and is not GA, adoption, or future-provider proof.",
   "recommendation": "scoped_beta",
-  "release_tag": "v0.9.0",
+  "release_tag": "v0.9.1",
   "report_artifacts": {
     "completion_audit": "docs/evidence/releases/completion-audit.json",
     "go_live_validation": "docs/evidence/releases/go-live-validation.json"
   },
   "rollback_result": {
-    "manifest_ref": "release-out/v0.9.0/rollback-manifest.json",
+    "manifest_ref": "release-out/v0.9.1/rollback-manifest.json",
     "mode": "local-test-index-candidate-restore",
     "prior_public_release": null,
     "reinstall_verified": true,
     "status": "pass"
   },
-  "source_commit": "5ae01782a2205a698cc7c4ef5b2095433c28fbb1",
+  "source_commit": "b6d6fdafdf868ae7b6f0675c408c56ea5f3445d2",
   "status": "pass",
   "support_scope": [
     {
@@ -118,7 +118,7 @@
       "provider": "codex",
       "provider_version": "0.137.0",
       "run_count": 3,
-      "source_commit": "5ae01782a2205a698cc7c4ef5b2095433c28fbb1",
+      "source_commit": "b6d6fdafdf868ae7b6f0675c408c56ea5f3445d2",
       "validation_kind": "tag_live_rerun",
       "validation_runs": [
         {
@@ -153,7 +153,7 @@
             "max": 0.0,
             "min": 0.0
           },
-          "cost_estimate_tokens": 113316,
+          "cost_estimate_tokens": 94083,
           "credential_status": "available",
           "dimensions": {
             "behavior": "pass",
@@ -161,10 +161,10 @@
             "installation": "pass",
             "invocation": "pass"
           },
-          "duration_ms": 55425,
+          "duration_ms": 68710,
           "evidence_status": "current_conformance",
           "failures": [],
-          "finished_at": "2026-07-15T10:25:39.537832+00:00",
+          "finished_at": "2026-07-15T14:34:27.036670+00:00",
           "fixture_sha256": "4d9f3f1a94b0fa86476b4344c62ec961365d32b0e86b6e7a07ed4dbd706fcfd2",
           "harness": "codex-cli-installed-skill",
           "limitations": [
@@ -177,9 +177,9 @@
           "overall": "pass",
           "provider": "codex",
           "provider_version": "0.137.0",
-          "run_id": "codex-fix-5ae01782a220-1",
+          "run_id": "codex-fix-b6d6fdafdf86-1",
           "runtime": "codex",
-          "source_commit": "5ae01782a2205a698cc7c4ef5b2095433c28fbb1",
+          "source_commit": "b6d6fdafdf868ae7b6f0675c408c56ea5f3445d2",
           "source_tree_clean": true,
           "stages": [
             {
@@ -190,7 +190,7 @@
             },
             {
               "artifact": "trace",
-              "duration_ms": 55425,
+              "duration_ms": 68710,
               "name": "provider_invocation",
               "ok": true
             },
@@ -201,9 +201,9 @@
               "ok": true
             }
           ],
-          "started_at": "2026-07-15T10:24:44.064956+00:00",
+          "started_at": "2026-07-15T14:33:18.277010+00:00",
           "status": "pass",
-          "stderr": "Reading additional input from stdin...\n2026-07-15T10:24:44.297563Z ERROR codex_models_manager::cache: failed to load models cache: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T10:24:57.806511Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T10:25:06.229871Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T10:25:14.361017Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T10:25:22.630413Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T10:25:27.916516Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T10:25:33.725302Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n",
+          "stderr": "Reading additional input from stdin...\n2026-07-15T14:33:18.531677Z ERROR codex_models_manager::cache: failed to load models cache: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n",
           "trace": [
             {
               "event": "pre_provider_verifier",
@@ -218,28 +218,16 @@
             {
               "event": "item.completed",
               "item_type": "agent_message",
-              "message": "Using the `adlc` skill for a bounded Fix flow. I\u2019m loading the skill contract, then I\u2019ll run the exact verifier first to establish the failing arithmetic-mean test before inspecting only the relevant code and test."
+              "message": "Using the `adlc` skill for a bounded Fix loop. I\u2019m establishing the failing state with the exact verifier first, then I\u2019ll load only the fix contract and the relevant code/test before making the smallest repair in `app/calculator.py`."
             },
             {
-              "command": "/bin/zsh -lc \"sed -n '1,220p' <WORKSPACE>/.agents/skills/adlc/SKILL.md\"",
+              "command": "/bin/zsh -lc 'python3 .agents/skills/adlc/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
               "event": "item.started",
               "exit_code": null,
               "item_type": "command_execution"
             },
             {
-              "command": "/bin/zsh -lc \"sed -n '1,220p' <WORKSPACE>/.agents/skills/adlc/SKILL.md\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 <WORKSPACE>/.agents/skills/adlc/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 <WORKSPACE>/.agents/skills/adlc/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
+              "command": "/bin/zsh -lc 'python3 .agents/skills/adlc/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
               "event": "item.completed",
               "exit_code": 0,
               "item_type": "command_execution"
@@ -259,60 +247,36 @@
             {
               "event": "item.completed",
               "item_type": "agent_message",
-              "message": "The verifier is red on `test_average`: `average([2, 4, 6])` returns `12` instead of `4`. I\u2019ve confirmed the ADLC manifest and now I\u2019m loading only the Fix command reference and its loop contract before reading the single test and product file involved."
+              "message": "The failure is established: `average([2, 4, 6])` returns `12` instead of `4`. I\u2019m loading the ADLC fix contract now, then I\u2019ll inspect only the relevant test and `app/calculator.py` before editing."
             },
             {
-              "command": "/bin/zsh -lc \"sed -n '1,240p' <WORKSPACE>/.agents/skills/adlc/reference/command-fix.md\"",
+              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/reference/command-fix.md\"",
               "event": "item.started",
               "exit_code": null,
               "item_type": "command_execution"
             },
             {
-              "command": "/bin/zsh -lc \"sed -n '1,240p' <WORKSPACE>/.agents/skills/adlc/reference/command-fix.md\"",
+              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/reference/command-fix.md\"",
               "event": "item.completed",
               "exit_code": 0,
               "item_type": "command_execution"
             },
             {
-              "command": "/bin/zsh -lc 'rg -n \"loop|register|applicable\" <WORKSPACE>/.agents/skills/adlc/reference/command-fix.md'",
+              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/loops/fix.md\"",
               "event": "item.started",
               "exit_code": null,
               "item_type": "command_execution"
             },
             {
-              "command": "/bin/zsh -lc 'rg -n \"loop|register|applicable\" <WORKSPACE>/.agents/skills/adlc/reference/command-fix.md'",
+              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/loops/fix.md\"",
               "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,260p' <WORKSPACE>/.agents/skills/adlc/loops/public-fix.json\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,260p' <WORKSPACE>/.agents/skills/adlc/loops/public-fix.json\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,220p' <WORKSPACE>/.agents/skills/adlc/reference/register-engineering.md\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,220p' <WORKSPACE>/.agents/skills/adlc/reference/register-engineering.md\"",
-              "event": "item.completed",
-              "exit_code": 0,
+              "exit_code": 1,
               "item_type": "command_execution"
             },
             {
               "event": "item.completed",
               "item_type": "agent_message",
-              "message": "I have enough context to keep this tight. Next I\u2019m reading just `tests/test_calculator.py` and `app/calculator.py`, then I\u2019ll patch the smallest viable fix in `app/calculator.py` and rerun the same verifier."
+              "message": "The command reference points to `loops/public-fix.json`; there isn\u2019t a `loops/fix.md` file. I\u2019m loading the declared loop contract and the engineering register row the fix contract references, then I\u2019ll inspect the specific product file and test."
             },
             {
               "command": "/bin/zsh -lc \"sed -n '1,200p' tests/test_calculator.py\"",
@@ -327,6 +291,30 @@
               "item_type": "command_execution"
             },
             {
+              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/loops/public-fix.json\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,260p' .agents/skills/adlc/reference/register-engineering.md\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/loops/public-fix.json\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,260p' .agents/skills/adlc/reference/register-engineering.md\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
               "command": "/bin/zsh -lc \"sed -n '1,200p' app/calculator.py\"",
               "event": "item.started",
               "exit_code": null,
@@ -341,7 +329,7 @@
             {
               "event": "item.completed",
               "item_type": "agent_message",
-              "message": "The cause is narrow: `average` sums values but never divides by count. I\u2019m applying a one-line behavioral fix in [app/calculator.py](<WORKSPACE>/app/calculator.py:1), with no test or config changes."
+              "message": "`app/calculator.py` is summing the list without dividing by count, which matches the failing assertion exactly. I\u2019m making the smallest scoped edit in that file only, then I\u2019ll rerun the same unittest command to confirm red-to-green."
             },
             {
               "event": "item.started",
@@ -362,221 +350,6 @@
               "event": "item.completed",
               "exit_code": 0,
               "item_type": "command_execution"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "agent_message",
-              "message": "Applied the smallest repair in [app/calculator.py](<WORKSPACE>/app/calculator.py:1): `average()` now returns `sum(values) / len(values)` instead of the raw sum. No tests, ADLC config, or other files were edited.\n\nEvidence:\n- Red: `python3 -m unittest discover -s tests -q` failed in `tests/test_calculator.py` because `average([2, 4, 6])` returned `12` instead of `4`.\n- Cause: the function summed values but never divided by count.\n- Green: rerunning the same exact verifier produced `Ran 1 test ... OK`.\n\nWithin this bounded scope, the reproduced defect is fixed; this does not establish anything beyond that verifier passing."
-            },
-            {
-              "event": "turn.completed",
-              "usage": {
-                "cached_input_tokens": 81024,
-                "input_tokens": 111141,
-                "output_tokens": 2175,
-                "reasoning_output_tokens": 300
-              }
-            },
-            {
-              "event": "post_provider_verifier",
-              "status": "pass"
-            }
-          ],
-          "usage": {
-            "cached_input_tokens": 81024,
-            "input_tokens": 111141,
-            "output_tokens": 2175,
-            "reasoning_output_tokens": 300
-          }
-        },
-        {
-          "adapter": {
-            "path": "scripts/adlc_runtime/adapters/codex.sh",
-            "sha256": "56e554f46f8d464a3a4ae75d4a8f9f9ffb033048cce582edacb5f5ad0ddf12f9"
-          },
-          "analysis": {
-            "assertions": {
-              "bounded_diff": true,
-              "green_after": true,
-              "product_fix": true,
-              "provider_exit": true,
-              "provider_test_trace": true,
-              "red_before": true,
-              "structured_trace": true
-            },
-            "changed_paths": [
-              "app/calculator.py"
-            ],
-            "provider_test_command_count": 2,
-            "provider_test_exit_codes": [
-              1,
-              0
-            ],
-            "status": "pass"
-          },
-          "auth_path": "codex-account-session",
-          "contract_version": "1.0.0",
-          "cost": {
-            "currency": "USD",
-            "max": 0.0,
-            "min": 0.0
-          },
-          "cost_estimate_tokens": 74491,
-          "credential_status": "available",
-          "dimensions": {
-            "behavior": "pass",
-            "end_to_end": "pass",
-            "installation": "pass",
-            "invocation": "pass"
-          },
-          "duration_ms": 41759,
-          "evidence_status": "current_conformance",
-          "failures": [],
-          "finished_at": "2026-07-15T10:26:21.356756+00:00",
-          "fixture_sha256": "4d9f3f1a94b0fa86476b4344c62ec961365d32b0e86b6e7a07ed4dbd706fcfd2",
-          "harness": "codex-cli-installed-skill",
-          "limitations": [
-            "Bundled-account execution does not expose a marginal USD charge, so cost is reported as zero with token usage retained.",
-            "One disposable arithmetic Fix does not prove Build or Review loop conformance."
-          ],
-          "loop": "fix",
-          "model": "gpt-5.4",
-          "no_overclaim": "This run applies only to the named Codex CLI, model, installed skill, Fix fixture, commit, and date.",
-          "overall": "pass",
-          "provider": "codex",
-          "provider_version": "0.137.0",
-          "run_id": "codex-fix-5ae01782a220-2",
-          "runtime": "codex",
-          "source_commit": "5ae01782a2205a698cc7c4ef5b2095433c28fbb1",
-          "source_tree_clean": true,
-          "stages": [
-            {
-              "artifact": ".agents/skills/adlc",
-              "duration_ms": 0,
-              "name": "install",
-              "ok": true
-            },
-            {
-              "artifact": "trace",
-              "duration_ms": 41759,
-              "name": "provider_invocation",
-              "ok": true
-            },
-            {
-              "artifact": "app/calculator.py",
-              "duration_ms": 0,
-              "name": "red_green_fix",
-              "ok": true
-            }
-          ],
-          "started_at": "2026-07-15T10:25:39.549673+00:00",
-          "status": "pass",
-          "stderr": "Reading additional input from stdin...\n2026-07-15T10:25:39.788356Z ERROR codex_models_manager::cache: failed to load models cache: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n",
-          "trace": [
-            {
-              "event": "pre_provider_verifier",
-              "status": "fail"
-            },
-            {
-              "event": "thread.started"
-            },
-            {
-              "event": "turn.started"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "agent_message",
-              "message": "Using the `adlc` skill because you explicitly requested the bounded Fix flow. I\u2019m starting with the skill\u2019s required context bootstrap, then I\u2019ll run the exact verifier to establish the failing test before inspecting only the relevant code and test."
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/reference/command-fix.md\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 .agents/skills/adlc/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 .agents/skills/adlc/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/reference/command-fix.md\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
-              "event": "item.completed",
-              "exit_code": 1,
-              "item_type": "command_execution"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "agent_message",
-              "message": "The failure is reproduced: `average([2, 4, 6])` returns `12` instead of `4`. I\u2019m loading the fix loop contract, then I\u2019ll inspect only [tests/test_calculator.py](<WORKSPACE>/tests/test_calculator.py) and [app/calculator.py](<WORKSPACE>/app/calculator.py) before making the smallest patch."
-            },
-            {
-              "command": "/bin/zsh -lc 'cat .agents/skills/adlc/loops/public-fix.json'",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,160p' tests/test_calculator.py\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,160p' tests/test_calculator.py\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'cat .agents/skills/adlc/loops/public-fix.json'",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,160p' app/calculator.py\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,160p' app/calculator.py\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "agent_message",
-              "message": "I\u2019ve isolated the defect to [app/calculator.py](<WORKSPACE>/app/calculator.py): it returns the sum, not the arithmetic mean. I\u2019m applying the minimal repair in that file only, then I\u2019ll rerun the exact same verifier."
-            },
-            {
-              "event": "item.started",
-              "item_type": "file_change"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "file_change"
             },
             {
               "command": "/bin/zsh -lc 'git diff -- app/calculator.py'",
@@ -591,289 +364,16 @@
               "item_type": "command_execution"
             },
             {
-              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
               "event": "item.completed",
               "item_type": "agent_message",
-              "message": "Repaired [app/calculator.py](<WORKSPACE>/app/calculator.py) with the smallest change: `average()` now returns `sum(values) / len(values)` instead of `sum(values)`.\n\nEvidence:\n- Red: `python3 -m unittest discover -s tests -q` failed in [tests/test_calculator.py](<WORKSPACE>/tests/test_calculator.py) because `average([2, 4, 6])` returned `12` instead of `4`.\n- Scope inspected: only [tests/test_calculator.py](<WORKSPACE>/tests/test_calculator.py) and [app/calculator.py](<WORKSPACE>/app/calculator.py).\n- Green: reran the exact verifier `python3 -m unittest discover -s tests -q` and it passed: `Ran 1 test ... OK`.\n\nNo tests, ADLC config, or other files were edited. No commit was made."
+              "message": "Reproduced the failure with `python3 -m unittest discover -s tests -q`: `test_average` failed because `average([2, 4, 6])` returned `12` instead of `4`.\n\nI inspected only [tests/test_calculator.py](<WORKSPACE>/tests/test_calculator.py:1) and [app/calculator.py](<WORKSPACE>/app/calculator.py:1), then made the smallest repair in `app/calculator.py`: changed `return sum(values)` to `return sum(values) / len(values)`.\n\nEvidence summary: reran the same exact verifier, and it went green:\n```text\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n```\nOnly `app/calculator.py` was edited. No tests, ADLC config, or other files were changed."
             },
             {
               "event": "turn.completed",
               "usage": {
-                "cached_input_tokens": 57728,
-                "input_tokens": 72667,
-                "output_tokens": 1824,
-                "reasoning_output_tokens": 237
-              }
-            },
-            {
-              "event": "post_provider_verifier",
-              "status": "pass"
-            }
-          ],
-          "usage": {
-            "cached_input_tokens": 57728,
-            "input_tokens": 72667,
-            "output_tokens": 1824,
-            "reasoning_output_tokens": 237
-          }
-        },
-        {
-          "adapter": {
-            "path": "scripts/adlc_runtime/adapters/codex.sh",
-            "sha256": "56e554f46f8d464a3a4ae75d4a8f9f9ffb033048cce582edacb5f5ad0ddf12f9"
-          },
-          "analysis": {
-            "assertions": {
-              "bounded_diff": true,
-              "green_after": true,
-              "product_fix": true,
-              "provider_exit": true,
-              "provider_test_trace": true,
-              "red_before": true,
-              "structured_trace": true
-            },
-            "changed_paths": [
-              "app/calculator.py"
-            ],
-            "provider_test_command_count": 2,
-            "provider_test_exit_codes": [
-              1,
-              0
-            ],
-            "status": "pass"
-          },
-          "auth_path": "codex-account-session",
-          "contract_version": "1.0.0",
-          "cost": {
-            "currency": "USD",
-            "max": 0.0,
-            "min": 0.0
-          },
-          "cost_estimate_tokens": 95822,
-          "credential_status": "available",
-          "dimensions": {
-            "behavior": "pass",
-            "end_to_end": "pass",
-            "installation": "pass",
-            "invocation": "pass"
-          },
-          "duration_ms": 46826,
-          "evidence_status": "current_conformance",
-          "failures": [],
-          "finished_at": "2026-07-15T10:27:08.237834+00:00",
-          "fixture_sha256": "4d9f3f1a94b0fa86476b4344c62ec961365d32b0e86b6e7a07ed4dbd706fcfd2",
-          "harness": "codex-cli-installed-skill",
-          "limitations": [
-            "Bundled-account execution does not expose a marginal USD charge, so cost is reported as zero with token usage retained.",
-            "One disposable arithmetic Fix does not prove Build or Review loop conformance."
-          ],
-          "loop": "fix",
-          "model": "gpt-5.4",
-          "no_overclaim": "This run applies only to the named Codex CLI, model, installed skill, Fix fixture, commit, and date.",
-          "overall": "pass",
-          "provider": "codex",
-          "provider_version": "0.137.0",
-          "run_id": "codex-fix-5ae01782a220-3",
-          "runtime": "codex",
-          "source_commit": "5ae01782a2205a698cc7c4ef5b2095433c28fbb1",
-          "source_tree_clean": true,
-          "stages": [
-            {
-              "artifact": ".agents/skills/adlc",
-              "duration_ms": 0,
-              "name": "install",
-              "ok": true
-            },
-            {
-              "artifact": "trace",
-              "duration_ms": 46826,
-              "name": "provider_invocation",
-              "ok": true
-            },
-            {
-              "artifact": "app/calculator.py",
-              "duration_ms": 0,
-              "name": "red_green_fix",
-              "ok": true
-            }
-          ],
-          "started_at": "2026-07-15T10:26:21.368609+00:00",
-          "status": "pass",
-          "stderr": "Reading additional input from stdin...\n2026-07-15T10:26:44.588438Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T10:26:52.063676Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T10:26:58.684633Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T10:27:02.036793Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n",
-          "trace": [
-            {
-              "event": "pre_provider_verifier",
-              "status": "fail"
-            },
-            {
-              "event": "thread.started"
-            },
-            {
-              "event": "turn.started"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "agent_message",
-              "message": "Using the `adlc` skill in `/adlc fix` mode. I\u2019ll establish the failing state with the exact verifier, load the bounded ADLC fix context, then inspect only the failing test and its corresponding calculator code before making the smallest patch."
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 .agents/skills/adlc/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 .agents/skills/adlc/scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
-              "event": "item.completed",
-              "exit_code": 1,
-              "item_type": "command_execution"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "agent_message",
-              "message": "The red state is established: `test_average` expects `4` and currently gets `12`. I\u2019m loading the bounded ADLC fix contract now, then I\u2019ll read only [tests/test_calculator.py](<WORKSPACE>/tests/test_calculator.py) and [app/calculator.py](<WORKSPACE>/app/calculator.py)."
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/reference/command-fix.md\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/reference/command-fix.md\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,160p' tests/test_calculator.py\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,160p' tests/test_calculator.py\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"rg -n \\\"loop contract|loops/|selected_loop|fix loop|loop\\\" .agents/skills/adlc/reference/command-fix.md .agents/skills/adlc/loops -g '*.md'\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"rg -n \\\"loop contract|loops/|selected_loop|fix loop|loop\\\" .agents/skills/adlc/reference/command-fix.md .agents/skills/adlc/loops -g '*.md'\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,200p' app/calculator.py\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,200p' app/calculator.py\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "agent_message",
-              "message": "The cause is narrow: `average()` returns the sum without dividing by count. I\u2019m loading the fix loop and the applicable engineering register row, then I\u2019ll patch only [app/calculator.py](<WORKSPACE>/app/calculator.py)."
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/loops/public-fix.json\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,220p' .agents/skills/adlc/loops/public-fix.json\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,240p' .agents/skills/adlc/reference/register-engineering.md\"",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc \"sed -n '1,240p' .agents/skills/adlc/reference/register-engineering.md\"",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "agent_message",
-              "message": "I have enough context. The edit is a one-line behavioral repair: keep the empty-list guard and return the arithmetic mean instead of the raw sum in [app/calculator.py](<WORKSPACE>/app/calculator.py)."
-            },
-            {
-              "event": "item.started",
-              "item_type": "file_change"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "file_change"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "agent_message",
-              "message": "The repair is in place. I\u2019m rerunning the exact verifier now to confirm the same test goes from red to green."
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
-              "event": "item.started",
-              "exit_code": null,
-              "item_type": "command_execution"
-            },
-            {
-              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
-              "event": "item.completed",
-              "exit_code": 0,
-              "item_type": "command_execution"
-            },
-            {
-              "event": "item.completed",
-              "item_type": "agent_message",
-              "message": "Changed [app/calculator.py](<WORKSPACE>/app/calculator.py) only. The defect was that `average()` returned `sum(values)` instead of dividing by `len(values)`, so `[2, 4, 6]` produced `12` instead of `4`. The smallest repair was:\n\n```python\nreturn sum(values) / len(values)\n```\n\nEvidence:\n- Red: `python3 -m unittest discover -s tests -q` failed in `tests/test_calculator.py` with `AssertionError: 12 != 4`\n- Green: reran the same exact verifier and it passed:\n  `Ran 1 test in 0.000s` / `OK`\n\nNo tests, ADLC config, or other files were edited. No commit was made."
-            },
-            {
-              "event": "turn.completed",
-              "usage": {
-                "cached_input_tokens": 63232,
-                "input_tokens": 93808,
-                "output_tokens": 2014,
+                "cached_input_tokens": 74496,
+                "input_tokens": 92185,
+                "output_tokens": 1898,
                 "reasoning_output_tokens": 294
               }
             },
@@ -883,10 +383,558 @@
             }
           ],
           "usage": {
-            "cached_input_tokens": 63232,
-            "input_tokens": 93808,
-            "output_tokens": 2014,
+            "cached_input_tokens": 74496,
+            "input_tokens": 92185,
+            "output_tokens": 1898,
             "reasoning_output_tokens": 294
+          }
+        },
+        {
+          "adapter": {
+            "path": "scripts/adlc_runtime/adapters/codex.sh",
+            "sha256": "56e554f46f8d464a3a4ae75d4a8f9f9ffb033048cce582edacb5f5ad0ddf12f9"
+          },
+          "analysis": {
+            "assertions": {
+              "bounded_diff": true,
+              "green_after": true,
+              "product_fix": true,
+              "provider_exit": true,
+              "provider_test_trace": true,
+              "red_before": true,
+              "structured_trace": true
+            },
+            "changed_paths": [
+              "app/calculator.py"
+            ],
+            "provider_test_command_count": 2,
+            "provider_test_exit_codes": [
+              1,
+              0
+            ],
+            "status": "pass"
+          },
+          "auth_path": "codex-account-session",
+          "contract_version": "1.0.0",
+          "cost": {
+            "currency": "USD",
+            "max": 0.0,
+            "min": 0.0
+          },
+          "cost_estimate_tokens": 111303,
+          "credential_status": "available",
+          "dimensions": {
+            "behavior": "pass",
+            "end_to_end": "pass",
+            "installation": "pass",
+            "invocation": "pass"
+          },
+          "duration_ms": 71072,
+          "evidence_status": "current_conformance",
+          "failures": [],
+          "finished_at": "2026-07-15T14:35:38.173002+00:00",
+          "fixture_sha256": "4d9f3f1a94b0fa86476b4344c62ec961365d32b0e86b6e7a07ed4dbd706fcfd2",
+          "harness": "codex-cli-installed-skill",
+          "limitations": [
+            "Bundled-account execution does not expose a marginal USD charge, so cost is reported as zero with token usage retained.",
+            "One disposable arithmetic Fix does not prove Build or Review loop conformance."
+          ],
+          "loop": "fix",
+          "model": "gpt-5.4",
+          "no_overclaim": "This run applies only to the named Codex CLI, model, installed skill, Fix fixture, commit, and date.",
+          "overall": "pass",
+          "provider": "codex",
+          "provider_version": "0.137.0",
+          "run_id": "codex-fix-b6d6fdafdf86-2",
+          "runtime": "codex",
+          "source_commit": "b6d6fdafdf868ae7b6f0675c408c56ea5f3445d2",
+          "source_tree_clean": true,
+          "stages": [
+            {
+              "artifact": ".agents/skills/adlc",
+              "duration_ms": 0,
+              "name": "install",
+              "ok": true
+            },
+            {
+              "artifact": "trace",
+              "duration_ms": 71072,
+              "name": "provider_invocation",
+              "ok": true
+            },
+            {
+              "artifact": "app/calculator.py",
+              "duration_ms": 0,
+              "name": "red_green_fix",
+              "ok": true
+            }
+          ],
+          "started_at": "2026-07-15T14:34:27.048122+00:00",
+          "status": "pass",
+          "stderr": "Reading additional input from stdin...\n2026-07-15T14:34:27.315885Z ERROR codex_models_manager::cache: failed to load models cache: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T14:35:22.081051Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T14:35:29.251880Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n",
+          "trace": [
+            {
+              "event": "pre_provider_verifier",
+              "status": "fail"
+            },
+            {
+              "event": "thread.started"
+            },
+            {
+              "event": "turn.started"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "agent_message",
+              "message": "I\u2019m treating this as a bounded `/adlc fix` task. First I\u2019ll load the ADLC command context, then establish the failing test with the exact verifier you specified before touching code."
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
+              "event": "item.completed",
+              "exit_code": 1,
+              "item_type": "command_execution"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "agent_message",
+              "message": "The verifier is red and the failure is isolated: `average([2, 4, 6])` returns `12` instead of `4`. I\u2019m loading the ADLC fix contract now, then I\u2019ll inspect only the failing test and `app/calculator.py` before making the smallest patch."
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,220p' reference/command-fix.md\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,220p' reference/command-fix.md\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'rg -n \"loop\" reference/command-fix.md'",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'rg -n \"loop\" reference/command-fix.md'",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,240p' loops/public-fix.json\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,240p' loops/public-fix.json\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,220p' reference/register-engineering.md\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,220p' reference/register-engineering.md\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "agent_message",
+              "message": "The ADLC fix contract here is straightforward: preserve scope, keep the change minimal, and prove the exact verifier goes red to green. I\u2019m now reading only the failing test and `app/calculator.py`, then I\u2019ll patch that single file."
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,160p' tests/test_calculator.py\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,160p' tests/test_calculator.py\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,160p' app/calculator.py\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,160p' app/calculator.py\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "agent_message",
+              "message": "The defect is narrow: `average` returns the sum instead of the arithmetic mean. I\u2019m making the minimal repair in `app/calculator.py` only, then I\u2019ll rerun the exact same unittest command."
+            },
+            {
+              "event": "item.started",
+              "item_type": "file_change"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "file_change"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'git diff -- app/calculator.py'",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'git diff -- app/calculator.py'",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "agent_message",
+              "message": "Reproduced the failure with the exact verifier `python3 -m unittest discover -s tests -q`; it failed in `tests/test_calculator.py` because `average([2, 4, 6])` returned `12` instead of `4`.\n\nApplied the smallest repair in [app/calculator.py](<WORKSPACE>/app/calculator.py:1): changed `return sum(values)` to `return sum(values) / len(values)`.\n\nEvidence:\n- Red: `FAIL: test_average ... AssertionError: 12 != 4`\n- Green: `python3 -m unittest discover -s tests -q` -> `Ran 1 test ... OK`\n- Changed files: `app/calculator.py` only\n\nI did not edit tests, ADLC config, or any other file, and I did not commit."
+            },
+            {
+              "event": "turn.completed",
+              "usage": {
+                "cached_input_tokens": 67200,
+                "input_tokens": 109369,
+                "output_tokens": 1934,
+                "reasoning_output_tokens": 322
+              }
+            },
+            {
+              "event": "post_provider_verifier",
+              "status": "pass"
+            }
+          ],
+          "usage": {
+            "cached_input_tokens": 67200,
+            "input_tokens": 109369,
+            "output_tokens": 1934,
+            "reasoning_output_tokens": 322
+          }
+        },
+        {
+          "adapter": {
+            "path": "scripts/adlc_runtime/adapters/codex.sh",
+            "sha256": "56e554f46f8d464a3a4ae75d4a8f9f9ffb033048cce582edacb5f5ad0ddf12f9"
+          },
+          "analysis": {
+            "assertions": {
+              "bounded_diff": true,
+              "green_after": true,
+              "product_fix": true,
+              "provider_exit": true,
+              "provider_test_trace": true,
+              "red_before": true,
+              "structured_trace": true
+            },
+            "changed_paths": [
+              "app/calculator.py"
+            ],
+            "provider_test_command_count": 2,
+            "provider_test_exit_codes": [
+              1,
+              0
+            ],
+            "status": "pass"
+          },
+          "auth_path": "codex-account-session",
+          "contract_version": "1.0.0",
+          "cost": {
+            "currency": "USD",
+            "max": 0.0,
+            "min": 0.0
+          },
+          "cost_estimate_tokens": 117381,
+          "credential_status": "available",
+          "dimensions": {
+            "behavior": "pass",
+            "end_to_end": "pass",
+            "installation": "pass",
+            "invocation": "pass"
+          },
+          "duration_ms": 55770,
+          "evidence_status": "current_conformance",
+          "failures": [],
+          "finished_at": "2026-07-15T14:36:34.002661+00:00",
+          "fixture_sha256": "4d9f3f1a94b0fa86476b4344c62ec961365d32b0e86b6e7a07ed4dbd706fcfd2",
+          "harness": "codex-cli-installed-skill",
+          "limitations": [
+            "Bundled-account execution does not expose a marginal USD charge, so cost is reported as zero with token usage retained.",
+            "One disposable arithmetic Fix does not prove Build or Review loop conformance."
+          ],
+          "loop": "fix",
+          "model": "gpt-5.4",
+          "no_overclaim": "This run applies only to the named Codex CLI, model, installed skill, Fix fixture, commit, and date.",
+          "overall": "pass",
+          "provider": "codex",
+          "provider_version": "0.137.0",
+          "run_id": "codex-fix-b6d6fdafdf86-3",
+          "runtime": "codex",
+          "source_commit": "b6d6fdafdf868ae7b6f0675c408c56ea5f3445d2",
+          "source_tree_clean": true,
+          "stages": [
+            {
+              "artifact": ".agents/skills/adlc",
+              "duration_ms": 0,
+              "name": "install",
+              "ok": true
+            },
+            {
+              "artifact": "trace",
+              "duration_ms": 55770,
+              "name": "provider_invocation",
+              "ok": true
+            },
+            {
+              "artifact": "app/calculator.py",
+              "duration_ms": 0,
+              "name": "red_green_fix",
+              "ok": true
+            }
+          ],
+          "started_at": "2026-07-15T14:35:38.184694+00:00",
+          "status": "pass",
+          "stderr": "Reading additional input from stdin...\n2026-07-15T14:35:38.443131Z ERROR codex_models_manager::cache: failed to load models cache: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T14:35:55.182126Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T14:36:03.333818Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T14:36:10.332547Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T14:36:17.207423Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T14:36:22.092984Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n2026-07-15T14:36:27.994622Z ERROR codex_models_manager::manager: failed to renew cache TTL: unknown variant `max`, expected one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh` at line 29 column 25\n",
+          "trace": [
+            {
+              "event": "pre_provider_verifier",
+              "status": "fail"
+            },
+            {
+              "event": "thread.started"
+            },
+            {
+              "event": "turn.started"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "agent_message",
+              "message": "Using the `adlc` skill for a bounded `/adlc fix` flow. I\u2019ll establish the failing state with the exact verifier, load the ADLC fix context, then inspect only the failing test and the relevant calculator code before making the smallest repair."
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,220p' <WORKSPACE>/.agents/skills/adlc/SKILL.md\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,220p' <WORKSPACE>/.agents/skills/adlc/SKILL.md\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 scripts/context.py --workspace <WORKSPACE> --target <WORKSPACE> --command fix'",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
+              "event": "item.completed",
+              "exit_code": 1,
+              "item_type": "command_execution"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "agent_message",
+              "message": "The red state is established: `test_average` is failing because `average([2, 4, 6])` returns `12` instead of `4`. I\u2019m loading only the ADLC fix reference and loop contract now, then I\u2019ll inspect the single failing test and `app/calculator.py` before editing that file."
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,240p' reference/command-fix.md\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,240p' reference/command-fix.md\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"rg --files -g 'AGENTS.md' -g 'CLAUDE.md' -g 'README*' -g '.adlc/**' -g '.codex/**'\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"rg --files -g 'AGENTS.md' -g 'CLAUDE.md' -g 'README*' -g '.adlc/**' -g '.codex/**'\"",
+              "event": "item.completed",
+              "exit_code": 1,
+              "item_type": "command_execution"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "agent_message",
+              "message": "The ADLC fix contract requires the public fix loop and says engineering register context applies. I didn\u2019t find repo-local instruction files in the workspace search, so I\u2019m staying within the user\u2019s explicit boundary and loading just those ADLC artifacts."
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,260p' loops/public-fix.json\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,260p' loops/public-fix.json\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,260p' reference/register-engineering.md\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,260p' reference/register-engineering.md\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,120p' tests/test_calculator.py\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,120p' tests/test_calculator.py\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,160p' app/calculator.py\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,160p' app/calculator.py\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "agent_message",
+              "message": "The defect is narrow: `average` returns the sum instead of dividing by the number of values. I\u2019m applying the minimal one-line repair in `app/calculator.py`, then I\u2019ll rerun the exact verifier unchanged."
+            },
+            {
+              "event": "item.started",
+              "item_type": "file_change"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "file_change"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,160p' app/calculator.py\"",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc \"sed -n '1,160p' app/calculator.py\"",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
+              "event": "item.started",
+              "exit_code": null,
+              "item_type": "command_execution"
+            },
+            {
+              "command": "/bin/zsh -lc 'python3 -m unittest discover -s tests -q'",
+              "event": "item.completed",
+              "exit_code": 0,
+              "item_type": "command_execution"
+            },
+            {
+              "event": "item.completed",
+              "item_type": "agent_message",
+              "message": "Applied the smallest repair in [app/calculator.py](<WORKSPACE>/app/calculator.py): `average()` now returns `sum(values) / len(values)` instead of the raw sum. I inspected only [tests/test_calculator.py](<WORKSPACE>/tests/test_calculator.py) and that product file.\n\nEvidence:\n- Red: `python3 -m unittest discover -s tests -q` failed with `AssertionError: 12 != 4` in `test_average`.\n- Green: reran the exact same command, and it passed: `Ran 1 test ... OK`.\n- Scope: only `app/calculator.py` changed; no tests, ADLC config, or other files were edited."
+            },
+            {
+              "event": "turn.completed",
+              "usage": {
+                "cached_input_tokens": 97920,
+                "input_tokens": 115265,
+                "output_tokens": 2116,
+                "reasoning_output_tokens": 332
+              }
+            },
+            {
+              "event": "post_provider_verifier",
+              "status": "pass"
+            }
+          ],
+          "usage": {
+            "cached_input_tokens": 97920,
+            "input_tokens": 115265,
+            "output_tokens": 2116,
+            "reasoning_output_tokens": 332
           }
         }
       ]
@@ -905,7 +953,7 @@
   "verified_claims": [
     {
       "claim": "release_candidate_reproducible",
-      "evidence": "release-out/v0.9.0/release-approval-packet.json"
+      "evidence": "release-out/v0.9.1/release-approval-packet.json"
     },
     {
       "claim": "python_3_9_and_3_13_clean_install",
@@ -913,19 +961,19 @@
     },
     {
       "claim": "codex_fix_live_rerun",
-      "evidence": "release-out/v0.9.0/evidence/go-live-codex-fix-live.json"
+      "evidence": "release-out/v0.9.1/evidence/go-live-codex-fix-live.json"
     },
     {
       "claim": "launch_packet_approval_blocked",
-      "evidence": "release-out/v0.9.0/evidence/go-live-launch-packet.json"
+      "evidence": "release-out/v0.9.1/evidence/go-live-launch-packet.json"
     },
     {
       "claim": "benchmark_bundle_six_runs",
-      "evidence": "release-out/v0.9.0/evidence/go-live-benchmark-replay.json"
+      "evidence": "release-out/v0.9.1/evidence/go-live-benchmark-replay.json"
     },
     {
       "claim": "rollback_rehearsed",
-      "evidence": "release-out/v0.9.0/rollback-manifest.json"
+      "evidence": "release-out/v0.9.1/rollback-manifest.json"
     }
   ]
 }
