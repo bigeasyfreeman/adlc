@@ -149,6 +149,21 @@ def test_checked_in_publication_bundle_verifies_jointly():
     assert result["evidence_files"] == 56
 
 
+def test_standalone_publication_bundle_cli_needs_no_dummy_fixture(capsys):
+    runner = load_runner()
+    exit_code = runner.main(
+        [
+            "--verify-published-bundle",
+            str(ROOT / "docs/evidence/benchmarks/v0.1.0/publication-attestation.json"),
+            "--json",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["status"] == "pass"
+    assert payload["attempts"] == 6
+
+
 def test_bundle_verification_fails_when_an_attested_report_hash_drifts(tmp_path, monkeypatch):
     runner = load_runner()
     bundle = copy_published_bundle(tmp_path, monkeypatch, runner)

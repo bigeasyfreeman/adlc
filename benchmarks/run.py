@@ -1007,7 +1007,7 @@ def verify_published_bundle(attestation_path: Path) -> Dict[str, Any]:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--fixture", type=Path, required=True)
+    parser.add_argument("--fixture", type=Path)
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--timeout", type=int, default=300, help="seconds per provider turn")
     parser.add_argument("--model", default=DEFAULT_MODEL)
@@ -1027,6 +1027,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             payload = verify_published(args.verify_published)
             exit_code = 0
         else:
+            if args.fixture is None:
+                raise BenchmarkError("--fixture is required for live benchmark and plan modes")
             fixture = load_fixture(args.fixture)
             actual_start = compute_starting_commit(fixture)
             if actual_start != fixture["starting_commit"]:

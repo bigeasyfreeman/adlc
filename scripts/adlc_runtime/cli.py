@@ -4054,8 +4054,6 @@ CI_SUITES = {
         "command": [
             "python3",
             "benchmarks/run.py",
-            "--fixture",
-            "examples/fix-demo",
             "--verify-published-bundle",
             "docs/evidence/benchmarks/v0.1.0/publication-attestation.json",
             "--json",
