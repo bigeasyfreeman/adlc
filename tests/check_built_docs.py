@@ -224,6 +224,10 @@ def main() -> int:
             failures.append(f"packet-approved Pages workflow missing {token}")
     if re.search(r"google-analytics|googletagmanager|plausible", "\n".join(path.read_text(encoding="utf-8") for path in site.rglob("*.html")), re.I):
         failures.append("analytics present without privacy approval")
+    rendered_text = "\n".join(path.read_text(encoding="utf-8") for path in site.rglob("*.html"))
+    for stale_claim in ("unreleased beta", "Released-package proof remains a later release gate"):
+        if stale_claim in rendered_text:
+            failures.append(f"published documentation contains stale claim: {stale_claim}")
 
     release = subprocess.run(
         [sys.executable, "scripts/check_docs_release.py", "--tag", release_tag, "--json"],
