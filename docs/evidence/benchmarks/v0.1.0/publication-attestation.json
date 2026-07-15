@@ -19,9 +19,9 @@
     "status": "pass"
   },
   "limitations": [
-    "This attestation is limited to the reviewed local evidence bundle at these exact paths and SHA-256 hashes and does not independently rerun live provider calls, so it does not establish behavior outside this fixture, commit, configuration, and review time."
+    "This attestation is limited to the reviewed local publication bundle at the attested paths and hashes; it does not independently rerun the live provider benchmark outside the bundled evidence, fixture, configuration, and review time."
   ],
-  "no_overclaim": "This approval attests only that the reviewed benchmark evidence bundle is internally consistent, schema-valid, redacted by the applied scans, and approved for candidate benchmark evidence publication at these exact paths and hashes.",
+  "no_overclaim": "This approval attests only that the reviewed benchmark evidence bundle is internally consistent, schema-valid, hash-bound, redaction-scanned, and approved for candidate benchmark evidence publication at these exact paths and hashes.",
   "primary_report": {
     "attempts": 3,
     "path": "docs/evidence/benchmarks/v0.1.0/benchmark-report.json",
@@ -38,15 +38,15 @@
   "redaction_review": {
     "absolute_path_matches": 0,
     "files_reviewed": 57,
-    "scanner": "independent regex scan for credential-like strings and private absolute paths across 56 candidate evidence files",
+    "scanner": "independent regex scan for credential-like strings and private absolute paths across 57 bundle files",
     "secret_matches": 0,
     "status": "pass"
   },
-  "reviewed_at": "2026-07-15T08:02:24Z",
+  "reviewed_at": "2026-07-15T08:18:13Z",
   "reviewer": {
     "basis": "separate_codex_session",
     "identity": "independent-codex-publication-auditor",
-    "session_id": "019f64c9-e087-71d0-99bc-270807aadb02"
+    "session_id": "019f64d7-4053-75b0-9081-d69c8fc5fc1d"
   },
   "status": "approved"
 }
