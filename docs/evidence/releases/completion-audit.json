@@ -1,0 +1,54 @@
+{
+  "auditor": "codex-independent-go-live-auditor",
+  "contract_version": "1.0.0",
+  "executor": "codex-primary-migration-executor",
+  "feedback_findings": [],
+  "findings": [],
+  "independence": {
+    "auditor_session_id": "codex-cli-audit-20260715-02",
+    "basis": "separate_session",
+    "evidence_path": "docs/evidence/releases/go-live-validation.json",
+    "evidence_refs": [
+      "audit-session:codex-cli-audit-20260715-02"
+    ],
+    "evidence_sha256": "7977b29f735b08ad01baa0a1fed044fe7e91c9acb2adfcc3ff1f6aaf8cb883c4",
+    "executor_session_id": "codex-root-20260715-mig-val"
+  },
+  "status": "pass",
+  "taken_on_trust": [
+    {
+      "claim": "claude_live_fix",
+      "reason": "credentialed Claude invocation remains scoped out"
+    },
+    {
+      "claim": "build_or_review_live_provider_support",
+      "reason": "no immutable live-provider support row exists"
+    }
+  ],
+  "verified": [
+    {
+      "claim": "release_candidate_reproducible",
+      "evidence": "release-out/v0.9.0/release-approval-packet.json"
+    },
+    {
+      "claim": "python_3_9_and_3_13_clean_install",
+      "evidence": "release clean-install matrix"
+    },
+    {
+      "claim": "codex_fix_live_rerun",
+      "evidence": "release-out/v0.9.0/evidence/go-live-codex-fix-live.json"
+    },
+    {
+      "claim": "launch_packet_approval_blocked",
+      "evidence": "release-out/v0.9.0/evidence/go-live-launch-packet.json"
+    },
+    {
+      "claim": "benchmark_bundle_six_runs",
+      "evidence": "release-out/v0.9.0/evidence/go-live-benchmark-replay.json"
+    },
+    {
+      "claim": "rollback_rehearsed",
+      "evidence": "release-out/v0.9.0/rollback-manifest.json"
+    }
+  ]
+}
