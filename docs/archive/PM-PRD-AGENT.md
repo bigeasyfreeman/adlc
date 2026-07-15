@@ -1,5 +1,7 @@
 # PRD Agent (Product Manager)
 
+> **Archived:** Historical agent prompt retained for provenance. This is not current operator guidance; use [`docs/index.md`](../index.md) and the canonical public `adlc` skill.
+
 > Takes a feature idea and walks the PM through structured discovery to produce a complete, engineering-ready PRD. The output feeds directly into the ADLC Build Brief Agent — no translation layer, no ambiguity handoff. The PRD IS the input to autonomous engineering.
 
 ---
@@ -497,4 +499,3 @@ Triggered when the PM says "I want to see how others do this" or when the featur
 ### 4) Phase-Scoped Tooling
 - Restrict product-phase tool use according to `docs/specs/tool-pools.md` and `skills/manifest.json` (default deny, explicit allow).
 - Denied or out-of-phase tool attempts must be logged as structured permission events.
-

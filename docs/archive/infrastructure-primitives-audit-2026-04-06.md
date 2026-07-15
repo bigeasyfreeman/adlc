@@ -1,5 +1,7 @@
 # Archived Infrastructure Primitives Audit — ADLC System
 
+> **Archived:** Historical audit retained for provenance. This is not current operator guidance.
+
 > Historical snapshot from 2026-04-06. It predates the current workflow state,
 > permission engine, audit trail, health checks, and runtime validation.
 

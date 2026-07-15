@@ -1,0 +1,8 @@
+# Public contracts and release/security surfaces require maintainer review.
+/PRODUCT.md @bigeasyfreeman
+/README.md @bigeasyfreeman
+/SECURITY.md @bigeasyfreeman
+/docs/ @bigeasyfreeman
+/docs/schemas/ @bigeasyfreeman
+/scripts/ @bigeasyfreeman
+/.github/workflows/ @bigeasyfreeman

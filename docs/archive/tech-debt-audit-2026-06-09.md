@@ -1,5 +1,7 @@
 # Archived Tech Debt Audit - ADLC Loop-Budget Productionization
 
+> **Archived:** Historical audit retained for provenance. This is not current operator guidance.
+
 > Historical snapshot from 2026-06-09. File and line references may no longer
 > match the current runtime; this document is retained for provenance only.
 

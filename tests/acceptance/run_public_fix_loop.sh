@@ -83,6 +83,55 @@ ADLC="$TARGET/.adlc/bin/adlc"
 git -C "$TARGET" add .agents AGENTS.md
 git -C "$TARGET" commit -qm "Install ADLC Codex target"
 
+step "Route Fix through the installed public facade before low-level proof"
+cat > "$TARGET/.adlc/public-fix-tool-registry.json" <<'JSON'
+{
+  "version": "1.0.0",
+  "default_policy": "deny",
+  "tools": [
+    {
+      "name": "Write",
+      "description": "Bounded fixture repair",
+      "inputSchema": {},
+      "side_effect_profile": "mutating",
+      "permission_tier": "requires_approval",
+      "available_phases": ["triage"]
+    }
+  ]
+}
+JSON
+jq -n --arg workspace "$TARGET" '{
+  contract_version:"1.0.0",
+  operation:"fix",
+  experimental:true,
+  request_id:"readme-first-fix",
+  workspace:$workspace,
+  allow_mutation:true,
+  human_approved:true,
+  approval_ref:"human:readme-fixture",
+  arguments:{
+    tool_registry:".adlc/public-fix-tool-registry.json",
+    tool:"Write",
+    action:"edit_file",
+    phase:"triage",
+    brief_id:"PUBLIC-FIX",
+    session_id:"README-FIRST-FIX",
+    dry_run:true
+  }
+}' > "$TMP_ROOT/public-fix-request.json"
+"$ADLC" public-operation --input "$TMP_ROOT/public-fix-request.json" --json > "$TMP_ROOT/public-fix-facade.json"
+jq -e '
+  .operation == "fix" and
+  .request_id == "readme-first-fix" and
+  .result.admission.status == "admitted" and
+  (.kernel | index("action_admit_payload") != null) and
+  (.kernel | index("run_phase_payload") != null) and
+  .compatibility.public_command == "public-operation" and
+  .status == "planned" and
+  .result.delegated.state.checkpoint.history[0].phase == "triage" and
+  .result.delegated.state.phase == "compound_preflight"
+' "$TMP_ROOT/public-fix-facade.json" >/dev/null
+
 step "Record red-before-green verifier evidence"
 if "$ADLC" run-phase qa \
   --brief-id PUBLIC-FIX \

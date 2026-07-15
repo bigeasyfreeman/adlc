@@ -1,5 +1,7 @@
 # ADLC v2 Implementation Tickets (Superseded)
 
+> **Superseded:** Historical implementation plan retained for provenance. This is not current operator guidance.
+
 **Date:** 2026-04-05
 **Source:** `adlc-v2-specification.md` in this archive
 **Decomposition principle:** Every ticket is binary (done/not-done). One ticket = one verifiable outcome. No ticket requires judgment to determine completion — it either passes its acceptance criteria or it doesn't.

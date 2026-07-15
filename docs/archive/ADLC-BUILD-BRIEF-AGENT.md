@@ -1,5 +1,7 @@
 # ADLC Build Brief Agent
 
+> **Archived:** Historical agent prompt retained for provenance. This is not current operator guidance; use [`docs/index.md`](../index.md) and the canonical public `adlc` skill.
+
 > Drop this file into your IDE agent context (Cursor rules, Claude Code CLAUDE.md, Codex instructions, Factory/Droid config). Feed it a PRD. It walks you through research, asks sharp questions, searches your codebase, and outputs a complete Build Brief with failure modes, executable tickets, and skill handoffs for autonomous execution.
 
 ---
