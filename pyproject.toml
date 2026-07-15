@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "adlc"
 version = "0.1.0"
@@ -11,6 +15,9 @@ requires-python = ">=3.9"
 dependencies = [
   "jsonschema>=4.0,<5.0"
 ]
+
+[project.scripts]
+adlc-skill = "adlc_runtime.install:main"
 
 [project.optional-dependencies]
 pdf = [
@@ -33,3 +40,13 @@ Changelog = "https://github.com/bigeasyfreeman/adlc/blob/main/CHANGELOG.md"
 [tool.ruff]
 line-length = 120
 target-version = "py39"
+
+[tool.setuptools.packages.find]
+where = ["scripts"]
+include = ["adlc_runtime*"]
+
+[tool.setuptools.data-files]
+"share/adlc/skill" = ["skill/SKILL.src.md"]
+"share/adlc/skill/reference" = ["skill/reference/*.md"]
+"share/adlc/skill/scripts" = ["skill/scripts/*.py"]
+"share/adlc/schemas" = ["docs/schemas/install-manifest.schema.json"]

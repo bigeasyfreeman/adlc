@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adlc.dev/schemas/install-manifest.schema.json",
+  "title": "ADLC Install Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "source_version",
+    "provider",
+    "target_paths",
+    "digests",
+    "bundle_digest",
+    "ownership",
+    "rollback_ref",
+    "linked",
+    "no_overclaim",
+    "limitations"
+  ],
+  "properties": {
+    "contract_version": {"const": "1.0.0"},
+    "source_version": {"type": "string", "minLength": 1},
+    "provider": {"enum": ["claude", "codex"]},
+    "target_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "digests": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"type": "string", "minLength": 1},
+      "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+    },
+    "bundle_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "ownership": {"const": "adlc-managed"},
+    "rollback_ref": {"type": ["string", "null"]},
+    "linked": {"type": "boolean"},
+    "no_overclaim": {"type": "string", "minLength": 1},
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  }
+}
