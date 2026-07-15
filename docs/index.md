@@ -38,7 +38,14 @@ ADLC runs evidence-bound Build, Fix, and read-only Review loops through an exist
 - [Behavioral scenarios](contribute/behavioral-scenarios.md)
 - [Release process](contribute/release-process.md)
 
-`doc_honesty_section`: These pages document the source beta. Released-package proof remains a later release gate.
+The version shown in this site's banner is published as the `adlc-engineering`
+distribution on [PyPI](https://pypi.org/project/adlc-engineering/). Exact assets
+and notes are retained in the immutable [GitHub release
+history](https://github.com/bigeasyfreeman/adlc/releases).
+
+`doc_honesty_section`: These pages document the published scoped beta and link
+to its package and release evidence; publication does not prove adoption or
+future provider behavior.
 
 `no_overclaim`: Documentation structure does not establish product behavior or support.
 

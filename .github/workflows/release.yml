@@ -22,6 +22,11 @@ on:
         required: false
         default: ""
         type: string
+      docs_only:
+        description: Redeploy corrected post-publication docs without repeating package or GitHub Release writes
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   actions: read
@@ -33,7 +38,12 @@ concurrency:
 
 jobs:
   prepare:
+    if: ${{ !inputs.docs_only }}
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pages: read
     outputs:
       packet_sha256: ${{ steps.packet.outputs.packet_sha256 }}
     steps:
@@ -50,6 +60,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Verify GitHub Pages publication prerequisite
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api "repos/${{ github.repository }}/pages" --jq .build_type)" = "workflow"
       - name: Install preparation dependencies
         if: ${{ !inputs.confirm_publication }}
         run: |
@@ -103,7 +118,7 @@ jobs:
           path: release-out/${{ inputs.release_tag }}
 
   publish-pypi:
-    if: inputs.confirm_publication
+    if: inputs.confirm_publication && !inputs.docs_only
     needs: prepare
     runs-on: ubuntu-latest
     environment: pypi
@@ -141,7 +156,7 @@ jobs:
           packages-dir: release-out/${{ inputs.release_tag }}/artifacts/
 
   github-release:
-    if: inputs.confirm_publication
+    if: inputs.confirm_publication && !inputs.docs_only
     needs: [prepare, publish-pypi]
     runs-on: ubuntu-latest
     environment: github-release
@@ -179,7 +194,7 @@ jobs:
           gh release create "$RELEASE_TAG" release-out/$RELEASE_TAG/artifacts/* --verify-tag --title "ADLC $RELEASE_TAG" --notes-file "$NOTES_FILE"
 
   pages:
-    if: inputs.confirm_publication
+    if: inputs.confirm_publication && !inputs.docs_only
     needs: github-release
     runs-on: ubuntu-latest
     environment: github-pages
@@ -222,5 +237,105 @@ jobs:
         with:
           path: site
       - name: Deploy packet-approved Pages artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  post-release-pages:
+    if: inputs.confirm_publication && inputs.docs_only
+    runs-on: ubuntu-latest
+    environment: github-pages
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install approval validator dependency
+        run: python -m pip install 'jsonschema>=4,<5'
+      - name: Require the exact previously approved candidate
+        env:
+          APPROVAL_PACKET_RUN_ID: ${{ inputs.approval_packet_run_id }}
+        run: |
+          test -n "$APPROVAL_PACKET_RUN_ID"
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.approval_packet_run_id }}
+          name: release-candidate-${{ inputs.release_tag }}
+          path: release-out/${{ inputs.release_tag }}
+      - name: Validate packet-bound human Pages approval
+        env:
+          APPROVAL_RECORD_JSON: ${{ inputs.approval_record_json }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          test -n "$APPROVAL_RECORD_JSON"
+          printf '%s' "$APPROVAL_RECORD_JSON" > "$RUNNER_TEMP/release-approval.json"
+          python scripts/release.py publish --packet "release-out/$RELEASE_TAG/release-approval-packet.json" --approval-record "$RUNNER_TEMP/release-approval.json" --target pages_deploy --confirm-external-publication --json
+      - name: Verify immutable published release identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          PACKET="release-out/$RELEASE_TAG/release-approval-packet.json"
+          git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
+          PACKET="$PACKET" RELEASE_COMMIT="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          packet = json.loads(Path(os.environ["PACKET"]).read_text(encoding="utf-8"))
+          assert packet["release"]["tag"] == os.environ["RELEASE_TAG"]
+          assert packet["source"]["commit"] == os.environ["RELEASE_COMMIT"]
+          PY
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+      - name: Verify exact approved post-release docs source
+        env:
+          EXPECTED_DOCS_SHA256: f3ff9d86edf99efe61e50accab82af3bb56e7a92629331caa275d38ffad4ba81
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+
+          root = Path.cwd()
+          excluded_roots = {
+              "archive", "build-briefs", "decisions", "design", "evidence", "loop-library",
+              "migration", "research", "schemas", "security", "solutions", "specs", "tests",
+          }
+          published_docs = sorted(
+              path for path in (root / "docs").rglob("*")
+              if path.is_file()
+              and path.relative_to(root / "docs").parts[0] not in excluded_roots
+              and path.name != "STYLE.md"
+          )
+          paths = [root / "mkdocs.yml", *published_docs]
+          digest = hashlib.sha256()
+          for path in paths:
+              digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+              digest.update(b"\0")
+              digest.update(path.read_bytes())
+              digest.update(b"\0")
+          assert digest.hexdigest() == os.environ["EXPECTED_DOCS_SHA256"]
+          PY
+      - name: Build corrected post-publication documentation
+        run: |
+          python -m pip install '.[docs]'
+          python scripts/check_docs_release.py --tag "${{ inputs.release_tag }}" --json
+          mkdocs build --strict
+          python tests/check_built_docs.py site
+          python -m playwright install --with-deps chromium
+          python tests/check_docs_viewports.py site docs-preview
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy corrected packet-approved Pages artifact
         id: deployment
         uses: actions/deploy-pages@v4

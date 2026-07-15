@@ -96,15 +96,18 @@ Read the [security and privacy boundary](docs/trust/security-privacy.md), [secur
 
 The public benchmark preserves three live Codex runs plus an independent three-run replay, with exact red-before-green verification, same-session interrupt/resume, one-file scope, distinct read-only review, and completion-audit evidence. Its versioned report discloses provider/model versions, tokens, duration, marginal account cost, failures, and limitations. These proofs are scoped evidence, not proof of future behavior, market traction, compliance certification, GA readiness, or universal provider support.
 
-## Public beta candidate
+## Public scoped beta
 
-The 0.9.2 beta launch packet accompanies the immutable release candidate. It includes the
+ADLC 0.9.2 is published as a scoped beta on
+[PyPI](https://pypi.org/project/adlc-engineering/), with an immutable
+[GitHub Release](https://github.com/bigeasyfreeman/adlc/releases/tag/v0.9.2) and
+[versioned documentation](https://bigeasyfreeman.github.io/adlc/). Its launch packet includes the
 [technical narrative](docs/launch/technical-article.md), [five-minute demo and
 recording plan](docs/launch/demo-script.md), [local-first metric
 definitions](docs/launch/metrics.md), and [beta operating
 model](docs/launch/beta-operations.md). Every launch claim resolves to repository
-evidence, telemetry remains off, and package, GitHub Release, Pages, and launch
-communication actions remain human-approval-bound and must be verified at their public endpoints.
+evidence and telemetry remains off. The approved launch communication was
+limited to the GitHub Release; no broader-channel launch claim is implied.
 
 Use the beta feedback issue template for sanitized product outcomes and
 friction. Do not put vulnerabilities, credentials, prompts, source code, private
@@ -139,7 +142,11 @@ The beta learning funnel is intentionally local and ordered:
 
 ## Status and limitations
 
-ADLC is an unreleased beta candidate. The source checkout, deterministic tests, exact Codex Fix configuration shown above, documentation-site build, scoped live public benchmark, secure release preparation, and final-form launch packet have evidence; package publication, production docs deployment, and public communication remain human-gated. Only released and tested configurations may graduate support labels.
+ADLC 0.9.2 is a published scoped beta. The source checkout, deterministic tests,
+exact Codex Fix configuration shown above, documentation-site build, scoped live
+public benchmark, secure release preparation, public package, GitHub Release,
+Pages deployment, and GitHub-Release-only communication have evidence. Only
+released and tested configurations may graduate support labels.
 
 `doc_honesty_section`: This page describes the current source product and links to its evidence; it is not a release artifact or adoption proof.
 

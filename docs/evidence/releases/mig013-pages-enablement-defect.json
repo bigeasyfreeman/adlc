@@ -1,0 +1,63 @@
+{
+  "actual_behavior": "The first protected Pages job failed in actions/configure-pages because the repository had no Pages site. After enablement and recovery, the deployed site still carried pre-publication 'unreleased beta' wording. PyPI and the immutable GitHub Release had already succeeded.",
+  "captured_at": "2026-07-15T19:44:51Z",
+  "contract_version": "1.0.0",
+  "defect_id": "ADLC-MIG-013-PAGES-NOT-ENABLED",
+  "environment": {
+    "github_action": "actions/configure-pages@v5",
+    "release_tag": "v0.9.2",
+    "source_commit": "7e1ff801649102078b8b507f1491b172f8f5b5fd",
+    "workflow_commit": "057b40960e84de2a81916eceaac80c720d0e0090"
+  },
+  "expected_behavior": "Release preparation verifies that GitHub Pages exists with build_type=workflow before any immutable registry publication begins.",
+  "failure": {
+    "command": "actions/configure-pages@v5 in the pages job",
+    "error": "Get Pages site failed: Not Found; verify the repository has Pages enabled",
+    "job_id": 87454066197,
+    "run_attempt": 1,
+    "workflow_run_id": 29445213970
+  },
+  "impact": "The release temporarily entered a partial state, then a public-truth mismatch: package and GitHub Release public while documentation was first unavailable and then labeled unreleased.",
+  "owner_task": "ADLC-MIG-013",
+  "regression": "tests/test_release_workflow.py::test_release_checks_pages_enablement_before_any_protected_publication",
+  "review": {
+    "finding": "P1: grant the prepare job Pages read permission before querying the Pages API",
+    "repair": "The prepare job now grants only actions:read, contents:read, and pages:read.",
+    "session_id": "019f6753-08ce-7943-8698-e7e28ab14a40",
+    "truth_review": {
+      "findings": [
+        "P1: pin docs-only checkout to a trusted ref",
+        "P2: avoid a hard-coded release version on the docs landing page"
+      ],
+      "repairs": [
+        "The one-time docs-only job accepts only the exact reviewed v0.9.2 docs source digest; later content needs a new reviewed change and human deployment approval.",
+        "The landing page refers to the versioned banner and stable registry/release-history URLs."
+      ],
+      "session_id": "019f6757-377d-7ba0-a8fe-85d7c529a84d"
+    },
+    "final_review_session_id": "019f675d-c2de-76b1-b7ee-b31344380fe1",
+    "final_review_repairs": [
+      "Bound the one-time recovery to an exact docs source digest instead of a reusable later commit.",
+      "Removed the tag-to-main history restriction; any new correction now needs a new approval path.",
+      "Limited the digest to MkDocs-published sources so excluded evidence updates cannot block the exact site correction."
+    ],
+    "final_rereview_session_id": "019f6761-7191-7e63-bc87-1338a8c770bf"
+  },
+  "repair": {
+    "future_release_preflight": "The prepare job now requires the repository Pages API to report build_type=workflow before preparing or reusing a candidate.",
+    "post_release_truth_repair": "A packet-approved docs-only path redeploys corrected 0.9.2 wording without repeating immutable PyPI or GitHub Release writes.",
+    "recovery_command": "gh api --method POST repos/bigeasyfreeman/adlc/pages -f build_type=workflow",
+    "rerun_command": "gh run rerun 29445213970 --failed"
+  },
+  "resolution": {
+    "pages_build_type": "workflow",
+    "pages_url": "https://bigeasyfreeman.github.io/adlc/",
+    "rerun_pages_job_id": 87454470686,
+    "workflow_conclusion": "success"
+  },
+  "state_digest": {
+    "approval_packet_sha256": "48ab6fb959c4b341778ef2b56a9a16374bb32e09ab8673f959545781c1be8c55",
+    "tag_commit": "7e1ff801649102078b8b507f1491b172f8f5b5fd"
+  },
+  "status": "repaired_and_recovered"
+}

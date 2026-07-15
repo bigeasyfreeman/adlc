@@ -3,14 +3,20 @@
 ## Prepare
 
 1. Start from a clean commit whose package and documentation versions equal the intended tag.
-2. Run `bin/adlc ci --json` and the release architecture tests.
-3. Run `python3 scripts/release.py prepare --tag fixture-v0.9.2 --repository test --verify-reproducible --rehearse-rollback --json` for the non-publishing rehearsal.
-4. Review `release-out/<tag>/release-approval-packet.json`, both artifact digests, every gate record, the evidence-derived support rows, unsigned local provenance, and `rollback-manifest.json`.
-5. Independently validate the packet with `bin/adlc validate-artifact --schema release-approval-packet --input <packet> --json`.
-6. After the release-contract repair and its hosted checks are merged, create the
+2. Verify that GitHub Pages already exists and is configured for Actions
+   deployments: `gh api repos/$OWNER/$REPO/pages --jq .build_type` must print
+   `workflow`. For a new site, a repository administrator enables it once with
+   `gh api --method POST repos/$OWNER/$REPO/pages -f build_type=workflow`.
+   Do this before publishing to PyPI so a missing Pages site cannot leave the
+   release only partially deployed.
+3. Run `bin/adlc ci --json` and the release architecture tests.
+4. Run `python3 scripts/release.py prepare --tag fixture-v0.9.2 --repository test --verify-reproducible --rehearse-rollback --json` for the non-publishing rehearsal.
+5. Review `release-out/<tag>/release-approval-packet.json`, both artifact digests, every gate record, the evidence-derived support rows, unsigned local provenance, and `rollback-manifest.json`.
+6. Independently validate the packet with `bin/adlc validate-artifact --schema release-approval-packet --input <packet> --json`.
+7. After the release-contract repair and its hosted checks are merged, create the
    immutable `vX.Y.Z` candidate tag. A tag push runs the read-only docs build; it
    does not dispatch the protected release workflow.
-7. From a clean checkout of that exact tag, set specific, distinct executor and
+8. From a clean checkout of that exact tag, set specific, distinct executor and
    auditor identity/session values in `ADLC_EXECUTOR_ID`,
    `ADLC_EXECUTOR_SESSION_ID`, `ADLC_AUDITOR_ID`, and
    `ADLC_AUDITOR_SESSION_ID`, then run `python3 scripts/release.py

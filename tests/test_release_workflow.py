@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RELEASE = ROOT / "scripts/release.py"
 WORKFLOW = ROOT / ".github/workflows/release.yml"
 DOCS_WORKFLOW = ROOT / ".github/workflows/docs.yml"
+RELEASING = ROOT / "docs/release/RELEASING.md"
+DOCS_DEPLOYMENT = ROOT / "docs/release/docs-deployment.md"
 PACKET_SCHEMA = ROOT / "docs/schemas/release-approval-packet.schema.json"
 GO_LIVE_SCHEMA = ROOT / "docs/schemas/go-live-validation.schema.json"
 
@@ -61,8 +63,8 @@ def test_architecture_publish_requires_validated_human_approval():
     assert "run-id: ${{ inputs.approval_packet_run_id }}" in workflow
     assert "Reuse the exact packet-approved candidate" in workflow
     assert workflow.index("Reuse the exact packet-approved candidate") < workflow.index("Export packet digest")
-    assert workflow.count("Install approval validator dependency") == 3
-    assert workflow.count("scripts/release.py publish") == 3
+    assert workflow.count("Install approval validator dependency") == 4
+    assert workflow.count("scripts/release.py publish") == 4
     assert "--target pypi_upload" in workflow
     assert "--target github_release" in workflow
     assert "--target pages_deploy" in workflow
@@ -71,6 +73,40 @@ def test_architecture_publish_requires_validated_human_approval():
     docs_workflow = DOCS_WORKFLOW.read_text(encoding="utf-8")
     assert "workflow_dispatch" not in docs_workflow
     assert "actions/deploy-pages" not in docs_workflow
+
+
+def test_release_checks_pages_enablement_before_any_protected_publication():
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    preflight = "Verify GitHub Pages publication prerequisite"
+    assert preflight in workflow
+    prepare_job = workflow.split("  prepare:", 1)[1].split("  publish-pypi:", 1)[0]
+    assert "pages: read" in prepare_job
+    assert 'gh api "repos/${{ github.repository }}/pages" --jq .build_type' in workflow
+    assert workflow.index(preflight) < workflow.index("Prepare reproducible approval packet")
+
+    runbook = RELEASING.read_text(encoding="utf-8")
+    deployment = DOCS_DEPLOYMENT.read_text(encoding="utf-8")
+    for source in (runbook, deployment):
+        assert "gh api repos/$OWNER/$REPO/pages --jq .build_type" in source
+        assert "gh api --method POST repos/$OWNER/$REPO/pages -f build_type=workflow" in source
+
+
+def test_post_release_docs_redeploy_reuses_approval_without_republishing_artifacts():
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert "docs_only:" in workflow
+    job = workflow.split("  post-release-pages:", 1)[1]
+    assert "if: inputs.confirm_publication && inputs.docs_only" in job
+    assert "environment: github-pages" in job
+    assert "ref: main" in job
+    assert "Verify exact approved post-release docs source" in job
+    assert "EXPECTED_DOCS_SHA256:" in job
+    assert '"evidence", "loop-library"' in job
+    assert "run-id: ${{ inputs.approval_packet_run_id }}" in job
+    assert "--target pages_deploy" in job
+    assert "Verify immutable published release identity" in job
+    assert "actions/deploy-pages@v4" in job
+    assert "pypa/gh-action-pypi-publish" not in job
+    assert "gh release create" not in job
 
 
 def test_publication_reuses_approved_packet_instead_of_regenerating_it():
