@@ -31,7 +31,7 @@ TEST_INVOCATION = re.compile(
     r"(?:python(?:3(?:\.\d+)?)?\s+-m\s+(?:unittest|pytest)\b|pytest\b)"
 )
 SHELL_COMMAND = re.compile(r"\s-lc\s+(['\"])(.*)\1$")
-PROMPT = """Use the installed $adlc skill for this bounded Fix task. The repository contains a failing arithmetic-mean test. First run the verifier to establish red, inspect only the relevant product code and test, make the smallest repair in app/calculator.py, then rerun the verifier to green. Do not edit tests, ADLC config, or any other file. Do not commit. Finish with a concise evidence summary."""
+PROMPT = """Use the installed $adlc skill for this bounded Fix task. The repository contains a failing arithmetic-mean test. The repository verifier is `python3 -m unittest discover -s tests -q`; first run that exact command to establish red, inspect only the relevant product code and test, make the smallest repair in app/calculator.py, then rerun the same exact verifier to green. Do not edit tests, ADLC config, or any other file. Do not commit. Finish with a concise evidence summary."""
 
 
 def _write_fixture(target: Path) -> None:

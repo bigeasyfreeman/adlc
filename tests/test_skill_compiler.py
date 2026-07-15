@@ -45,7 +45,21 @@ def test_compiler_emits_provider_bundle_with_canonical_skill(provider):
     assert bundle.files["SKILL.md"].startswith(b"---\nname: adlc")
     assert "reference/command-build.md" in bundle.files
     assert "scripts/context.py" in bundle.files
+    assert "loops/public-build.json" in bundle.files
+    assert "loops/public-fix.json" in bundle.files
+    assert "loops/public-review.json" in bundle.files
+    assert b"skill/scripts/context.py" not in bundle.files["SKILL.md"]
+    assert b"skill/reference/" not in bundle.files["SKILL.md"]
+    assert b"skill/reference/" not in bundle.files["scripts/context.py"]
+    assert b"loops/public-fix.json" in bundle.files["reference/command-fix.md"]
     assert all(len(digest) == 64 for digest in bundle.digests.values())
+
+
+@pytest.mark.parametrize("loop", ["build", "fix", "review"])
+def test_bundled_public_loop_contract_matches_repository_contract(loop):
+    bundled = ROOT / "skill" / "loops" / f"public-{loop}.json"
+    public = ROOT / "docs" / "loop-library" / f"public-{loop}.json"
+    assert bundled.read_bytes() == public.read_bytes()
 
 
 def test_compiler_rejects_unknown_provider():

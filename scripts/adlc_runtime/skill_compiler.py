@@ -24,6 +24,20 @@ def _digest(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+def _installed_content(relative: str, content: bytes) -> bytes:
+    """Translate repository-relative canonical paths into bundle-relative paths."""
+    if relative in {"SKILL.src.md", "scripts/context.py"}:
+        content = content.replace(b"skill/scripts/", b"scripts/")
+        content = content.replace(b"skill/reference/", b"reference/")
+    if relative in {
+        "reference/command-build.md",
+        "reference/command-fix.md",
+        "reference/command-review.md",
+    }:
+        content = content.replace(b"docs/loop-library/", b"loops/")
+    return content
+
+
 def bundle_from_files(provider: str, files: Mapping[str, bytes]) -> CompiledBundle:
     get_target(provider)
     for path in files:
@@ -55,7 +69,7 @@ def compile_bundle(source_root: Path, provider: str) -> CompiledBundle:
         if any(part.startswith(".") or part == "__pycache__" for part in Path(relative).parts):
             continue
         output = target.skill_filename if relative == "SKILL.src.md" else relative
-        files[output] = source.read_bytes()
+        files[output] = _installed_content(relative, source.read_bytes())
     return bundle_from_files(provider, files)
 
 
