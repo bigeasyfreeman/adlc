@@ -55,6 +55,30 @@ def test_unmanaged_symlink_collision_is_not_followed(tmp_path):
     assert secret.read_text() == "untouched\n"
 
 
+@pytest.mark.parametrize(
+    ("provider", "ancestor"),
+    [("claude", ".claude"), ("codex", ".agents"), ("claude", ".adlc")],
+)
+def test_symlinked_managed_ancestor_is_blocked_without_outside_write(tmp_path, provider, ancestor):
+    outside = tmp_path.parent / f"{tmp_path.name}-outside"
+    outside.mkdir()
+    (tmp_path / ancestor).symlink_to(outside, target_is_directory=True)
+    with pytest.raises(install.InstallBlocked, match="unsafe symlink ancestor"):
+        install.install_bundle(bundle(provider), tmp_path, source_version="test")
+    assert not any(outside.rglob("SKILL.md"))
+
+
+def test_doctor_rejects_managed_bundle_moved_behind_ancestor_symlink(tmp_path):
+    install.install_bundle(bundle(), tmp_path, source_version="test")
+    original = tmp_path / ".claude"
+    outside = tmp_path.parent / f"{tmp_path.name}-outside"
+    original.rename(outside)
+    original.symlink_to(outside, target_is_directory=True)
+    report = install.doctor(tmp_path, "claude")
+    assert report["status"] == "fail"
+    assert report["issues"] == ["unsafe symlink ancestor: .claude"]
+
+
 def test_update_and_rollback_restore_previous_bytes(tmp_path):
     original = bundle()
     install.install_bundle(original, tmp_path, source_version="one")

@@ -38,6 +38,28 @@ def _bundle_path(target: Path, provider: str) -> Path:
     return target / get_target(provider).bundle_path
 
 
+def _assert_no_symlinks(target: Path, path: Path, *, include_final: bool = False) -> None:
+    try:
+        relative = path.relative_to(target)
+    except ValueError as error:
+        raise InstallBlocked(f"managed path escapes target: {path}") from error
+    parts = relative.parts if include_final else relative.parts[:-1]
+    current = target
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            unsafe = current.relative_to(target).as_posix()
+            raise InstallBlocked(f"unsafe symlink ancestor: {unsafe}", diff=[unsafe])
+
+
+def _assert_safe_layout(target: Path, provider: str) -> None:
+    _assert_no_symlinks(target, _bundle_path(target, provider))
+    _assert_no_symlinks(target, _manifest_path(target, provider), include_final=True)
+    _assert_no_symlinks(target, target / ".adlc" / "staging", include_final=True)
+    _assert_no_symlinks(target, target / ".adlc" / "rollbacks" / provider, include_final=True)
+    _assert_no_symlinks(target, target / ".adlc" / "links" / provider, include_final=True)
+
+
 def _read_manifest(target: Path, provider: str) -> Dict[str, Any]:
     path = _manifest_path(target, provider)
     if not path.is_file():
@@ -109,6 +131,7 @@ def _under(path: Path, parent: Path) -> bool:
 def doctor(target: Path, provider: str) -> Dict[str, Any]:
     target = target.resolve()
     try:
+        _assert_safe_layout(target, provider)
         manifest = _read_manifest(target, provider)
     except InstallBlocked as error:
         return {"status": "fail", "provider": provider, "issues": [str(error)]}
@@ -132,6 +155,7 @@ def doctor(target: Path, provider: str) -> Dict[str, Any]:
 
 
 def _assert_managed_clean(target: Path, provider: str) -> Dict[str, Any]:
+    _assert_safe_layout(target, provider)
     manifest = _read_manifest(target, provider)
     report = doctor(target, provider)
     if report["status"] != "pass":
@@ -198,6 +222,7 @@ def _swap(target_path: Path, replacement: Path, manifest_path: Path, payload: Di
 def install_bundle(bundle: CompiledBundle, target: Path, *, source_version: str) -> Dict[str, Any]:
     target = target.resolve()
     target.mkdir(parents=True, exist_ok=True)
+    _assert_safe_layout(target, bundle.provider)
     destination = _bundle_path(target, bundle.provider)
     manifest_path = _manifest_path(target, bundle.provider)
     if manifest_path.exists():
@@ -246,6 +271,8 @@ def update_bundle(bundle: CompiledBundle, target: Path, *, source_version: str) 
 
 def link_bundle(bundle: CompiledBundle, target: Path, *, source_version: str) -> Dict[str, Any]:
     target = target.resolve()
+    target.mkdir(parents=True, exist_ok=True)
+    _assert_safe_layout(target, bundle.provider)
     destination = _bundle_path(target, bundle.provider)
     manifest_path = _manifest_path(target, bundle.provider)
     if destination.exists() or destination.is_symlink() or manifest_path.exists():
