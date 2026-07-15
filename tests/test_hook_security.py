@@ -52,6 +52,7 @@ def test_architecture_every_rendered_command_is_admitted(monkeypatch, tmp_path):
     result = hooks.run_hook_payload("claude", "session_start", tmp_path, {"cwd": str(tmp_path), "hook_event_name": "SessionStart"})
     definition = hooks.HOOK_DEFINITIONS["session_start"]
     assert result["status"] == "pass"
+    assert result["admission"]["status"] == "admitted"
     assert calls == [(definition.tool_name, definition.action)]
 
 
@@ -135,3 +136,22 @@ def test_failed_uninstall_does_not_disable_hooks_when_bundle_drifted(tmp_path):
     assert all((tmp_path / item["path"]).exists() for item in plan["diff"])
     manifest = json.loads((tmp_path / ".adlc/install-manifests/claude.json").read_text())
     assert manifest["hooks_enabled"] is True
+
+
+def test_disable_rejects_manifest_symlink_swap_without_outside_write(tmp_path):
+    plan = install_with_hooks(tmp_path, "claude")
+    manifest_dir = tmp_path / ".adlc/install-manifests"
+    original_manifest = (manifest_dir / "claude.json").read_bytes()
+    displaced = tmp_path / "displaced-manifests"
+    manifest_dir.rename(displaced)
+    outside = tmp_path / "outside-manifests"
+    outside.mkdir()
+    outside_manifest = outside / "claude.json"
+    outside_manifest.write_bytes(original_manifest)
+    manifest_dir.symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(install.InstallBlocked, match="unsafe symlink ancestor"):
+        install.disable_hooks(tmp_path, "claude")
+
+    assert outside_manifest.read_bytes() == original_manifest
+    assert all((tmp_path / item["path"]).exists() for item in plan["diff"])

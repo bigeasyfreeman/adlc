@@ -270,6 +270,7 @@ def enable_hooks(target: Path, provider: str, *, consent_ref: str) -> Dict[str, 
 
 def disable_hooks(target: Path, provider: str) -> Dict[str, Any]:
     target = target.resolve()
+    _assert_safe_layout(target, provider)
     manifest = _read_manifest(target, provider)
     if not manifest["hooks_enabled"]:
         return {"status": "unchanged", "provider": provider}

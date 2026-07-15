@@ -43,6 +43,7 @@ The canonical definition is an immutable argument tuple. Claude Code receives it
 - Redaction is defense in depth, not a guarantee for every possible secret encoding. The command is intentionally designed not to read or emit secrets.
 - A hostile process racing filesystem checks with path replacement may exceed application-level protections; operators should not install into an attacker-writable workspace.
 - Codex command-hook syntax currently uses a reviewed command string because that provider surface does not expose a native argument array. ADLC keeps its source definition as an argument tuple and quotes the fixed rendering.
+- The read-only automatic hook returns its full action-admission decision in the provider result but does not write a persistent audit file. Persisting one would change the hook's side-effect contract; test and provider-run evidence are the records for this event.
 - Hook success proves only that ADLC admission and the local integrity check passed at that time. It does not prove later provider behavior or full runtime correctness.
 
 ## Security Review Checklist
