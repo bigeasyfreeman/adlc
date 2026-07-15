@@ -9,13 +9,16 @@ from dataclasses import dataclass
 class ProviderTarget:
     name: str
     bundle_path: str
+    hook_config_path: str
+    hook_events: tuple[str, ...] = ("SessionStart",)
+    hook_support: str = "experimental"
     skill_filename: str = "SKILL.md"
     support: str = "bundle_compilation_only"
 
 
 SUPPORTED_TARGETS = {
-    "claude": ProviderTarget("claude", ".claude/skills/adlc"),
-    "codex": ProviderTarget("codex", ".agents/skills/adlc"),
+    "claude": ProviderTarget("claude", ".claude/skills/adlc", ".claude/settings.local.json"),
+    "codex": ProviderTarget("codex", ".agents/skills/adlc", ".codex/hooks.json"),
 }
 
 
