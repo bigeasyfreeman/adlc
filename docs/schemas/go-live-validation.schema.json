@@ -1,0 +1,250 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bigeasyfreeman/adlc/blob/main/docs/schemas/go-live-validation.schema.json",
+  "title": "ADLC Go-Live Validation Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "status",
+    "release_tag",
+    "source_commit",
+    "audited_at",
+    "auditor",
+    "artifact_digests",
+    "verified_claims",
+    "unverified_claims",
+    "contradicted_claims",
+    "accepted_risks",
+    "support_scope",
+    "clean_install_matrix",
+    "rollback_result",
+    "external_actions",
+    "recommendation",
+    "report_artifacts",
+    "doc_honesty_section",
+    "no_overclaim",
+    "limitations"
+  ],
+  "properties": {
+    "contract_version": {"const": "1.0.0"},
+    "status": {"enum": ["pass", "blocked"]},
+    "release_tag": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "source_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "audited_at": {"type": "string", "format": "date-time"},
+    "auditor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executor_id", "executor_session_id", "auditor_id", "auditor_session_id", "basis", "identity_evidence_sha256"],
+      "properties": {
+        "executor_id": {"type": "string", "minLength": 1},
+        "executor_session_id": {"type": "string", "minLength": 1},
+        "auditor_id": {"type": "string", "minLength": 1},
+        "auditor_session_id": {"type": "string", "minLength": 1},
+        "basis": {"const": "separate_session"},
+        "identity_evidence_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "artifact_digests": {"$ref": "#/definitions/artifacts"},
+    "verified_claims": {"type": "array", "items": {"$ref": "#/definitions/claim"}},
+    "unverified_claims": {"type": "array", "items": {"$ref": "#/definitions/unverifiedClaim"}},
+    "contradicted_claims": {"type": "array", "items": {"$ref": "#/definitions/unverifiedClaim"}},
+    "accepted_risks": {"type": "array", "items": {"$ref": "#/definitions/risk"}},
+    "support_scope": {"type": "array", "items": {"$ref": "#/definitions/supportConfiguration"}},
+    "clean_install_matrix": {
+      "type": "array",
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["python", "status", "providers"],
+        "properties": {
+          "python": {"enum": ["3.9", "3.13"]},
+          "status": {"const": "pass"},
+          "providers": {"type": "array", "const": ["codex", "claude"]}
+        }
+      }
+    },
+    "rollback_result": {
+      "type": "object",
+      "required": ["status", "reinstall_verified"],
+      "properties": {
+        "status": {"enum": ["pass", "not_run"]},
+        "manifest_ref": {"type": "string", "minLength": 1},
+        "reinstall_verified": {"type": "boolean"}
+      }
+    },
+    "external_actions": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "status", "environment", "approval_required"],
+        "properties": {
+          "action": {"enum": ["pypi_upload", "github_release", "pages_deploy", "launch_communication"]},
+          "status": {"const": "pending_human_approval"},
+          "environment": {"type": "string", "minLength": 1},
+          "approval_required": {"const": true}
+        }
+      }
+    },
+    "recommendation": {"enum": ["go", "scoped_beta", "no_go"]},
+    "report_artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["go_live_validation", "completion_audit"],
+      "properties": {
+        "go_live_validation": {"const": "docs/evidence/releases/go-live-validation.json"},
+        "completion_audit": {"const": "docs/evidence/releases/completion-audit.json"}
+      }
+    },
+    "doc_honesty_section": {"type": "string", "minLength": 1},
+    "no_overclaim": {"type": "string", "minLength": 1},
+    "limitations": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 1}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"recommendation": {"const": "no_go"}}},
+      "then": {
+        "properties": {
+          "status": {"const": "blocked"},
+          "contradicted_claims": {"minItems": 1}
+        }
+      },
+      "else": {
+        "properties": {
+          "status": {"const": "pass"},
+          "artifact_digests": {"minItems": 2},
+          "verified_claims": {"minItems": 6},
+          "contradicted_claims": {"maxItems": 0},
+          "support_scope": {"minItems": 1},
+          "clean_install_matrix": {"minItems": 2},
+          "rollback_result": {
+            "properties": {"status": {"const": "pass"}, "reinstall_verified": {"const": true}},
+            "required": ["manifest_ref"]
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "sha256", "size"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "size": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim", "evidence"],
+      "properties": {
+        "claim": {"type": "string", "minLength": 1},
+        "evidence": {"type": "string", "minLength": 1}
+      }
+    },
+    "unverifiedClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim", "reason"],
+      "properties": {"claim": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1}}
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["risk", "owner", "deadline", "support_boundary_effect", "rollback_safety"],
+      "properties": {
+        "risk": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1},
+        "deadline": {"type": "string", "minLength": 1},
+        "support_boundary_effect": {"type": "string", "minLength": 1},
+        "rollback_safety": {"type": "string", "minLength": 1}
+      }
+    },
+    "supportConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "provider_version",
+        "harness",
+        "model",
+        "loop",
+        "label",
+        "source_commit",
+        "fixture_sha256",
+        "dimensions",
+        "run_count",
+        "failed_runs",
+        "validation_kind",
+        "evidence_refs",
+        "validation_runs"
+      ],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "provider_version": {"type": "string", "minLength": 1},
+        "harness": {"type": "string", "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "loop": {"type": "string", "minLength": 1},
+        "label": {"enum": ["experimental", "beta", "supported"]},
+        "source_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "fixture_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "dimensions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["installation", "invocation", "behavior", "end_to_end"],
+          "properties": {
+            "installation": {"const": "pass"},
+            "invocation": {"const": "pass"},
+            "behavior": {"const": "pass"},
+            "end_to_end": {"const": "pass"}
+          }
+        },
+        "run_count": {"const": 3},
+        "failed_runs": {"const": 0},
+        "validation_kind": {"const": "tag_live_rerun"},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {"type": "string", "pattern": "^docs/evidence/releases/go-live-validation.json#/support_scope/0/validation_runs/[0-2]$"}
+        },
+        "validation_runs": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["run_id", "status", "source_commit", "source_tree_clean", "dimensions"],
+            "properties": {
+              "run_id": {"type": "string", "minLength": 1},
+              "status": {"const": "pass"},
+              "source_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+              "source_tree_clean": {"const": true},
+              "dimensions": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["installation", "invocation", "behavior", "end_to_end"],
+                "properties": {
+                  "installation": {"const": "pass"},
+                  "invocation": {"const": "pass"},
+                  "behavior": {"const": "pass"},
+                  "end_to_end": {"const": "pass"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

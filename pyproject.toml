@@ -58,6 +58,7 @@ include = ["adlc_runtime*"]
 "share/adlc/schemas" = [
   "docs/schemas/install-manifest.schema.json",
   "docs/schemas/release-approval-packet.schema.json",
+  "docs/schemas/go-live-validation.schema.json",
   "docs/schemas/benchmark-report.schema.json",
   "docs/schemas/benchmark-evidence-manifest.schema.json",
   "docs/schemas/benchmark-publication-attestation.schema.json",

@@ -56,6 +56,7 @@ SCHEMA_ALIASES = {
     "skill-behavior-report": "docs/schemas/skill-behavior-report.schema.json",
     "repo-map": "docs/schemas/repo-map.schema.json",
     "release-approval-packet": "docs/schemas/release-approval-packet.schema.json",
+    "go-live-validation": "docs/schemas/go-live-validation.schema.json",
     "run-report": "docs/schemas/run-report.schema.json",
     "security-assessment": "docs/schemas/security-assessment.schema.json",
     "security-review-output": "docs/schemas/security-review-output.schema.json",
