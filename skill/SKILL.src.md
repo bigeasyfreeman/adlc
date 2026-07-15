@@ -14,7 +14,8 @@ Use ADLC as an evidence-driven engineering loop. Read the target repository's in
 3. Load exactly one command reference: the manifest's `selected_reference`.
 4. Refuse execution if its `reference_status` is not `available`.
 5. For Build, Fix, or Review, load the loop contract named by that command reference.
-6. Load an optional internal pack only when the selected command reference declares it applicable.
+6. Load an optional internal pack register only when the selected command reference declares it applicable: `reference/register-security.md`, `reference/register-release.md`, `reference/register-integrations.md`, or `reference/register-engineering.md`.
+7. Treat the register entry as the migrated contract. Legacy `skills/` and `agents/` files are source evidence, not peer public skills and not default context.
 
 The bounded manifest and one command reference are the default context. Do not preload every command, provider adapter, or legacy document.
 
@@ -47,6 +48,7 @@ Prefer an explicit command. Route an ambiguous request, including “Make this r
 - Tie completion claims to evidence: changed paths, commands run, verifier results, and unresolved blockers.
 - Prefer deterministic scripts for mechanical discovery and validation. Keep judgment and tradeoffs explicit.
 - Treat missing context as a recorded missing decision, not permission to invent policy.
+- Never route to the retained `execute-trade` domain skill or expose the legacy `ship-content` skill. Trading is outside the ADLC product; shipping uses the bounded `command-ship.md` contract.
 
 ## Report honestly
 

@@ -1,30 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ADLC Setup — Install skills and agents into your AI coding tool
-# MIGRATION NOTICE (2026-07-14): this compatibility wrapper remains supported
-# during the 0.x beta window. New Claude Code and Codex installs should prefer
-# the transactional `adlc-skill install` lifecycle shipped in the Python package.
-# Usage: ./setup.sh <platform> [target-repo-path]
-#
-# Platforms: claude | codex | cursor | antigravity | factory | all | verify-claude
-# If target-repo-path is omitted, installs to current directory.
+# ADLC Setup compatibility wrapper.
+# MIGRATION NOTICE (2026-07-14): legacy peer skills and agents are retained as
+# internal source packs, but default installs expose only the canonical `adlc`
+# skill. Prefer `adlc-skill install` for Claude Code and Codex lifecycle control.
 
 ADLC_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLATFORM="${1:-}"
 TARGET="${2:-.}"
 TARGET="$(cd "$TARGET" && pwd)"
 INSTALL_RUNTIME=1
+LEGACY_ANTIGRAVITY_AGENTS_SHA256="fdc6fb623030d6f1fa09eaf1a7a15598713699243101b5caa3cec35bb8bcf010"
 
-count_source_skills() {
-  find "$ADLC_DIR/skills" -mindepth 2 -maxdepth 2 -type f -name SKILL.md | wc -l | tr -d ' '
+usage() {
+  echo "ADLC Setup — install the canonical ADLC skill"
+  echo ""
+  echo "Usage: ./setup.sh <platform> [target-repo-path]"
+  echo ""
+  echo "Platforms: claude | codex | cursor | antigravity | factory | all | verify-claude"
+  echo ""
+  echo "Migration (2026-07-14): default installs now expose one public skill: adlc."
+  echo "Legacy peer skills and agents remain in the ADLC source tree as internal packs."
+  exit 1
 }
 
-count_installable_agents() {
-  find "$ADLC_DIR/agents" -maxdepth 1 -type f -name "*.md" \
-    ! -name "ADLC-BUILD-BRIEF-AGENT.md" \
-    ! -name "PM-PRD-AGENT.md" | wc -l | tr -d ' '
-}
+[ -n "$PLATFORM" ] || usage
+echo "MIGRATION NOTICE (2026-07-14): setup.sh now installs only the canonical adlc skill; prefer adlc-skill for transactional Claude Code and Codex installs." >&2
 
 skill_digest() {
   if command -v shasum >/dev/null 2>&1; then
@@ -36,38 +38,10 @@ skill_digest() {
 import hashlib
 import pathlib
 import sys
-
 print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())
 PY
   fi
 }
-
-SOURCE_SKILL_COUNT="$(count_source_skills)"
-INSTALLABLE_AGENT_COUNT="$(count_installable_agents)"
-
-usage() {
-  echo "ADLC Setup — Install into your AI coding tool"
-  echo ""
-  echo "Usage: ./setup.sh <platform> [target-repo-path]"
-  echo ""
-  echo "Platforms:"
-  echo "  claude        → .claude/skills/ + .claude/agents/"
-  echo "  codex         → .agents/skills/ + AGENTS.md"
-  echo "  cursor        → .cursor/rules/"
-  echo "  antigravity   → .agent/skills/ + agents.md"
-  echo "  factory       → .factory/droids/ + .factory/docs/skills/"
-  echo "  all           → Install for all platforms"
-  echo "  verify-claude → Verify .claude/skills/ digests without installing"
-  echo ""
-  echo "Examples:"
-  echo "  ./setup.sh claude              # Install to current dir for Claude Code"
-  echo "  ./setup.sh codex ~/my-project  # Install to ~/my-project for Codex"
-  echo "  ./setup.sh all .               # Install for all platforms"
-  exit 1
-}
-
-[ -z "$PLATFORM" ] && usage
-echo "MIGRATION NOTICE (2026-07-14): setup.sh remains a 0.x compatibility wrapper; prefer adlc-skill for transactional Claude Code and Codex installs." >&2
 
 install_runtime() {
   local bin_dir="$TARGET/.adlc/bin"
@@ -82,304 +56,337 @@ SH
   echo "  ✓ ADLC runtime wrapper installed to .adlc/bin/adlc"
 }
 
-sync_skills() {
-  local dest="$1"
-  echo "  Syncing $SOURCE_SKILL_COUNT skills → $dest"
-  mkdir -p "$dest"
-  local manifest="$dest/.adlc-skill-manifest"
-  local tmp_manifest="$manifest.tmp"
-  local copied=0
-  local unchanged=0
-  local pruned=0
-  : > "$tmp_manifest"
-  for skill_dir in "$ADLC_DIR"/skills/*/; do
-    skill_name="$(basename "$skill_dir")"
-    source_file="$skill_dir/SKILL.md"
-    dest_file="$dest/$skill_name/SKILL.md"
-    source_hash="$(skill_digest "$source_file")"
-    mkdir -p "$dest/$skill_name"
-    if [ ! -f "$dest_file" ] || [ "$(skill_digest "$dest_file")" != "$source_hash" ]; then
-      cp "$source_file" "$dest_file"
-      copied=$((copied + 1))
-    else
-      unchanged=$((unchanged + 1))
+# A pre-MIG009 setup manifest is proof that setup.sh owned the listed path. We
+# remove only byte-identical managed files; drift blocks migration so user work
+# is never silently deleted.
+preflight_manifest_prune() {
+  local manifest="$1"
+  local base="$2"
+  local suffix="$3"
+  [ -f "$manifest" ] || return 0
+  local recorded_hash name path actual_hash
+  while read -r recorded_hash name; do
+    [ -n "$name" ] || continue
+    path="$base/$name$suffix"
+    [ -e "$path" ] || continue
+    actual_hash="$(skill_digest "$path")"
+    if [ "$actual_hash" != "$recorded_hash" ]; then
+      echo "  ✗ legacy managed path has local changes: ${path#$TARGET/}" >&2
+      echo "    Move or reconcile it, then rerun setup.sh; nothing will be pruned." >&2
+      return 1
     fi
-    printf '%s  %s\n' "$source_hash" "$skill_name" >> "$tmp_manifest"
-  done
-  if [ -f "$manifest" ]; then
-    while read -r _ skill_name; do
-      [ -n "$skill_name" ] || continue
-      if ! awk -v name="$skill_name" '$2 == name { found = 1 } END { exit found ? 0 : 1 }' "$tmp_manifest"; then
-        rm -rf "$dest/$skill_name"
-        pruned=$((pruned + 1))
-      fi
-    done < "$manifest"
-  fi
-  mv "$tmp_manifest" "$manifest"
-  echo "  ✓ $SOURCE_SKILL_COUNT skills installed ($copied updated, $unchanged unchanged, $pruned pruned)"
-  verify_skills "$dest"
+  done < "$manifest"
 }
 
-verify_skills() {
-  local dest="$1"
-  local manifest="$dest/.adlc-skill-manifest"
-  local failures=0
-  local verified=0
-  local source_file
-  local source_hash
-  local dest_file
-  local dest_hash
-  local skill_dir
-  local skill_name
-  echo "  Verifying $SOURCE_SKILL_COUNT skill digests → $dest"
-  for skill_dir in "$ADLC_DIR"/skills/*/; do
-    skill_name="$(basename "$skill_dir")"
-    source_file="$skill_dir/SKILL.md"
-    dest_file="$dest/$skill_name/SKILL.md"
-    if [ ! -f "$dest_file" ]; then
-      echo "  ✗ missing skill: $skill_name"
-      failures=$((failures + 1))
-      continue
-    fi
-    source_hash="$(skill_digest "$source_file")"
-    dest_hash="$(skill_digest "$dest_file")"
-    if [ "$dest_hash" != "$source_hash" ]; then
-      echo "  ✗ digest mismatch: $skill_name"
-      failures=$((failures + 1))
-    else
-      verified=$((verified + 1))
-    fi
-  done
-  if [ -f "$manifest" ]; then
-    while read -r recorded_hash skill_name; do
-      [ -n "$skill_name" ] || continue
-      source_file="$ADLC_DIR/skills/$skill_name/SKILL.md"
-      if [ ! -f "$source_file" ]; then
-        echo "  ✗ stale managed skill in manifest: $skill_name"
-        failures=$((failures + 1))
-        continue
+prune_manifest_paths() {
+  local manifest="$1"
+  local base="$2"
+  local suffix="$3"
+  [ -f "$manifest" ] || return 0
+  local _recorded_hash name path
+  while read -r _recorded_hash name; do
+    [ -n "$name" ] || continue
+    path="$base/$name$suffix"
+    if [ -e "$path" ]; then
+      rm -f "$path"
+      if [ "$suffix" = "/SKILL.md" ]; then
+        rmdir "$base/$name" 2>/dev/null || true
       fi
-      source_hash="$(skill_digest "$source_file")"
-      if [ "$recorded_hash" != "$source_hash" ]; then
-        echo "  ✗ stale manifest digest: $skill_name"
-        failures=$((failures + 1))
-      fi
-    done < "$manifest"
+    fi
+  done < "$manifest"
+  rm -f "$manifest"
+}
+
+preflight_known_legacy_files() {
+  local layout="$1"
+  local source path name
+  case "$layout" in
+    cursor)
+      for source in "$ADLC_DIR"/skills/*/SKILL.md; do
+        name="$(basename "$(dirname "$source")")"
+        path="$TARGET/.cursor/rules/adlc-$name.mdc"
+        [ ! -e "$path" ] || [ "$(skill_digest "$path")" = "$(skill_digest "$source")" ] || {
+          echo "  ✗ legacy Cursor rule has local changes: ${path#$TARGET/}" >&2; return 1;
+        }
+      done
+      for source in "$ADLC_DIR"/agents/*.md; do
+        name="$(basename "$source" .md)"
+        path="$TARGET/.cursor/rules/adlc-agent-$name.mdc"
+        [ ! -e "$path" ] || [ "$(skill_digest "$path")" = "$(skill_digest "$source")" ] || {
+          echo "  ✗ legacy Cursor agent rule has local changes: ${path#$TARGET/}" >&2; return 1;
+        }
+      done
+      ;;
+    factory)
+      for source in "$ADLC_DIR"/skills/*/SKILL.md; do
+        name="$(basename "$(dirname "$source")")"
+        path="$TARGET/.factory/docs/skills/adlc-$name.md"
+        [ ! -e "$path" ] || [ "$(skill_digest "$path")" = "$(skill_digest "$source")" ] || {
+          echo "  ✗ legacy Factory skill doc has local changes: ${path#$TARGET/}" >&2; return 1;
+        }
+      done
+      for source in "$ADLC_DIR"/agents/*.md; do
+        name="$(basename "$source" .md)"
+        path="$TARGET/.factory/droids/adlc-$name.md"
+        [ ! -e "$path" ] || [ "$(skill_digest "$path")" = "$(skill_digest "$source")" ] || {
+          echo "  ✗ legacy Factory droid has local changes: ${path#$TARGET/}" >&2; return 1;
+        }
+      done
+      for source in "$ADLC_DIR"/platform/factory/droids/*.yaml; do
+        [ -f "$source" ] || continue
+        path="$TARGET/.factory/droids/$(basename "$source")"
+        [ ! -e "$path" ] || [ "$(skill_digest "$path")" = "$(skill_digest "$source")" ] || {
+          echo "  ✗ legacy Factory droid has local changes: ${path#$TARGET/}" >&2; return 1;
+        }
+      done
+      ;;
+  esac
+}
+
+prune_known_legacy_files() {
+  local layout="$1"
+  local source path name
+  case "$layout" in
+    cursor)
+      for source in "$ADLC_DIR"/skills/*/SKILL.md; do
+        name="$(basename "$(dirname "$source")")"
+        path="$TARGET/.cursor/rules/adlc-$name.mdc"
+        [ ! -e "$path" ] || rm -f "$path"
+      done
+      for source in "$ADLC_DIR"/agents/*.md; do
+        name="$(basename "$source" .md)"
+        path="$TARGET/.cursor/rules/adlc-agent-$name.mdc"
+        [ ! -e "$path" ] || rm -f "$path"
+      done
+      ;;
+    factory)
+      for source in "$ADLC_DIR"/skills/*/SKILL.md; do
+        name="$(basename "$(dirname "$source")")"
+        path="$TARGET/.factory/docs/skills/adlc-$name.md"
+        [ ! -e "$path" ] || rm -f "$path"
+      done
+      for source in "$ADLC_DIR"/agents/*.md; do
+        name="$(basename "$source" .md)"
+        path="$TARGET/.factory/droids/adlc-$name.md"
+        [ ! -e "$path" ] || rm -f "$path"
+      done
+      for source in "$ADLC_DIR"/platform/factory/droids/*.yaml; do
+        [ -f "$source" ] || continue
+        path="$TARGET/.factory/droids/$(basename "$source")"
+        [ ! -e "$path" ] || rm -f "$path"
+      done
+      ;;
+  esac
+}
+
+lifecycle_public_skill() {
+  local provider="$1"
+  local skill_root agent_root operation
+  case "$provider" in
+    claude) skill_root="$TARGET/.claude/skills"; agent_root="$TARGET/.claude/agents" ;;
+    codex) skill_root="$TARGET/.agents/skills"; agent_root="" ;;
+  esac
+  preflight_manifest_prune "$skill_root/.adlc-skill-manifest" "$skill_root" "/SKILL.md"
+  if [ -n "$agent_root" ]; then
+    preflight_manifest_prune "$agent_root/.adlc-agent-manifest" "$agent_root" ""
   fi
-  if [ "$failures" -ne 0 ]; then
-    echo "  ✗ skill verification failed: $failures issue(s)"
+  operation=install
+  [ ! -f "$TARGET/.adlc/install-manifests/$provider.json" ] || operation=update
+  local lifecycle_output
+  if ! lifecycle_output="$(PYTHONPATH="$ADLC_DIR/scripts${PYTHONPATH:+:$PYTHONPATH}" \
+    python3 -m adlc_runtime.install "$operation" \
+      --provider "$provider" --target "$TARGET" --source "$ADLC_DIR/skill" \
+      --source-version "setup-compat-2026-07-14")"; then
+    printf '%s\n' "$lifecycle_output" >&2
     return 1
   fi
-  echo "  ✓ $verified skill digests verified"
-}
-
-sync_agents() {
-  local dest="$1"
-  local manifest="$dest/.adlc-agent-manifest"
-  local tmp_manifest="$manifest.tmp"
-  local copied=0
-  local pruned=0
-  local name source_hash dest_file
-
-  mkdir -p "$dest"
-  : > "$tmp_manifest"
-  for agent in "$ADLC_DIR"/agents/*.md; do
-    name="$(basename "$agent")"
-    case "$name" in
-      ADLC-BUILD-BRIEF-AGENT.md|PM-PRD-AGENT.md) continue ;;
-    esac
-    source_hash="$(skill_digest "$agent")"
-    dest_file="$dest/$name"
-    if [ ! -f "$dest_file" ] || [ "$(skill_digest "$dest_file")" != "$source_hash" ]; then
-      cp "$agent" "$dest_file"
-      copied=$((copied + 1))
-    fi
-    printf '%s  %s\n' "$source_hash" "$name" >> "$tmp_manifest"
-  done
-  if [ -f "$manifest" ]; then
-    while read -r _ name; do
-      [ -n "$name" ] || continue
-      if ! awk -v candidate="$name" '$2 == candidate { found = 1 } END { exit found ? 0 : 1 }' "$tmp_manifest"; then
-        rm -f "$dest/$name"
-        pruned=$((pruned + 1))
-      fi
-    done < "$manifest"
+  prune_manifest_paths "$skill_root/.adlc-skill-manifest" "$skill_root" "/SKILL.md"
+  if [ -n "$agent_root" ]; then
+    prune_manifest_paths "$agent_root/.adlc-agent-manifest" "$agent_root" ""
+    rmdir "$agent_root" 2>/dev/null || true
   fi
-  mv "$tmp_manifest" "$manifest"
-  echo "  ✓ $INSTALLABLE_AGENT_COUNT installable agents synced ($copied updated, $pruned pruned)"
-  verify_agents "$dest"
+  echo "  ✓ one canonical adlc skill installed"
 }
 
-verify_agents() {
-  local dest="$1"
-  local manifest="$dest/.adlc-agent-manifest"
-  local failures=0
-  local verified=0
-  local agent name source_hash dest_hash recorded_hash
+compile_compat_bundle() {
+  local output="$1"
+  local temp
+  temp="$(mktemp -d)"
+  PYTHONPATH="$ADLC_DIR/scripts${PYTHONPATH:+:$PYTHONPATH}" \
+    python3 -m adlc_runtime.install compile --provider claude \
+      --source "$ADLC_DIR/skill" --output "$temp" >/dev/null
+  mkdir -p "$(dirname "$output")"
+  rm -rf "$output"
+  cp -R "$temp/claude/adlc" "$output"
+  rm -rf "$temp"
+}
 
-  for agent in "$ADLC_DIR"/agents/*.md; do
-    name="$(basename "$agent")"
-    case "$name" in
-      ADLC-BUILD-BRIEF-AGENT.md|PM-PRD-AGENT.md) continue ;;
-    esac
-    if [ ! -f "$dest/$name" ]; then
-      echo "  ✗ missing agent: $name"
-      failures=$((failures + 1))
-      continue
-    fi
-    source_hash="$(skill_digest "$agent")"
-    dest_hash="$(skill_digest "$dest/$name")"
-    if [ "$source_hash" != "$dest_hash" ]; then
-      echo "  ✗ digest mismatch: $name"
-      failures=$((failures + 1))
-    else
-      verified=$((verified + 1))
-    fi
-  done
+compat_manifest_path() {
+  printf '%s/.adlc/compat-manifests/%s.manifest\n' "$TARGET" "$1"
+}
+
+preflight_compat_install() {
+  local provider="$1"
+  shift
+  local manifest path relative recorded_hash actual_hash actual_count=0 recorded_count=0
+  manifest="$(compat_manifest_path "$provider")"
   if [ ! -f "$manifest" ]; then
-    echo "  ✗ missing agent digest manifest"
-    failures=$((failures + 1))
-  else
-    while read -r recorded_hash name; do
-      [ -n "$name" ] || continue
-      agent="$ADLC_DIR/agents/$name"
-      if [ ! -f "$agent" ] || [ "$recorded_hash" != "$(skill_digest "$agent")" ]; then
-        echo "  ✗ stale agent manifest digest: $name"
-        failures=$((failures + 1))
+    for path in "$@"; do
+      if [ -e "$path" ] || [ -L "$path" ]; then
+        echo "  ✗ unmanaged canonical $provider path already exists: ${path#$TARGET/}" >&2
+        echo "    Move it or adopt it explicitly before rerunning setup.sh." >&2
+        return 1
       fi
-    done < "$manifest"
+    done
+    return 0
   fi
-  if [ "$failures" -ne 0 ]; then
-    echo "  ✗ agent verification failed: $failures issue(s)"
+  while read -r recorded_hash relative; do
+    [ -n "$relative" ] || continue
+    path="$TARGET/$relative"
+    if [ ! -f "$path" ]; then
+      echo "  ✗ managed canonical $provider path is missing: $relative" >&2
+      return 1
+    fi
+    actual_hash="$(skill_digest "$path")"
+    if [ "$actual_hash" != "$recorded_hash" ]; then
+      echo "  ✗ managed canonical $provider path has drifted: $relative" >&2
+      echo "    Reconcile it before rerunning setup.sh; local content was not overwritten." >&2
+      return 1
+    fi
+    recorded_count=$((recorded_count + 1))
+  done < "$manifest"
+  for path in "$@"; do
+    if [ -f "$path" ]; then
+      actual_count=$((actual_count + 1))
+    elif [ -d "$path" ]; then
+      actual_count=$((actual_count + $(find "$path" -type f | wc -l | tr -d ' ')))
+    fi
+  done
+  if [ "$actual_count" -ne "$recorded_count" ]; then
+    echo "  ✗ managed canonical $provider surface contains untracked files" >&2
+    echo "    Reconcile it before rerunning setup.sh; local content was not overwritten." >&2
     return 1
   fi
-  echo "  ✓ $verified agent digests verified"
+}
+
+write_compat_manifest() {
+  local provider="$1"
+  shift
+  local manifest temporary path file relative
+  manifest="$(compat_manifest_path "$provider")"
+  mkdir -p "$(dirname "$manifest")"
+  temporary="$manifest.tmp"
+  : > "$temporary"
+  for path in "$@"; do
+    if [ -f "$path" ]; then
+      relative="${path#$TARGET/}"
+      printf '%s  %s\n' "$(skill_digest "$path")" "$relative" >> "$temporary"
+    elif [ -d "$path" ]; then
+      while IFS= read -r file; do
+        relative="${file#$TARGET/}"
+        printf '%s  %s\n' "$(skill_digest "$file")" "$relative" >> "$temporary"
+      done < <(find "$path" -type f | sort)
+    fi
+  done
+  sort -o "$temporary" "$temporary"
+  mv "$temporary" "$manifest"
+}
+
+preflight_legacy_antigravity_agents() {
+  local path="$TARGET/agents.md"
+  local actual_hash codex_hash
+  [ -e "$path" ] || return 0
+  actual_hash="$(skill_digest "$path")"
+  codex_hash="$(skill_digest "$ADLC_DIR/platform/AGENTS.md")"
+  if [ "$actual_hash" = "$LEGACY_ANTIGRAVITY_AGENTS_SHA256" ]; then
+    return 0
+  fi
+  if [ "$actual_hash" = "$codex_hash" ] \
+    && [ -f "$TARGET/.adlc/install-manifests/codex.json" ] \
+    && [ -f "$TARGET/.agents/skills/adlc/SKILL.md" ]; then
+    return 0
+  fi
+  echo "  ✗ legacy Antigravity agents.md has local changes or unknown ownership: agents.md" >&2
+  echo "    Move or reconcile it before rerunning setup.sh; it was not deleted." >&2
+  return 1
+}
+
+prune_legacy_antigravity_agents() {
+  local path="$TARGET/agents.md"
+  [ ! -e "$path" ] || [ "$(skill_digest "$path")" != "$LEGACY_ANTIGRAVITY_AGENTS_SHA256" ] || rm -f "$path"
 }
 
 install_claude() {
   echo "→ Claude Code"
-
-  # Skills
-  sync_skills "$TARGET/.claude/skills"
-
-  # Agents (subagents)
-  sync_agents "$TARGET/.claude/agents"
-
-  # CLAUDE.md instructions
+  lifecycle_public_skill claude
   cp "$ADLC_DIR/platform/CLAUDE.md" "$TARGET/CLAUDE.md"
-
-  # Workflow files
+  mkdir -p "$TARGET/.claude"
   cp "$ADLC_DIR/WORKFLOW.dot" "$TARGET/.claude/WORKFLOW.dot"
-
-  echo "  ✓ Claude Code setup complete"
 }
 
 install_codex() {
-  echo "→ Codex (OpenAI)"
-
-  # Skills
-  sync_skills "$TARGET/.agents/skills"
-
-  # AGENTS.md instructions
+  echo "→ Codex"
+  lifecycle_public_skill codex
   cp "$ADLC_DIR/platform/AGENTS.md" "$TARGET/AGENTS.md"
-
-  echo "  ✓ Codex setup complete"
 }
 
 install_cursor() {
   echo "→ Cursor"
-
-  # Rules (skills as .mdc files)
+  preflight_known_legacy_files cursor
+  preflight_compat_install cursor \
+    "$TARGET/.adlc/provider-bundles/cursor/adlc" \
+    "$TARGET/.cursor/rules/adlc.mdc"
+  compile_compat_bundle "$TARGET/.adlc/provider-bundles/cursor/adlc"
   mkdir -p "$TARGET/.cursor/rules"
-  for skill_dir in "$ADLC_DIR"/skills/*/; do
-    skill_name="$(basename "$skill_dir")"
-    # Convert SKILL.md to .mdc format
-    # Cursor uses description + globs in frontmatter
-    cp "$skill_dir/SKILL.md" "$TARGET/.cursor/rules/adlc-${skill_name}.mdc"
-  done
-  echo "  ✓ $SOURCE_SKILL_COUNT skills installed as .cursor/rules/*.mdc"
-
-  # Agent rules
-  for agent in "$ADLC_DIR"/agents/*.md; do
-    name="$(basename "$agent" .md)"
-    [[ "$name" == "ADLC-BUILD-BRIEF-AGENT" ]] && continue
-    [[ "$name" == "PM-PRD-AGENT" ]] && continue
-    cp "$agent" "$TARGET/.cursor/rules/adlc-agent-${name}.mdc"
-  done
-  echo "  ✓ $INSTALLABLE_AGENT_COUNT installable agent rules installed"
-
-  echo "  ✓ Cursor setup complete"
+  cp "$TARGET/.adlc/provider-bundles/cursor/adlc/SKILL.md" "$TARGET/.cursor/rules/adlc.mdc"
+  prune_known_legacy_files cursor
+  write_compat_manifest cursor \
+    "$TARGET/.adlc/provider-bundles/cursor/adlc" \
+    "$TARGET/.cursor/rules/adlc.mdc"
+  echo "  ✓ one canonical adlc rule installed"
 }
 
 install_antigravity() {
   echo "→ Antigravity"
-
-  # Skills
-  sync_skills "$TARGET/.agent/skills"
-
-  # agents.md (persona definitions)
-  if [ -f "$ADLC_DIR/platform/agents-antigravity.md" ]; then
-    cp "$ADLC_DIR/platform/agents-antigravity.md" "$TARGET/agents.md"
-  fi
-
-  echo "  ✓ Antigravity setup complete"
+  preflight_manifest_prune "$TARGET/.agent/skills/.adlc-skill-manifest" "$TARGET/.agent/skills" "/SKILL.md"
+  preflight_legacy_antigravity_agents
+  preflight_compat_install antigravity "$TARGET/.agent/skills/adlc"
+  compile_compat_bundle "$TARGET/.agent/skills/adlc"
+  prune_manifest_paths "$TARGET/.agent/skills/.adlc-skill-manifest" "$TARGET/.agent/skills" "/SKILL.md"
+  prune_legacy_antigravity_agents
+  write_compat_manifest antigravity "$TARGET/.agent/skills/adlc"
+  echo "  ✓ one canonical adlc skill installed"
 }
 
 install_factory() {
   echo "→ Factory"
-
-  # Droid YAML configs (Factory-native droid definitions)
-  mkdir -p "$TARGET/.factory/droids"
-  local droid_count=0
-  if [ -d "$ADLC_DIR/platform/factory/droids" ]; then
-    for droid in "$ADLC_DIR"/platform/factory/droids/*.yaml; do
-      [ -f "$droid" ] || continue
-      cp "$droid" "$TARGET/.factory/droids/$(basename "$droid")"
-      droid_count=$((droid_count + 1))
-    done
-  fi
-  echo "  ✓ $droid_count droid configs installed to .factory/droids/"
-
-  # Agent markdown files as droids (for agents without YAML configs)
-  for agent in "$ADLC_DIR"/agents/*.md; do
-    name="$(basename "$agent" .md)"
-    [[ "$name" == "ADLC-BUILD-BRIEF-AGENT" ]] && continue
-    [[ "$name" == "PM-PRD-AGENT" ]] && continue
-    cp "$agent" "$TARGET/.factory/droids/adlc-${name}.md"
-  done
-  echo "  ✓ $INSTALLABLE_AGENT_COUNT agent configs installed to .factory/droids/"
-
-  # Skills as docs (Factory's doc injection path)
+  preflight_known_legacy_files factory
+  preflight_compat_install factory \
+    "$TARGET/.adlc/provider-bundles/factory/adlc" \
+    "$TARGET/.factory/docs/skills/adlc.md"
+  compile_compat_bundle "$TARGET/.adlc/provider-bundles/factory/adlc"
   mkdir -p "$TARGET/.factory/docs/skills"
-  for skill_dir in "$ADLC_DIR"/skills/*/; do
-    skill_name="$(basename "$skill_dir")"
-    cp "$skill_dir/SKILL.md" "$TARGET/.factory/docs/skills/adlc-${skill_name}.md"
-  done
-  echo "  ✓ $SOURCE_SKILL_COUNT skill docs installed to .factory/docs/skills/"
-
-  # AGENTS.md (Factory-specific platform instructions)
+  cp "$TARGET/.adlc/provider-bundles/factory/adlc/SKILL.md" "$TARGET/.factory/docs/skills/adlc.md"
+  prune_known_legacy_files factory
   if [ -f "$ADLC_DIR/platform/factory/AGENTS.md" ]; then
     cp "$ADLC_DIR/platform/factory/AGENTS.md" "$TARGET/AGENTS.md"
   else
     cp "$ADLC_DIR/platform/AGENTS.md" "$TARGET/AGENTS.md"
   fi
-
-  # MCP server hints
-  echo "  ℹ  Recommended MCP servers for full integration skill support:"
-  echo "     - GitHub MCP (built-in) for github-issue-creation"
-  echo "     - Atlassian MCP for jira-ticket-creation, confluence-decomposition"
-  echo "     - Slack MCP for slack-orchestration"
-  echo "     - Grafana MCP for grafana-observability"
-
-  echo "  ✓ Factory setup complete"
+  write_compat_manifest factory \
+    "$TARGET/.adlc/provider-bundles/factory/adlc" \
+    "$TARGET/.factory/docs/skills/adlc.md"
+  echo "  ✓ one canonical adlc document installed"
 }
 
 verify_claude() {
   INSTALL_RUNTIME=0
-  echo "→ Claude Code skill verification"
-  verify_skills "$TARGET/.claude/skills"
-  verify_agents "$TARGET/.claude/agents"
-  echo "  ✓ Claude Code skills and agents match ADLC source"
+  PYTHONPATH="$ADLC_DIR/scripts${PYTHONPATH:+:$PYTHONPATH}" \
+    python3 -m adlc_runtime.install doctor --provider claude --target "$TARGET" >/dev/null
+  [ -f "$TARGET/.claude/skills/adlc/SKILL.md" ]
+  [ "$(find "$TARGET/.claude/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')" -eq 1 ]
+  [ ! -d "$TARGET/.claude/agents" ] || [ -z "$(find "$TARGET/.claude/agents" -type f -name '*.md' -print -quit)" ]
+  echo "  ✓ canonical Claude Code install verified"
 }
 
 echo "ADLC Setup"
@@ -388,11 +395,11 @@ echo "Target: $TARGET"
 echo ""
 
 case "$PLATFORM" in
-  claude)       install_claude ;;
-  codex)        install_codex ;;
-  cursor)       install_cursor ;;
-  antigravity)  install_antigravity ;;
-  factory)      install_factory ;;
+  claude) install_claude ;;
+  codex) install_codex ;;
+  cursor) install_cursor ;;
+  antigravity) install_antigravity ;;
+  factory) install_factory ;;
   verify-claude) verify_claude ;;
   all)
     install_claude
@@ -409,4 +416,4 @@ if [ "$INSTALL_RUNTIME" -eq 1 ]; then
 fi
 
 echo ""
-echo "Done. See README.md for usage instructions."
+echo "Done. Use /adlc <command>; see skill/reference/ for the dated migration map."

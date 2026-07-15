@@ -28,7 +28,7 @@ Read-only by default; local repair requires explicit mutation authority.
 Require approval before scans that access credentials, external systems, or destructive test environments.
 
 ## Compatibility map
-Kernel: `bin/adlc convention-scan`, `bin/adlc slop-gate`; specialist legacy skills remain internal packs.
+Kernel: `bin/adlc convention-scan`, `bin/adlc slop-gate`. Load `register-security.md`, `register-release.md`, or `register-engineering.md` only when its applicability signal matches the scoped change.
 
 ## Troubleshooting
 If applicability is unclear, mark the gate unresolved rather than silently skipping it.

@@ -1,43 +1,14 @@
-# ADLC — Agentic Development Lifecycle
+# ADLC — Codex
 
-This project uses the ADLC framework for AI-assisted development.
+This repository has one public ADLC skill at `.agents/skills/adlc/SKILL.md`. Use `$adlc` or `/adlc <command>` and load only its selected command reference. Legacy skill directories and agent files are internal source evidence; they are not peer installed capabilities.
 
-## Pipeline
+## Working agreements
 
-The ADLC pipeline converts feature descriptions into production code:
+- Read repository instructions and Graphify maps before broad source discovery when present.
+- Express acceptance criteria with Given/When/Then and preserve the declared verifier.
+- Shape ambiguous work before mutation; do not infer product policy from missing context.
+- Keep internal packs applicability-loaded and context bounded.
+- Type 1 decisions, publishing, merge, release, deploy, and external communication require human approval.
+- Run the exact verifier and report paths, results, limitations, and unresolved gates.
 
-```
-Triage → Compound Preflight → Graph Research → Plan ↔ Review → Intent Approval → Scaffold → Tests → Context → Code ↔ Review/Fix → Conditional Security → QA → Conditional Quality Gates → PR → Learning Capture → Engineer Review
-```
-
-## Working Agreements
-
-- Every acceptance criterion uses Given/When/Then format
-- Every coding task must be self-contained (zero-read principle: all context inlined)
-- Graphify-backed research is the default repo map when `graphify-out/` exists; Beads is optional task memory, not architecture evidence
-- `docs/solutions/` is the optional compound learning store; consume compact learning refs before research and capture only verified reusable learnings after PR prep
-- Code-changing tasks should carry construct-map refs, paved-road refs or `no_paved_road_found`, intent refs, and production invariant coverage when the blast radius is medium or higher
-- Generated-output tasks should carry `slop_quality_gate`: eval cases, metrics, threshold, regression tolerance when available, failure action, and case-promotion sources
-- Medium+ blast-radius changes need comprehension context: graph evidence, module manifest, behavioral contracts, or decision-log references
-- Type 1 decisions (irreversible: data models, public APIs, auth) always escalate to human
-- Type 2 decisions (reversible: implementation, internal APIs) decide and document rationale
-- Agents emit structured labels: `lgtm`, `revise`, `escalate`, `pass`, `fail`
-- Parallel tasks explicitly flagged — serial execution of independent tasks is a velocity failure
-- No TODO/FIXME/PLACEHOLDER in shipped code
-- Security review runs only when the applicability manifest marks a security-relevant surface active
-
-## Build & Test
-
-- Run tests after every code change
-- TDD enforcement: RED → GREEN → REFACTOR per acceptance criterion
-- Max 2 fix attempts before escalating
-- Max 3 plan review iterations before escalating
-
-## Skills Available
-
-Injectable skills in the skills directory cover:
-- **Engineering**: graph-research, codebase-research, paved-road-registry, dark-code-audit, context-layers, comprehension-gate, eval-council, codegen-context, tdd-enforcement, systematic-debugging, architecture-pattern, qa-test-data, ci-cd-pipeline, learning-capture, learning-refresh
-- **Quality**: stop-slop, slop-judge, feedback-loop, test-strength
-- **Security**: appsec-threat-model, llm-security, agentic-security, api-security, infra-security
-- **Product**: prd-generation, ux-flow-builder, figma-integration, gong-customer-evidence
-- **Integrations**: jira-ticket-creation, confluence-decomposition, slack-orchestration, grafana-observability, incident-runbook
+The local `.adlc/bin/adlc` wrapper exposes deterministic kernel commands. Passing installation verification establishes bundle integrity only.

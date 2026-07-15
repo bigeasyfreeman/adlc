@@ -28,7 +28,7 @@ Local planning artifacts only; no product code or external tracker mutation.
 Human intent validation is required before Build may mutate.
 
 ## Compatibility map
-Wraps PRD, goal-prompt, and Build Brief agents; kernel: `bin/adlc goal-prompt`, `bin/adlc validate-artifact`.
+Wraps PRD, goal-prompt, and Build Brief agents; kernel: `bin/adlc goal-prompt`, `bin/adlc validate-artifact`. Load `register-engineering.md` for repository research or architecture evidence and `register-integrations.md` only when an explicitly named external source is required; Shape never writes externally.
 
 ## Troubleshooting
 If intent stays ambiguous, narrow the smallest reversible slice and ask one blocking question.

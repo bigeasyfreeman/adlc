@@ -28,7 +28,7 @@ Local mutation begins only after reproduction evidence; external effects require
 Require approval for destructive recovery, privileged access, external writes, publish, merge, or deploy.
 
 ## Compatibility map
-Loop: `docs/loop-library/public-fix.json`; wraps systematic-debugging, fix-loop, and fix-bug; kernel: `bin/adlc ci`, `bin/adlc completion-audit`.
+Loop: `docs/loop-library/public-fix.json`; wraps systematic-debugging, fix-loop, and fix-bug; kernel: `bin/adlc ci`, `bin/adlc completion-audit`. Load only the matching row of `register-engineering.md`; add `register-security.md` or `register-release.md` only when the reproduced defect crosses those boundaries.
 
 ## Troubleshooting
 If asked to skip tests, stop honestly: reproduction and verifier evidence are mandatory.

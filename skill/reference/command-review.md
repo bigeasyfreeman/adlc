@@ -28,7 +28,7 @@ Strictly read-only in the target: do not edit, commit, push, comment, label, or 
 Invoke a separate `/adlc fix` or `/adlc build` before any remediation mutation.
 
 ## Compatibility map
-Loop: `docs/loop-library/public-review.json`; kernel: `bin/adlc completion-audit`, `bin/adlc pr-hygiene-scan`.
+Loop: `docs/loop-library/public-review.json`; kernel: `bin/adlc completion-audit`, `bin/adlc pr-hygiene-scan`. Load the applicable review row from `register-engineering.md`, `register-security.md`, or `register-release.md`; do not load unrelated registers.
 
 ## Troubleshooting
 If asked to “review and clean up,” finish the review only and offer the separate Fix command.
