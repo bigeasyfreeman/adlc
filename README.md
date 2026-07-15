@@ -98,6 +98,35 @@ Read the [security and privacy boundary](docs/trust/security-privacy.md), [secur
 
 The public benchmark preserves three live Codex runs plus an independent three-run replay, with exact red-before-green verification, same-session interrupt/resume, one-file scope, distinct read-only review, and completion-audit evidence. Its versioned report discloses provider/model versions, tokens, duration, marginal account cost, failures, and limitations. These proofs are scoped evidence, not proof of future behavior, market traction, compliance certification, GA readiness, or universal provider support.
 
+## Public beta candidate
+
+The 0.9.0 beta launch packet is prepared but not published. It includes the
+[technical narrative](docs/launch/technical-article.md), [five-minute demo and
+recording plan](docs/launch/demo-script.md), [local-first metric
+definitions](docs/launch/metrics.md), and [beta operating
+model](docs/launch/beta-operations.md). Every launch claim resolves to repository
+evidence, telemetry remains off, and package, GitHub Release, Pages, and launch
+communication actions remain pending human approval.
+
+Use the beta feedback issue template for sanitized product outcomes and
+friction. Do not put vulnerabilities, credentials, prompts, source code, private
+paths, or target-repository content in a public issue; use the private Security
+Advisory path instead.
+
+The beta learning funnel is intentionally local and ordered:
+
+<!-- BEGIN BETA FUNNEL -->
+1. **README visit.** Confirm that the evidence boundary and current provider row
+   match the intended use.
+2. **Install.** Complete the transactional source install shown above.
+3. **Doctor.** Run `adlc-skill doctor` and proceed only when required checks pass.
+4. **First loop.** Run the five-minute Fix path, or an eligible Build, and retain
+   its local evidence-backed terminal report.
+5. **Returning project.** Within seven days, start another eligible Build, Fix,
+   or Review in the same project; this is a local learning signal, not a
+   retention or traction claim.
+<!-- END BETA FUNNEL -->
+
 ## Documentation and community
 
 - [Documentation home](docs/index.md)
@@ -112,7 +141,7 @@ The public benchmark preserves three live Codex runs plus an independent three-r
 
 ## Status and limitations
 
-ADLC is an unreleased beta candidate. The source checkout, deterministic tests, exact Codex Fix configuration shown above, documentation-site build, and scoped live public benchmark have evidence; package publication, production docs deployment, secure release automation, and public launch remain gated work. Only released and tested configurations may graduate support labels.
+ADLC is an unreleased beta candidate. The source checkout, deterministic tests, exact Codex Fix configuration shown above, documentation-site build, scoped live public benchmark, secure release preparation, and final-form launch packet have evidence; package publication, production docs deployment, and public communication remain human-gated. Only released and tested configurations may graduate support labels.
 
 `doc_honesty_section`: This page describes the current source product and links to its evidence; it is not a release artifact or adoption proof.
 

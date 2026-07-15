@@ -1,0 +1,51 @@
+name: Beta feedback
+description: Share a sanitized ADLC beta outcome, friction point, or evidence-backed request.
+title: "[Beta]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Do not include source code, repository paths, prompts, credentials, or vulnerabilities.
+        Report vulnerabilities through the private Security Advisory link.
+  - type: input
+    id: version
+    attributes:
+      label: ADLC version or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: loop
+    attributes:
+      label: Loop or stage
+      options: [Install, Doctor, Build, Fix, Review, Resume, Evidence review, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Intended and observed outcome
+      description: Describe the engineering outcome and sanitized terminal class.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Include minimal redacted commands, verifier results, or public fixture references.
+  - type: textarea
+    id: trust
+    attributes:
+      label: Trust or workflow friction
+      description: Where did you need extra evidence or manual work?
+    validations:
+      required: true
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Submission checks
+      options:
+        - label: I removed private repository data, credentials, personal data, and absolute paths.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

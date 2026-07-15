@@ -1,0 +1,90 @@
+{
+  "contract_version": "1.0.0",
+  "status": "awaiting_human_approval",
+  "release": {
+    "version": "0.9.0",
+    "stage": "public_beta_candidate",
+    "audience": "senior engineers and hands-on engineering leads using coding agents"
+  },
+  "assets": [
+    {"kind": "technical_article", "ref": "docs/launch/technical-article.md", "status": "final_form"},
+    {"kind": "demo_and_recording_plan", "ref": "docs/launch/demo-script.md", "status": "final_form"},
+    {"kind": "beta_operations", "ref": "docs/launch/beta-operations.md", "status": "final_form"},
+    {"kind": "metric_contract", "ref": "docs/launch/metrics.md", "status": "final_form"},
+    {"kind": "release_notes", "ref": "docs/release/v0.9.0.md", "status": "final_form"}
+  ],
+  "claims": [
+    {
+      "id": "claim-evidence-bound-loops",
+      "statement": "ADLC gives a coding agent repeatable Build, Fix, and read-only Review loops whose completion claims are tied to evidence.",
+      "evidence_refs": ["README.md", "skill/loops/public-build.json", "skill/loops/public-fix.json", "skill/loops/public-review.json", "tests/skill_behavior/scenarios.json"],
+      "limitations": ["A loop can stop blocked or awaiting human approval; evidence does not guarantee future provider behavior."]
+    },
+    {
+      "id": "claim-codex-fix-beta",
+      "statement": "The exact recorded Codex Fix configuration earned a beta label from three passing runs and an independent three-run replay.",
+      "evidence_refs": ["docs/evidence/provider-conformance/support-matrix.json", "docs/evidence/benchmarks/v0.1.0/publication-attestation.json", "docs/trust/benchmark.md"],
+      "limitations": ["The label applies only to the named provider, model, harness, loop, source commit, fixture, and dimensions."]
+    },
+    {
+      "id": "claim-reproducible-candidate",
+      "statement": "The release preparation path builds the wheel and source archive twice, compares exact digests, audits dependencies, installs cleanly, and rehearses rollback before approval.",
+      "evidence_refs": ["scripts/release.py", "tests/test_release_workflow.py", "docs/release/RELEASING.md"],
+      "limitations": ["Candidate preparation is not evidence that PyPI, GitHub Release, or Pages publication succeeded."]
+    },
+    {
+      "id": "claim-local-private-metrics",
+      "statement": "Beta activation metrics are calculated locally and telemetry remains off unless an operator explicitly opts in to a future reviewed exporter.",
+      "evidence_refs": ["docs/launch/metrics.md", "README.md", "docs/trust/security-privacy.md"],
+      "limitations": ["No hosted telemetry endpoint or adoption dataset exists in this beta packet."]
+    }
+  ],
+  "communications": {
+    "release_announcement": "ADLC 0.9.0 beta packages repeatable Build, Fix, and Review loops around an existing coding agent, with a public Fix benchmark and explicit evidence and approval boundaries.",
+    "github_release_draft": "Try the five-minute Fix path, inspect the six-run benchmark bundle, and file sanitized beta feedback. This is an evidence-scoped beta, not GA.",
+    "social_draft": "A coding agent can produce a diff. ADLC 0.9.0 beta focuses on the harder question: what was actually proved? See the reproducible Fix demo and its limitations.",
+    "community_draft": "We are opening an approval-gated ADLC beta for engineers who want resumable, evidence-bound coding-agent loops. Feedback is welcome through the beta issue template.",
+    "publication_status": "pending_human_approval"
+  },
+  "funnel": [
+    {"order": 1, "stage": "readme_visit", "local_event": "readme_referral_recorded", "success": "operator starts installation", "source": "operator-local launch worksheet"},
+    {"order": 2, "stage": "install", "local_event": "install_completed", "success": "transactional install exits pass", "source": "local install manifest"},
+    {"order": 3, "stage": "doctor", "local_event": "doctor_passed", "success": "all required doctor checks pass", "source": "local doctor JSON"},
+    {"order": 4, "stage": "first_loop", "local_event": "first_loop_pr_ready", "success": "first Build or Fix reaches pr_ready with evidence", "source": "local run report"},
+    {"order": 5, "stage": "returning_project", "local_event": "returning_loop_started", "success": "same project starts another eligible loop within 7 days", "source": "local run reports"}
+  ],
+  "metrics": {
+    "ref": "docs/launch/metrics.md",
+    "calculation_location": "operator_local",
+    "telemetry_default": "off",
+    "network_endpoint": null,
+    "optional_exporter": "proposal_only_requires_separate_security_privacy_review_and_explicit_opt_in"
+  },
+  "feedback": {
+    "intake_ref": ".github/ISSUE_TEMPLATE/beta_feedback.yml",
+    "operations_ref": "docs/launch/beta-operations.md",
+    "primary_owner": "beta-duty-owner",
+    "security_owner": "security-response-owner",
+    "release_owner": "human-release-owner",
+    "response_expectations": {"severity_1_ack_hours": 4, "severity_2_ack_business_days": 1, "general_feedback_triage_business_days": 3}
+  },
+  "rollback_triggers": [
+    {"id": "secret-or-private-data", "condition": "public artifact contains a credential, private path, or private target-repository content", "action": "stop launch, remove exposure through the security process, and rotate affected credentials"},
+    {"id": "release-integrity", "condition": "published bytes or documentation do not match the approved tag and packet", "action": "stop communication, mark the release affected, and follow the release rollback runbook"},
+    {"id": "critical-regression", "condition": "a reproducible severity-1 defect affects install, approval enforcement, or evidence integrity", "action": "pause intake expansion and publish corrective guidance only after approval"},
+    {"id": "support-capacity", "condition": "severity-2 acknowledgement misses its target twice in one review week", "action": "hold cohort expansion until ownership and backlog return within bounds"}
+  ],
+  "reviews": [
+    {"kind": "product_owner", "owner": "adlc-product-owner", "status": "pending_human_review"},
+    {"kind": "security_privacy", "owner": "security-response-owner", "status": "pending_human_review"}
+  ],
+  "external_actions": [
+    {"action": "pypi_upload", "status": "pending_human_approval"},
+    {"action": "github_release", "status": "pending_human_approval"},
+    {"action": "pages_deploy", "status": "pending_human_approval"},
+    {"action": "launch_communication", "status": "pending_human_approval"}
+  ],
+  "doc_honesty_section": "This packet prepares final-form beta assets and local learning contracts; it is not evidence of publication, adoption, or external review approval.",
+  "no_overclaim": "ADLC does not claim GA, traction, universal provider support, enterprise readiness, autonomous delivery, or guaranteed future agent behavior.",
+  "limitations": ["Live behavioral evidence covers only the exact Codex Fix configuration named in the support matrix.", "Telemetry and hosted analytics are absent; beta metrics require operator-local records.", "Every package, release, Pages, and communication action remains human-approval-bound."]
+}
