@@ -19,5 +19,8 @@ versioning once a release is tagged.
 - Prepare reproducible 0.9.0 release-candidate artifacts, evidence-derived
   support claims, protected publication workflows, and rollback evidence while
   keeping every external release action human-approval-bound.
+- Add a final-form public beta launch packet, technical article, demo script,
+  local-only metrics contract, feedback intake, and evidence-driven operations
+  loop while keeping telemetry disabled and publication approval-bound.
 
 No release has been tagged yet.

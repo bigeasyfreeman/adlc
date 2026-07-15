@@ -27,6 +27,7 @@ body:
         - Skill or agent contract
         - Setup or installation
         - Documentation
+        - Beta launch or local metrics
         - Other
     validations:
       required: true

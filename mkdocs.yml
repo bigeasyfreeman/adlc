@@ -90,6 +90,11 @@ nav:
       - Skill and reference authoring: contribute/authoring.md
       - Behavioral scenarios: contribute/behavioral-scenarios.md
       - Release process: contribute/release-process.md
+  - Beta launch:
+      - Technical article: launch/technical-article.md
+      - Demo and recording plan: launch/demo-script.md
+      - Local-first metrics: launch/metrics.md
+      - Beta operations: launch/beta-operations.md
   - Release:
       - Release and rollback runbook: release/RELEASING.md
       - ADLC 0.9.0 release notes: release/v0.9.0.md
