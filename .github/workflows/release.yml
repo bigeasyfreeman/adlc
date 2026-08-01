@@ -233,7 +233,7 @@ jobs:
           python -m playwright install --with-deps chromium
           python tests/check_docs_viewports.py site docs-preview
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
       - name: Deploy packet-approved Pages artifact
@@ -333,7 +333,7 @@ jobs:
           python -m playwright install --with-deps chromium
           python tests/check_docs_viewports.py site docs-preview
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
       - name: Deploy corrected packet-approved Pages artifact
