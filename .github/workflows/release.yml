@@ -112,7 +112,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: echo "packet_sha256=$(sha256sum "release-out/$RELEASE_TAG/release-approval-packet.json" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-candidate-${{ inputs.release_tag }}
           path: release-out/${{ inputs.release_tag }}
