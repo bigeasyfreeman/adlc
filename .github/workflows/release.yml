@@ -232,7 +232,7 @@ jobs:
           python tests/check_built_docs.py site
           python -m playwright install --with-deps chromium
           python tests/check_docs_viewports.py site docs-preview
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
@@ -332,7 +332,7 @@ jobs:
           python tests/check_built_docs.py site
           python -m playwright install --with-deps chromium
           python tests/check_docs_viewports.py site docs-preview
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
