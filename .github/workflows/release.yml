@@ -57,7 +57,7 @@ jobs:
         run: |
           git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
           test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Verify GitHub Pages publication prerequisite
@@ -131,7 +131,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.release_tag }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install approval validator dependency
@@ -167,7 +167,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.release_tag }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install approval validator dependency
@@ -207,7 +207,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.release_tag }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install approval validator dependency
@@ -254,7 +254,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install approval validator dependency
